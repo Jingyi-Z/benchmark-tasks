@@ -17,5 +17,5 @@
   "reset_notes": "Nothing is consumed. Reset: let the clip close on the bare stage and put the carrier back at its start, chip up, dot at its far right corner.",
   "fidelity": "Rigid bodies throughout, simulated in PhysX at 240 Hz. The clip is a rigid bar on an ideal hinge with a linear torsion spring and a hard stop at the closed position; the real clip's bending and the spring's hysteresis are not modelled. The chip is rigid and cannot break, so pressing the jaw onto it is ruled out only by requiring the carrier centred within 3 mm (the jaw then lands at least 2 mm clear of the chip). The carrier is a plain box with friction 1.0; no adhesive, vacuum or electrostatics.",
   "scores": "Dream-1 run: 0.0; demo: 1.0",
-  "media": ""
+  "media": "M-WLBZBX"
 }
