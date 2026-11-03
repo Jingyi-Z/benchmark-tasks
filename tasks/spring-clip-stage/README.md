@@ -1,7 +1,7 @@
-# Clamp a chip carrier under a stage's spring clip
+# Clamp a chip carrier pin-1-aligned under a stage's spring clip
 
 A chip carrier lies on the table next to an inspection stage. The stage has a spring clip: pressing its thumb tab
-lifts the jaw. The carrier has to end up clamped under the jaw, centred on the stage's target square, chip up. One arm
+lifts the jaw. The carrier has to end up clamped under the jaw, centred on the stage's target square, chip up, with its pin-1 dot at the stage's red mark (it starts a quarter turn off). One arm
 holds the clip open while the other slides the carrier in.
 
 ## Files
