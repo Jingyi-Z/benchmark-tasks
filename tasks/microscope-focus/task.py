@@ -78,8 +78,8 @@ LIM = 0.10
 # Slide holder on the x carriage: the slide lies with its centre at the holder centre (STAGE_X, 0) against two back
 # posts and a left stop; a spring lever pivoting behind its right end holds a jaw over that end. Pulling the lever's
 # handle (out to the right) back swings the jaw off the slide's end.
-PIVOT = (STAGE_X + SLIDE_W / 2 + 0.006, -SLIDE_L / 2 + 0.003)
-ARM_L = 0.038  # the clamp jaw, across the slide's right end
+PIVOT = (STAGE_X + SLIDE_W / 2 + 0.012, -SLIDE_L / 2 + 0.003)
+ARM_L = 0.044  # the clamp jaw, across the slide's right end
 HANDLE_L = 0.090  # the lever's handle, out to the right, with the post at its end
 ARM_Z = PLATE_TOP0 + SLIDE_T + 0.0004  # the arm's underside, just clear of a loaded slide
 POST_R, POST_H = 0.005, 0.020
@@ -314,7 +314,7 @@ TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.15, 0.25, TOP + 0.14)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.14)
 RIGHT_ASIDE = (0.18, -0.16, TOP + 0.12)
-OPEN_TH = 0.7  # how far the holder lever is pulled (rad): enough to swing the jaw off the slide's end
+OPEN_TH = 0.95  # how far the holder lever is pulled (rad): enough to swing the jaw off the slide's end
 
 
 def W(x, y, z):
@@ -391,7 +391,7 @@ def demo():
         Waypoint(2.5, (*_push_at(0.0), POST_GRIP_Z + 0.04), FINGER_CLOSED, "above the front of the lever post"),
         Waypoint(1.0, (*_push_at(0.0), POST_GRIP_Z), FINGER_CLOSED, "down in front of the post"),
     ]
-    for th in (0.2, 0.4, OPEN_TH):
+    for th in (0.3, 0.6, OPEN_TH):
         right.append(Waypoint(0.8, (*_push_at(th), POST_GRIP_Z), FINGER_CLOSED, "push the lever back", th))
     t_open = _dur(right)
     left = [
@@ -412,7 +412,7 @@ def demo():
     t_left_clear = _dur(left) - 1.0
     right.append(Waypoint(max(0.3, t_left_clear - _dur(right)), (*_push_at(OPEN_TH), POST_GRIP_Z), FINGER_CLOSED,
                           "hold the lever back until the left arm is clear", OPEN_TH))
-    for th in (0.4, 0.2, 0.0):
+    for th in (0.6, 0.3, 0.0):
         right.append(Waypoint(0.8, (*_push_at(th), POST_GRIP_Z), FINGER_CLOSED, "ease off: the jaw closes", th))
     right += [
         Waypoint(0.6, (*_push_at(-0.15), POST_GRIP_Z), FINGER_CLOSED, "clear of the post"),
