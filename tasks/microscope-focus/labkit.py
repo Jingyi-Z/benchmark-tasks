@@ -49,7 +49,9 @@ from yam_arena.task_file import Box, ObjectState
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import arena_assets_fix  # noqa: E402,F401
 
-__all__ = ["Joint", "Part", "PartState", "part", "Model", "JointSet", "model", "on_step", "on_reset", "env", "install"]
+VISUAL_ONLY: set = set()  # colours of shapes that are drawn without a collider (a patch of light, say)
+
+__all__ = ["VISUAL_ONLY", "Joint", "Part", "PartState", "part", "Model", "JointSet", "model", "on_step", "on_reset", "env", "install"]
 
 Color = tuple[float, float, float]
 _AXES = ("X", "Y", "Z")
@@ -333,6 +335,9 @@ def _author(prim_path: str, cfg, translation=None, orientation=None, **kwargs):
         return prim
 
     def collide(prim, color):
+        if tuple(color) in VISUAL_ONLY:  # drawn, but nothing touches it
+            bind_visual_material(str(prim.GetPath()), look(color), stage=stage)
+            return
         UsdPhysics.CollisionAPI.Apply(prim)
         pc = PhysxSchema.PhysxCollisionAPI.Apply(prim)
         pc.CreateContactOffsetAttr(CONTACT_OFFSET)

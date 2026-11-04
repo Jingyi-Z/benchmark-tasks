@@ -20,7 +20,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from labkit import Joint, on_reset, on_step, part  # noqa: E402
+from labkit import VISUAL_ONLY, Joint, on_reset, on_step, part  # noqa: E402
 import yam_arena.demo as _demo  # noqa: E402
 from yam_arena.constants import FINGER_CLOSED, FINGER_OPEN  # noqa: E402
 from yam_arena.demo import Waypoint  # noqa: E402
@@ -39,6 +39,9 @@ GLASS = (0.80, 0.90, 0.95)
 SPECIMEN = (0.55, 0.20, 0.45)
 WHITE = (0.97, 0.97, 0.97)
 RED = (0.85, 0.12, 0.12)
+LIGHT = (1.0, 0.98, 0.80)  # the illuminator's spot of light
+VISUAL_ONLY.add(LIGHT)
+SPOT_R = 0.0035  # the light spot: 7 mm across, on the objective's axis
 
 # -- the microscope (fixed). Frame: origin on the table under the stand, x away from the robots, y to their left. -----
 MX, MY = 0.34, 0.06
@@ -115,6 +118,9 @@ STAGE = Joint(  # the focus slide: carries the stage, the drive bracket and knob
         ((STAGE_X, 0.0, PLATE_TOP0 - 0.0135), (0.12, 0.15, 0.005), DARK),  # fixed lower plate
         ((STAGE_X - 0.075, 0.1275, DKNOB_TOP - DKNOB_H - 0.006), (0.03, 0.105, 0.012), DARK),  # drive bracket, from under the stage
     ],
+    # The illuminator's light, from below through the stage, shows as a spot on the slide on the objective's axis. It
+    # rises with the stage (the condenser does) and is only drawn: nothing collides with it.
+    cylinders=[((STAGE_X, 0.0, PLATE_TOP0 + SLIDE_T + 0.0007), SPOT_R, 0.0002, LIGHT)],
 )
 STAGE_Y = Joint(
     "stage_y", kind="slide", axis="Y", anchor=(STAGE_X, 0.0, PLATE_TOP0), lower=-LIM, upper=LIM, initial=QY0,

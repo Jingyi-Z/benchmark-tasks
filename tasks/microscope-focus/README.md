@@ -16,8 +16,10 @@ the front lens) without ever bringing the slide within 0.5 mm of the lens.
   - The scripted demo turns the drive knobs and trims the focus with a closed loop on the knob angle (the `Servo`
     class); `task.py` lets a demo waypoint carry a full gripper rotation for the side grips (the `Orient` class), so
     yam_arena itself is unchanged.
+  - The illuminator's light is a thin pale yellow disc on the objective's axis, part of the focus slide (it rises
+    with the stage) and drawn only, with no collider (labkit's `VISUAL_ONLY` colours).
 - `labkit.py`: parts built from several shapes, with hinges and slides, including joints chained on other joints
-  (`parent=`). It hooks `yam_arena.scene` and the embodiment from the task's import.
+  (`parent=`), and shapes drawn without a collider (`VISUAL_ONLY`). It hooks `yam_arena.scene` and the embodiment from the task's import.
 - `arena_assets_fix.py`: imported by `labkit.py`; points Arena library assets at NVIDIA's production bucket. This task
   uses no library assets.
 
