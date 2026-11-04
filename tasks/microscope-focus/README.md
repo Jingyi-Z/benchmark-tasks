@@ -30,7 +30,7 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
         --instruction "$(python -c 'import json;print(json.load(open("task.json"))["instruction"])')" \
         --scorer task_score --max-steps 2400 --store-frames --log-dir logs
 
-Scripted demo: the same command with `--policy yam_scripted` (about 75 s of motion; 1,600 steps are enough).
+Scripted demo: the same command with `--policy yam_scripted` (about 60 s of motion; 1,600 steps are enough).
 
 The score is `task_score` in the log, computed by `score()` in `task.py` from the slide's pose in the holder, the
 specimen's offset from the objective's axis, the final gap from the slide's top to the front lens, and the smallest
@@ -38,6 +38,6 @@ gap during the trial (recorded every control step).
 
 ## Runtime and seeds
 
-- 2,400 control steps (2 minutes of simulated time) per trial; about RUNTIME minutes of wall time on one L40S with
+- 2,400 control steps (2 minutes of simulated time) per trial; about 11 minutes of wall time on one L40S with
   frames stored at 640 x 352.
 - One fixed starting layout: run with `-E object_jitter=0`. No other randomness.
