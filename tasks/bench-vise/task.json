@@ -16,6 +16,6 @@
   "run_limit": "2,400 steps (2 minutes at 20 Hz)",
   "reset_notes": "Nothing is consumed. Turn the knob back until the jaws are 30 mm apart, take the part out and stand it upright at its start position, faces square to the table's edges.",
   "fidelity": "Rigid bodies in PhysX at 240 Hz. The knob turns on a damped hinge; the moving jaw follows it through a stiff spring drive, geared faster than a real vise (16 mm per turn, real ones 2 to 3 mm), with the clamping force capped at 30 N in place of the screw's torque limit. The screw is not drawn. The part is a plain block standing in for a printed fixture; nothing is drilled.",
-  "scores": "Dream-1 run: TBD; demo: TBD",
-  "media": ""
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": "M-LTKTHV"
 }
