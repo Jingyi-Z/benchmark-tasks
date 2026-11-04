@@ -344,7 +344,7 @@ def _watch(env):
                   f"boat {np.round(b.pos, 4).tolist()} tilt {b.tilt_deg():.1f} on_pan {boat_on_pan(b)} "
                   f"vial {np.round(v.pos, 4).tolist()} vtilt {v.tilt_deg():.0f} grams {grams:.2f} counted {counted} "
                   f"trial {dict((k, _trial[k]) for k in ('tare_g', 'tared', 'tare_ok', 'reading'))} "
-                  f"theta {math.degrees(_pour['theta']):.0f} stop {_pour['stopped']} "
+                  f"theta {math.degrees(_pour['theta']):.0f} mode {_pour['mode']} "
                   f"gz [{grains[:, 2].min():.3f},{grains[:, 2].max():.3f}]", flush=True)
     text = display_text(_trial["reading"])
     asset = env.unwrapped.scene["balance"]
