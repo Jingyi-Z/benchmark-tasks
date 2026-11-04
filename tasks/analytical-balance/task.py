@@ -80,7 +80,7 @@ DOOR = Joint(
 )
 TARE = Joint(
     "tare", kind="slide", axis="Z", anchor=(KEY_X, TARE_Y, STRIP_TOP), lower=-KEY_TRAVEL, upper=0.0, initial=0.0,
-    stiffness=400.0, damping=2.0, target=0.0, mass=0.002,  # a sprung key: about 1.2 N at the bottom of its travel
+    stiffness=150.0, damping=2.0, target=0.0, mass=0.002,  # a sprung key: about 0.45 N at the bottom of its travel
     boxes=[((KEY_X, TARE_Y, STRIP_TOP + KEY[2] / 2), KEY, GREEN)],
 )
 
@@ -506,7 +506,7 @@ HANDLE_OPEN = W(HANDLE_X + DOOR_TRAVEL - 0.002, HANDLE_Y, 0.0)[:2]  # 2 mm short
 HANDLE_WIDE = -0.012  # fingers part-open round the 10 mm handle
 HANDLE_HOLD = -0.003
 KEY_TOP = TOP + STRIP_TOP + KEY[2]
-PRESS_Z = KEY_TOP - KEY_TRAVEL + 0.0005 + TIP_ABOVE_TCP  # pad tips 2.5 mm down: past the 1.5 mm press point
+PRESS_Z = KEY_TOP - KEY_TRAVEL - 0.0005 + TIP_ABOVE_TCP  # pad tips aimed 0.5 mm past the bottom of the key's travel
 BOAT_GRIP_Z = TOP + 0.004 + TIP_ABOVE_TCP  # pad tips 4 mm above the boat's underside
 BOAT_WIDE = -0.031  # 62 mm between the pads round the 50 mm boat
 BOAT_HOLD = -0.022  # squeezes it lightly
