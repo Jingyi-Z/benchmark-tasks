@@ -32,7 +32,7 @@ from labkit import Joint, on_reset, on_step, part  # noqa: E402
 import yam_arena.demo as _demo  # noqa: E402
 from yam_arena.constants import FINGER_CLOSED, FINGER_OPEN  # noqa: E402
 from yam_arena.demo import Waypoint  # noqa: E402
-from yam_arena.task_file import TABLE_TOP, Sphere  # noqa: E402
+from yam_arena.task_file import TABLE_TOP  # noqa: E402
 from yam_arena.urdf import axis_angle_matrix  # noqa: E402
 
 SCENE = "station"
@@ -197,13 +197,12 @@ VIAL = part(
     ],
 )
 
-# Granules: 70 polypropylene beads 4 mm across, 0.03 g each, stacked in the bottle in three layers (25, 25, 20).
-GRAIN_R, GRAIN_G = 0.002, 0.03
-GRAIN_SIM_KG = 0.0005  # simulated mass (kg): heavier than a real bead so the contact solver stays stable; the
-#   reading counts each granule as GRAIN_G
-LAYER_DZ = 0.0044
-GRAIN_PITCH = 0.0042
-_LIFT = float(__import__("os").environ.get("TASK_GRAIN_LIFT", "0"))  # debugging only
+# Granules: 70 polypropylene pellets, stacked in the bottle in three layers (25, 25, 20).
+GRAIN_R, GRAIN_H, GRAIN_G = 0.002, 0.003, 0.03  # cylindrical pellets 4 mm across, 3 mm long; 0.03 g each
+GRAIN_SIM_KG = 0.0002  # simulated mass (kg), heavier than a real pellet for a stable contact solve; the reading
+#   counts each pellet as GRAIN_G
+LAYER_DZ = GRAIN_H + 0.0004
+GRAIN_PITCH = 0.0043
 
 
 def _layer(k: int) -> list[tuple[float, float]]:
@@ -211,19 +210,14 @@ def _layer(k: int) -> list[tuple[float, float]]:
     return pts if k < 2 else [p for p in pts if p != (0.0, 0.0) and abs(p[0]) + abs(p[1]) > 1.5 * GRAIN_PITCH][:20]
 
 
-GRAIN_START = [(VIAL_XY[0] + x, VIAL_XY[1] + y, TOP + VIAL_FLOOR + GRAIN_R + 0.0004 + LAYER_DZ * k + _LIFT)
+GRAIN_START = [(VIAL_XY[0] + x, VIAL_XY[1] + y, TOP + VIAL_FLOOR + 0.0003 + LAYER_DZ * k)
                for k in range(3) for x, y in _layer(k)]
-GRAINS = [Sphere(f"grain{i:02d}", pos=p, color=GRAIN_C, mass=GRAIN_SIM_KG, radius=GRAIN_R)
+GRAINS = [part(f"grain{i:02d}", pos=p, mass=GRAIN_SIM_KG, friction=0.5,
+               cylinders=[((0.0, 0.0, GRAIN_H / 2), GRAIN_R, GRAIN_H, GRAIN_C)])
           for i, p in enumerate(GRAIN_START)]
-if __import__("os").environ.get("TASK_NO_GRAINS"):  # debugging only
-    GRAINS = GRAINS[:1]
 GRAIN_NAMES = [g.name for g in GRAINS]
 
 OBJECTS = [BALANCE, BOAT_PART, VIAL, *GRAINS]
-if __import__("os").environ.get("TASK_GRAINS_AWAY"):  # debugging only: granules on the bare table
-    GRAINS = [Sphere(g.name, pos=(g.pos[0] - 0.08, g.pos[1] + 0.05, g.pos[2]), color=GRAIN_C, mass=GRAIN_SIM_KG,
-                     radius=GRAIN_R) for g in GRAINS]
-    OBJECTS = [BALANCE, BOAT_PART, VIAL, *GRAINS]
 
 # -- the reading: worked out from what rests on the pan ----------------------------------------------------------------
 TARGET_G = 1.00
