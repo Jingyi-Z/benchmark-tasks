@@ -215,9 +215,15 @@ GRAIN_START = [(VIAL_XY[0] + x, VIAL_XY[1] + y, TOP + VIAL_FLOOR + GRAIN_R + 0.0
                for k in range(3) for x, y in _layer(k)]
 GRAINS = [Sphere(f"grain{i:02d}", pos=p, color=GRAIN_C, mass=GRAIN_SIM_KG, radius=GRAIN_R)
           for i, p in enumerate(GRAIN_START)]
+if __import__("os").environ.get("TASK_NO_GRAINS"):  # debugging only
+    GRAINS = GRAINS[:1]
 GRAIN_NAMES = [g.name for g in GRAINS]
 
 OBJECTS = [BALANCE, BOAT_PART, VIAL, *GRAINS]
+if __import__("os").environ.get("TASK_GRAINS_AWAY"):  # debugging only: granules on the bare table
+    GRAINS = [Sphere(g.name, pos=(g.pos[0] - 0.08, g.pos[1] + 0.05, g.pos[2]), color=GRAIN_C, mass=GRAIN_SIM_KG,
+                     radius=GRAIN_R) for g in GRAINS]
+    OBJECTS = [BALANCE, BOAT_PART, VIAL, *GRAINS]
 
 # -- the reading: worked out from what rests on the pan ----------------------------------------------------------------
 TARGET_G = 1.00
