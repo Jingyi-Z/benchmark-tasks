@@ -1,7 +1,14 @@
 {
   "title": "Focus an upright microscope on a slide without touching the objective",
   "category": "Impact on jobs",
-  "keywords": ["laboratory", "microscope", "focus", "knob", "working distance", "inspection"],
+  "keywords": [
+    "laboratory",
+    "microscope",
+    "focus",
+    "knob",
+    "working distance",
+    "inspection"
+  ],
   "instruction": "The slide on the microscope stage is out of focus: the stage is 12 mm too low. Turn a focus knob on the side of the microscope to raise the stage until the slide is in focus under the objective, which is when the slide's top is 5.2 mm below the objective's front lens. Turning a knob so that its top moves towards you raises the stage, about 2 mm for every 30 degrees. Never let the slide come within 0.5 mm of the objective.",
   "context": "Focusing is the first step of every microscope inspection. Racing the stage up into the objective is the classic mistake: it cracks slides and scratches objective lenses, so the approach has to stop at the objective's working distance.",
   "setup": "Station table (top 0.7475 m). Robot base frame: x forward, y to the robots' left. Upright microscope, fixed, facing the robots, centred at (0.34, 0.06): white stand with a 26 x 16 cm base, a pillar at the back and an arm over the stage carrying a steel 10x objective (24 mm across) at (0.31, 0.06) whose front lens is 15.5 cm above the table. Stage: a dark 12 x 15 cm plate that moves only up and down, holding a 76 x 26 x 1 mm glass slide (long side across, purple 10 mm specimen square at the centre, white label to the left). Focus drive: a 20 cm wide housing under the stage with one shaft through it, ending in a black ribbed knob 4.2 cm across and 2 cm wide on each side (axis 10 cm above the table, at x = 0.30), each with a white index line. Turning either knob top-towards-you raises the stage 24 mm per turn; the stage starts 12 mm below focus. No other objects.",
@@ -9,6 +16,6 @@
   "run_limit": "1,200 steps (60 seconds at 20 Hz)",
   "reset_notes": "Nothing is consumed. Turn the knob back until the stage is 12 mm below focus (17.2 mm gap).",
   "fidelity": "Rigid bodies in PhysX at 240 Hz. The knobs turn on one damped shaft and the stage follows the knob angle through a stiff drive, geared faster than a real coarse focus (24 mm per turn) so the move fits in one grip. Focus is judged by the gap only: no optics are simulated. A real stand also has a fine-focus knob and a stop, which are left out.",
-  "scores": "Dream-1 run: TBD; demo: TBD",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
   "media": ""
 }
