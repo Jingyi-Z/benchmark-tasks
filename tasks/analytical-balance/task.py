@@ -440,13 +440,17 @@ def pour_rot(theta: float) -> np.ndarray:
 # clears the boat (POUR_Z: (theta in degrees, TCP height above the table), interpolated).
 R_LIP = VIAL_RIN + SPOUT + VIAL_WALL  # the spout's lip, from the bottle's axis
 POUR_DX = 0.006
-POUR_Z = [(0.0, 0.098), (60.0, 0.098), (70.0, 0.114), (80.0, 0.130), (90.0, 0.142), (95.0, 0.150)]
-POUR_TH0 = math.radians(70.0)  # tipped to here before the closed loop starts (pellets not yet at the rim)
-POUR_TH_MAX = math.radians(95.0)  # the steepest the left arm reaches; the spout pours from about 80 degrees
-POUR_RISE = math.radians(2.5)  # rad/s while pouring
-POUR_FALL = math.radians(20.0)  # rad/s back to upright once the display is near the target
-POUR_STOP_G = TARGET_G - 0.05  # start levelling at this reading; granules still on the way bring it to the target
-POUR_WINDOW = 40.0  # s
+POUR_Z = [(0.0, 0.108), (60.0, 0.108), (70.0, 0.124), (80.0, 0.140), (90.0, 0.152), (95.0, 0.160)]  # spout clear of the boat
+POUR_TH0 = math.radians(65.0)  # tipped to here before the closed loop starts (pellets not yet at the lip)
+POUR_TH_MAX = math.radians(95.0)  # the steepest the left arm reaches; the spout pours from about 70 to 80 degrees
+POUR_RISE = math.radians(1.5)  # rad/s, tipping further while nothing is falling
+POUR_FAST = math.radians(6.0)  # rad/s, tipping back up to just short of where pellets last started to flow
+POUR_FALL = math.radians(25.0)  # rad/s, tipping back to stop the flow, and to upright at the end
+POUR_BACK = math.radians(6.0)  # how far to tip back after each burst
+POUR_SETTLE = 1.0  # s to wait after each burst, for the reading to settle
+POUR_BURST_G = 0.03  # a burst: the reading has gone up by a pellet since the last pause
+POUR_STOP_G = TARGET_G - 0.03  # level the bottle at this reading
+POUR_WINDOW = 45.0  # s
 
 
 def pour_tcp(theta: float) -> np.ndarray:
@@ -455,28 +459,45 @@ def pour_tcp(theta: float) -> np.ndarray:
     return np.array([PX + POUR_DX + R_LIP * math.cos(theta), PY, TOP + z])
 
 
-_pour = {"t0": None, "tl": 0.0, "theta": POUR_TH0, "stopped": False}
+_pour = {"t0": None, "tl": 0.0, "theta": POUR_TH0, "mode": "rise", "mark": 0.0, "flow": POUR_TH_MAX, "since": 0.0}
 
 
 def _pour_reset():
-    _pour.update(t0=None, tl=0.0, theta=POUR_TH0, stopped=False)
+    _pour.update(t0=None, tl=0.0, theta=POUR_TH0, mode="rise", mark=0.0, flow=POUR_TH_MAX, since=0.0)
 
 
 def _pour_theta() -> float:
-    """The pour angle now: rising slowly until the display reads POUR_STOP_G, then back to upright; frozen after
-    POUR_WINDOW. Offline (no simulator, no reading) it rises to POUR_TH_MAX: the plan check sees the steepest pose."""
+    """The pour angle now, poured in short bursts as a person taps out powder: tip slowly until the reading goes up by
+    a pellet, tip back a little, wait for the reading to settle, tip quickly back to just short of where it flowed and
+    on slowly again; once the reading reaches POUR_STOP_G, back to upright. Frozen after POUR_WINDOW. Offline (no
+    simulator, no reading) it rises to POUR_TH_MAX: the plan check sees the steepest pose."""
     t = float(getattr(_demo, "_plan_clock", 0.0))
     p = _pour
     if p["t0"] is None or t < p["tl"] - 0.5:
-        p.update(t0=t, tl=t, theta=POUR_TH0, stopped=False)
+        p.update(t0=t, tl=t, theta=POUR_TH0, mode="rise", mark=_trial["reading"] or 0.0, flow=POUR_TH_MAX, since=t)
     t_eff = min(t, p["t0"] + POUR_WINDOW)
     dt = max(0.0, t_eff - p["tl"])
     p["tl"] = max(p["tl"], t_eff)
     r = _trial["reading"]
-    if not p["stopped"] and r is not None and r >= POUR_STOP_G:
-        p["stopped"] = True
-    rate = -POUR_FALL if p["stopped"] else POUR_RISE
-    p["theta"] = float(np.clip(p["theta"] + rate * dt, 0.0, POUR_TH_MAX))
+    th = p["theta"]
+    if r is None:  # offline
+        rate = POUR_RISE
+    else:
+        if p["mode"] != "level" and r >= POUR_STOP_G:
+            p["mode"] = "level"
+        if p["mode"] == "rise" and r - p["mark"] >= POUR_BURST_G:
+            p.update(mode="back", flow=th)
+        if p["mode"] == "back" and th <= p["flow"] - POUR_BACK:
+            p.update(mode="settle", since=t_eff)
+        if p["mode"] == "settle" and t_eff - p["since"] >= POUR_SETTLE:
+            p.update(mode="rise", mark=r)
+        if p["mode"] == "rise":
+            rate = POUR_FAST if th < p["flow"] - math.radians(2.0) else POUR_RISE
+        elif p["mode"] == "settle":
+            rate = 0.0
+        else:
+            rate = -POUR_FALL
+    p["theta"] = float(np.clip(th + rate * dt, 0.0, POUR_TH_MAX))
     return p["theta"]
 
 
