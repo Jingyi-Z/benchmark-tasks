@@ -1,8 +1,13 @@
-"""On the station table: an upright light microscope (modelled on a research stand with focus knobs on both sides) with a
-slide on its stage under the 10x objective. The stage is 12 mm too low, so the specimen is out of focus.
+"""On the station table: an upright light microscope (modelled on a research stand: mechanical stage with a spring slide
+holder and x/y drive knobs, focus knobs on both sides) and a glass slide on a rest beside it. The stage is pulled
+towards the robots, away from the objective, for loading, and sits 12 mm below focus.
 
-The task: turn a focus knob to raise the stage until the slide's top is at the objective's working distance, without
-letting the slide come within 0.5 mm of the objective. One shaft carries both knobs, so either arm can focus.
+The task, in the order a microscopist works:
+1. Load the slide: hold the slide holder's spring arm open and lay the slide in the holder against its stops, label to
+   the left; let the arm close over the slide's right end. (Two hands: the arm springs shut when let go.)
+2. Bring the specimen under the objective with the stage's x and y drive knobs.
+3. Focus: raise the stage with a focus knob until the slide's top is at the objective's working distance, never letting
+   it come within 0.5 mm of the objective.
 
 Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jitter=0 -E control_hz=20 \\
            --instruction "<see task.json>" --scorer task_score ...
@@ -27,6 +32,7 @@ TOP = TABLE_TOP[SCENE]
 
 STAND = (0.90, 0.90, 0.88)
 DARK = (0.16, 0.17, 0.19)
+GREY = (0.35, 0.36, 0.38)
 BLACK = (0.06, 0.06, 0.07)
 STEEL = (0.70, 0.71, 0.73)
 GLASS = (0.80, 0.90, 0.95)
@@ -36,85 +42,162 @@ RED = (0.85, 0.12, 0.12)
 
 # -- the microscope (fixed). Frame: origin on the table under the stand, x away from the robots, y to their left. -----
 MX, MY = 0.34, 0.06
-MYAW = 0.0  # facing the robots squarely
 BASE = (0.26, 0.16, 0.03)
-PILLAR = (0.07, 0.11, 0.22)
+PILLAR = (0.07, 0.11, 0.185)
 PILLAR_X = 0.085
 HEAD = (0.18, 0.09, 0.05)  # the arm over the stage
-HEAD_TOP = 0.25
-STAGE_X = -0.03  # stage and objective centre (local x)
-OBJ_R, OBJ_TIP = 0.012, 0.155  # the 10x objective: 24 mm across, front lens 15.5 cm above the table
+HEAD_TOP = 0.215
+STAGE_X = -0.03  # objective axis (local x); the stage is centred under it when its carriages are at zero
+OBJ_R, OBJ_TIP = 0.012, 0.120  # the 10x objective: 24 mm across, front lens 12 cm above the table
 WD = 0.0052  # working distance: in focus when the slide's top is 5.2 mm below the front lens
 START_OFF = 0.012  # the stage starts 12 mm below focus
-SLIDE = (0.026, 0.076, 0.001)  # x by y by thickness (long axis across the stage)
-PLATE = (0.12, 0.15, 0.012)
-PLATE_TOP0 = OBJ_TIP - WD - START_OFF - SLIDE[2]  # stage plate top at the start
-STAGE_MAX = START_OFF + WD - 0.0002  # the stage stops just short of touching the objective
-# Focus drive housing under the stage, with the knob shaft through it along y.
-HOUSING = (0.08, 0.20, 0.085)  # x by y by height, from 3 cm above the table
-KNOB_X, KNOB_Z = -0.04, 0.10  # knob axis (local)
-KNOB_R, KNOB_W = 0.021, 0.020
-KNOB_Y0 = HOUSING[1] / 2  # inner face of each knob; the knob spans KNOB_Y0 .. KNOB_Y0 + KNOB_W on each side
-LEAD = 0.024  # m of stage travel per turn: 2 mm per 30 degrees
-KNOB_MIN = -2 * math.pi * STAGE_MAX / LEAD  # knob angle at the stage's upper stop (turning so the top comes towards you)
+SLIDE_W, SLIDE_L, SLIDE_T = 0.026, 0.076, 0.002  # x by y by thickness (drawn 2 mm thick; a real slide is 1 mm)
+SPEC_Y = -0.010  # the specimen sits 10 mm right of the slide's centre; the label is on the left end
+PLATE_TOP0 = OBJ_TIP - WD - START_OFF - SLIDE_T  # top of the stage (x carriage) at the start
+STAGE_MAX = START_OFF + WD - 0.0002  # the focus stops just short of the slide touching the objective
 
-# Ribs round each knob's rim (axis y), so the fingers bite.
-RIBS = [((KNOB_X + KNOB_R * math.cos(i * math.pi / 6), sgn * (KNOB_Y0 + KNOB_W / 2), KNOB_Z + KNOB_R * math.sin(i * math.pi / 6)),
-         0.0025, KNOB_W, BLACK, "Y") for sgn in (1, -1) for i in range(12)]
+# Focus drive housing under the stage, with one knob shaft through it along y.
+HOUSING = (0.08, 0.20, 0.052)
+FKNOB_X, FKNOB_Z = -0.04, 0.07
+FKNOB_R, FKNOB_W = 0.021, 0.020
+FKNOB_Y0 = HOUSING[1] / 2
+F_LEAD = 0.024  # focus: m of stage travel per turn
+F_MIN = -2 * math.pi * STAGE_MAX / F_LEAD
+
+# Stage travel: the x carriage starts 85 mm towards the robots (loading position), the y carriage centred.
+QX0, QY0 = -0.085, 0.0
+QX_FOCUS, QY_FOCUS = 0.0, -SPEC_Y  # carriage positions that put the specimen on the objective axis
+X_LEAD, Y_LEAD = 0.170, 0.040  # stage drive: m per knob turn (turning a knob clockwise seen from above moves the stage
+#                                away from the robots for x, to the left for y)
+XKNOB = (STAGE_X - 0.055, -0.100)  # x and y drive knobs on a bracket at the stage's front right (local xy)
+YKNOB = (STAGE_X - 0.095, -0.100)
+DKNOB_R, DKNOB_H = 0.012, 0.015
+DKNOB_TOP = PLATE_TOP0 - 0.006
+LIM = 0.10
+
+# Slide holder on the x carriage: the slide lies with its centre at the holder centre (STAGE_X, 0) against two back
+# posts and a left stop; a spring lever pivoting behind its right end holds a jaw over that end. Pulling the lever's
+# handle (out to the right) back swings the jaw off the slide's end.
+PIVOT = (STAGE_X + SLIDE_W / 2 + 0.0035, -SLIDE_L / 2 + 0.003)
+ARM_L = 0.035  # the clamp jaw, across the slide's right end
+HANDLE_L = 0.090  # the lever's handle, out to the right, with the post at its end
+ARM_Z = PLATE_TOP0 + SLIDE_T + 0.0004  # the arm's underside, just clear of a loaded slide
+POST_R, POST_H = 0.005, 0.020
+ARM_OPEN = 1.2
+
+
+def _ribs(cx, cy, z0, r, h, n=10):
+    return [((cx + r * math.cos(2 * math.pi * i / n), cy + r * math.sin(2 * math.pi * i / n), z0 + h / 2), 0.0022, h,
+             BLACK) for i in range(n)]
+
+
 FOCUS = Joint(
-    "focus", kind="hinge", axis="Y", anchor=(KNOB_X, 0.0, KNOB_Z), lower=KNOB_MIN - 0.3, upper=0.3, initial=0.0,
-    stiffness=0.0, damping=0.3, target=0.0, mass=0.05,  # a firm knob: viscous drag, it stays where it is left
+    "focus", kind="hinge", axis="Y", anchor=(FKNOB_X, 0.0, FKNOB_Z), lower=F_MIN - 0.3, upper=0.3, initial=0.0,
+    stiffness=0.0, damping=0.3, target=0.0, mass=0.05,
     cylinders=[
-        ((KNOB_X, 0.0, KNOB_Z), 0.006, 2 * KNOB_Y0 + 2 * KNOB_W - 0.002, STEEL, "Y"),  # shaft
-        ((KNOB_X, KNOB_Y0 + KNOB_W / 2, KNOB_Z), KNOB_R, KNOB_W, BLACK, "Y"),
-        ((KNOB_X, -(KNOB_Y0 + KNOB_W / 2), KNOB_Z), KNOB_R, KNOB_W, BLACK, "Y"),
-        *RIBS,
+        ((FKNOB_X, 0.0, FKNOB_Z), 0.006, 2 * FKNOB_Y0 + 2 * FKNOB_W - 0.002, STEEL, "Y"),
+        ((FKNOB_X, FKNOB_Y0 + FKNOB_W / 2, FKNOB_Z), FKNOB_R, FKNOB_W, BLACK, "Y"),
+        ((FKNOB_X, -(FKNOB_Y0 + FKNOB_W / 2), FKNOB_Z), FKNOB_R, FKNOB_W, BLACK, "Y"),
+        *[((FKNOB_X + FKNOB_R * math.cos(i * math.pi / 6), s * (FKNOB_Y0 + FKNOB_W / 2),
+            FKNOB_Z + FKNOB_R * math.sin(i * math.pi / 6)), 0.0025, FKNOB_W, BLACK, "Y")
+          for s in (1, -1) for i in range(12)],
     ],
-    boxes=[  # a white index line on each knob's outer face, from the centre outwards (pointing up at the start)
-        ((KNOB_X, sgn * (KNOB_Y0 + KNOB_W + 0.0005), KNOB_Z + KNOB_R / 2), (0.003, 0.001, KNOB_R), WHITE)
-        for sgn in (1, -1)
-    ],
+    boxes=[((FKNOB_X, s * (FKNOB_Y0 + FKNOB_W + 0.0005), FKNOB_Z + FKNOB_R / 2), (0.003, 0.001, FKNOB_R), WHITE)
+           for s in (1, -1)],
 )
-STAGE = Joint(
+STAGE = Joint(  # the focus slide: carries the stage, the drive bracket and knobs
     "stage", kind="slide", axis="Z", anchor=(STAGE_X, 0.0, PLATE_TOP0), lower=0.0, upper=STAGE_MAX, initial=0.0,
-    stiffness=20000.0, damping=400.0, target=0.0, mass=0.05,  # follows the knob through the drive (see _drive)
+    stiffness=20000.0, damping=400.0, target=0.0, mass=0.05,
     boxes=[
-        ((STAGE_X, 0.0, PLATE_TOP0 - PLATE[2] / 2), PLATE, DARK),
-        ((STAGE_X + 0.075, 0.0, PLATE_TOP0 - 0.025), (0.03, 0.07, 0.03), DARK),  # stage carrier, towards the pillar
-        ((STAGE_X, 0.0, PLATE_TOP0 + SLIDE[2] / 2), SLIDE, GLASS),  # the slide, held in the stage's slide holder
-        ((STAGE_X, 0.0, PLATE_TOP0 + SLIDE[2] + 0.0002), (0.010, 0.010, 0.0004), SPECIMEN),  # the specimen
-        ((STAGE_X, 0.030, PLATE_TOP0 + SLIDE[2] + 0.0002), (0.024, 0.016, 0.0004), WHITE),  # slide label
+        ((STAGE_X + 0.075, 0.0, PLATE_TOP0 - 0.03), (0.03, 0.07, 0.03), DARK),  # carrier, into the pillar
+        ((STAGE_X, 0.0, PLATE_TOP0 - 0.0135), (0.12, 0.15, 0.005), DARK),  # fixed lower plate
+        ((STAGE_X - 0.075, -0.100, DKNOB_TOP - DKNOB_H - 0.006), (0.07, 0.02, 0.012), DARK),  # drive bracket
     ],
 )
+STAGE_Y = Joint(
+    "stage_y", kind="slide", axis="Y", anchor=(STAGE_X, 0.0, PLATE_TOP0), lower=-LIM, upper=LIM, initial=QY0,
+    stiffness=20000.0, damping=400.0, target=QY0, mass=0.05, parent="stage",
+    boxes=[((STAGE_X, 0.0, PLATE_TOP0 - 0.0085), (0.11, 0.14, 0.005), GREY)],
+)
+STAGE_X_J = Joint(
+    "stage_x", kind="slide", axis="X", anchor=(STAGE_X, 0.0, PLATE_TOP0), lower=-LIM, upper=LIM, initial=QX0,
+    stiffness=20000.0, damping=400.0, target=QX0, mass=0.05, parent="stage_y",
+    boxes=[
+        ((STAGE_X, 0.0, PLATE_TOP0 - 0.003), (0.10, 0.13, 0.006), DARK),  # top plate
+        *[((STAGE_X + SLIDE_W / 2 + 0.002, y, PLATE_TOP0 + 0.0015), (0.004, 0.006, 0.003), STEEL)
+          for y in (-0.020, 0.005)],  # back posts
+        ((STAGE_X, SLIDE_L / 2 + 0.002, PLATE_TOP0 + 0.0015), (0.012, 0.004, 0.003), STEEL),  # left stop
+        ((STAGE_X - 0.02, 0.0, PLATE_TOP0 + 0.0002), (0.002, 0.03, 0.0004), WHITE),  # holder index line
+    ],
+)
+HOLDER = Joint(
+    "holder", kind="hinge", axis="Z", anchor=(*PIVOT, ARM_Z), lower=0.0, upper=ARM_OPEN, initial=0.0,
+    stiffness=0.25, damping=0.03, target=0.0, mass=0.02, parent="stage_x",
+    boxes=[((PIVOT[0] - ARM_L / 2, PIVOT[1], ARM_Z + 0.0015), (ARM_L, 0.006, 0.003), STEEL),  # jaw
+           ((PIVOT[0], PIVOT[1] - HANDLE_L / 2, ARM_Z + 0.0015), (0.006, HANDLE_L, 0.003), STEEL)],  # handle
+    cylinders=[((PIVOT[0], PIVOT[1], ARM_Z + 0.0015), 0.005, 0.003, STEEL),
+               ((PIVOT[0], PIVOT[1] - HANDLE_L + 0.003, ARM_Z + 0.003 + POST_H / 2), POST_R, POST_H, BLACK)],
+)
+
+
+def _drive_knob(name, xy):
+    cx, cy = xy
+    return Joint(
+        name, kind="hinge", axis="Z", anchor=(cx, cy, DKNOB_TOP - DKNOB_H), lower=-2 * math.pi, upper=2 * math.pi,
+        initial=0.0, stiffness=0.0, damping=0.3, target=0.0, mass=0.02, parent="stage",
+        cylinders=[((cx, cy, DKNOB_TOP - DKNOB_H / 2), DKNOB_R, DKNOB_H, BLACK),
+                   *_ribs(cx, cy, DKNOB_TOP - DKNOB_H, DKNOB_R, DKNOB_H)],
+        boxes=[((cx - DKNOB_R / 2, cy, DKNOB_TOP + 0.0004), (DKNOB_R, 0.002, 0.0008), WHITE)],
+    )
+
+
+XDRIVE, YDRIVE = _drive_knob("xdrive", XKNOB), _drive_knob("ydrive", YKNOB)
+
 MICROSCOPE = part(
-    "microscope", pos=(MX, MY, TOP), yaw=MYAW, fixed=True, friction=1.0,
+    "microscope", pos=(MX, MY, TOP), fixed=True, friction=1.0,
     boxes=[
         ((0.0, 0.0, BASE[2] / 2), BASE, STAND),
         ((PILLAR_X, 0.0, BASE[2] + PILLAR[2] / 2), PILLAR, STAND),
         ((PILLAR_X + PILLAR[0] / 2 - HEAD[0] / 2, 0.0, HEAD_TOP - HEAD[2] / 2), HEAD, STAND),
-        ((KNOB_X, 0.0, 0.03 + HOUSING[2] / 2), HOUSING, STAND),
+        ((FKNOB_X, 0.0, 0.03 + HOUSING[2] / 2), HOUSING, STAND),
     ],
     cylinders=[
         ((STAGE_X, 0.0, HEAD_TOP - HEAD[2] - 0.006), 0.032, 0.012, STEEL),  # nosepiece
-        ((STAGE_X, 0.0, (OBJ_TIP + HEAD_TOP - HEAD[2] - 0.012) / 2), OBJ_R,
-         HEAD_TOP - HEAD[2] - 0.012 - OBJ_TIP, STEEL),  # the 10x objective
-        ((STAGE_X, 0.0, OBJ_TIP + 0.004), OBJ_R + 0.0005, 0.002, RED),  # its colour ring
+        ((STAGE_X, 0.0, (OBJ_TIP + HEAD_TOP - HEAD[2] - 0.012) / 2), OBJ_R, HEAD_TOP - HEAD[2] - 0.012 - OBJ_TIP, STEEL),
+        ((STAGE_X, 0.0, OBJ_TIP + 0.004), OBJ_R + 0.0005, 0.002, RED),  # the objective's colour ring
     ],
-    joints=[FOCUS, STAGE],
+    joints=[FOCUS, STAGE, STAGE_Y, STAGE_X_J, HOLDER, XDRIVE, YDRIVE],
 )
 
-OBJECTS = [MICROSCOPE]
+# -- the slide (loose) on its rest -----------------------------------------------------------------------------------
+REST_XY = (0.20, 0.21)
+REST = (0.016, 0.060, 0.030)  # narrower than the slide, so fingers can close on the slide's edges
+SLIDE_REST = part("slide_rest", pos=(*REST_XY, TOP), fixed=True,
+                  boxes=[((0.0, 0.0, REST[2] / 2), REST, GREY)])
+SLIDE = part(
+    "slide", pos=(*REST_XY, TOP + REST[2]), mass=0.006, friction=0.6,
+    boxes=[
+        ((0.0, 0.0, SLIDE_T / 2), (SLIDE_W, SLIDE_L, SLIDE_T), GLASS),
+        ((0.0, SPEC_Y, SLIDE_T + 0.0002), (0.010, 0.010, 0.0004), SPECIMEN),
+        ((0.0, 0.025, SLIDE_T + 0.0002), (0.024, 0.020, 0.0004), WHITE),  # label
+    ],
+)
+
+OBJECTS = [MICROSCOPE, SLIDE_REST, SLIDE]
 
 
-# -- the focus drive: the stage follows the knob ----------------------------------------------------------------------
-def stage_for(knob_angle: float) -> float:
-    """Stage height (m above its start) for a knob angle (rad): turning so the top comes towards you raises it."""
-    return float(np.clip(-LEAD * knob_angle / (2 * math.pi), 0.0, STAGE_MAX))
+# -- drives: the stage follows its knobs ------------------------------------------------------------------------------
+def carriages(j: dict) -> tuple[float, float, float]:
+    """(x, y, z) stage positions the knobs ask for: z from the focus knob, x and y from the drive knobs."""
+    qz = float(np.clip(-F_LEAD * j["focus"] / (2 * math.pi), 0.0, STAGE_MAX))
+    qx = float(np.clip(QX0 - X_LEAD * j["xdrive"] / (2 * math.pi), -LIM, LIM))
+    qy = float(np.clip(QY0 - Y_LEAD * j["ydrive"] / (2 * math.pi), -LIM, LIM))
+    return qx, qy, qz
 
 
-def gap(stage_q: float) -> float:
-    """Clearance (m) from the slide's top to the objective's front lens."""
-    return OBJ_TIP - (PLATE_TOP0 + SLIDE[2] + stage_q)
+def stage_gap(qz: float) -> float:
+    """Clearance (m) from a loaded slide's top to the objective's front lens."""
+    return OBJ_TIP - (PLATE_TOP0 + SLIDE_T + qz)
 
 
 _trial = {"min_gap": None}
@@ -132,30 +215,60 @@ def _drive(env):
     import labkit
 
     s = labkit._part_state(env, labkit._SPECS["microscope"])
-    g = gap(s.joints["stage"])
-    _trial["min_gap"] = g if _trial["min_gap"] is None else min(_trial["min_gap"], g)
+    sl = labkit._part_state(env, labkit._SPECS["slide"])
+    g = stage_gap(s.joints["stage"])
+    if _loaded(s.joints, sl):
+        _trial["min_gap"] = g if _trial["min_gap"] is None else min(_trial["min_gap"], g)
     asset = env.unwrapped.scene["microscope"]
-    idx = list(asset.joint_names).index(STAGE.joint_name)
-    target = torch.tensor([[stage_for(s.joints["focus"])]], device=asset.device)
-    asset.set_joint_position_target(target, joint_ids=[idx])
+    names = list(asset.joint_names)
+    ids = [names.index(j.joint_name) for j in (STAGE_X_J, STAGE_Y, STAGE)]
+    qx, qy, qz = carriages(s.joints)
+    asset.set_joint_position_target(torch.tensor([[qx, qy, qz]], device=asset.device), joint_ids=ids)
 
 
 # -- scoring ----------------------------------------------------------------------------------------------------------
+OBJ_AXIS = (MX + STAGE_X, MY)
+HOLD_TOL, HOLD_Z, FLAT_DEG, CLOSED = 0.002, 0.001, 3.0, 0.10
+CENTRE_TOL = 0.001
 CRASH_GAP = 0.0005
-FOCUS_TOL, NEAR_TOL, COARSE_TOL = 0.0005, 0.002, 0.006
+FOCUS_TOL, NEAR_TOL = 0.0005, 0.002
 
 
-def focus_error(objects) -> float:
-    return abs(gap(objects["microscope"].joints["stage"]) - WD)
+def holder_centre(j: dict) -> np.ndarray:
+    """World position of the holder centre (the middle of a loaded slide's underside)."""
+    return np.array([MX + STAGE_X + j["stage_x"], MY + j["stage_y"], TOP + PLATE_TOP0 + j["stage"]])
+
+
+def _loaded(j: dict, slide) -> bool:
+    d = slide.pos - holder_centre(j)
+    return (math.hypot(d[0], d[1]) <= HOLD_TOL and abs(d[2]) <= HOLD_Z and slide.tilt_deg() <= FLAT_DEG
+            and abs(slide.to_world((0, 1, 0))[1] - slide.pos[1]) > 0.99 and j["holder"] <= CLOSED)
+
+
+def specimen_offset(slide) -> float:
+    p = slide.to_world((0.0, SPEC_Y, 0.0))
+    return math.hypot(p[0] - OBJ_AXIS[0], p[1] - OBJ_AXIS[1])
+
+
+def focus_error(slide) -> float:
+    top = slide.to_world((0.0, 0.0, SLIDE_T))[2]
+    return abs((TOP + OBJ_TIP - top) - WD)
 
 
 def score(objects):
-    """0 if the slide came within 0.5 mm of the objective at any time. Otherwise, by the final distance of the slide's
-    top from the working distance: 1.0 within 0.5 mm (in focus), 0.5 within 2 mm, 0.25 within 6 mm, else 0."""
+    """0 unless the slide is loaded: flat in the holder within 2 mm of its centre, label to the left, holder arm closed
+    over it. 0 also if, once loaded, the slide ever came within 0.5 mm of the objective. 0.25 loaded; 0.5 loaded and
+    the specimen within 1 mm of the objective's axis; 0.75 also within 2 mm of focus (slide top 5.2 mm below the front
+    lens); 1.0 within 0.5 mm of focus."""
+    m, sl = objects["microscope"], objects["slide"]
+    if not _loaded(m.joints, sl):
+        return 0.0
     if _trial["min_gap"] is not None and _trial["min_gap"] < CRASH_GAP:
         return 0.0
-    e = focus_error(objects)
-    return 1.0 if e <= FOCUS_TOL else 0.5 if e <= NEAR_TOL else 0.25 if e <= COARSE_TOL else 0.0
+    if specimen_offset(sl) > CENTRE_TOL:
+        return 0.25
+    e = focus_error(sl)
+    return 1.0 if e <= FOCUS_TOL else 0.75 if e <= NEAR_TOL else 0.5
 
 
 def success(objects):
@@ -163,14 +276,14 @@ def success(objects):
 
 
 def distance(objects):
-    return focus_error(objects)
+    return specimen_offset(objects["slide"]) + focus_error(objects["slide"])
 
 
 # -- scripted demo ----------------------------------------------------------------------------------------------------
-# Right arm: comes in from the right side with the gripper level (pointing along the knob axis, fingers vertical), grips the
-# right knob's rim and turns it half a turn, top towards the robots, in 30-degree steps; lets go, backs off and parks.
-# The task file widens the scripted planner's grip orientations: a Waypoint whose ``yaw`` is an ``Orient`` carries a
-# full rotation matrix.
+# Left arm: picks the slide off its rest by the label end and lays it in the holder while the right arm holds the
+# holder's arm open by its post; then parks. Right arm: lets the holder arm close, turns the y knob a quarter turn and
+# the x knob half a turn (two quarter turns) clockwise, then grips the right focus knob from the side and turns it half
+# a turn, top towards the robots. The task file lets a Waypoint's ``yaw`` carry a full gripper rotation (``Orient``).
 
 
 class Orient(float):
@@ -190,44 +303,58 @@ if not getattr(_down_grip, "_orient", False):
     _grip_rotation._orient = True
     _demo.grip_rotation = _grip_rotation
 
-SIDE = axis_angle_matrix(np.array([1.0, 0.0, 0.0]), math.pi / 2) @ _down_grip(0.0)  # pointing +y, fingers vertical
+SIDE = axis_angle_matrix(np.array([1.0, 0.0, 0.0]), math.pi / 2) @ _down_grip(0.0)  # level, pointing +y
 
 
 def side(roll: float) -> Orient:
-    """Level grip pointing +y, rolled ``roll`` rad about +y (negative: the top of a gripped knob comes towards you)."""
-    return Orient(_RZ @ axis_angle_matrix(np.array([0.0, 1.0, 0.0]), roll) @ SIDE)
+    return Orient(axis_angle_matrix(np.array([0.0, 1.0, 0.0]), roll) @ SIDE)
 
 
 TIP_ABOVE_TCP = 0.013
-_RZ = axis_angle_matrix(np.array([0.0, 0.0, 1.0]), MYAW)
-
-
-def world(local) -> tuple:
-    """A point in the microscope's frame, in the world."""
-    return tuple((np.array([MX, MY, TOP]) + _RZ @ np.asarray(local, float)).tolist())
-
-
-_GRIP_LY = -(KNOB_Y0 + KNOB_W) + 0.009 - TIP_ABOVE_TCP  # pad tips 9 mm onto the right knob
-GRIP = world((KNOB_X, _GRIP_LY, KNOB_Z))
-OUT = world((KNOB_X, _GRIP_LY - 0.04, KNOB_Z))
-OUT_UP = world((KNOB_X, _GRIP_LY - 0.04, KNOB_Z + 0.04))
 LEFT_PARK = (0.15, 0.25, TOP + 0.14)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.14)
-TURN = -2 * math.pi * START_OFF / LEAD  # half a turn
-STEPS = 6
+RIGHT_ASIDE = (0.18, -0.16, TOP + 0.12)
+OPEN_TH = 0.6  # how far the holder lever is pulled (rad): enough to swing the jaw off the slide's end
 
-def _aabb(name, centre, size):
-    """World-aligned box round a box in the microscope's frame (plancheck takes axis-aligned boxes only)."""
-    half = np.abs(_RZ) @ (np.asarray(size, float) / 2)
-    return (name, world(centre), tuple((2 * half).tolist()))
 
+def W(x, y, z):
+    """Local microscope coordinates to world."""
+    return (MX + x, MY + y, TOP + z)
+
+
+def _post_at(theta: float, qx=QX0, qy=QY0):
+    """World xy of the holder arm's post when the arm is open by theta."""
+    r = HANDLE_L - 0.003
+    px, py = PIVOT[0] + r * math.sin(theta), PIVOT[1] - r * math.cos(theta)
+    return MX + px + qx, MY + py + qy
+
+
+POST_GRIP_Z = TOP + ARM_Z + 0.003 + POST_H * 0.55 + TIP_ABOVE_TCP
+SLIDE_GRIP_DY = 0.031  # grip the slide 31 mm left of its centre (on the label end)
+REST_GRIP_Z = TOP + REST[2] + SLIDE_T / 2 - 0.0008 + TIP_ABOVE_TCP
+PLACE = (MX + STAGE_X + QX0, MY + QY0)
+PLACE_Z = TOP + PLATE_TOP0 + 0.0008 + SLIDE_T / 2 - 0.0008 + TIP_ABOVE_TCP  # the slide's underside 0.8 mm up
+CARRY_Z = TOP + PLATE_TOP0 + 0.05
+DK_GRIP_Z = TOP + DKNOB_TOP - DKNOB_H / 2 + TIP_ABOVE_TCP
+DK_HOVER = DK_GRIP_Z + 0.05
+F_GRIP = W(FKNOB_X, -(FKNOB_Y0 + FKNOB_W) + 0.009 - TIP_ABOVE_TCP, FKNOB_Z)
+F_OUT = (F_GRIP[0], F_GRIP[1] - 0.04, F_GRIP[2])
+F_OUT_UP = (F_GRIP[0], F_GRIP[1] - 0.04, F_GRIP[2] + 0.04)
+F_TURN = -2 * math.pi * START_OFF / F_LEAD
+WIDE = -0.025  # fingers part-open round the post or the slide
+SLIDE_RELEASE = -0.016  # open just enough to free the slide, clear of the objective
+FOCUS_WIDE = -0.03  # part-open round the 47 mm focus knob, clear of the table
+KNOB_WIDE = -0.018  # part-open round a 28 mm ribbed drive knob, clear of its neighbour
 
 PLANCHECK_BOXES = [
     ("table", (0.35, 0.0, TOP - 0.02), (0.8, 1.2, 0.04)),
-    _aabb("base", (0.0, 0.0, BASE[2] / 2), BASE),
-    _aabb("housing", (KNOB_X, 0.0, 0.03 + HOUSING[2] / 2), HOUSING),
-    _aabb("stage", (STAGE_X, 0.0, PLATE_TOP0 - PLATE[2] / 2), PLATE),
-    _aabb("pillar", (PILLAR_X, 0.0, BASE[2] + PILLAR[2] / 2), PILLAR),
+    ("base", W(0.0, 0.0, BASE[2] / 2), BASE),
+    ("housing", W(FKNOB_X, 0.0, 0.03 + HOUSING[2] / 2), HOUSING),
+    ("pillar", W(PILLAR_X, 0.0, BASE[2] + PILLAR[2] / 2), PILLAR),
+    ("objective", W(STAGE_X, 0.0, (OBJ_TIP + HEAD_TOP - HEAD[2]) / 2), (0.024, 0.024, HEAD_TOP - HEAD[2] - OBJ_TIP)),
+    ("head", W(PILLAR_X + PILLAR[0] / 2 - HEAD[0] / 2, 0.0, HEAD_TOP - HEAD[2] / 2), HEAD),
+    ("stage at load", W(STAGE_X + QX0, QY0, PLATE_TOP0 - 0.003), (0.10, 0.13, 0.006)),
+    ("slide rest", (*REST_XY, TOP + REST[2] / 2), REST),
 ]
 
 
@@ -235,25 +362,75 @@ def _dur(wps):
     return sum(w.duration for w in wps)
 
 
+def _quarter(wps, xy, label, z_grip=None):
+    """A clockwise quarter turn of a top-down drive knob: grip at yaw +45 degrees, turn to -45, let go, lift."""
+    z = DK_GRIP_Z if z_grip is None else z_grip
+    q = math.pi / 4
+    wps += [
+        Waypoint(1.5, (*xy, DK_HOVER), KNOB_WIDE, f"above the {label}", q),
+        Waypoint(1.0, (*xy, z), KNOB_WIDE, f"round the {label}", q),
+        Waypoint(0.6, (*xy, z), FINGER_CLOSED, "grip", q),
+        Waypoint(2.0, (*xy, z), FINGER_CLOSED, f"turn the {label} a quarter turn clockwise", -q),
+        Waypoint(0.5, (*xy, z), KNOB_WIDE, "let go", -q),
+        Waypoint(0.8, (*xy, DK_HOVER), KNOB_WIDE, "up", -q),
+    ]
+
+
 def demo():
+    sx, sy = REST_XY
+    gx, gy = PLACE
     right = [
-        Waypoint(2.5, OUT_UP, FINGER_OPEN, "above, beside the right knob"),
-        Waypoint(1.5, OUT, FINGER_OPEN, "level the gripper beside the knob", side(0.0)),
-        Waypoint(1.5, GRIP, FINGER_OPEN, "onto the knob", side(0.0)),
-        Waypoint(0.8, GRIP, FINGER_CLOSED, "grip the rim", side(0.0)),
+        Waypoint(2.5, (*_post_at(0.0), POST_GRIP_Z + 0.04), FINGER_OPEN, "above the holder post"),
+        Waypoint(1.0, (*_post_at(0.0), POST_GRIP_Z), WIDE, "round the post"),
+        Waypoint(0.6, (*_post_at(0.0), POST_GRIP_Z), FINGER_CLOSED, "grip the post"),
     ]
-    for k in range(1, STEPS + 1):
-        right.append(Waypoint(1.2, GRIP, FINGER_CLOSED, "turn, top towards the robots", side(TURN * k / STEPS)))
+    for th in (0.2, 0.4, OPEN_TH):
+        right.append(Waypoint(0.8, (*_post_at(th), POST_GRIP_Z), FINGER_CLOSED, "pull the holder lever back"))
+    t_open = _dur(right)
+    left = [
+        Waypoint(2.5, (sx, sy + SLIDE_GRIP_DY, REST_GRIP_Z + 0.05), FINGER_OPEN, "above the slide's label", -math.pi / 2),
+        Waypoint(1.2, (sx, sy + SLIDE_GRIP_DY, REST_GRIP_Z), WIDE, "fingers either side of the slide", -math.pi / 2),
+        Waypoint(0.8, (sx, sy + SLIDE_GRIP_DY, REST_GRIP_Z), FINGER_CLOSED, "grip its edges", -math.pi / 2),
+        Waypoint(1.0, (sx, sy + SLIDE_GRIP_DY, CARRY_Z), FINGER_CLOSED, "lift", -math.pi / 2),
+    ]
+    left.append(Waypoint(max(0.3, t_open - _dur(left)), (sx, sy + SLIDE_GRIP_DY, CARRY_Z), FINGER_CLOSED,
+                         "wait for the holder to open", -math.pi / 2))
+    left += [
+        Waypoint(2.0, (gx, gy + SLIDE_GRIP_DY, CARRY_Z), FINGER_CLOSED, "over the holder", -math.pi / 2),
+        Waypoint(1.5, (gx, gy + SLIDE_GRIP_DY, PLACE_Z), FINGER_CLOSED, "lower into the holder", -math.pi / 2),
+        Waypoint(0.6, (gx, gy + SLIDE_GRIP_DY, PLACE_Z), SLIDE_RELEASE, "let go", -math.pi / 2),
+        Waypoint(1.0, (gx, gy + SLIDE_GRIP_DY, CARRY_Z), SLIDE_RELEASE, "up", -math.pi / 2),
+        Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "park"),
+    ]
+    t_left_clear = _dur(left) - 0.8  # the left arm is well on its way to park
+    right.append(Waypoint(max(0.3, t_left_clear - _dur(right)), (*_post_at(OPEN_TH), POST_GRIP_Z), FINGER_CLOSED,
+                          "hold the lever until the left arm is clear"))
+    for th in (0.4, 0.2, 0.0):
+        right.append(Waypoint(0.8, (*_post_at(th), POST_GRIP_Z), FINGER_CLOSED, "let the jaw close over the slide"))
     right += [
-        Waypoint(0.6, GRIP, FINGER_CLOSED, "settle", side(TURN)),
-        Waypoint(0.8, GRIP, FINGER_OPEN, "let go", side(TURN)),
-        Waypoint(1.0, OUT, FINGER_OPEN, "back off", side(TURN)),
-        Waypoint(1.2, OUT, FINGER_OPEN, "unroll", side(TURN / 2)),
-        Waypoint(1.2, OUT, FINGER_OPEN, "unroll", side(0.0)),
-        Waypoint(1.5, OUT_UP, FINGER_OPEN, "point down again"),
-        Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
+        Waypoint(0.5, (*_post_at(0.0), POST_GRIP_Z), WIDE, "let go of the post"),
+        Waypoint(0.8, (*_post_at(0.0), POST_GRIP_Z + 0.04), KNOB_WIDE, "up"),
     ]
-    t_end = _dur(right) + 2.0
-    right.append(Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "hold"))
-    left = [Waypoint(t_end, LEFT_PARK, FINGER_OPEN, "rest")]
+    _quarter(right, W(*YKNOB, 0.0)[:2], "y knob")
+    _quarter(right, W(*XKNOB, 0.0)[:2], "x knob")
+    _quarter(right, W(*XKNOB, 0.0)[:2], "x knob")
+    right += [
+        Waypoint(2.0, F_OUT_UP, KNOB_WIDE, "above, beside the right focus knob"),
+        Waypoint(1.5, F_OUT, FOCUS_WIDE, "level the gripper", side(0.0)),
+        Waypoint(1.5, F_GRIP, FOCUS_WIDE, "onto the focus knob", side(0.0)),
+        Waypoint(0.8, F_GRIP, FINGER_CLOSED, "grip the rim", side(0.0)),
+    ]
+    for k in range(1, 7):
+        right.append(Waypoint(1.2, F_GRIP, FINGER_CLOSED, "focus: turn, top towards the robots", side(F_TURN * k / 6)))
+    right += [
+        Waypoint(0.6, F_GRIP, FINGER_CLOSED, "settle", side(F_TURN)),
+        Waypoint(0.8, F_GRIP, FOCUS_WIDE, "let go", side(F_TURN)),
+        Waypoint(1.0, F_OUT, FOCUS_WIDE, "back off", side(F_TURN)),
+        Waypoint(1.2, F_OUT, FOCUS_WIDE, "unroll", side(F_TURN / 2)),
+        Waypoint(1.2, F_OUT, FOCUS_WIDE, "unroll", side(0.0)),
+        Waypoint(1.5, F_OUT_UP, KNOB_WIDE, "point down again"),
+        Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
+        Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "hold"),
+    ]
+    left.append(Waypoint(max(0.5, _dur(right) - _dur(left)), LEFT_PARK, FINGER_OPEN, "rest"))
     return {"left": left, "right": right}

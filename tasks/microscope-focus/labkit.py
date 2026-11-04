@@ -6,7 +6,8 @@ yam_arena task files only take single primitives (Box, Cylinder, Sphere, Asset).
   wafer cassette with slots), loose (give it a mass) or fixed to the table (``fixed=True``).
 - ``Joint``: a moving piece on a part, either a ``"slide"`` (prismatic) or a ``"hinge"`` (revolute) along/about one
   of the part's axes, with limits, an optional spring back to a target, damping and joint friction. A spring clip, a
-  focus knob, a microscope stage axis, a lid.
+  focus knob, a microscope stage axis, a lid. ``parent`` lets a joint ride on another (a stage's x carriage on its y
+  carriage on its focus slide).
 - ``PartState``: what ``success()`` / ``score()`` receive for a part: the body origin's pose, velocities, bounds, and
   every joint's position (m for slides, rad for hinges).
 - ``on_step(fn)`` / ``on_reset(fn)``: callbacks with the Isaac Lab environment after every control step / reset, for
@@ -110,6 +111,7 @@ class Joint:
     friction: float = 0.0
     initial: float = 0.0
     mass: float = 0.01
+    parent: str = ""  # another joint of the same part this one rides on ("" = the part's main body)
 
     def checked(self) -> "Joint":
         if self.kind not in ("slide", "hinge"):
@@ -127,7 +129,7 @@ class Joint:
             boxes=_boxes(self.boxes, self.name), cylinders=_cyls(self.cylinders, self.name),
             lower=float(self.lower), upper=float(self.upper), stiffness=float(self.stiffness),
             damping=float(self.damping), target=float(self.target), friction=float(self.friction),
-            initial=float(self.initial), mass=float(self.mass),
+            initial=float(self.initial), mass=float(self.mass), parent=str(self.parent),
         )
 
     @property
@@ -176,6 +178,10 @@ def part(name, pos, boxes=(), cylinders=(), mass=None, fixed=False, yaw=0.0, joi
     """Build a Part; its ``size`` is the rest extent of all its shapes (joints included)."""
     b, c = _boxes(boxes, name), _cyls(cylinders, name)
     js = tuple(j.checked() for j in joints)
+    names = [j.name for j in js]
+    for i, j in enumerate(js):
+        if j.parent and j.parent not in names[:i]:
+            raise ValueError(f"{name}: joint {j.name} rides on {j.parent!r}, which must be listed before it")
     all_b = list(b) + [x for j in js for x in j.boxes]
     all_c = list(c) + [x for j in js for x in j.cylinders]
     lo, hi = _extent(all_b, all_c)
@@ -366,9 +372,10 @@ def _author(prim_path: str, cfg, translation=None, orientation=None, **kwargs):
             jp = UsdPhysics.RevoluteJoint.Define(stage, f"{path}/{j.joint_name}")
             scale, drive_type = 180.0 / math.pi, "angular"  # USD revolute limits and drives are in degrees
         jp.CreateAxisAttr(j.axis)
-        jp.CreateBody0Rel().SetTargets([Sdf.Path(main)])
+        parent = next((p for p in spec.joints if p.name == j.parent), None)
+        jp.CreateBody0Rel().SetTargets([Sdf.Path(f"{prim_path}/{parent.name}" if parent else main)])
         jp.CreateBody1Rel().SetTargets([Sdf.Path(path)])
-        jp.CreateLocalPos0Attr(Gf.Vec3f(*j.anchor))
+        jp.CreateLocalPos0Attr(Gf.Vec3f(*(np.array(j.anchor) - (np.array(parent.anchor) if parent else 0.0))))
         jp.CreateLocalRot0Attr(Gf.Quatf(1, 0, 0, 0))
         jp.CreateLocalPos1Attr(Gf.Vec3f(0, 0, 0))
         jp.CreateLocalRot1Attr(Gf.Quatf(1, 0, 0, 0))
