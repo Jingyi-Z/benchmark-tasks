@@ -69,19 +69,21 @@ QX0, QY0 = -0.085, 0.0
 QX_FOCUS, QY_FOCUS = 0.0, -SPEC_Y  # carriage positions that put the specimen on the objective axis
 X_LEAD, Y_LEAD = 0.170, 0.040  # stage drive: m per knob turn (turning a knob clockwise seen from above moves the stage
 #                                away from the robots for x, to the left for y)
-XKNOB = (STAGE_X - 0.050, 0.105)  # x and y drive knobs on a bracket at the stage's front left (local xy)
-YKNOB = (STAGE_X - 0.100, 0.105)
+XKNOB = (STAGE_X - 0.075, 0.095)  # x (inner) and y (outer) drive knobs on a bracket out to the stage's left (local xy)
+YKNOB = (STAGE_X - 0.075, 0.145)
 DKNOB_R, DKNOB_H = 0.017, 0.016
 DKNOB_TOP = PLATE_TOP0 - 0.006
 LIM = 0.10
 
 # Slide holder on the x carriage: the slide lies with its centre at the holder centre (STAGE_X, 0) against two back
-# posts and a left stop; a spring lever pivoting behind its right end holds a jaw over that end. Pulling the lever's
+# posts and a left stop; a spring lever pivoting behind its right end presses a jaw on that end, against the stop. Pulling the lever's
 # handle (out to the right) back swings the jaw off the slide's end.
-PIVOT = (STAGE_X + SLIDE_W / 2 + 0.012, -SLIDE_L / 2 + 0.003)
+STOP_IN = SLIDE_L / 2 + 0.0005  # the left stop's inner face (y): a loaded slide is pushed against it
+PUSHED_DY = STOP_IN - SLIDE_L / 2  # so a loaded slide's centre sits this far left of the holder centre
+PIVOT = (STAGE_X + SLIDE_W / 2 + 0.012, STOP_IN - SLIDE_L + 0.0008 - 0.003)  # the closed jaw's face presses 0.8 mm
 ARM_L = 0.044  # the clamp jaw, across the slide's right end
 HANDLE_L = 0.090  # the lever's handle, out to the right, with the post at its end
-ARM_Z = PLATE_TOP0 + SLIDE_T + 0.0004  # the arm's underside, just clear of a loaded slide
+ARM_Z = PLATE_TOP0 + 0.0003  # the jaw's underside, just clear of the plate: it pushes the slide's right end
 POST_R, POST_H = 0.005, 0.020
 ARM_OPEN = 1.2
 
@@ -111,7 +113,7 @@ STAGE = Joint(  # the focus slide: carries the stage, the drive bracket and knob
     boxes=[
         ((STAGE_X + 0.075, 0.0, PLATE_TOP0 - 0.03), (0.03, 0.07, 0.03), DARK),  # carrier, into the pillar
         ((STAGE_X, 0.0, PLATE_TOP0 - 0.0135), (0.12, 0.15, 0.005), DARK),  # fixed lower plate
-        ((STAGE_X - 0.075, 0.105, DKNOB_TOP - DKNOB_H - 0.006), (0.09, 0.025, 0.012), DARK),  # drive bracket
+        ((STAGE_X - 0.075, 0.12, DKNOB_TOP - DKNOB_H - 0.006), (0.03, 0.08, 0.012), DARK),  # drive bracket
     ],
 )
 STAGE_Y = Joint(
@@ -126,14 +128,14 @@ STAGE_X_J = Joint(
         ((STAGE_X, 0.0, PLATE_TOP0 - 0.003), (0.10, 0.13, 0.006), DARK),  # top plate
         *[((STAGE_X + SLIDE_W / 2 + 0.003, y, PLATE_TOP0 + 0.00075), (0.004, 0.006, 0.0015), STEEL)
           for y in (-0.020, 0.005)],  # back posts, 1 mm behind the slide's back edge
-        ((STAGE_X, SLIDE_L / 2 + 0.003, PLATE_TOP0 + 0.00075), (0.012, 0.004, 0.0015), STEEL),  # left stop
+        ((STAGE_X, STOP_IN + 0.002, PLATE_TOP0 + 0.0015), (0.012, 0.004, 0.003), STEEL),  # left stop
         ((STAGE_X - 0.02, 0.0, PLATE_TOP0 + 0.0002), (0.002, 0.03, 0.0004), WHITE),  # holder index line
     ],
 )
 HOLDER = Joint(
     "holder", kind="hinge", axis="Z", anchor=(*PIVOT, ARM_Z), lower=0.0, upper=ARM_OPEN, initial=0.0,
     stiffness=0.25, damping=0.03, target=0.0, mass=0.02, parent="stage_x",
-    boxes=[((PIVOT[0] - ARM_L / 2, PIVOT[1], ARM_Z + 0.0015), (ARM_L, 0.006, 0.003), STEEL),  # jaw
+    boxes=[((PIVOT[0] - ARM_L / 2, PIVOT[1], ARM_Z + 0.00135), (ARM_L, 0.006, 0.0027), STEEL),  # jaw
            ((PIVOT[0], PIVOT[1] - HANDLE_L / 2, ARM_Z + 0.0015), (0.006, HANDLE_L, 0.003), STEEL)],  # handle
     cylinders=[((PIVOT[0], PIVOT[1], ARM_Z + 0.0015), 0.005, 0.003, STEEL),
                ((PIVOT[0], PIVOT[1] - HANDLE_L + 0.003, ARM_Z + 0.003 + POST_H / 2), POST_R, POST_H, BLACK)],
@@ -236,7 +238,7 @@ FOCUS_TOL, NEAR_TOL = 0.0005, 0.002
 
 def holder_centre(j: dict) -> np.ndarray:
     """World position of the holder centre (the middle of a loaded slide's underside)."""
-    return np.array([MX + STAGE_X + j["stage_x"], MY + j["stage_y"], TOP + PLATE_TOP0 + j["stage"]])
+    return np.array([MX + STAGE_X + j["stage_x"], MY + PUSHED_DY + j["stage_y"], TOP + PLATE_TOP0 + j["stage"]])
 
 
 def _loaded(j: dict, slide) -> bool:
@@ -338,7 +340,7 @@ def _post_at(theta: float, qx=QX0, qy=QY0):
 POST_GRIP_Z = TOP + ARM_Z + 0.003 + POST_H * 0.55 + TIP_ABOVE_TCP
 SLIDE_GRIP_DY = 0.031  # grip the slide 31 mm left of its centre (on the label end)
 REST_GRIP_Z = TOP + REST[2] - 0.003 + TIP_ABOVE_TCP  # pad tips 3 mm below the slide, beside the narrow rest
-PLACE = (MX + STAGE_X + QX0 - 0.001, MY + QY0)  # 1 mm in front of the holder centre, clear of the back posts
+PLACE = (MX + STAGE_X + QX0 - 0.001, MY + QY0 - 0.001)  # 1 mm in front of and right of the loaded position
 PLACE_Z = TOP + PLATE_TOP0 + 0.0005 + TIP_ABOVE_TCP  # pad tips 0.5 mm above the plate: the slide drops 3.5 mm
 CARRY_Z = TOP + PLATE_TOP0 + 0.05
 DK_GRIP_Z = TOP + DKNOB_TOP - DKNOB_H / 2 + TIP_ABOVE_TCP
@@ -346,11 +348,12 @@ DK_HOVER = DK_GRIP_Z + 0.05
 F_GRIP = W(FKNOB_X, -(FKNOB_Y0 + FKNOB_W) + 0.009 - TIP_ABOVE_TCP, FKNOB_Z)
 F_OUT = (F_GRIP[0], F_GRIP[1] - 0.04, F_GRIP[2])
 F_OUT_UP = (F_GRIP[0], F_GRIP[1] - 0.04, F_GRIP[2] + 0.04)
-F_TURN = -2 * math.pi * START_OFF / F_LEAD
+F_TURN = -1.07 * 2 * math.pi * START_OFF / F_LEAD  # 7 % extra: the grip slips a little
 WIDE = -0.025  # fingers part-open round the post or the slide
 SLIDE_RELEASE = -0.016  # open just enough to free the slide, clear of the objective
 FOCUS_WIDE = -0.03  # part-open round the 47 mm focus knob, clear of the table
-KNOB_WIDE = -0.024  # part-open round a 39 mm ribbed drive knob, clear of its neighbour
+KNOB_WIDE = -0.030  # part-open round a 39 mm ribbed drive knob
+KNOB_GRIP = -0.004  # closed on a drive knob
 
 PLANCHECK_BOXES = [
     ("table", (0.35, 0.0, TOP - 0.02), (0.8, 1.2, 0.04)),
@@ -368,17 +371,18 @@ def _dur(wps):
     return sum(w.duration for w in wps)
 
 
-def _quarter(wps, xy, label, z_grip=None):
-    """A clockwise quarter turn of a top-down drive knob: grip at yaw +45 degrees, turn to -45, let go, lift."""
-    z = DK_GRIP_Z if z_grip is None else z_grip
-    q = math.pi / 4
+def _quarter(wps, xy, label):
+    """A clockwise quarter turn of a top-down drive knob: grip at yaw 90 degrees (fingers closing along x), turn
+    slowly to 0, let go, lift."""
+    z = DK_GRIP_Z
+    q = math.pi / 2
     wps += [
         Waypoint(1.5, (*xy, DK_HOVER), KNOB_WIDE, f"above the {label}", q),
         Waypoint(1.0, (*xy, z), KNOB_WIDE, f"round the {label}", q),
-        Waypoint(0.6, (*xy, z), FINGER_CLOSED, "grip", q),
-        Waypoint(2.0, (*xy, z), FINGER_CLOSED, f"turn the {label} a quarter turn clockwise", -q),
-        Waypoint(0.5, (*xy, z), KNOB_WIDE, "let go", -q),
-        Waypoint(0.8, (*xy, DK_HOVER), KNOB_WIDE, "up", -q),
+        Waypoint(0.8, (*xy, z), KNOB_GRIP, "grip", q),
+        Waypoint(4.0, (*xy, z), KNOB_GRIP, f"turn the {label} a quarter turn clockwise", 0.0),
+        Waypoint(0.6, (*xy, z), KNOB_WIDE, "let go", 0.0),
+        Waypoint(0.8, (*xy, DK_HOVER), KNOB_WIDE, "up", 0.0),
     ]
 
 
