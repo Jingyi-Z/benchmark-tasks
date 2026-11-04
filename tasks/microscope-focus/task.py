@@ -69,8 +69,8 @@ QX0, QY0 = -0.085, 0.0
 QX_FOCUS, QY_FOCUS = 0.0, -SPEC_Y  # carriage positions that put the specimen on the objective axis
 X_LEAD, Y_LEAD = 0.170, 0.040  # stage drive: m per knob turn (turning a knob clockwise seen from above moves the stage
 #                                away from the robots for x, to the left for y)
-XKNOB = (STAGE_X - 0.055, -0.100)  # x and y drive knobs on a bracket at the stage's front right (local xy)
-YKNOB = (STAGE_X - 0.095, -0.100)
+XKNOB = (STAGE_X - 0.055, 0.100)  # x and y drive knobs on a bracket at the stage's front left (local xy)
+YKNOB = (STAGE_X - 0.095, 0.100)
 DKNOB_R, DKNOB_H = 0.012, 0.015
 DKNOB_TOP = PLATE_TOP0 - 0.006
 LIM = 0.10
@@ -111,7 +111,7 @@ STAGE = Joint(  # the focus slide: carries the stage, the drive bracket and knob
     boxes=[
         ((STAGE_X + 0.075, 0.0, PLATE_TOP0 - 0.03), (0.03, 0.07, 0.03), DARK),  # carrier, into the pillar
         ((STAGE_X, 0.0, PLATE_TOP0 - 0.0135), (0.12, 0.15, 0.005), DARK),  # fixed lower plate
-        ((STAGE_X - 0.075, -0.100, DKNOB_TOP - DKNOB_H - 0.006), (0.07, 0.02, 0.012), DARK),  # drive bracket
+        ((STAGE_X - 0.075, 0.100, DKNOB_TOP - DKNOB_H - 0.006), (0.07, 0.02, 0.012), DARK),  # drive bracket
     ],
 )
 STAGE_Y = Joint(
@@ -144,7 +144,7 @@ def _drive_knob(name, xy):
     cx, cy = xy
     return Joint(
         name, kind="hinge", axis="Z", anchor=(cx, cy, DKNOB_TOP - DKNOB_H), lower=-2 * math.pi, upper=2 * math.pi,
-        initial=0.0, stiffness=0.0, damping=0.3, target=0.0, mass=0.02, parent="stage",
+        initial=0.0, stiffness=0.0, damping=0.1, target=0.0, mass=0.02, parent="stage",
         cylinders=[((cx, cy, DKNOB_TOP - DKNOB_H / 2), DKNOB_R, DKNOB_H, BLACK),
                    *_ribs(cx, cy, DKNOB_TOP - DKNOB_H, DKNOB_R, DKNOB_H)],
         boxes=[((cx - DKNOB_R / 2, cy, DKNOB_TOP + 0.0004), (DKNOB_R, 0.002, 0.0008), WHITE)],
@@ -170,7 +170,7 @@ MICROSCOPE = part(
 )
 
 # -- the slide (loose) on its rest -----------------------------------------------------------------------------------
-REST_XY = (0.20, 0.21)
+REST_XY = (0.18, 0.26)
 REST = (0.016, 0.060, 0.030)  # narrower than the slide, so fingers can close on the slide's edges
 SLIDE_REST = part("slide_rest", pos=(*REST_XY, TOP), fixed=True,
                   boxes=[((0.0, 0.0, REST[2] / 2), REST, GREY)])
@@ -322,6 +322,12 @@ def W(x, y, z):
     return (MX + x, MY + y, TOP + z)
 
 
+def _push_at(theta: float):
+    """TCP xy for closed fingers pushing the post back, on its front side, when the lever is open by theta."""
+    px, py = _post_at(theta)
+    return px - (POST_R + 0.010) * math.cos(theta), py - (POST_R + 0.010) * math.sin(theta)
+
+
 def _post_at(theta: float, qx=QX0, qy=QY0):
     """World xy of the holder arm's post when the arm is open by theta."""
     r = HANDLE_L - 0.003
@@ -331,9 +337,9 @@ def _post_at(theta: float, qx=QX0, qy=QY0):
 
 POST_GRIP_Z = TOP + ARM_Z + 0.003 + POST_H * 0.55 + TIP_ABOVE_TCP
 SLIDE_GRIP_DY = 0.031  # grip the slide 31 mm left of its centre (on the label end)
-REST_GRIP_Z = TOP + REST[2] + SLIDE_T / 2 - 0.0008 + TIP_ABOVE_TCP
+REST_GRIP_Z = TOP + REST[2] - 0.003 + TIP_ABOVE_TCP  # pad tips 3 mm below the slide, beside the narrow rest
 PLACE = (MX + STAGE_X + QX0, MY + QY0)
-PLACE_Z = TOP + PLATE_TOP0 + 0.0008 + SLIDE_T / 2 - 0.0008 + TIP_ABOVE_TCP  # the slide's underside 0.8 mm up
+PLACE_Z = TOP + PLATE_TOP0 + 0.0005 + TIP_ABOVE_TCP  # pad tips 0.5 mm above the plate: the slide drops 3.5 mm
 CARRY_Z = TOP + PLATE_TOP0 + 0.05
 DK_GRIP_Z = TOP + DKNOB_TOP - DKNOB_H / 2 + TIP_ABOVE_TCP
 DK_HOVER = DK_GRIP_Z + 0.05
@@ -379,13 +385,14 @@ def _quarter(wps, xy, label, z_grip=None):
 def demo():
     sx, sy = REST_XY
     gx, gy = PLACE
+    # Right arm: pushes the lever's post back with closed fingers (the spring holds it against them), holds it while
+    # the left arm lays the slide in, then eases off so the jaw closes, and later focuses.
     right = [
-        Waypoint(2.5, (*_post_at(0.0), POST_GRIP_Z + 0.04), FINGER_OPEN, "above the holder post"),
-        Waypoint(1.0, (*_post_at(0.0), POST_GRIP_Z), WIDE, "round the post"),
-        Waypoint(0.6, (*_post_at(0.0), POST_GRIP_Z), FINGER_CLOSED, "grip the post"),
+        Waypoint(2.5, (*_push_at(0.0), POST_GRIP_Z + 0.04), FINGER_CLOSED, "above the front of the lever post"),
+        Waypoint(1.0, (*_push_at(0.0), POST_GRIP_Z), FINGER_CLOSED, "down in front of the post"),
     ]
     for th in (0.2, 0.4, OPEN_TH):
-        right.append(Waypoint(0.8, (*_post_at(th), POST_GRIP_Z), FINGER_CLOSED, "pull the holder lever back"))
+        right.append(Waypoint(0.8, (*_push_at(th), POST_GRIP_Z), FINGER_CLOSED, "push the lever back", th))
     t_open = _dur(right)
     left = [
         Waypoint(2.5, (sx, sy + SLIDE_GRIP_DY, REST_GRIP_Z + 0.05), FINGER_OPEN, "above the slide's label", -math.pi / 2),
@@ -400,20 +407,27 @@ def demo():
         Waypoint(1.5, (gx, gy + SLIDE_GRIP_DY, PLACE_Z), FINGER_CLOSED, "lower into the holder", -math.pi / 2),
         Waypoint(0.6, (gx, gy + SLIDE_GRIP_DY, PLACE_Z), SLIDE_RELEASE, "let go", -math.pi / 2),
         Waypoint(1.0, (gx, gy + SLIDE_GRIP_DY, CARRY_Z), SLIDE_RELEASE, "up", -math.pi / 2),
-        Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "park"),
+        Waypoint(1.5, (*W(*YKNOB, 0.0)[:2], DK_HOVER + 0.03), KNOB_WIDE, "towards the drive knobs"),
     ]
-    t_left_clear = _dur(left) - 0.8  # the left arm is well on its way to park
-    right.append(Waypoint(max(0.3, t_left_clear - _dur(right)), (*_post_at(OPEN_TH), POST_GRIP_Z), FINGER_CLOSED,
-                          "hold the lever until the left arm is clear"))
+    t_left_clear = _dur(left) - 1.0
+    right.append(Waypoint(max(0.3, t_left_clear - _dur(right)), (*_push_at(OPEN_TH), POST_GRIP_Z), FINGER_CLOSED,
+                          "hold the lever back until the left arm is clear", OPEN_TH))
     for th in (0.4, 0.2, 0.0):
-        right.append(Waypoint(0.8, (*_post_at(th), POST_GRIP_Z), FINGER_CLOSED, "let the jaw close over the slide"))
+        right.append(Waypoint(0.8, (*_push_at(th), POST_GRIP_Z), FINGER_CLOSED, "ease off: the jaw closes", th))
     right += [
-        Waypoint(0.5, (*_post_at(0.0), POST_GRIP_Z), WIDE, "let go of the post"),
-        Waypoint(0.8, (*_post_at(0.0), POST_GRIP_Z + 0.04), KNOB_WIDE, "up"),
+        Waypoint(0.6, (*_push_at(-0.15), POST_GRIP_Z), FINGER_CLOSED, "clear of the post"),
+        Waypoint(0.8, (*_push_at(-0.15), POST_GRIP_Z + 0.04), FINGER_CLOSED, "up"),
+        Waypoint(1.5, RIGHT_ASIDE, FINGER_OPEN, "aside"),
     ]
-    _quarter(right, W(*YKNOB, 0.0)[:2], "y knob")
-    _quarter(right, W(*XKNOB, 0.0)[:2], "x knob")
-    _quarter(right, W(*XKNOB, 0.0)[:2], "x knob")
+    # Left arm: the stage drives, once the jaw has closed over the slide.
+    left.append(Waypoint(max(0.3, _dur(right) - _dur(left)), (*W(*YKNOB, 0.0)[:2], DK_HOVER + 0.03), KNOB_WIDE,
+                         "wait for the jaw to close"))
+    _quarter(left, W(*YKNOB, 0.0)[:2], "y knob")
+    _quarter(left, W(*XKNOB, 0.0)[:2], "x knob")
+    _quarter(left, W(*XKNOB, 0.0)[:2], "x knob")
+    left.append(Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "park"))
+    right.append(Waypoint(max(0.3, _dur(left) - 2.0 - _dur(right)), RIGHT_ASIDE, FINGER_OPEN,
+                          "wait while the left arm drives the stage"))
     right += [
         Waypoint(2.0, F_OUT_UP, KNOB_WIDE, "above, beside the right focus knob"),
         Waypoint(1.5, F_OUT, FOCUS_WIDE, "level the gripper", side(0.0)),
