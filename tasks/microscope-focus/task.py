@@ -126,8 +126,8 @@ STAGE_X_J = Joint(
     stiffness=20000.0, damping=400.0, target=QX0, mass=0.05, parent="stage_y",
     boxes=[
         ((STAGE_X, 0.0, PLATE_TOP0 - 0.003), (0.10, 0.13, 0.006), DARK),  # top plate
-        *[((STAGE_X + SLIDE_W / 2 + 0.003, y, PLATE_TOP0 + 0.00075), (0.004, 0.006, 0.0015), STEEL)
-          for y in (-0.020, 0.005)],  # back posts, 1 mm behind the slide's back edge
+        *[((STAGE_X + SLIDE_W / 2 + 0.004, y, PLATE_TOP0 + 0.0004), (0.004, 0.006, 0.0008), STEEL)
+          for y in (-0.020, 0.005)],  # low back posts, 2 mm behind the slide's back edge
         ((STAGE_X, STOP_IN + 0.002, PLATE_TOP0 + 0.0015), (0.012, 0.004, 0.003), STEEL),  # left stop
         ((STAGE_X - 0.02, 0.0, PLATE_TOP0 + 0.0002), (0.002, 0.03, 0.0004), WHITE),  # holder index line
     ],
@@ -340,7 +340,7 @@ def _post_at(theta: float, qx=QX0, qy=QY0):
 POST_GRIP_Z = TOP + ARM_Z + 0.003 + POST_H * 0.55 + TIP_ABOVE_TCP
 SLIDE_GRIP_DY = 0.031  # grip the slide 31 mm left of its centre (on the label end)
 REST_GRIP_Z = TOP + REST[2] - 0.003 + TIP_ABOVE_TCP  # pad tips 3 mm below the slide, beside the narrow rest
-PLACE = (MX + STAGE_X + QX0 - 0.001, MY + QY0 - 0.001)  # 1 mm in front of and right of the loaded position
+PLACE = (MX + STAGE_X + QX0 - 0.001, MY + QY0 - 0.002)  # 1 mm in front of and 2 mm right of where it ends
 PLACE_Z = TOP + PLATE_TOP0 + 0.0005 + TIP_ABOVE_TCP  # pad tips 0.5 mm above the plate: the slide drops 3.5 mm
 CARRY_Z = TOP + PLATE_TOP0 + 0.05
 DK_GRIP_Z = TOP + DKNOB_TOP - DKNOB_H / 2 + TIP_ABOVE_TCP
