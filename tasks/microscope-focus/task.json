@@ -18,5 +18,5 @@
   "reset_notes": "Nothing is consumed. Lower the stage 12 mm below focus, drive it 85 mm towards the robots and centre it left to right, take the slide out and lay it on its rest, label to the left.",
   "fidelity": "Rigid bodies in PhysX at 240 Hz. Knobs turn on damped hinges and the stage follows the knob angles through stiff drives, geared faster than a real stage (x 170 mm, y 40 mm and focus 24 mm per turn). The slide is drawn 2 mm thick (real 1 mm). Focus is judged by the gap only and centring by the specimen's distance from the objective's axis: no optics are simulated. The illuminator's light is drawn as a flat spot on the axis. In a real trial both are checked with the microscope's camera at 10x (field about 2 mm across): the specimen square fills the image, and the image is sharp.",
   "scores": "Dream-1 run: 0.0; demo: 1.0",
-  "media": "M-HLHTZX"
+  "media": "M-QEJAZN"
 }
