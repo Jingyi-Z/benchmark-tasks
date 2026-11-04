@@ -41,7 +41,7 @@ WHITE = (0.97, 0.97, 0.97)
 RED = (0.85, 0.12, 0.12)
 LIGHT = (1.0, 0.98, 0.80)  # the illuminator's spot of light
 VISUAL_ONLY.add(LIGHT)
-SPOT_R = 0.0035  # the light spot: 7 mm across, on the objective's axis
+SPOT_R = 0.012  # the light spot: 24 mm across, on the objective's axis, so it shows round the objective from above
 
 # -- the microscope (fixed). Frame: origin on the table under the stand, x away from the robots, y to their left. -----
 MX, MY = 0.34, 0.06
@@ -120,7 +120,8 @@ STAGE = Joint(  # the focus slide: carries the stage, the drive bracket and knob
     ],
     # The illuminator's light, from below through the stage, shows as a spot on the slide on the objective's axis. It
     # rises with the stage (the condenser does) and is only drawn: nothing collides with it.
-    cylinders=[((STAGE_X, 0.0, PLATE_TOP0 + SLIDE_T + 0.0007), SPOT_R, 0.0002, LIGHT)],
+    # It is drawn just over the glass and under the specimen square's top, so the square shows on the light.
+    cylinders=[((STAGE_X, 0.0, PLATE_TOP0 + SLIDE_T + 0.0001), SPOT_R, 0.0001, LIGHT)],
 )
 STAGE_Y = Joint(
     "stage_y", kind="slide", axis="Y", anchor=(STAGE_X, 0.0, PLATE_TOP0), lower=-LIM, upper=LIM, initial=QY0,
