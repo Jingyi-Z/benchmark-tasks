@@ -249,6 +249,7 @@ PICK_Z = TOP + GRIP_UP + TIP_ABOVE_TCP
 PICK_HOVER = TOP + PART_H + 0.05
 CARRY_Z = TOP + J + 0.010 + GRIP_UP + TIP_ABOVE_TCP  # the part's bottom 10 mm above the jaw tops
 HOLD_Y = -0.0005  # 0.5 mm off the fixed jaw
+ENTRY_DY = 0.004  # lowered in 4.5 mm clear of the fixed jaw, then moved across to it
 HOLD = W(0.0, HOLD_Y, J - MARK_H + GRIP_UP + TIP_ABOVE_TCP)
 KNOB_WIDE = -0.027  # pads 54 mm apart round the 40 mm ribbed knob
 KNOB_GRIP = W(0.0, KNOB_Y - KNOB_W / 2 + 0.009 - TIP_ABOVE_TCP, SCREW_Z)  # pad tips 9 mm onto the knob
@@ -292,8 +293,9 @@ def demo():
         Waypoint(1.2, (px, py, PICK_Z), PART_WIDE, "fingers either side of its top", PART_YAW),
         Waypoint(0.8, (px, py, PICK_Z), FINGER_CLOSED, "grip", PART_YAW),
         Waypoint(1.5, (px, py, CARRY_Z), FINGER_CLOSED, "lift", PART_YAW),
-        Waypoint(2.0, (HOLD[0], HOLD[1], CARRY_Z), FINGER_CLOSED, "over the open jaws", PART_YAW),
-        Waypoint(1.5, HOLD, FINGER_CLOSED, "lower: line level with the jaw tops", PART_YAW),
+        Waypoint(2.0, (HOLD[0], HOLD[1] - ENTRY_DY, CARRY_Z), FINGER_CLOSED, "over the open jaws", PART_YAW),
+        Waypoint(1.5, (HOLD[0], HOLD[1] - ENTRY_DY, HOLD[2]), FINGER_CLOSED, "lower between the jaws: line level with the jaw tops", PART_YAW),
+        Waypoint(0.8, HOLD, FINGER_CLOSED, "to the fixed jaw", PART_YAW),
         Waypoint(0.8, HOLD, FINGER_CLOSED, "steady", PART_YAW),
     ]
     t_held = _dur(left)
