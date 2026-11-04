@@ -288,6 +288,16 @@ _dbg = {"n": 0}
 @on_reset
 def _clear(env):
     _dbg["n"] = 0
+    if _DBG:
+        try:
+            g = _grain_positions(env)
+            d = np.linalg.norm(g[:, None] - g[None], axis=-1) + np.eye(len(g))
+            v = labkit._part_state(env, labkit._SPECS["vial"])
+            print(f"DBGRESET grains min {np.round(g.min(0), 4).tolist()} max {np.round(g.max(0), 4).tolist()} "
+                  f"min pair {d.min():.4f} vial {np.round(v.pos, 4).tolist()} first {np.round(g[:3], 4).tolist()}",
+                  flush=True)
+        except Exception as e:  # noqa: BLE001
+            print("DBGRESET failed", e, flush=True)
     _trial.update(tare_g=0.0, tared=False, tare_ok=False, tare_door_shut=False, pressed=False, reading=None,
                   text=display_text(0.0))
     _pour_reset()
