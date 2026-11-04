@@ -69,8 +69,8 @@ QX0, QY0 = -0.085, 0.0
 QX_FOCUS, QY_FOCUS = 0.0, -SPEC_Y  # carriage positions that put the specimen on the objective axis
 X_LEAD, Y_LEAD = 0.170, 0.040  # stage drive: m per knob turn (turning a knob clockwise seen from above moves the stage
 #                                away from the robots for x, to the left for y)
-XKNOB = (STAGE_X - 0.075, 0.095)  # x (inner) and y (outer) drive knobs on a bracket out to the stage's left (local xy)
-YKNOB = (STAGE_X - 0.075, 0.145)
+XKNOB = (STAGE_X - 0.075, 0.090)  # x (inner) and y (outer) drive knobs on a bracket out to the stage's left (local xy)
+YKNOB = (STAGE_X - 0.075, 0.155)
 DKNOB_R, DKNOB_H = 0.017, 0.016
 DKNOB_TOP = PLATE_TOP0 - 0.006
 LIM = 0.10
@@ -113,7 +113,7 @@ STAGE = Joint(  # the focus slide: carries the stage, the drive bracket and knob
     boxes=[
         ((STAGE_X + 0.075, 0.0, PLATE_TOP0 - 0.03), (0.03, 0.07, 0.03), DARK),  # carrier, into the pillar
         ((STAGE_X, 0.0, PLATE_TOP0 - 0.0135), (0.12, 0.15, 0.005), DARK),  # fixed lower plate
-        ((STAGE_X - 0.075, 0.12, DKNOB_TOP - DKNOB_H - 0.006), (0.03, 0.08, 0.012), DARK),  # drive bracket
+        ((STAGE_X - 0.075, 0.1225, DKNOB_TOP - DKNOB_H - 0.006), (0.03, 0.10, 0.012), DARK),  # drive bracket
     ],
 )
 STAGE_Y = Joint(
@@ -312,6 +312,62 @@ def side(roll: float) -> Orient:
     return Orient(axis_angle_matrix(np.array([0.0, 1.0, 0.0]), roll) @ SIDE)
 
 
+class Servo(Orient):
+    """A Waypoint ``yaw`` whose gripper rotation turns a knob until the knob reaches ``target`` (closed loop): an
+    ``on_step`` hook moves the commanded wrist angle by the remaining knob error, a little each step, between ``t0``
+    and ``t1`` (seconds from the start of the demo). ``rot_of`` maps the wrist angle to a gripper rotation."""
+
+    def __new__(cls, joint, target, start, rot_of):
+        obj = float.__new__(cls, 0.0)
+        obj.joint, obj.target, obj.start, obj.rot_of = joint, target, start, rot_of
+        obj.cmd, obj.t0, obj.t1, obj.a0 = start, 0.0, 0.0, None
+        return obj
+
+    @property
+    def rot(self):
+        return self.rot_of(self.cmd)
+
+
+_SERVOS: list = []
+_clock = {"t": 0.0}
+SERVO_GAIN, SERVO_MAX = 0.25, 0.04  # rad of wrist per step per rad of knob error; at most 0.04 rad (0.8 rad/s)
+
+
+@on_reset
+def _servo_reset(env):
+    _clock["t"] = 0.0
+    for sv in _SERVOS:
+        sv.cmd, sv.a0 = sv.start, None
+
+
+@on_step
+def _servo_step(env):
+    import labkit
+
+    _clock["t"] += float(getattr(env.unwrapped, "step_dt", 0.05))
+    active = [sv for sv in _SERVOS if sv.t0 <= _clock["t"] <= sv.t1]
+    if not active:
+        return
+    j = labkit._part_state(env, labkit._SPECS["microscope"]).joints
+    for sv in active:
+        err = sv.target - j[sv.joint]
+        sv.cmd += float(np.clip(SERVO_GAIN * err, -SERVO_MAX, SERVO_MAX))
+
+
+def _servo(wps, duration, xyz, finger, label, joint, target, start, rot_of):
+    """Append a closed-loop knob turn of ``duration`` seconds to ``wps``."""
+    sv = Servo(joint, target, start, rot_of)
+    sv.t0 = sum(w.duration for w in wps)
+    sv.t1 = sv.t0 + duration
+    _SERVOS.append(sv)
+    wps.append(Waypoint(duration, xyz, finger, label, sv))
+    return sv
+
+
+def _down(yaw):
+    return _down_grip(yaw)
+
+
 TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.15, 0.25, TOP + 0.14)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.14)
@@ -348,12 +404,16 @@ DK_HOVER = DK_GRIP_Z + 0.05
 F_GRIP = W(FKNOB_X, -(FKNOB_Y0 + FKNOB_W) + 0.009 - TIP_ABOVE_TCP, FKNOB_Z)
 F_OUT = (F_GRIP[0], F_GRIP[1] - 0.04, F_GRIP[2])
 F_OUT_UP = (F_GRIP[0], F_GRIP[1] - 0.04, F_GRIP[2] + 0.04)
-F_TURN = -1.07 * 2 * math.pi * START_OFF / F_LEAD  # 7 % extra: the grip slips a little
+F_TURN = -2 * math.pi * START_OFF / F_LEAD
+F_TARGET = F_TURN  # focus knob angle for the working distance
+X_TARGET = -2 * math.pi * (QX_FOCUS - QX0) / X_LEAD  # drive knob angles that centre the specimen
+Y_TARGET = -2 * math.pi * (QY_FOCUS - PUSHED_DY - QY0) / Y_LEAD
 WIDE = -0.025  # fingers part-open round the post or the slide
 SLIDE_RELEASE = -0.016  # open just enough to free the slide, clear of the objective
 FOCUS_WIDE = -0.03  # part-open round the 47 mm focus knob, clear of the table
 KNOB_WIDE = -0.030  # part-open round a 39 mm ribbed drive knob
 KNOB_GRIP = -0.004  # closed on a drive knob
+KNOB_RELEASE = -0.022  # opened just off the knob, clear of its neighbour
 
 PLANCHECK_BOXES = [
     ("table", (0.35, 0.0, TOP - 0.02), (0.8, 1.2, 0.04)),
@@ -371,22 +431,32 @@ def _dur(wps):
     return sum(w.duration for w in wps)
 
 
-def _quarter(wps, xy, label):
-    """A clockwise quarter turn of a top-down drive knob: grip at yaw 90 degrees (fingers closing along x), turn
-    slowly to 0, let go, lift."""
+def _knob_turn(wps, xy, label, joint, target, servo):
+    """A clockwise turn of a top-down drive knob: grip at yaw 90 degrees (fingers closing along x) and turn; an open
+    quarter turn to yaw 0, or (``servo``) a closed-loop turn that stops at the knob angle ``target``. Then let go and
+    lift."""
     z = DK_GRIP_Z
     q = math.pi / 2
     wps += [
         Waypoint(1.5, (*xy, DK_HOVER), KNOB_WIDE, f"above the {label}", q),
         Waypoint(1.0, (*xy, z), KNOB_WIDE, f"round the {label}", q),
         Waypoint(0.8, (*xy, z), KNOB_GRIP, "grip", q),
-        Waypoint(4.0, (*xy, z), KNOB_GRIP, f"turn the {label} a quarter turn clockwise", 0.0),
-        Waypoint(0.6, (*xy, z), KNOB_WIDE, "let go", 0.0),
-        Waypoint(0.8, (*xy, DK_HOVER), KNOB_WIDE, "up", 0.0),
+    ]
+    if servo:
+        sv = _servo(wps, 5.0, (*xy, z), KNOB_GRIP, f"turn the {label} clockwise to its mark", joint, target, q, _down)
+        end = sv
+    else:
+        wps.append(Waypoint(4.0, (*xy, z), KNOB_GRIP, f"turn the {label} a quarter turn clockwise", 0.0))
+        end = 0.0
+    wps += [
+        Waypoint(0.6, (*xy, z), KNOB_RELEASE, "let go", end),
+        Waypoint(0.8, (*xy, DK_HOVER), KNOB_RELEASE, "up", end),
+        Waypoint(0.8, (*xy, DK_HOVER), KNOB_RELEASE, "wrist back", q),
     ]
 
 
 def demo():
+    _SERVOS.clear()
     sx, sy = REST_XY
     gx, gy = PLACE
     # Right arm: pushes the lever's post back with closed fingers (the spring holds it against them), holds it while
@@ -426,9 +496,9 @@ def demo():
     # Left arm: the stage drives, once the jaw has closed over the slide.
     left.append(Waypoint(max(0.3, _dur(right) - _dur(left)), (*W(*YKNOB, 0.0)[:2], DK_HOVER + 0.03), KNOB_WIDE,
                          "wait for the jaw to close"))
-    _quarter(left, W(*YKNOB, 0.0)[:2], "y knob")
-    _quarter(left, W(*XKNOB, 0.0)[:2], "x knob")
-    _quarter(left, W(*XKNOB, 0.0)[:2], "x knob")
+    _knob_turn(left, W(*YKNOB, 0.0)[:2], "y knob", "ydrive", Y_TARGET, servo=True)
+    _knob_turn(left, W(*XKNOB, 0.0)[:2], "x knob", "xdrive", X_TARGET, servo=False)
+    _knob_turn(left, W(*XKNOB, 0.0)[:2], "x knob", "xdrive", X_TARGET, servo=True)
     left.append(Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "park"))
     right.append(Waypoint(max(0.3, _dur(left) - 2.0 - _dur(right)), RIGHT_ASIDE, FINGER_OPEN,
                           "wait while the left arm drives the stage"))
@@ -438,12 +508,12 @@ def demo():
         Waypoint(1.5, F_GRIP, FOCUS_WIDE, "onto the focus knob", side(0.0)),
         Waypoint(0.8, F_GRIP, FINGER_CLOSED, "grip the rim", side(0.0)),
     ]
-    for k in range(1, 7):
-        right.append(Waypoint(1.2, F_GRIP, FINGER_CLOSED, "focus: turn, top towards the robots", side(F_TURN * k / 6)))
+    fsv = _servo(right, 8.0, F_GRIP, FINGER_CLOSED, "focus: turn, top towards the robots, until in focus", "focus",
+                 F_TARGET, 0.0, lambda r: side(r).rot)
     right += [
-        Waypoint(0.6, F_GRIP, FINGER_CLOSED, "settle", side(F_TURN)),
-        Waypoint(0.8, F_GRIP, FOCUS_WIDE, "let go", side(F_TURN)),
-        Waypoint(1.0, F_OUT, FOCUS_WIDE, "back off", side(F_TURN)),
+        Waypoint(0.6, F_GRIP, FINGER_CLOSED, "settle", fsv),
+        Waypoint(0.8, F_GRIP, FOCUS_WIDE, "let go", fsv),
+        Waypoint(1.0, F_OUT, FOCUS_WIDE, "back off", fsv),
         Waypoint(1.2, F_OUT, FOCUS_WIDE, "unroll", side(F_TURN / 2)),
         Waypoint(1.2, F_OUT, FOCUS_WIDE, "unroll", side(0.0)),
         Waypoint(1.5, F_OUT_UP, KNOB_WIDE, "point down again"),
