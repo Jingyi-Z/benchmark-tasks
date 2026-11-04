@@ -80,7 +80,7 @@ DOOR = Joint(
 )
 TARE = Joint(
     "tare", kind="slide", axis="Z", anchor=(KEY_X, TARE_Y, STRIP_TOP), lower=-KEY_TRAVEL, upper=0.0, initial=0.0,
-    stiffness=60.0, damping=2.0, target=0.0, mass=0.01,  # a sprung key: about 1.8 N at the bottom of its travel
+    stiffness=400.0, damping=2.0, target=0.0, mass=0.002,  # a sprung key: about 1.2 N at the bottom of its travel
     boxes=[((KEY_X, TARE_Y, STRIP_TOP + KEY[2] / 2), KEY, GREEN)],
 )
 
@@ -197,6 +197,9 @@ VIAL = part(
 
 # Granules: 70 polypropylene beads 4 mm across, 0.03 g each, stacked in the vial in four layers (20, 20, 20, 10).
 GRAIN_R, GRAIN_G = 0.002, 0.03
+GRAIN_SIM_KG = 0.0005  # simulated mass (kg): heavier than a real bead so the contact solver stays stable; the
+#   reading counts each granule as GRAIN_G
+LAYER_DZ = 0.0044
 
 
 def _layer(k: int) -> list[tuple[float, float]]:
@@ -211,9 +214,9 @@ def _layer(k: int) -> list[tuple[float, float]]:
     return pts
 
 
-GRAIN_START = [(VIAL_XY[0] + x, VIAL_XY[1] + y, TOP + VIAL_FLOOR + GRAIN_R + 0.0002 + 0.0041 * k)
+GRAIN_START = [(VIAL_XY[0] + x, VIAL_XY[1] + y, TOP + VIAL_FLOOR + GRAIN_R + 0.0004 + LAYER_DZ * k)
                for k in range(4) for x, y in _layer(k)]
-GRAINS = [Sphere(f"grain{i:02d}", pos=p, color=GRAIN_C, mass=GRAIN_G / 1000, radius=GRAIN_R)
+GRAINS = [Sphere(f"grain{i:02d}", pos=p, color=GRAIN_C, mass=GRAIN_SIM_KG, radius=GRAIN_R)
           for i, p in enumerate(GRAIN_START)]
 GRAIN_NAMES = [g.name for g in GRAINS]
 
