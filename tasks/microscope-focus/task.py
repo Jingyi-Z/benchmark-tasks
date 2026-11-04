@@ -69,8 +69,8 @@ QX0, QY0 = -0.085, 0.0
 QX_FOCUS, QY_FOCUS = 0.0, -SPEC_Y  # carriage positions that put the specimen on the objective axis
 X_LEAD, Y_LEAD = 0.170, 0.040  # stage drive: m per knob turn (turning a knob clockwise seen from above moves the stage
 #                                away from the robots for x, to the left for y)
-XKNOB = (STAGE_X - 0.075, 0.090)  # x (inner) and y (outer) drive knobs on a bracket out to the stage's left (local xy)
-YKNOB = (STAGE_X - 0.075, 0.155)
+XKNOB = (STAGE_X - 0.075, 0.105)  # x (inner) and y (outer) drive knobs on a bracket out to the stage's left (local xy)
+YKNOB = (STAGE_X - 0.075, 0.170)
 DKNOB_R, DKNOB_H = 0.017, 0.016
 DKNOB_TOP = PLATE_TOP0 - 0.006
 LIM = 0.10
@@ -113,7 +113,7 @@ STAGE = Joint(  # the focus slide: carries the stage, the drive bracket and knob
     boxes=[
         ((STAGE_X + 0.075, 0.0, PLATE_TOP0 - 0.03), (0.03, 0.07, 0.03), DARK),  # carrier, into the pillar
         ((STAGE_X, 0.0, PLATE_TOP0 - 0.0135), (0.12, 0.15, 0.005), DARK),  # fixed lower plate
-        ((STAGE_X - 0.075, 0.1225, DKNOB_TOP - DKNOB_H - 0.006), (0.03, 0.10, 0.012), DARK),  # drive bracket
+        ((STAGE_X - 0.075, 0.1275, DKNOB_TOP - DKNOB_H - 0.006), (0.03, 0.105, 0.012), DARK),  # drive bracket, from under the stage
     ],
 )
 STAGE_Y = Joint(
