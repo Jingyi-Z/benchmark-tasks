@@ -280,7 +280,7 @@ def score(objects):
     return 1.0 if e <= FOCUS_TOL else 0.75 if e <= NEAR_TOL else 0.5
 
 
-SUCCESS_HOLD_S = 10.0  # end a trial early only once it has stayed in focus for 10 s (time to let go of the knob)
+SUCCESS_HOLD_S = 15.0  # end a trial early only once it has stayed in focus for 15 s (time to let go of the knob and park)
 
 
 def success(objects):
