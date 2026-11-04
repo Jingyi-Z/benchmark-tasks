@@ -34,7 +34,7 @@ BODY = 0.060  # brass valve body, a 6 cm cube round the pipe
 STEM_TOP = 0.105
 HANDLE_Z = 0.1075  # handle mid-plane; it is 5 mm thick: underside 0.105, top 0.110
 HANDLE_T, HANDLE_W, HANDLE_L = 0.005, 0.022, 0.130
-HOLE = 0.012  # square lock holes in the handle and the tab, 12 mm
+HOLE = 0.014  # square lock holes in the handle and the tab, 14 mm (3 mm of play round the 8 mm pin)
 HOLE_R = 0.045  # the handle's lock hole is 4.5 cm from the pivot
 GRIP_R0, GRIP_R1 = 0.075, 0.130  # red grip sleeve along the handle's outer part
 SLEEVE_W, SLEEVE_T = 0.026, 0.012
@@ -88,9 +88,9 @@ VALVE = part(
 )
 
 # -- the lockout pin and its holder ------------------------------------------------------------------------------------
-# Pin frame: origin at the underside of its head, on the axis. A red T head (3 x 1 x 1 cm) on an 8 mm steel shaft 2.6 cm
-# long, ending in a 5 mm tip 4 mm long: 3 cm below the head in all.
-SHAFT_R, SHAFT_L, TIP_R, TIP_L = 0.004, 0.026, 0.0025, 0.004
+# Pin frame: origin at the underside of its head, on the axis. A red T head (3 x 1 x 1 cm) on an 8 mm steel shaft 2.4 cm
+# long, ending in a 5 mm tip 6 mm long: 3 cm below the head in all.
+SHAFT_R, SHAFT_L, TIP_R, TIP_L = 0.004, 0.024, 0.0025, 0.006
 PIN_LEN = SHAFT_L + TIP_L
 HEAD = (0.030, 0.010, 0.010)
 HOLDER_X, HOLDER_Y, HOLDER_H = 0.18, -0.16, 0.032
@@ -112,7 +112,7 @@ OBJECTS = [VALVE, HOLDER, PIN]
 # -- scoring ----------------------------------------------------------------------------------------------------------
 CLOSED_TOL = math.radians(5.0)
 HOLE_WORLD = (VX + TAB_X, VY)  # both holes, with the handle closed
-AXIS_TOL = 0.004  # the pin's axis within 4 mm of the holes' centre (2 mm is the clearance)
+AXIS_TOL = 0.004  # the pin's axis within 4 mm of the holes' centre (3 mm is the play)
 SEAT_TOL = 0.003  # head underside within 3 mm of the handle's top
 TILT_TOL = 10.0
 HANDLE_UNDER = TOP + HANDLE_Z - HANDLE_T / 2
@@ -175,7 +175,8 @@ ARC_STEPS = 6
 LEFT_PARK = (0.15, 0.25, TOP + 0.14)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.14)
 PIN_GRIP_Z = TOP + HOLDER_H + 0.004 + TIP_ABOVE_TCP  # pad tips 4 mm above the head's underside
-PIN_TRAVEL_Z = HANDLE_TOP + PIN_LEN + 0.04 + 0.004 + TIP_ABOVE_TCP
+PIN_TRAVEL_Z = HANDLE_TOP + PIN_LEN + 0.015 + 0.004 + TIP_ABOVE_TCP  # tip 1.5 cm above the handle
+PIN_ENTRY_Z = HANDLE_TOP + PIN_LEN + 0.003 + 0.004 + TIP_ABOVE_TCP  # tip 3 mm above the handle
 PIN_DROP_Z = HANDLE_TOP + 0.003 + 0.004 + TIP_ABOVE_TCP
 
 PLANCHECK_BOXES = [
@@ -224,7 +225,9 @@ def demo():
     right += [
         Waypoint(2.0, (hx, hy, PIN_TRAVEL_Z), FINGER_CLOSED, "over the holes", 0.0),
         Waypoint(1.0, (hx, hy, PIN_TRAVEL_Z), FINGER_CLOSED, "settle over the holes", 0.0),
-        Waypoint(2.5, (hx, hy, PIN_DROP_Z), FINGER_CLOSED, "down through both holes", 0.0),
+        Waypoint(1.5, (hx, hy, PIN_ENTRY_Z), FINGER_CLOSED, "tip just above the handle's hole", 0.0),
+        Waypoint(1.0, (hx, hy, PIN_ENTRY_Z), FINGER_CLOSED, "let the pin stop swinging", 0.0),
+        Waypoint(3.0, (hx, hy, PIN_DROP_Z), FINGER_CLOSED, "slowly down through both holes", 0.0),
         Waypoint(0.8, (hx, hy, PIN_DROP_Z), FINGER_WIDE, "let go", 0.0),
         Waypoint(1.0, (hx, hy, PIN_TRAVEL_Z), FINGER_WIDE, "up", 0.0),
         Waypoint(1.5, RIGHT_PARK, FINGER_OPEN, "park"),
