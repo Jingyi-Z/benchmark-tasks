@@ -1,17 +1,23 @@
-# Focus an upright microscope on a slide without touching the objective
+# Load a slide, centre the specimen and focus an upright microscope
 
-An upright light microscope with a slide clamped on its stage, 12 mm below focus. Turning either focus knob raises the
-stage. The slide is in focus when its top is at the 10x objective's working distance, 5.2 mm below the front lens;
-bringing it within 0.5 mm of the lens at any point counts as a crash.
+An upright light microscope with a mechanical stage: a spring slide holder, x and y drive knobs at the stage's front
+right and focus knobs on both sides. A glass slide lies on a rest beside it. The robots load the slide (one hand holds
+the holder's lever open while the other lays the slide in), bring the specimen square under the 10x objective with
+the drive knobs, then raise the stage with a focus knob to the objective's working distance (slide top 5.2 mm below
+the front lens) without ever bringing the slide within 0.5 mm of the lens.
 
 ## Files
 
-- `task.py`: scene, scoring and scripted demo (yam_arena task file). The stage follows the knob through an `on_step`
-  hook that sets the stage joint's drive target from the knob angle (24 mm per turn). The scripted demo grips the
-  right knob from the side with the gripper level and rolls the wrist; `task.py` lets a demo waypoint carry a full
-  gripper rotation for this (the `Orient` class), so yam_arena itself is unchanged.
-- `labkit.py`: parts built from several shapes, with hinges and slides (the knob shaft is a damped hinge; the stage a
-  stiff slide). It hooks `yam_arena.scene` and the embodiment from the task's import.
+- `task.py`: scene, scoring and scripted demo (yam_arena task file).
+  - The holder's lever, the x and y stage axes, the drive knobs and the focus knob are labkit joints. The y axis
+    rides on the stage, the x axis on the y axis and the holder on the x axis (chained joints).
+  - An `on_step` hook sets the stage axes' drive targets from the knob angles: x 170 mm and y 40 mm per drive-knob
+    turn, focus 24 mm per turn.
+  - The scripted demo turns the drive knobs and trims the focus with a closed loop on the knob angle (the `Servo`
+    class); `task.py` lets a demo waypoint carry a full gripper rotation for the side grips (the `Orient` class), so
+    yam_arena itself is unchanged.
+- `labkit.py`: parts built from several shapes, with hinges and slides, including joints chained on other joints
+  (`parent=`). It hooks `yam_arena.scene` and the embodiment from the task's import.
 - `arena_assets_fix.py`: imported by `labkit.py`; points Arena library assets at NVIDIA's production bucket. This task
   uses no library assets.
 
@@ -22,15 +28,16 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
     inspect-robots run --embodiment yam_arena --policy dream \
         -E task=$PWD/task.py -E object_jitter=0 -E control_hz=20 \
         --instruction "$(python -c 'import json;print(json.load(open("task.json"))["instruction"])')" \
-        --scorer task_score --max-steps 1200 --store-frames --log-dir logs
+        --scorer task_score --max-steps 2400 --store-frames --log-dir logs
 
-Scripted demo: the same command with `--policy yam_scripted` (about 24 s of motion).
+Scripted demo: the same command with `--policy yam_scripted` (about 75 s of motion; 1,600 steps are enough).
 
-The score is `task_score` in the log, computed by `score()` in `task.py`: the final gap from the slide's top to the
-objective's front lens, and the smallest gap during the trial (recorded every control step).
+The score is `task_score` in the log, computed by `score()` in `task.py` from the slide's pose in the holder, the
+specimen's offset from the objective's axis, the final gap from the slide's top to the front lens, and the smallest
+gap during the trial (recorded every control step).
 
 ## Runtime and seeds
 
-- 1,200 control steps (60 s of simulated time) per trial; about 3 minutes of wall time on one L40S with frames stored
-  at 640 x 352.
+- 2,400 control steps (2 minutes of simulated time) per trial; about RUNTIME minutes of wall time on one L40S with
+  frames stored at 640 x 352.
 - One fixed starting layout: run with `-E object_jitter=0`. No other randomness.
