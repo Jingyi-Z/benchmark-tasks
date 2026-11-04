@@ -166,7 +166,7 @@ BALANCE = part(
 )
 
 # -- the weighing boat (loose, on the bench) ----------------------------------------------------------------------------
-BOAT, BOAT_WALL, BOAT_FLOOR, BOAT_H = 0.050, 0.0015, 0.0015, 0.012
+BOAT, BOAT_WALL, BOAT_FLOOR, BOAT_H = 0.050, 0.0015, 0.0015, 0.018
 BOAT_G = 1.20  # grams
 BOAT_XY = (0.18, 0.20)
 _w = BOAT / 2 - BOAT_WALL / 2
@@ -325,7 +325,7 @@ def _watch(env):
 
     s = {n: labkit._part_state(env, labkit._SPECS[n]) for n in ("balance", "boat", "vial")}
     grains = _grain_positions(env)
-    grams, counted, _ = weigh(s["boat"], s["vial"], grains)
+    grams, counted, spilled = weigh(s["boat"], s["vial"], grains)
     down = s["balance"].joints["tare"] < PRESSED
     if down and not _trial["pressed"]:  # a new press: the balance zeroes on what is on the pan now
         boat = s["boat"]
@@ -344,7 +344,7 @@ def _watch(env):
                   f"boat {np.round(b.pos, 4).tolist()} tilt {b.tilt_deg():.1f} on_pan {boat_on_pan(b)} "
                   f"vial {np.round(v.pos, 4).tolist()} vtilt {v.tilt_deg():.0f} grams {grams:.2f} counted {counted} "
                   f"trial {dict((k, _trial[k]) for k in ('tare_g', 'tared', 'tare_ok', 'reading'))} "
-                  f"theta {math.degrees(_pour['theta']):.0f} mode {_pour['mode']} "
+                  f"theta {math.degrees(_pour['theta']):.0f} mode {_pour['mode']} spilled {spilled} "
                   f"gz [{grains[:, 2].min():.3f},{grains[:, 2].max():.3f}]", flush=True)
     text = display_text(_trial["reading"])
     asset = env.unwrapped.scene["balance"]
@@ -439,8 +439,8 @@ def pour_rot(theta: float) -> np.ndarray:
 # rim moving towards the robots). The TCP height follows theta so the gripper clears the front glass and the vial
 # clears the boat (POUR_Z: (theta in degrees, TCP height above the table), interpolated).
 R_LIP = VIAL_RIN + SPOUT + VIAL_WALL  # the spout's lip, from the bottle's axis
-POUR_DX = 0.006
-POUR_Z = [(0.0, 0.108), (60.0, 0.108), (70.0, 0.124), (80.0, 0.140), (90.0, 0.152), (95.0, 0.160)]  # spout clear of the boat
+POUR_DX = 0.010
+POUR_Z = [(0.0, 0.104), (60.0, 0.104), (70.0, 0.120), (80.0, 0.136), (90.0, 0.148), (95.0, 0.156)]  # spout clear of the boat
 POUR_TH0 = math.radians(65.0)  # tipped to here before the closed loop starts (pellets not yet at the lip)
 POUR_TH_MAX = math.radians(95.0)  # the steepest the left arm reaches; the spout pours from about 70 to 80 degrees
 POUR_RISE = math.radians(1.5)  # rad/s, tipping further while nothing is falling
