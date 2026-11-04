@@ -440,7 +440,7 @@ def pour_rot(theta: float) -> np.ndarray:
 # clears the boat (POUR_Z: (theta in degrees, TCP height above the table), interpolated).
 R_LIP = VIAL_RIN + SPOUT + VIAL_WALL  # the spout's lip, from the bottle's axis
 POUR_DX = 0.010
-POUR_Z = [(0.0, 0.104), (60.0, 0.104), (70.0, 0.120), (80.0, 0.136), (90.0, 0.148), (95.0, 0.156)]  # spout clear of the boat
+POUR_Z = [(0.0, 0.114), (60.0, 0.114), (70.0, 0.130), (80.0, 0.146), (90.0, 0.158), (95.0, 0.166)]  # spout clear of the boat
 POUR_TH0 = math.radians(65.0)  # tipped to here before the closed loop starts (pellets not yet at the lip)
 POUR_TH_MAX = math.radians(95.0)  # the steepest the left arm reaches; the spout pours from about 70 to 80 degrees
 POUR_RISE = math.radians(1.5)  # rad/s, tipping further while nothing is falling
