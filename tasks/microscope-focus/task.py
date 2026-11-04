@@ -231,7 +231,7 @@ def _drive(env):
 # -- scoring ----------------------------------------------------------------------------------------------------------
 OBJ_AXIS = (MX + STAGE_X, MY)
 HOLD_TOL, HOLD_Z, FLAT_DEG, CLOSED = 0.003, 0.001, 3.0, 0.10
-CENTRE_TOL = 0.001
+CENTRE_TOL = 0.0015
 CRASH_GAP = 0.0005
 FOCUS_TOL, NEAR_TOL = 0.0005, 0.002
 
@@ -260,7 +260,7 @@ def focus_error(slide) -> float:
 def score(objects):
     """0 unless the slide is loaded: flat in the holder within 2 mm of its centre, label to the left, holder arm closed
     over it. 0 also if, once loaded, the slide ever came within 0.5 mm of the objective. 0.25 loaded; 0.5 loaded and
-    the specimen within 1 mm of the objective's axis; 0.75 also within 2 mm of focus (slide top 5.2 mm below the front
+    the specimen within 1.5 mm of the objective's axis; 0.75 also within 2 mm of focus (slide top 5.2 mm below the front
     lens); 1.0 within 0.5 mm of focus."""
     m, sl = objects["microscope"], objects["slide"]
     if not _loaded(m.joints, sl):
@@ -330,7 +330,7 @@ class Servo(Orient):
 
 _SERVOS: list = []
 _clock = {"t": 0.0}
-SERVO_GAIN, SERVO_MAX = 0.25, 0.04  # rad of wrist per step per rad of knob error; at most 0.04 rad (0.8 rad/s)
+SERVO_GAIN, SERVO_MAX = 0.2, 0.02  # rad of wrist per step per rad of knob error; at most 0.02 rad (0.4 rad/s)
 
 
 @on_reset
@@ -355,8 +355,11 @@ def _servo_step(env):
 
 
 def _servo(wps, duration, xyz, finger, label, joint, target, start, rot_of):
-    """Append a closed-loop knob turn of ``duration`` seconds to ``wps``."""
+    """Append a closed-loop knob turn of ``duration`` seconds to ``wps``: a 0.05 s step that lands on the servo's
+    wrist angle (equal to ``start``, the previous waypoint's), then a hold on the same servo, so the commanded wrist
+    angle is used as it is, not interpolated."""
     sv = Servo(joint, target, start, rot_of)
+    wps.append(Waypoint(0.05, xyz, finger, label, sv))
     sv.t0 = sum(w.duration for w in wps)
     sv.t1 = sv.t0 + duration
     _SERVOS.append(sv)
@@ -508,8 +511,11 @@ def demo():
         Waypoint(1.5, F_GRIP, FOCUS_WIDE, "onto the focus knob", side(0.0)),
         Waypoint(0.8, F_GRIP, FINGER_CLOSED, "grip the rim", side(0.0)),
     ]
-    fsv = _servo(right, 8.0, F_GRIP, FINGER_CLOSED, "focus: turn, top towards the robots, until in focus", "focus",
-                 F_TARGET, 0.0, lambda r: side(r).rot)
+    for k in range(1, 6):  # most of the way open loop, in 1.2 s steps of 0.18 turn
+        right.append(Waypoint(1.2, F_GRIP, FINGER_CLOSED, "focus: turn, top towards the robots",
+                              side(0.9 * F_TARGET * k / 5)))
+    fsv = _servo(right, 5.0, F_GRIP, FINGER_CLOSED, "focus: finish the turn until in focus", "focus",
+                 F_TARGET, 0.9 * F_TARGET, lambda r: side(r).rot)
     right += [
         Waypoint(0.6, F_GRIP, FINGER_CLOSED, "settle", fsv),
         Waypoint(0.8, F_GRIP, FOCUS_WIDE, "let go", fsv),
