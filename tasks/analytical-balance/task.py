@@ -181,19 +181,27 @@ BOAT_PART = part(
     ],
 )
 
-# -- the vial (loose): a square glass bottle, open at the top, and its granules ---------------------------------------
+# -- the vial (loose): a square glass bottle with a pouring spout, open at the top, and its granules ----------------------
 VIAL_RIN, VIAL_WALL, VIAL_H, VIAL_FLOOR = 0.011, 0.0015, 0.026, 0.002  # VIAL_RIN: half the inside width
+SPOUT_DEG = 30.0  # the wall facing the robots leans out by this much: a pouring spout
 VIAL_G = 8.0
 VIAL_XY = (0.26, 0.21)
 _vo = VIAL_RIN + VIAL_WALL  # half the outside width
 _vz = VIAL_FLOOR + (VIAL_H - VIAL_FLOOR) / 2
+_sf = math.radians(SPOUT_DEG)
+_sl = (VIAL_H - VIAL_FLOOR) / math.cos(_sf)  # the spout wall's length
+SPOUT = _sl * math.sin(_sf)  # how far the spout's lip reaches out past the bottle's side
+_spout_c = (-VIAL_RIN - math.sin(_sf) * _sl / 2 - math.cos(_sf) * VIAL_WALL / 2, 0.0,
+            VIAL_FLOOR + math.cos(_sf) * _sl / 2 - math.sin(_sf) * VIAL_WALL / 2)
+_side_x0, _side_x1 = -(VIAL_RIN + SPOUT + VIAL_WALL), _vo
 VIAL = part(
-    "vial", pos=(*VIAL_XY, TOP), mass=VIAL_G / 1000, friction=0.8,
+    "vial", pos=(*VIAL_XY, TOP), mass=VIAL_G / 1000, friction=0.3,
     boxes=[
         ((0.0, 0.0, VIAL_FLOOR / 2), (2 * _vo, 2 * _vo, VIAL_FLOOR), VIAL_C),
-        *[((s * (VIAL_RIN + VIAL_WALL / 2), 0.0, _vz), (VIAL_WALL, 2 * _vo, VIAL_H - VIAL_FLOOR), VIAL_C) for s in (1, -1)],
-        *[((0.0, s * (VIAL_RIN + VIAL_WALL / 2), _vz), (2 * VIAL_RIN, VIAL_WALL, VIAL_H - VIAL_FLOOR), VIAL_C)
-          for s in (1, -1)],
+        ((VIAL_RIN + VIAL_WALL / 2, 0.0, _vz), (VIAL_WALL, 2 * _vo, VIAL_H - VIAL_FLOOR), VIAL_C),  # back wall
+        (_spout_c, (VIAL_WALL, 2 * _vo, _sl), VIAL_C, (0.0, -_sf)),  # spout wall, leaning out towards the robots
+        *[(((_side_x0 + _side_x1) / 2, s * (VIAL_RIN + VIAL_WALL / 2), _vz),
+           (_side_x1 - _side_x0, VIAL_WALL, VIAL_H - VIAL_FLOOR), VIAL_C) for s in (1, -1)],  # side walls
     ],
 )
 
@@ -212,7 +220,7 @@ def _layer(k: int) -> list[tuple[float, float]]:
 
 GRAIN_START = [(VIAL_XY[0] + x, VIAL_XY[1] + y, TOP + VIAL_FLOOR + 0.0003 + LAYER_DZ * k)
                for k in range(3) for x, y in _layer(k)]
-GRAINS = [part(f"grain{i:02d}", pos=p, mass=GRAIN_SIM_KG, friction=0.5,
+GRAINS = [part(f"grain{i:02d}", pos=p, mass=GRAIN_SIM_KG, friction=0.3,
                cylinders=[((0.0, 0.0, GRAIN_H / 2), GRAIN_R, GRAIN_H, GRAIN_C)])
           for i, p in enumerate(GRAIN_START)]
 GRAIN_NAMES = [g.name for g in GRAINS]
@@ -252,7 +260,9 @@ def in_boat(boat, pts) -> np.ndarray:
 
 def in_vial(vial, pts) -> np.ndarray:
     q = _local(vial, pts)
-    return (np.abs(q[:, 0]) <= VIAL_RIN + 0.0005) & (np.abs(q[:, 1]) <= VIAL_RIN + 0.0005) & (q[:, 2] >= VIAL_FLOOR - 0.001) \
+    x_min = -(VIAL_RIN + np.clip(q[:, 2] - VIAL_FLOOR, 0.0, None) * math.tan(_sf)) - 0.0005  # the spout leans out
+    return (q[:, 0] >= x_min) & (q[:, 0] <= VIAL_RIN + 0.0005) & (np.abs(q[:, 1]) <= VIAL_RIN + 0.0005) \
+        & (q[:, 2] >= VIAL_FLOOR - 0.001) \
         & (q[:, 2] <= VIAL_H + 0.003)
 
 
@@ -428,15 +438,15 @@ def pour_rot(theta: float) -> np.ndarray:
 # R_LIP * (-cos theta, 0, -sin theta) from the TCP; it is kept POUR_DX beyond the boat's centre (the granules leave the
 # rim moving towards the robots). The TCP height follows theta so the gripper clears the front glass and the vial
 # clears the boat (POUR_Z: (theta in degrees, TCP height above the table), interpolated).
-R_LIP = VIAL_RIN + VIAL_WALL
+R_LIP = VIAL_RIN + SPOUT + VIAL_WALL  # the spout's lip, from the bottle's axis
 POUR_DX = 0.006
-POUR_Z = [(0.0, 0.098), (60.0, 0.098), (70.0, 0.114), (80.0, 0.130), (90.0, 0.142)]
-POUR_TH0 = math.radians(30.0)  # tipped to here before the closed loop starts (granules not yet at the rim)
-POUR_TH_MAX = math.radians(90.0)
+POUR_Z = [(0.0, 0.098), (60.0, 0.098), (70.0, 0.114), (80.0, 0.130), (90.0, 0.142), (95.0, 0.150)]
+POUR_TH0 = math.radians(70.0)  # tipped to here before the closed loop starts (pellets not yet at the rim)
+POUR_TH_MAX = math.radians(95.0)  # the steepest the left arm reaches; the spout pours from about 80 degrees
 POUR_RISE = math.radians(2.5)  # rad/s while pouring
 POUR_FALL = math.radians(20.0)  # rad/s back to upright once the display is near the target
 POUR_STOP_G = TARGET_G - 0.05  # start levelling at this reading; granules still on the way bring it to the target
-POUR_WINDOW = 30.0  # s
+POUR_WINDOW = 40.0  # s
 
 
 def pour_tcp(theta: float) -> np.ndarray:

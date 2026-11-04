@@ -15,7 +15,7 @@ yam_arena task files only take single primitives (Box, Cylinder, Sphere, Asset).
 - ``Model``: a real USD model (for example from NVIDIA SimReady) with its own bodies and joints, fixed to the table
   or loose, with per-joint drive settings and starting positions.
 - Arena library assets are loaded from NVIDIA's production bucket (see ``arena_assets_fix``).
-- A box may carry a fourth item, its yaw (rad) about the part's vertical, for walls that are not axis-aligned (a
+- A box may carry a fourth item, its yaw (rad) about the part's vertical, or a (yaw, pitch) pair (pitch about y), for walls that are not axis-aligned (a
   polygonal vial). Colours added to ``GLASS_COLORS`` are drawn with Omniverse's glass material (see-through), or,
   should that material fail to load, as a translucent surface.
 
@@ -83,10 +83,11 @@ def _boxes(specs, what):
     out = []
     for spec in specs:
         c, s, k = spec[:3]
-        yaw = float(spec[3]) if len(spec) > 3 else 0.0
-        if not math.isfinite(yaw):
-            raise ValueError(f"{what}: box yaw must be finite")
-        out.append((_vec3(c, what), _vec3(s, what), _vec3(k, what), yaw))
+        turn = spec[3] if len(spec) > 3 else 0.0
+        yaw, pitch = (float(turn[0]), float(turn[1])) if isinstance(turn, (tuple, list)) else (float(turn), 0.0)
+        if not (math.isfinite(yaw) and math.isfinite(pitch)):
+            raise ValueError(f"{what}: box turn must be finite")
+        out.append((_vec3(c, what), _vec3(s, what), _vec3(k, what), (yaw, pitch)))
     return tuple(out)
 
 
@@ -175,7 +176,11 @@ class Part(Box):
 
 def _extent(boxes, cyls):
     lo, hi = [], []
-    for c, s, _, yaw in boxes:
+    for c, s, _, (yaw, pitch) in boxes:
+        if pitch:  # a wall tipped about y: bound it by its turned corners in x and z
+            hxp = abs(s[0] / 2 * math.cos(pitch)) + abs(s[2] / 2 * math.sin(pitch))
+            hzp = abs(s[0] / 2 * math.sin(pitch)) + abs(s[2] / 2 * math.cos(pitch))
+            s = (2 * hxp, s[1], 2 * hzp)
         hx, hy = s[0] / 2, s[1] / 2
         ex = abs(hx * math.cos(yaw)) + abs(hy * math.sin(yaw))
         ey = abs(hx * math.sin(yaw)) + abs(hy * math.cos(yaw))
@@ -375,12 +380,14 @@ def _author(prim_path: str, cfg, translation=None, orientation=None, **kwargs):
 
     def shapes(path, boxes, cyls, offset):
         off = np.array(offset)
-        for i, (c, s, k, yaw) in enumerate(boxes):
+        for i, (c, s, k, (yaw, pitch)) in enumerate(boxes):
             cube = UsdGeom.Cube.Define(stage, f"{path}/box_{i}")
             cube.CreateSizeAttr(1.0)
             cube.AddTranslateOp().Set(Gf.Vec3d(*(np.array(c) - off)))
             if yaw:
                 cube.AddRotateZOp().Set(math.degrees(yaw))
+            if pitch:
+                cube.AddRotateYOp().Set(math.degrees(pitch))
             cube.AddScaleOp().Set(Gf.Vec3f(*s))
             collide(cube.GetPrim(), k)
         for i, (c, r, h, k, axis) in enumerate(cyls):
