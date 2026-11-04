@@ -69,25 +69,25 @@ QX0, QY0 = -0.085, 0.0
 QX_FOCUS, QY_FOCUS = 0.0, -SPEC_Y  # carriage positions that put the specimen on the objective axis
 X_LEAD, Y_LEAD = 0.170, 0.040  # stage drive: m per knob turn (turning a knob clockwise seen from above moves the stage
 #                                away from the robots for x, to the left for y)
-XKNOB = (STAGE_X - 0.055, 0.100)  # x and y drive knobs on a bracket at the stage's front left (local xy)
-YKNOB = (STAGE_X - 0.095, 0.100)
-DKNOB_R, DKNOB_H = 0.012, 0.015
+XKNOB = (STAGE_X - 0.050, 0.105)  # x and y drive knobs on a bracket at the stage's front left (local xy)
+YKNOB = (STAGE_X - 0.100, 0.105)
+DKNOB_R, DKNOB_H = 0.017, 0.016
 DKNOB_TOP = PLATE_TOP0 - 0.006
 LIM = 0.10
 
 # Slide holder on the x carriage: the slide lies with its centre at the holder centre (STAGE_X, 0) against two back
 # posts and a left stop; a spring lever pivoting behind its right end holds a jaw over that end. Pulling the lever's
 # handle (out to the right) back swings the jaw off the slide's end.
-PIVOT = (STAGE_X + SLIDE_W / 2 + 0.0035, -SLIDE_L / 2 + 0.003)
-ARM_L = 0.035  # the clamp jaw, across the slide's right end
+PIVOT = (STAGE_X + SLIDE_W / 2 + 0.006, -SLIDE_L / 2 + 0.003)
+ARM_L = 0.038  # the clamp jaw, across the slide's right end
 HANDLE_L = 0.090  # the lever's handle, out to the right, with the post at its end
 ARM_Z = PLATE_TOP0 + SLIDE_T + 0.0004  # the arm's underside, just clear of a loaded slide
 POST_R, POST_H = 0.005, 0.020
 ARM_OPEN = 1.2
 
 
-def _ribs(cx, cy, z0, r, h, n=10):
-    return [((cx + r * math.cos(2 * math.pi * i / n), cy + r * math.sin(2 * math.pi * i / n), z0 + h / 2), 0.0022, h,
+def _ribs(cx, cy, z0, r, h, n=12):
+    return [((cx + r * math.cos(2 * math.pi * i / n), cy + r * math.sin(2 * math.pi * i / n), z0 + h / 2), 0.0025, h,
              BLACK) for i in range(n)]
 
 
@@ -111,7 +111,7 @@ STAGE = Joint(  # the focus slide: carries the stage, the drive bracket and knob
     boxes=[
         ((STAGE_X + 0.075, 0.0, PLATE_TOP0 - 0.03), (0.03, 0.07, 0.03), DARK),  # carrier, into the pillar
         ((STAGE_X, 0.0, PLATE_TOP0 - 0.0135), (0.12, 0.15, 0.005), DARK),  # fixed lower plate
-        ((STAGE_X - 0.075, 0.100, DKNOB_TOP - DKNOB_H - 0.006), (0.07, 0.02, 0.012), DARK),  # drive bracket
+        ((STAGE_X - 0.075, 0.105, DKNOB_TOP - DKNOB_H - 0.006), (0.09, 0.025, 0.012), DARK),  # drive bracket
     ],
 )
 STAGE_Y = Joint(
@@ -124,9 +124,9 @@ STAGE_X_J = Joint(
     stiffness=20000.0, damping=400.0, target=QX0, mass=0.05, parent="stage_y",
     boxes=[
         ((STAGE_X, 0.0, PLATE_TOP0 - 0.003), (0.10, 0.13, 0.006), DARK),  # top plate
-        *[((STAGE_X + SLIDE_W / 2 + 0.002, y, PLATE_TOP0 + 0.0015), (0.004, 0.006, 0.003), STEEL)
-          for y in (-0.020, 0.005)],  # back posts
-        ((STAGE_X, SLIDE_L / 2 + 0.002, PLATE_TOP0 + 0.0015), (0.012, 0.004, 0.003), STEEL),  # left stop
+        *[((STAGE_X + SLIDE_W / 2 + 0.003, y, PLATE_TOP0 + 0.00075), (0.004, 0.006, 0.0015), STEEL)
+          for y in (-0.020, 0.005)],  # back posts, 1 mm behind the slide's back edge
+        ((STAGE_X, SLIDE_L / 2 + 0.003, PLATE_TOP0 + 0.00075), (0.012, 0.004, 0.0015), STEEL),  # left stop
         ((STAGE_X - 0.02, 0.0, PLATE_TOP0 + 0.0002), (0.002, 0.03, 0.0004), WHITE),  # holder index line
     ],
 )
@@ -228,7 +228,7 @@ def _drive(env):
 
 # -- scoring ----------------------------------------------------------------------------------------------------------
 OBJ_AXIS = (MX + STAGE_X, MY)
-HOLD_TOL, HOLD_Z, FLAT_DEG, CLOSED = 0.002, 0.001, 3.0, 0.10
+HOLD_TOL, HOLD_Z, FLAT_DEG, CLOSED = 0.003, 0.001, 3.0, 0.10
 CENTRE_TOL = 0.001
 CRASH_GAP = 0.0005
 FOCUS_TOL, NEAR_TOL = 0.0005, 0.002
@@ -314,7 +314,7 @@ TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.15, 0.25, TOP + 0.14)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.14)
 RIGHT_ASIDE = (0.18, -0.16, TOP + 0.12)
-OPEN_TH = 0.6  # how far the holder lever is pulled (rad): enough to swing the jaw off the slide's end
+OPEN_TH = 0.7  # how far the holder lever is pulled (rad): enough to swing the jaw off the slide's end
 
 
 def W(x, y, z):
@@ -338,7 +338,7 @@ def _post_at(theta: float, qx=QX0, qy=QY0):
 POST_GRIP_Z = TOP + ARM_Z + 0.003 + POST_H * 0.55 + TIP_ABOVE_TCP
 SLIDE_GRIP_DY = 0.031  # grip the slide 31 mm left of its centre (on the label end)
 REST_GRIP_Z = TOP + REST[2] - 0.003 + TIP_ABOVE_TCP  # pad tips 3 mm below the slide, beside the narrow rest
-PLACE = (MX + STAGE_X + QX0, MY + QY0)
+PLACE = (MX + STAGE_X + QX0 - 0.001, MY + QY0)  # 1 mm in front of the holder centre, clear of the back posts
 PLACE_Z = TOP + PLATE_TOP0 + 0.0005 + TIP_ABOVE_TCP  # pad tips 0.5 mm above the plate: the slide drops 3.5 mm
 CARRY_Z = TOP + PLATE_TOP0 + 0.05
 DK_GRIP_Z = TOP + DKNOB_TOP - DKNOB_H / 2 + TIP_ABOVE_TCP
@@ -350,7 +350,7 @@ F_TURN = -2 * math.pi * START_OFF / F_LEAD
 WIDE = -0.025  # fingers part-open round the post or the slide
 SLIDE_RELEASE = -0.016  # open just enough to free the slide, clear of the objective
 FOCUS_WIDE = -0.03  # part-open round the 47 mm focus knob, clear of the table
-KNOB_WIDE = -0.018  # part-open round a 28 mm ribbed drive knob, clear of its neighbour
+KNOB_WIDE = -0.024  # part-open round a 39 mm ribbed drive knob, clear of its neighbour
 
 PLANCHECK_BOXES = [
     ("table", (0.35, 0.0, TOP - 0.02), (0.8, 1.2, 0.04)),
