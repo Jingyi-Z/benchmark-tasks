@@ -203,6 +203,7 @@ GRAIN_SIM_KG = 0.0005  # simulated mass (kg): heavier than a real bead so the co
 #   reading counts each granule as GRAIN_G
 LAYER_DZ = 0.0044
 GRAIN_PITCH = 0.0042
+_LIFT = float(__import__("os").environ.get("TASK_GRAIN_LIFT", "0"))  # debugging only
 
 
 def _layer(k: int) -> list[tuple[float, float]]:
@@ -210,7 +211,7 @@ def _layer(k: int) -> list[tuple[float, float]]:
     return pts if k < 2 else [p for p in pts if p != (0.0, 0.0) and abs(p[0]) + abs(p[1]) > 1.5 * GRAIN_PITCH][:20]
 
 
-GRAIN_START = [(VIAL_XY[0] + x, VIAL_XY[1] + y, TOP + VIAL_FLOOR + GRAIN_R + 0.0004 + LAYER_DZ * k)
+GRAIN_START = [(VIAL_XY[0] + x, VIAL_XY[1] + y, TOP + VIAL_FLOOR + GRAIN_R + 0.0004 + LAYER_DZ * k + _LIFT)
                for k in range(3) for x, y in _layer(k)]
 GRAINS = [Sphere(f"grain{i:02d}", pos=p, color=GRAIN_C, mass=GRAIN_SIM_KG, radius=GRAIN_R)
           for i, p in enumerate(GRAIN_START)]
@@ -317,7 +318,7 @@ def _watch(env):
     _trial["reading"] = grams - _trial["tare_g"]
     if _DBG:
         _dbg["n"] += 1
-        if _dbg["n"] % 20 == 0:
+        if _dbg["n"] % 20 == 0 or _dbg["n"] <= 6:
             b, v = s["boat"], s["vial"]
             print(f"DBG {_dbg['n']} door {s['balance'].joints['door']:.4f} tare {s['balance'].joints['tare']:.4f} "
                   f"boat {np.round(b.pos, 4).tolist()} tilt {b.tilt_deg():.1f} on_pan {boat_on_pan(b)} "
