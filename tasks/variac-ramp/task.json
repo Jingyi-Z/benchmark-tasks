@@ -18,5 +18,5 @@
   "reset_notes": "Nothing is consumed. Reset: rocker off (red end up), knob back to 0 V.",
   "fidelity": "Rigid bodies in PhysX at 240 Hz. The knob and rocker are ideal hinges with end stops and light viscous drag (no Coulomb friction, no detents); the rocker has no snap-over spring, and real variac brushes have uneven drag. The dial is read from the knob's angle and there is no electrical or thermal simulation.",
   "scores": "Dream-1 run: 0.0; demo: 1.0",
-  "media": ""
+  "media": "M-ZTMXQC"
 }
