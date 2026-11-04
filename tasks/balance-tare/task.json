@@ -1,0 +1,14 @@
+{
+  "title": "Tare a balance with the empty weighing boat, then weigh a sample",
+  "category": "Impact on jobs",
+  "keywords": ["laboratory", "weighing", "balance", "tare", "procedure order", "two arms"],
+  "instruction": "Weigh the aluminium sample on the balance. An empty weighing boat is already on the pan. First press the green TARE key on the front of the balance while the boat is still empty, so the display reads zero with the boat on it. Then put the sample upright in the middle of the boat. Do not press TARE again after the sample is in.",
+  "context": "Taring with the empty container, then adding the sample, is the first step of almost every sample or solution preparation in a lab. Taring in the wrong order, or not at all, gives a wrong mass that carries into every later step.",
+  "setup": "Station table (top 0.7475 m). Robot base frame: x forward, y to the robots' left. Precision balance, fixed: a white case 21 x 19 x 7 cm centred at (0.30, 0.06); a round steel pan 12 cm across, 4 mm thick, on a 6 mm post, its top 8 cm above the table, centred at (0.32, 0.06). Along the case's front edge (x = 0.215): a green TARE key 16 mm square at y = 0.005 that travels 3 mm down against a spring (about 1.8 N at the bottom), two dark keys at y = 0.035 and 0.065 and a display window further left. Weighing boat, loose, 4 g: white plastic, 7 cm square, 1.4 cm deep, 2 mm walls, centred on the pan. Sample, loose, 30 g: an aluminium puck 2.4 cm across and 2.5 cm tall, standing at (0.15, 0.21). The balance reads zero at the start. No other objects.",
+  "scoring": "Measured once everything has come to rest. The display reads the mass on the pan minus the mass on it at the last TARE press. 0 if the sample is not resting upright (tilt up to 15 degrees) inside the boat, with the boat on the pan. 0.25 if it is, but the display does not read 30 g within 1 g (not tared with the empty boat, or tared again after the sample went in). 0.5 if it reads 30 g but the sample's centre is more than 1 cm from the pan's centre. 1.0 if it reads 30 g and the sample is within 1 cm of the pan's centre.",
+  "run_limit": "1,200 steps (60 seconds at 20 Hz)",
+  "reset_notes": "Nothing is consumed. Take the sample out, centre the empty boat on the pan, and zero the balance with nothing extra on it (in the real world, tare with no boat, then put the boat on without taring).",
+  "fidelity": "Rigid bodies in PhysX at 240 Hz. The balance is not simulated as a load cell: its reading is worked out from which objects rest on the pan (boat 4 g, sample 30 g) and what was on the pan at the last TARE press, which counts once the key is down past half its travel. No live display in the scene; a real balance shows the same number.",
+  "scores": "Dream-1 run: TBD; demo: TBD",
+  "media": ""
+}
