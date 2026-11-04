@@ -20,6 +20,7 @@ Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jit
 """
 
 import math
+import os
 import pathlib
 import sys
 
@@ -280,10 +281,13 @@ def weigh(boat, vial, grains) -> tuple[float, int, int]:
 _trial = {"tare_g": 0.0, "tared": False, "tare_ok": False, "tare_door_shut": False, "pressed": False, "reading": None,
           "text": display_text(0.0)}
 _ids: dict = {}
+_DBG = bool(os.environ.get("TASK_DBG"))
+_dbg = {"n": 0}
 
 
 @on_reset
 def _clear(env):
+    _dbg["n"] = 0
     _trial.update(tare_g=0.0, tared=False, tare_ok=False, tare_door_shut=False, pressed=False, reading=None,
                   text=display_text(0.0))
     _pour_reset()
@@ -312,6 +316,16 @@ def _watch(env):
         )
     _trial["pressed"] = down
     _trial["reading"] = grams - _trial["tare_g"]
+    if _DBG:
+        _dbg["n"] += 1
+        if _dbg["n"] % 20 == 0:
+            b, v = s["boat"], s["vial"]
+            print(f"DBG {_dbg['n']} door {s['balance'].joints['door']:.4f} tare {s['balance'].joints['tare']:.4f} "
+                  f"boat {np.round(b.pos, 4).tolist()} tilt {b.tilt_deg():.1f} on_pan {boat_on_pan(b)} "
+                  f"vial {np.round(v.pos, 4).tolist()} vtilt {v.tilt_deg():.0f} grams {grams:.2f} counted {counted} "
+                  f"trial {dict((k, _trial[k]) for k in ('tare_g', 'tared', 'tare_ok', 'reading'))} "
+                  f"theta {math.degrees(_pour['theta']):.0f} stop {_pour['stopped']} "
+                  f"gz [{grains[:, 2].min():.3f},{grains[:, 2].max():.3f}]", flush=True)
     text = display_text(_trial["reading"])
     asset = env.unwrapped.scene["balance"]
     if "segments" not in _ids:
