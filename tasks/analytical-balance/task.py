@@ -166,7 +166,7 @@ BALANCE = part(
 )
 
 # -- the weighing boat (loose, on the bench) ----------------------------------------------------------------------------
-BOAT, BOAT_WALL, BOAT_FLOOR, BOAT_H = 0.050, 0.0015, 0.0015, 0.018
+BOAT, BOAT_WALL, BOAT_FLOOR, BOAT_H = 0.050, 0.0015, 0.0015, 0.012
 BOAT_G = 1.20  # grams
 BOAT_XY = (0.18, 0.20)
 _w = BOAT / 2 - BOAT_WALL / 2
@@ -440,7 +440,7 @@ def pour_rot(theta: float) -> np.ndarray:
 # clears the boat (POUR_Z: (theta in degrees, TCP height above the table), interpolated).
 R_LIP = VIAL_RIN + SPOUT + VIAL_WALL  # the spout's lip, from the bottle's axis
 POUR_DX = 0.010
-POUR_Z = [(0.0, 0.114), (60.0, 0.114), (70.0, 0.130), (80.0, 0.146), (90.0, 0.158), (95.0, 0.166)]  # spout clear of the boat
+POUR_Z = [(0.0, 0.108), (60.0, 0.108), (70.0, 0.124), (80.0, 0.140), (90.0, 0.152), (95.0, 0.160)]  # spout clear of the boat
 POUR_TH0 = math.radians(65.0)  # tipped to here before the closed loop starts (pellets not yet at the lip)
 POUR_TH_MAX = math.radians(95.0)  # the steepest the left arm reaches; the spout pours from about 70 to 80 degrees
 POUR_RISE = math.radians(1.5)  # rad/s, tipping further while nothing is falling
