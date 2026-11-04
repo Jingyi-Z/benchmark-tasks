@@ -181,41 +181,37 @@ BOAT_PART = part(
     ],
 )
 
-# -- the vial (loose): a 16-sided glass tube on a disc, and its granules ----------------------------------------------
-VIAL_RIN, VIAL_WALL, VIAL_H, VIAL_FLOOR, VIAL_SIDES = 0.011, 0.0015, 0.026, 0.002, 16
+# -- the vial (loose): a square glass bottle, open at the top, and its granules ---------------------------------------
+VIAL_RIN, VIAL_WALL, VIAL_H, VIAL_FLOOR = 0.011, 0.0015, 0.026, 0.002  # VIAL_RIN: half the inside width
 VIAL_G = 8.0
 VIAL_XY = (0.26, 0.21)
-_vr = VIAL_RIN + VIAL_WALL / 2
-_vw = 2 * (VIAL_RIN + VIAL_WALL) * math.tan(math.pi / VIAL_SIDES)  # face width at the outside: no gaps between faces
+_vo = VIAL_RIN + VIAL_WALL  # half the outside width
+_vz = VIAL_FLOOR + (VIAL_H - VIAL_FLOOR) / 2
 VIAL = part(
     "vial", pos=(*VIAL_XY, TOP), mass=VIAL_G / 1000, friction=0.8,
-    boxes=[((_vr * math.cos(a), _vr * math.sin(a), VIAL_FLOOR + (VIAL_H - VIAL_FLOOR) / 2),
-            (VIAL_WALL, _vw, VIAL_H - VIAL_FLOOR), VIAL_C, a)
-           for a in (2 * math.pi * k / VIAL_SIDES for k in range(VIAL_SIDES))],
-    cylinders=[((0.0, 0.0, VIAL_FLOOR / 2), VIAL_RIN + VIAL_WALL, VIAL_FLOOR, VIAL_C)],
+    boxes=[
+        ((0.0, 0.0, VIAL_FLOOR / 2), (2 * _vo, 2 * _vo, VIAL_FLOOR), VIAL_C),
+        *[((s * (VIAL_RIN + VIAL_WALL / 2), 0.0, _vz), (VIAL_WALL, 2 * _vo, VIAL_H - VIAL_FLOOR), VIAL_C) for s in (1, -1)],
+        *[((0.0, s * (VIAL_RIN + VIAL_WALL / 2), _vz), (2 * VIAL_RIN, VIAL_WALL, VIAL_H - VIAL_FLOOR), VIAL_C)
+          for s in (1, -1)],
+    ],
 )
 
-# Granules: 70 polypropylene beads 4 mm across, 0.03 g each, stacked in the vial in four layers (20, 20, 20, 10).
+# Granules: 70 polypropylene beads 4 mm across, 0.03 g each, stacked in the bottle in three layers (25, 25, 20).
 GRAIN_R, GRAIN_G = 0.002, 0.03
 GRAIN_SIM_KG = 0.0005  # simulated mass (kg): heavier than a real bead so the contact solver stays stable; the
 #   reading counts each granule as GRAIN_G
 LAYER_DZ = 0.0044
+GRAIN_PITCH = 0.0042
 
 
 def _layer(k: int) -> list[tuple[float, float]]:
-    if k == 3:
-        return [(0.0086 * math.cos(2 * math.pi * i / 10 + 0.3), 0.0086 * math.sin(2 * math.pi * i / 10 + 0.3))
-                for i in range(10)]
-    t1, t2 = (math.pi / 6, math.pi / 13) if k % 2 else (0.0, 0.0)
-    pts = [(0.0, 0.0)]
-    pts += [(0.0041 * math.cos(t1 + math.pi * i / 3), 0.0041 * math.sin(t1 + math.pi * i / 3)) for i in range(6)]
-    pts += [(0.0086 * math.cos(t2 + 2 * math.pi * i / 13), 0.0086 * math.sin(t2 + 2 * math.pi * i / 13))
-            for i in range(13)]
-    return pts
+    pts = [((i - 2) * GRAIN_PITCH, (j - 2) * GRAIN_PITCH) for i in range(5) for j in range(5)]
+    return pts if k < 2 else [p for p in pts if p != (0.0, 0.0) and abs(p[0]) + abs(p[1]) > 1.5 * GRAIN_PITCH][:20]
 
 
 GRAIN_START = [(VIAL_XY[0] + x, VIAL_XY[1] + y, TOP + VIAL_FLOOR + GRAIN_R + 0.0004 + LAYER_DZ * k)
-               for k in range(4) for x, y in _layer(k)]
+               for k in range(3) for x, y in _layer(k)]
 GRAINS = [Sphere(f"grain{i:02d}", pos=p, color=GRAIN_C, mass=GRAIN_SIM_KG, radius=GRAIN_R)
           for i, p in enumerate(GRAIN_START)]
 GRAIN_NAMES = [g.name for g in GRAINS]
@@ -255,7 +251,7 @@ def in_boat(boat, pts) -> np.ndarray:
 
 def in_vial(vial, pts) -> np.ndarray:
     q = _local(vial, pts)
-    return (np.hypot(q[:, 0], q[:, 1]) <= VIAL_RIN + 0.0005) & (q[:, 2] >= VIAL_FLOOR - 0.001) \
+    return (np.abs(q[:, 0]) <= VIAL_RIN + 0.0005) & (np.abs(q[:, 1]) <= VIAL_RIN + 0.0005) & (q[:, 2] >= VIAL_FLOOR - 0.001) \
         & (q[:, 2] <= VIAL_H + 0.003)
 
 
@@ -506,7 +502,7 @@ BOAT_HOLD = -0.022  # squeezes it lightly
 BOAT_CARRY_Z = TOP + WALL_TOP + 0.016 + 0.004 + TIP_ABOVE_TCP  # the boat's underside 16 mm over the glass walls
 BOAT_PLACE_Z = PAN_Z + 0.001 + 0.004 + TIP_ABOVE_TCP
 VIAL_GRIP_Z = TOP + VIAL_H  # TCP at the rim: pad tips 13 mm down the vial
-VIAL_WIDE = -0.020  # 40 mm between the pads round the 25 mm vial
+VIAL_WIDE = -0.020  # 40 mm between the pads round the 25 mm bottle
 VIAL_HOLD = -0.010
 VIAL_CARRY_Z = TOP + WALL_TOP + VIAL_H + 0.014  # the vial's bottom 14 mm over the glass walls
 
