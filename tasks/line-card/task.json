@@ -1,0 +1,21 @@
+{
+  "title": "Seat a line card by closing both ejector levers together",
+  "category": "Impact on AI timelines",
+  "keywords": [
+    "data centre",
+    "line card",
+    "card cage",
+    "ejector levers",
+    "cam seating",
+    "coordinated two arms"
+  ],
+  "instruction": "Seat the line card in its slot. It rests in the card cage's guides 7 mm short of home, with its two orange ejector levers swung open, pointing at you. Hold each lever by its black knob, one in each hand, and close both levers together, keeping them level with each other, swinging each knob in towards the middle of the front panel until both levers lie flat against the panel's front face and the card is pushed home, its panel against the cage's front posts. A lever closed on its own cocks the card and stops after a few degrees, so move them at the same pace. Then let go of both.",
+  "context": "Seating a plug-in card by its ejector levers is a routine chore on network, server and lab equipment; a card that is not fully seated fails intermittently. Robots that can service compute hardware help scale the infrastructure that AI runs on.",
+  "setup": "Station table (top 0.7475 m). Robot base frame: x forward, y to the robots' left. Card cage, fixed, grey powder-coated steel, open at the top and at its front: a base plate 8 mm thick (x 0.260 to 0.405, y -0.146 to 0.146); side walls 12 mm thick (x 0.270 to 0.399, y 0.122 to 0.134 and mirrored), 5 cm tall, each with two steel guide rails on its inside face making a 6 mm slot 2.8 to 3.4 cm above the table; front posts 10 mm thick (x 0.260 to 0.270, y 0.122 to 0.146 and mirrored), 5.8 cm tall; on each post a steel catch, 8 x 9 x 8 mm, in front of it at x 0.2405 to 0.2485, y 0.137 to 0.146 (and mirrored), 4.6 to 5.4 cm above the table. At the back: a black backplane connector 12 x 170 x 22 mm, its face at x 0.384, 2.6 to 4.8 cm above the table, on a green backplane and a steel rear wall to x 0.405. Line card, 290 g, in the guides: a green FR4 board 120 x 228 x 2 mm, top 3.2 cm above the table, on a steel carrier frame whose 6 mm side rails ride in the slots; a black connector 14 x 160 x 12 mm on its back edge, 7 mm from the backplane's; an aluminium heat sink 40 x 70 x 14 mm on it; an aluminium front panel 3 mm thick, 248 mm wide (y -0.124 to 0.124), 1.2 to 5.8 cm above the table, its front face at x 0.250 (home: 0.257) with six black ports. Ejector levers: orange, 61 x 8 x 8 mm bars 4.6 to 5.4 cm above the table on vertical steel pivot pins at (0.244, 0.130) and (0.244, -0.130), on steel brackets off the panel's ends, each with a steel claw on its hub and a black knob 10 mm across and 34 mm tall (top 8.8 cm above the table) 55 mm from the pin. Both start open, pointing at the robots, knobs at (0.189, 0.130) and (0.189, -0.130); closed (90 degrees, the left one turning anticlockwise seen from above, the right one clockwise) they lie along the panel's face, knobs at (0.251, 0.075) and (0.251, -0.075) with the card home. No other objects.",
+  "scoring": "Measured at the end of the trial. A lever is closed if it is within 3 degrees of flat against the panel. 0 if the card has been pulled out more than 10 mm from where it started, or if neither lever is closed. 0.25 if only one lever is closed. 0.5 if both are closed but the card is more than 0.5 mm short of home (its panel's back more than 0.5 mm from the front posts). 1.0 if both are closed and the card is within 0.5 mm of home.",
+  "run_limit": "1,200 steps (60 seconds at 20 Hz)",
+  "reset_notes": "Nothing is consumed. Swing both levers fully open, pointing at the robots; the levers push the card back out to its start, 7 mm short of home.",
+  "fidelity": "Rigid bodies in PhysX at 240 Hz. The cam is modelled, not contact: the card is a stiff slide driven to 7 mm times the less-closed lever's fraction of 90 degrees, and a lever more than 9 degrees ahead of the other is held there by a spring (its stall). No connector insertion force curve, no cocking motion, no latching click.",
+  "scores": "Dream-1 run: TBD; demo: TBD",
+  "media": ""
+}
