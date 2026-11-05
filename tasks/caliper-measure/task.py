@@ -466,7 +466,7 @@ def demo():
         Waypoint(1.0, _PushPos(dy=-0.005, dz=0.04), FINGER_CLOSED, "up", PUSH_ROT),
         Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
     ]
-    t_end = _dur(right) + 3.0
+    t_end = _dur(right) + 9.0  # the pin held, measured, until the trial ends
     left.append(Waypoint(t_end - _dur(left), _LooseHold(), FINGER_CLOSED,
                          "hold the pin loosely while the sliding jaw seats it on the fixed jaw", PIN_YAW))
     right.append(Waypoint(t_end - _dur(right), RIGHT_PARK, FINGER_OPEN, "rest"))

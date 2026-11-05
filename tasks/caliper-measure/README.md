@@ -28,7 +28,7 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
         --instruction "$(python -c 'import json;print(json.load(open("task.json"))["instruction"])')" \
         --scorer task_score --max-steps 1200 --store-frames --log-dir logs
 
-Scripted demo: the same command with `--policy yam_scripted` (about 30 s of motion; 650 steps are enough). The demo's
+Scripted demo: the same command with `--policy yam_scripted` (about 36 s of motion; 800 steps are enough). The demo's
 push is closed loop on the sliding jaw: the finger advances at 3 mm/s and stops as soon as the jaw flexes by 0.02 mm
 (0.2 N, first touch), then backs off so the jaw rests on the pin without load. The holding hand holds the pin 3 mm
 clear of the fixed jaw, loosely: while the sliding jaw presses on the pin, the hand gives way towards the fixed jaw
