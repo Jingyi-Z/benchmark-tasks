@@ -16,6 +16,6 @@
   "run_limit": "1,200 steps (60 seconds at 20 Hz)",
   "reset_notes": "Nothing is consumed. Pull the pad off and set it back centred on the tray's post, rubber up, pins in the channel, tab pointing away from the robots; set the holder back at its start with its foot flat. In simulation the press fit is restored at each reset. A real pin fit loosens over many cycles: replace the pad or the finger when it no longer takes about 4 N to press home.",
   "fidelity": "Rigid bodies in PhysX at 240 Hz. Finger and holder are one body of uniform density. The pins are plain 2 mm pins in 3.4 mm square holes. The press fit is a sprung plate under the holes that holds the pad 2 mm up and gives at 4 N, then lets it drop onto the face. The rubber face is rigid, the cable tab is a stiff 0.5 mm plate with no cable, and no sensor signal is simulated.",
-  "scores": "Dream-1 run: TBD; demo: TBD",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
   "media": ""
 }
