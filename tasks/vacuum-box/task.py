@@ -342,7 +342,8 @@ VIAL_CARRY_Z = TOP + FLANGE_TOP + 0.015 + 0.022 + TIP_ABOVE_TCP
 POST_Z = TOP + STOP_Z + 0.019 + TIP_ABOVE_TCP  # tips 3 mm above the lever bar, 15 mm down the 20 mm post
 POST_WIDE = -0.010
 VENT_RATE_AIM = 9.0
-_live = {"vent": 0.0, "tl": None, "p": P0, "lid_xy": None, "base_xy": None, "off": np.zeros(2)}
+_live = {"vent": 0.0, "tl": None, "p": P0, "lid_xy": None, "base_xy": None, "off": np.zeros(2),
+         "t_back": 1e9}
 
 
 def _live_reset():
@@ -358,7 +359,7 @@ class _Held:
 
     def __array__(self, dtype=None, copy=None):
         held = np.asarray(LID_HELD, float)
-        if _live["lid_xy"] is not None:
+        if _live["lid_xy"] is not None and _clock() < _live["t_back"] - 0.2:
             _live["off"] = held - _live["lid_xy"]
         return np.asarray((held[0], held[1], self.z), dtype=dtype or float)
 
@@ -481,6 +482,7 @@ def demo():
     t_vial = _dur(left) - 2.0
     right.append(Waypoint(max(0.3, t_vial - _dur(right)), _Held(KNOB_Z + HELD_UP), KNOB_HOLD,
                           "hold the dome while the vial goes in", _KnobYaw(KNOB_YAW)))
+    _live["t_back"] = _dur(right)  # the offset is measured only until the hand starts back
     right += [
         Waypoint(3.0, _Back(KNOB_Z + HELD_UP), KNOB_HOLD, "back over the base", _KnobYaw(KNOB_YAW)),
         Waypoint(1.5, _Back(KNOB_Z + LIFT), KNOB_HOLD, "down, level", _KnobYaw(KNOB_YAW)),
