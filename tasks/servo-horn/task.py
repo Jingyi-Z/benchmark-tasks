@@ -196,7 +196,7 @@ def _drive(env):
 # -- scoring --------------------------------------------------------------------------------------------------------
 RIGHT_TOOTH = STEP / 2  # within 7.2 degrees: the tooth on the line
 ONE_OFF = 1.5 * STEP  # within 21.6 degrees: one tooth off
-SUCCESS_HOLD_S = 3.0
+SUCCESS_HOLD_S = 15.0  # end a trial early only once the horn has stayed on for 15 s, so the demo plays to its end
 
 
 def zero_error(link, horn) -> float:

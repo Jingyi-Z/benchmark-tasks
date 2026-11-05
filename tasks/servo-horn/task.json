@@ -16,6 +16,6 @@
   "run_limit": "1,200 steps (60 seconds at 20 Hz)",
   "reset_notes": "Nothing is consumed. Pull the horn off, turn the shaft back so its dot is on the line, lay the horn flat side down at its start with its arm pointing away from the robots, and lay the link with its foot flat at its start position. In simulation the press fit is restored at each reset.",
   "fidelity": "Rigid bodies in PhysX at 240 Hz. The spline is a plain 6 mm pin in an 8.4 mm square hole; the 25 teeth are kept in the task code: once the hub is on, the shaft turns with the horn at the tooth it met. The press fit is a sprung collar on the shaft that gives at 5 N and then lets the hub drop to its seat. The unpowered shaft holds where it is left. The link and servo are one body of uniform density; a real servo is denser.",
-  "scores": "Dream-1 run: TBD; demo: TBD",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
   "media": ""
 }
