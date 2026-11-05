@@ -273,6 +273,7 @@ LEFT_PARK = (0.15, 0.25, TOP + 0.14)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.14)
 GRIP_UP = 0.007  # pad tips 7 mm above the connector's underside
 CONN_WIDE = -0.012  # pads 24 mm apart round its 16 mm length
+CONN_HOLD = -0.005  # a firm but not crushing grip: aims the pads 10 mm apart, so they stop on the 16 mm connector
 PICK_Z = TOP + TRAY[2] + GRIP_UP + TIP_ABOVE_TCP
 PICK_HOVER = TOP + 0.07
 
@@ -454,34 +455,35 @@ def demo():
     right = [
         Waypoint(2.5, (tx, ty, PICK_HOVER), CONN_WIDE, "above the connector", CONN_YAW_PICK),
         Waypoint(1.5, (tx, ty, PICK_Z), CONN_WIDE, "pads either side of its ends", CONN_YAW_PICK),
-        Waypoint(0.8, (tx, ty, PICK_Z), FINGER_CLOSED, "grip the connector by its ends", CONN_YAW_PICK),
-        Waypoint(1.2, (tx, ty, PICK_HOVER), FINGER_CLOSED, "lift", CONN_YAW_PICK),
-        Waypoint(2.5, _ConnAt(CARRY_Z), FINGER_CLOSED, "over the header, key turned to the slot", yaw),
+        Waypoint(0.8, (tx, ty, PICK_Z), CONN_HOLD, "grip the connector by its ends", CONN_YAW_PICK),
+        Waypoint(1.2, (tx, ty, PICK_HOVER), CONN_HOLD, "lift", CONN_YAW_PICK),
+        Waypoint(2.5, _ConnAt(CARRY_Z), CONN_HOLD, "over the header, key turned to the slot", yaw),
     ]
     _plan["t_trim"] = _dur(right)  # the connector is turned and over the header: the trim starts
-    right.append(Waypoint(max(0.5, t_held - _dur(right)), _ConnAt(CARRY_Z), FINGER_CLOSED,
+    right.append(Waypoint(max(0.5, t_held - _dur(right)), _ConnAt(CARRY_Z), CONN_HOLD,
                           "wait for the stand to be held", yaw))
     right += [
-        Waypoint(1.5, _ConnAt(ENTRY_Z), FINGER_CLOSED, "connector 2 mm above the header's walls", yaw),
-        Waypoint(2.0, _ConnAt(ENTRY_Z), FINGER_CLOSED, "line the connector up on the header", yaw),
+        Waypoint(1.5, _ConnAt(ENTRY_Z), CONN_HOLD, "connector 2 mm above the header's walls", yaw),
+        Waypoint(2.0, _ConnAt(ENTRY_Z), CONN_HOLD, "line the connector up on the header", yaw),
     ]
     _plan["t_freeze"] = _dur(right)
     right += [
-        Waypoint(1.5, _ConnAt(REST_Z), FINGER_CLOSED, "straight down into the header onto the contacts", yaw),
-        Waypoint(0.5, _ConnAt(REST_Z), FINGER_CLOSED, "settle", yaw),
+        Waypoint(1.5, _ConnAt(REST_Z), CONN_HOLD, "straight down into the header onto the contacts", yaw),
+        Waypoint(0.5, _ConnAt(REST_Z), CONN_HOLD, "settle", yaw),
     ]
     _plan["t_press0"] = _dur(right)
     press_s = (REST_Z - PRESS_MIN_Z) / PRESS_RATE + 1.0
     right += [
-        Waypoint(0.1, _ConnAt("press"), FINGER_CLOSED, "press the connector down slowly", yaw),
-        Waypoint(press_s, _ConnAt("press"), FINGER_CLOSED, "press until the fit gives, then ease to a light push",
+        Waypoint(0.1, _ConnAt("press"), CONN_HOLD, "press the connector down slowly", yaw),
+        Waypoint(press_s, _ConnAt("press"), CONN_HOLD, "press until the fit gives, then ease to a light push",
                  yaw),
     ]
     _plan["t_press1"] = _dur(right)
     right += [
-        Waypoint(1.0, _ConnAt(SEAT_Z), FINGER_CLOSED, "ease off at the seat", yaw),
-        Waypoint(0.8, _ConnAt(SEAT_Z), CONN_WIDE, "let go", yaw),
-        Waypoint(1.2, _ConnAt(CARRY_Z), CONN_WIDE, "straight up off the connector", yaw),
+        Waypoint(1.0, _ConnAt(SEAT_Z), CONN_HOLD, "ease off at the seat", yaw),
+        Waypoint(1.0, _ConnAt(SEAT_Z), FINGER_OPEN, "let go: open the fingers wide", yaw),
+        Waypoint(0.6, _ConnAt(SEAT_Z), FINGER_OPEN, "wait for the fingers to clear the connector", yaw),
+        Waypoint(1.5, _ConnAt(CARRY_Z), FINGER_OPEN, "straight up off the connector", yaw),
     ]
     t_done = _dur(right)
     right.append(Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"))
