@@ -16,6 +16,6 @@
   "run_limit": "1,200 steps (60 seconds at 20 Hz)",
   "reset_notes": "Nothing is consumed. Swing both levers fully open, pointing at the robots; the levers push the card back out to its start, 7 mm short of home.",
   "fidelity": "Rigid bodies in PhysX at 240 Hz. The cam is modelled, not contact: the card is a stiff slide driven to 7 mm times the less-closed lever's fraction of 90 degrees, and a lever more than 9 degrees ahead of the other is held there by a spring (its stall). No connector insertion force curve, no cocking motion, no latching click.",
-  "scores": "Dream-1 run: TBD; demo: TBD",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
   "media": ""
 }
