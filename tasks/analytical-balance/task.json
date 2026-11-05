@@ -17,6 +17,6 @@
   "run_limit": "2,400 steps (2 minutes at 20 Hz)",
   "reset_notes": "Nothing is consumed. Pour all 70 granules back into the vial and stand it at (0.26, 0.21), put the empty boat at (0.18, 0.20), slide the door shut and zero the balance with the pan empty. In simulation the pellets restart in a three-layer stack (25, 25, 20); in the real world they settle as a loose pile to about the same height.",
   "fidelity": "Rigid bodies in PhysX at 240 Hz. The reading is worked out from what rests on the pan (boat 1.2 g, pellets 0.03 g each, vial 8 g), not from forces; no drift, draft or settling time. In simulation the pellets weigh 0.2 g and the boat 12 g so contacts stay stable; the display still counts the real masses. Pellets are rigid 4 x 3 mm cylinders; a real powder is finer and cohesive. The door slides on a damped joint with hard stops.",
-  "scores": "Dream-1 run: TBD; demo: TBD",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
   "media": ""
 }
