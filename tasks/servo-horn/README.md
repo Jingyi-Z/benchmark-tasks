@@ -30,8 +30,13 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
         --instruction "$(python -c 'import json;print(json.load(open("task.json"))["instruction"])')" \
         --scorer task_score --max-steps 1200 --store-frames --log-dir logs
 
-Scripted demo: the same command with `--policy yam_scripted` (about 28 s of motion). Run one trial per process: the
-spline tooth and the press-fit latch are kept in the task module and cleared at each reset.
+Scripted demo: the same command with `--policy yam_scripted` (about 29 s of motion). The left hand presses straight
+down on the top of the link's block (about 3 N) rather than gripping it, so it cannot drag the link sideways. The right
+hand's placement is closed loop: every control step it reads the link's pose and the horn's, aims the hub at the shaft
+where it is now, turns with the link's yaw and the shaft's dot, and trims out the hub's measured offset; the trim is
+frozen once the hub goes down over the shaft. It then presses slowly until the press fit gives, eases off and lets go.
+Run one trial per process: the spline tooth, the press-fit latch and the demo's live state are kept in the task module
+and cleared at each reset.
 
 The score is `task_score` in the log, computed by `score()` in `task.py` from the final state: whether the hub is on
 the shaft and seated, and where the horn's arm points with the servo at its centre.

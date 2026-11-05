@@ -25,6 +25,7 @@ import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from labkit import Joint, on_reset, on_step, part  # noqa: E402
+import yam_arena.demo as _demo  # noqa: E402
 from yam_arena.constants import FINGER_CLOSED, FINGER_OPEN  # noqa: E402
 from yam_arena.demo import Waypoint  # noqa: E402
 from yam_arena.task_file import TABLE_TOP  # noqa: E402
@@ -232,11 +233,21 @@ def distance(objects):
 
 
 # -- scripted demo --------------------------------------------------------------------------------------------------
-# Left arm: grips the block at the link's left end across its width and holds it, 2 mm down into the bench, until the
-# horn is pressed on; then lets go and parks. Right arm: picks the horn by the sides of its hub (pad tips 2 mm above
-# its underside), turns it a quarter turn anticlockwise on the way so its arm points along the line, lowers the hub
-# over the shaft onto the collar, presses down (commanded 10 mm past the seat), eases off to the seat, lets go and
-# parks.
+# Left arm: comes straight down onto the top of the block at the link's left end with its fingers closed and presses
+# it into the bench (about 3 N) until the horn is on; then lifts straight off and parks. It does not grip the block:
+# the arm is laterally soft (about 7 mm/N at the pads), so a grip locks the link to the hand and any sideways give of
+# the hand drags the link with it (the earlier demo shoved it 10 mm this way). Pressing on the top, the pads can only
+# pass on friction from that 3 N, less than the bench holds the link with (that 3 N plus its weight), so the link
+# cannot be dragged; and the commanded press point is leaned against the arm's measured compliance so that the pads go
+# straight down and the contact force is vertical.
+# Right arm: picks the horn by the sides of its hub (pad tips 2 mm above its underside) and turns it a quarter turn
+# anticlockwise on the way, so its arm points along the line. From there it is closed loop on the live link (see
+# ``_track``): every control step the hand is aimed at the shaft where the link is now, turned with the link's yaw and
+# the shaft's dot, and trimmed by the measured offset of the hub from the shaft and of the horn's arm from the dot.
+# With the hub 2 mm above the shaft the trim settles and is then frozen; the hub goes straight down over the shaft onto
+# the collar and is pressed slowly (3 mm/s, commanded up to 16 mm below the seat: the arm gives about 0.45 mm/N, so the
+# 5 N latch is reached about 12 mm in) until the press fit gives, then eased to a light push at the seat, to no push,
+# let go and lifted straight off.
 TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.15, 0.25, TOP + 0.14)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.14)
@@ -244,6 +255,12 @@ GRIP_UP = 0.002  # pad tips 2 mm above the hub's underside
 HUB_WIDE = -0.012  # pads 24 mm apart round the 12 mm hub
 PICK_Z = TOP + GRIP_UP + TIP_ABOVE_TCP
 PICK_HOVER = TOP + 0.06
+
+# The arms' compliance at the pad tips (mm of give per N pushed up on the pads, x, y, z), from the URDF Jacobian and the
+# joint drives (80 N m/rad shoulder, 10 N m/rad wrist): pushed up, the pads also move sideways. A press commanded at
+# (point - F * C) leaves the pads at the point with a purely vertical force F.
+C_LEFT = np.array([1.12, -0.73, 2.16]) / 1000.0  # m/N, left arm on the block
+C_RIGHT = np.array([0.94, 0.61, 2.20]) / 1000.0  # m/N, right arm at the shaft
 
 
 def hub_z(underside: float) -> float:
@@ -255,16 +272,131 @@ CARRY_Z = hub_z(SHAFT_H + 0.025)
 ENTRY_Z = hub_z(SHAFT_H + 0.002)
 REST_Z = hub_z(COLLAR_TOP0 - Z_TOP + 0.0003)
 SEAT_Z = hub_z(SEAT_GAP)
-PRESS_DEPTH = 0.010
-PRESS_Z = SEAT_Z - PRESS_DEPTH
+PRESS_MIN_Z = SEAT_Z - 0.016  # the deepest the press is commanded
+PRESS_RATE = 0.003  # m/s, down until the fit gives, then back up to the light push
+PUSH_Z = SEAT_Z - 0.003  # the light push on the seated hub (about 1.4 N)
+PRESS_F_MAX = 8.0  # N, cap on the estimated press force used for the lean
 HORN_YAW0 = 0.0  # fingers close along y, on the hub's sides, while the arm points along +x
-HORN_YAW1 = math.pi / 2  # and along x once the arm points along +y, the line
-BX, BY = LX, LY + (FOOT_Y1 + BLOCK_Y1) / 2
-BLOCK_YAW = -math.pi / 2  # fingers close along x, on the block's sides
-BLOCK_WIDE = -0.03  # pads 60 mm apart round the 32 mm block
-BLOCK_Z = TOP + 0.010 + TIP_ABOVE_TCP  # pad tips 10 mm above the bench
-HOLD_Z = BLOCK_Z - 0.002
-BLOCK_HOVER = TOP + BLOCK_H + 0.05
+HORN_YAW1 = math.pi / 2  # and along x once the arm points along +y, the line (link and dot at 0)
+BX, BY = LX, LY + (FOOT_Y1 + BLOCK_Y1) / 2  # the block's centre (link at its start)
+BLOCK_TOUCH = TOP + BLOCK_H + TIP_ABOVE_TCP  # closed pad tips on the block's top
+BLOCK_HOVER = BLOCK_TOUCH + 0.03
+HOLD_F = 3.0  # N, the hold-down force on the block
+HOLD = (BX - HOLD_F * C_LEFT[0], BY - HOLD_F * C_LEFT[1], BLOCK_TOUCH - HOLD_F * C_LEFT[2])  # 6.5 mm in, leaned
+
+# The live part of the plan. ``_track`` (below) reads the link and the horn every control step; the right arm's
+# waypoints from the carry on read their pose from ``_live``. Offline (no simulator) the values stay nominal, so the
+# plan checks see the link at its start.
+TRACK_GAIN, TRACK_STEP, TRACK_MAX = 0.15, 0.0004, 0.004  # per step: 15% of the hub's offset, at most 0.4 mm; 4 mm all
+YAW_GAIN, YAW_STEP, YAW_MAX = 0.15, math.radians(0.5), math.radians(8.0)
+_live = {"shaft": np.array([LX, LY]), "psi": 0.0, "dot": 0.0, "corr": np.zeros(2), "cyaw": 0.0, "gap": None,
+         "frozen": False}
+_plan = {"t_trim": 1e9, "t_freeze": 1e9, "t_press0": 1e9, "t_press1": 1e9, "t_latch": None, "z_latch": None}
+
+_prev_grip = _demo.grip_rotation
+if not getattr(_prev_grip, "_rot_duck", False):
+    def _grip_rotation(yaw=0.0, _prev=_prev_grip):
+        return yaw.rot if hasattr(yaw, "rot") else _prev(yaw)
+
+    _grip_rotation._rot_duck = True
+    _demo.grip_rotation = _grip_rotation
+
+_prev_action7 = _demo.ArmPlan.action7
+if not getattr(_prev_action7, "_clock", False):
+    def _action7(self, t, _prev=_prev_action7):
+        _demo._plan_clock = float(t)  # the plan's time, for waypoints that move with the trial
+        return _prev(self, t)
+
+    _action7._clock = True
+    _demo.ArmPlan.action7 = _action7
+
+
+def _clock() -> float:
+    return float(getattr(_demo, "_plan_clock", 0.0))
+
+
+def _live_reset():
+    _live.update(shaft=np.array([LX, LY]), psi=0.0, dot=0.0, corr=np.zeros(2), cyaw=0.0, gap=None, frozen=False)
+    _plan.update(t_latch=None, z_latch=None)
+    _demo._plan_clock = 0.0
+
+
+@on_reset
+def _reset_live(env):
+    _live_reset()
+
+
+@on_step
+def _track(env):
+    """Until the trim is frozen: the shaft's position, the link's yaw and the dot's angle, live; from the end of the
+    carry, the trim, integrated from the hub's offset from the shaft and the horn's arm's angle from the dot. Frozen
+    once the hub is lowered over the shaft (or the hub is on it), so the press cannot chase a link it pushes. The gap
+    under the hub is read every step, for the press's lean."""
+    import labkit
+
+    link = labkit._part_state(env, labkit._SPECS["arm_link"])
+    horn = labkit._part_state(env, labkit._SPECS["horn"])
+    _, gap, _, arm = horn_on_servo(link, horn)
+    _live["gap"] = gap
+    t = _clock()
+    if _live["frozen"] or _state["tooth"] is not None or t >= _plan["t_freeze"]:
+        _live["frozen"] = True
+        return
+    rot = link.rotation()
+    shaft = link.to_world((0.0, 0.0, Z_TOP))[:2]
+    dot = link.joints["shaft"]
+    _live.update(shaft=shaft, psi=float(math.atan2(rot[1, 0], rot[0, 0])), dot=dot)
+    if t >= _plan["t_trim"]:
+        err = shaft - horn.pos[:2]
+        corr = _live["corr"] + np.clip(TRACK_GAIN * err, -TRACK_STEP, TRACK_STEP)
+        _live["corr"] = np.clip(corr, -TRACK_MAX, TRACK_MAX)
+        e = _wrap(dot - arm)
+        _live["cyaw"] = float(np.clip(_live["cyaw"] + np.clip(YAW_GAIN * e, -YAW_STEP, YAW_STEP), -YAW_MAX, YAW_MAX))
+
+
+def _press_z() -> float:
+    """The press's commanded TCP height: down from the collar at PRESS_RATE (to PRESS_MIN_Z at most) until the press fit
+    gives, then back at PRESS_RATE to the light push. Offline (no latch) it goes all the way down: the plan checks see
+    the deepest pose."""
+    t = min(_clock(), _plan["t_press1"])
+    p = _plan
+    if p["t_latch"] is None:
+        z = max(PRESS_MIN_Z, REST_Z - PRESS_RATE * max(0.0, t - p["t_press0"]))
+        if _state["latched"]:
+            p["t_latch"], p["z_latch"] = t, z
+        return z
+    d = PUSH_Z - p["z_latch"]
+    return p["z_latch"] + math.copysign(min(abs(d), PRESS_RATE * max(0.0, t - p["t_latch"])), d)
+
+
+class _HornAt:
+    """The right hand's TCP over the shaft: the live shaft position plus the trim, at height ``z`` (a number, or
+    ``"press"`` for the press, which also leans against the arm's compliance by the estimated press force)."""
+
+    def __init__(self, z):
+        self.z = z
+
+    def __array__(self, dtype=None, copy=None):
+        xy = _live["shaft"] + _live["corr"]
+        if self.z == "press":
+            z = _press_z()
+            hub = hub_z(_live["gap"]) if _live["gap"] is not None else REST_Z  # offline: the hub on the collar
+            f = float(np.clip((hub - z) / C_RIGHT[2], 0.0, PRESS_F_MAX))
+            xy = xy - f * C_RIGHT[:2]
+        else:
+            z = self.z
+        return np.asarray((xy[0], xy[1], z), dtype=dtype or float)
+
+
+class _HornYaw(float):
+    """The right hand's yaw over the shaft: the arm along the line, turned with the link and the dot, plus the trim."""
+
+    def __new__(cls):
+        return float.__new__(cls, HORN_YAW1)
+
+    @property
+    def rot(self):
+        return _prev_grip(HORN_YAW1 + _live["psi"] + _live["dot"] + _live["cyaw"])
 
 
 def L(x, y, z):
@@ -287,40 +419,55 @@ def _dur(wps):
 
 
 def demo():
+    _live_reset()
+    shut = FINGER_CLOSED
     left = [
-        Waypoint(2.5, (BX, BY, BLOCK_HOVER), BLOCK_WIDE, "above the block at the link's left end", BLOCK_YAW),
-        Waypoint(1.5, (BX, BY, BLOCK_Z), BLOCK_WIDE, "fingers either side of the block", BLOCK_YAW),
-        Waypoint(0.8, (BX, BY, BLOCK_Z), FINGER_CLOSED, "grip", BLOCK_YAW),
-        Waypoint(0.6, (BX, BY, HOLD_Z), FINGER_CLOSED, "hold the link down", BLOCK_YAW),
+        Waypoint(2.5, (BX, BY, BLOCK_HOVER), shut, "above the block at the link's left end, fingers closed"),
+        Waypoint(1.2, (BX, BY, BLOCK_TOUCH + 0.003), shut, "straight down to just above the block"),
+        Waypoint(0.8, (BX, BY, BLOCK_TOUCH), shut, "pad tips onto the block's top"),
+        Waypoint(1.2, HOLD, shut, "press the link down by its block"),
+        Waypoint(0.5, HOLD, shut, "settle"),
     ]
     t_held = _dur(left)
+    yaw = _HornYaw()
     right = [
         Waypoint(2.5, (HX, HY, PICK_HOVER), HUB_WIDE, "above the horn", HORN_YAW0),
         Waypoint(1.5, (HX, HY, PICK_Z), HUB_WIDE, "pads either side of the hub", HORN_YAW0),
         Waypoint(0.8, (HX, HY, PICK_Z), FINGER_CLOSED, "grip the hub", HORN_YAW0),
         Waypoint(1.2, (HX, HY, PICK_HOVER), FINGER_CLOSED, "lift", HORN_YAW0),
-        Waypoint(2.5, (LX, LY, CARRY_Z), FINGER_CLOSED, "over the shaft, arm turned onto the line", HORN_YAW1),
+        Waypoint(2.5, _HornAt(CARRY_Z), FINGER_CLOSED, "over the shaft, arm turned onto the line", yaw),
     ]
-    right.append(Waypoint(max(0.5, t_held - _dur(right)), (LX, LY, CARRY_Z), FINGER_CLOSED,
-                          "wait for the link to be held", HORN_YAW1))
+    _plan["t_trim"] = _dur(right)  # the horn is turned and over the shaft: the trim starts
+    right.append(Waypoint(max(0.5, t_held - _dur(right)), _HornAt(CARRY_Z), FINGER_CLOSED,
+                          "wait for the link to be held", yaw))
     right += [
-        Waypoint(1.5, (LX, LY, ENTRY_Z), FINGER_CLOSED, "hub just above the shaft", HORN_YAW1),
-        Waypoint(0.8, (LX, LY, ENTRY_Z), FINGER_CLOSED, "settle", HORN_YAW1),
-        Waypoint(1.5, (LX, LY, REST_Z), FINGER_CLOSED, "hub down over the shaft onto the collar", HORN_YAW1),
-        Waypoint(0.5, (LX, LY, REST_Z), FINGER_CLOSED, "settle", HORN_YAW1),
-        Waypoint(2.5, (LX, LY, PRESS_Z), FINGER_CLOSED, "press the horn down", HORN_YAW1),
-        Waypoint(1.5, (LX, LY, PRESS_Z), FINGER_CLOSED, "keep pressing", HORN_YAW1),
-        Waypoint(1.0, (LX, LY, SEAT_Z), FINGER_CLOSED, "ease off at the seat", HORN_YAW1),
-        Waypoint(0.6, (LX, LY, SEAT_Z), HUB_WIDE, "let go", HORN_YAW1),
-        Waypoint(1.0, (LX, LY, CARRY_Z), HUB_WIDE, "up", HORN_YAW1),
+        Waypoint(1.5, _HornAt(ENTRY_Z), FINGER_CLOSED, "hub 2 mm above the shaft", yaw),
+        Waypoint(2.0, _HornAt(ENTRY_Z), FINGER_CLOSED, "line the hub up on the shaft", yaw),
+    ]
+    _plan["t_freeze"] = _dur(right)
+    right += [
+        Waypoint(1.5, _HornAt(REST_Z), FINGER_CLOSED, "hub straight down over the shaft onto the collar", yaw),
+        Waypoint(0.5, _HornAt(REST_Z), FINGER_CLOSED, "settle", yaw),
+    ]
+    _plan["t_press0"] = _dur(right)
+    press_s = (REST_Z - PRESS_MIN_Z) / PRESS_RATE + 1.0
+    right += [
+        Waypoint(0.1, _HornAt("press"), FINGER_CLOSED, "press the horn down slowly", yaw),
+        Waypoint(press_s, _HornAt("press"), FINGER_CLOSED, "press until the fit gives, then ease to a light push",
+                 yaw),
+    ]
+    _plan["t_press1"] = _dur(right)
+    right += [
+        Waypoint(1.0, _HornAt(SEAT_Z), FINGER_CLOSED, "ease off at the seat", yaw),
+        Waypoint(0.8, _HornAt(SEAT_Z), HUB_WIDE, "let go", yaw),
+        Waypoint(1.2, _HornAt(CARRY_Z), HUB_WIDE, "straight up off the horn", yaw),
     ]
     t_done = _dur(right)
     right.append(Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"))
-    left.append(Waypoint(t_done - _dur(left), (BX, BY, HOLD_Z), FINGER_CLOSED, "hold the link while the horn is pressed",
-                         BLOCK_YAW))
+    left.append(Waypoint(t_done - _dur(left), HOLD, shut, "hold the link down while the horn is pressed"))
     left += [
-        Waypoint(0.6, (BX, BY, BLOCK_Z), BLOCK_WIDE, "let go", BLOCK_YAW),
-        Waypoint(1.0, (BX, BY, BLOCK_HOVER), BLOCK_WIDE, "up", BLOCK_YAW),
+        Waypoint(0.8, (BX, BY, BLOCK_TOUCH + 0.003), shut, "lift straight off the block"),
+        Waypoint(1.0, (BX, BY, BLOCK_HOVER), shut, "up"),
         Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "park"),
     ]
     t_end = max(_dur(left), _dur(right)) + 2.0
