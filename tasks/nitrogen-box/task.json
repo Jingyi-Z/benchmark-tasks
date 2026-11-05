@@ -1,0 +1,22 @@
+{
+  "title": "Store a sample in a nitrogen dry box and let its self-closing door latch",
+  "category": "Impact on jobs",
+  "keywords": [
+    "cleanroom",
+    "dry box",
+    "desiccator cabinet",
+    "self-closing door",
+    "hold open",
+    "placing",
+    "two arms"
+  ],
+  "instruction": "Store the sample jar in the nitrogen dry box. Open the box's front door by its black lever handle: the door is hinged on its right edge and swings towards you, and a spring closes it as soon as it is let go, so hold it open with one hand. With the other hand, pick up the jar and stand it upright on the white square on the shelf inside, then take your hand out of the box. Then let the door close and make sure it ends fully shut, held by the magnetic catch on the left.",
+  "context": "Moisture and oxygen sensitive samples such as wafers, battery materials and hygroscopic powders are kept in nitrogen-purged dry boxes. Each opening lets in humid air that the purge must flush out, so the door is held open only briefly and must end latched; a door left ajar wastes nitrogen and the samples degrade.",
+  "setup": "Station table (top 0.7475 m). Robot base frame: x forward, y to the robots' left. Dry box, fixed: a clear acrylic cabinet 18 cm wide (y), 16 cm deep (x) and 13.8 cm tall, walls and roof 6 mm thick, spanning x 0.33 to 0.49 and y -0.12 to 0.06, open at the front. Its floor is an 8 mm acrylic base under a 4 mm grey steel shelf plate, top 1.2 cm above the table; inside it is 12 cm tall, 15.4 cm deep and 16.8 cm wide. A white square 6 x 6 cm lies on the shelf centred at (0.40, -0.03). Door: a 5 mm clear acrylic plate 18 x 13.5 cm over the whole front, its inner face at x 0.33, hinged on its right edge (axis at x 0.3275, y -0.12) and swinging towards the robots up to 100 degrees open; shut at the start. A spring closer pulls it shut (0.2 N m per radian). Handle: a black bar 1 cm wide and 1.2 cm tall, its middle 8 cm above the table at y 0.035, sticking straight out from the door's face and ending in a black block 1 x 2.2 x 2.2 cm (flush with the bar's top, reaching 1 cm below it), 6.7 cm out from the face in all. Magnetic catch: a dark block on the inside of the left wall at the front, with a steel strike plate on the door. Also on the box: two steel hinge knuckles, a white humidity card inside on the back wall, and two brass nitrogen fittings out of the back wall. Sample jar, loose, 40 g: natural polypropylene, 4 cm across, 4.8 cm tall, with a blue screw cap 4.2 cm across and 1.2 cm tall (6 cm in all) and an orange label band, standing upright on the table at (0.24, 0.17). No other objects.",
+  "scoring": "Measured once everything has come to rest. 0 unless the jar is inside the dry box: its middle behind the door's line, between the side walls and under the roof. The door is shut when its free edge is within 5 mm of the cabinet's front, where the catch holds it. The jar is on the mark when it is upright (tilted no more than 10 degrees), its base rests on the shelf (within 5 mm) and its base centre is within 1 cm of the white square's centre along both edges of the square, so its base lies wholly on the square. Inside but not on the mark: 0.25 with the door open, 0.5 with it shut. On the mark: 0.75 with the door open, 1.0 with it shut.",
+  "run_limit": "1,200 steps (60 seconds at 20 Hz)",
+  "reset_notes": "Nothing is consumed. Take the jar out, stand it upright at (0.24, 0.17) and shut the door. With a real purged box, let the humidity come back down before the next trial.",
+  "fidelity": "Rigid bodies in PhysX at 240 Hz. The door turns on a hinge whose spring drive (0.2 N m/rad) and damping stand in for a door closer. The magnetic catch is not simulated: the door counts as latched with its free edge within 5 mm of the front. No nitrogen flow or humidity. The jar is a rigid cylinder with no thread; the shelf is a plain plate. The acrylic may be drawn opaque.",
+  "scores": "Dream-1 run: TBD; demo: TBD",
+  "media": ""
+}
