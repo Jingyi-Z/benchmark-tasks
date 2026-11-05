@@ -18,6 +18,6 @@
   "run_limit": "1,200 steps (60 seconds at 20 Hz)",
   "reset_notes": "Nothing is consumed. Pull the connector out and stand it on the tray, key towards the robots, and set the stand flat inside its tape outline. In simulation the press fit is restored at each reset.",
   "fidelity": "Rigid bodies in PhysX at 240 Hz. The connector is a solid block and the pins are not contacts: it rests on a sprung plate in the header that stands in for the pins' insertion force, gives at 5 N and lets it sink 2.5 mm to its seat, where it stays. Clearances are 0.6 mm with no chamfers. The ribbon is a short rigid stub, not a flexible cable. The stand, board and header are one body of uniform density.",
-  "scores": "Dream-1 run: TBD; demo: TBD",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
   "media": ""
 }
