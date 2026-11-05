@@ -301,7 +301,8 @@ def distance(objects):
 # Right arm: meanwhile comes down behind the thumb rest with closed fingers, leaning 30 degrees towards the fixed jaw
 # (``Orient`` lets a Waypoint's ``yaw`` carry the full rotation); once the pin is held, it pushes the rest to
 # the left at 3 mm/s, closed loop on the sliding jaw: the jaw meets the pin and carries it across to the fixed jaw with
-# almost no force, and the push stops as soon as the jaw flexes by 0.02 mm (0.2 N, both jaws touching). Then it backs
+# little force (it pauses whenever the jaw presses with 0.2 N before the pin is seated, letting the holding hand give
+# way), and stops once the jaw flexes by 0.02 mm (0.2 N) with the pin seated on the fixed jaw. Then it backs
 # off 5 mm, so the jaw rests on the pin without load, and parks. The push's waypoints read their position from the
 # trial every control step (``_PushPos``).
 
@@ -327,7 +328,7 @@ HOLD_Z = TOP + HOLD_BOTTOM + GRIP_UP + TIP_ABOVE_TCP
 HOLD_X = CX - 0.025  # the pin's axis 25 mm out from the beam, 20 mm in from the jaw tips
 CLEAR = 0.003  # the pin is held 3 mm clear of the fixed jaw; the sliding jaw seats it
 YIELD_F = 0.03  # N: the holding hand gives way while the sliding jaw presses on the pin with more than this,
-YIELD_GAIN = 0.05  # m/s per N of jaw force (5 mm/s at 0.1 N: faster than the 3 mm/s push),
+YIELD_GAIN = 0.10  # m/s per N of jaw force (10 mm/s at 0.1 N: faster than the 3 mm/s push),
 YIELD_MAX = CLEAR + 0.0015  # at most until it aims 1.5 mm into the fixed jaw: the pin then rests on it
 HOLD = (HOLD_X, CY - PIN_R - CLEAR, HOLD_Z)
 ENTRY = (HOLD_X, CY - PIN_R - 0.005, HOLD_Z)
@@ -402,7 +403,12 @@ def _push_dy() -> float:
     else:
         cap = PUSH_NOMINAL + PUSH_EXTRA
         if flex < -FLEX_TOUCH:
-            p["mode"] = "hold"
+            # The jaw is pressing. Seated (the holding hand can give way no further): stop. Otherwise wait for the
+            # holding hand to give way before pressing on.
+            if _loose["dy"] >= YIELD_MAX - 0.0003:
+                p["mode"] = "hold"
+            else:
+                dt = 0.0
     if p["mode"] == "advance":
         p["dy"] = min(cap, p["dy"] + PUSH_V * dt)
     return p["dy"]

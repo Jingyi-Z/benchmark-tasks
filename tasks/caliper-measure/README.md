@@ -32,8 +32,9 @@ Scripted demo: the same command with `--policy yam_scripted` (about 30 s of moti
 push is closed loop on the sliding jaw: the finger advances at 3 mm/s and stops as soon as the jaw flexes by 0.02 mm
 (0.2 N, first touch), then backs off so the jaw rests on the pin without load. The holding hand holds the pin 3 mm
 clear of the fixed jaw, loosely: while the sliding jaw presses on the pin, the hand gives way towards the fixed jaw
-(5 mm/s per 0.1 N of jaw force), so the jaw carries the pin across with under 0.1 N and seats it on the fixed jaw;
-only then does the force reach 0.2 N and stop the push. Run one trial per process: the
+(10 mm/s per 0.1 N of jaw force), so the jaw carries the pin across and seats it on the fixed jaw. Should the jaw
+press with 0.2 N before the pin is seated, the push pauses until the hand has given way; once the pin is seated, 0.2 N
+stops the push. Run one trial per process: the
 push and hold state is kept in the task module and cleared at each reset.
 
 The score is `task_score` in the log, computed by `score()` in `task.py` from the final state: the pin's pose between
