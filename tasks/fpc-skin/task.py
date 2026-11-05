@@ -2,14 +2,14 @@
 lying on its side on the bench, fin-ray fingers pointing at the robots. The finger on the robots' left carries a tactile
 skin: a flexible sensor sheet over its whole inner face, 11 x 2.2 cm. The skin's flat flexible cable (FPC) runs back
 along the jaw to the top of the gripper body, where a sensor communication board sits on standoffs. The FPC's last
-3.3 cm is free: it ends in a stiffened tip that plugs into a flip-lock ZIF connector on the board.
+3.7 cm is free: it ends in a stiffened tip that plugs into a flip-lock ZIF connector on the board.
 
 The task: plug the FPC into the connector and lock it. The connector's actuator (latch) starts open, standing up behind
-the slot. The free FPC holds an arch (bend memory) that leaves its tip
-flat on the board 3.5 mm short of the slot and 1.6 mm off to the side. Pressed flat and slid in, the tip reaches the
-slot's back stop (3.2 mm past the mouth), but let go with the latch open, the arch pulls it back out; the latch has to
-be closed while the FPC is held in. Closed onto an inserted FPC, the latch clamps it; closed on an empty slot it clamps
-nothing, and an FPC pushed in under a closed latch is not clamped either. Bending any hinge of the FPC past 60 degrees creases it.
+the slot. The free FPC holds an arch (bend memory) that leaves its tip flat on the board 3.5 mm short of the slot and
+1.6 mm off to the side. Pressed flat and slid in, the tip reaches the slot's back stop (3.2 mm past the mouth), but let
+go with the latch open, the arch pulls it back out; the latch has to be closed while the FPC is held in. Closed onto an
+inserted FPC, the latch clamps it; closed on an empty slot it clamps nothing, and an FPC pushed in under a closed latch
+is not clamped either. Bending any hinge of the FPC past 75 degrees creases it.
 
 Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jitter=0 -E control_hz=20 \\
            --instruction "<see task.json>" --scorer task_score ...
@@ -114,7 +114,7 @@ LATCH_CLOSED = -math.pi / 2
 LATCH = Joint(
     "latch", kind="hinge", axis="X", anchor=LATCH_AXIS, lower=LATCH_CLOSED - 0.05, upper=0.15, initial=0.0, target=0.0,
     stiffness=0.0, damping=0.0005, friction=0.0006, mass=0.002,
-    boxes=[((0.0, LATCH_AXIS[1], HTOP + LATCH_H / 2), (HOUSING_W, LATCH_T, LATCH_H), LATCH)],
+    boxes=[((0.0, LATCH_AXIS[1], HTOP + 0.0004 + LATCH_H / 2), (HOUSING_W, LATCH_T, LATCH_H), LATCH)],
 )
 
 # The free FPC: from where it leaves its foam pad (y = PAD_Y) towards the connector (-y): a yaw hinge (about z) at the
@@ -133,17 +133,19 @@ CREASE = math.radians(75.0)
 SEG_L = [ARCH] * 5 + [TIP_L]  # the segment after each hinge
 _seg_y0 = [PAD_Y - ARCH * k for k in range(6)]  # each segment's start (flat), = its hinge's position
 
+HGAP = 0.0005
 FPC_JOINTS = []
 _prev = ""
 for _k, _n in enumerate(FPC_NAMES):
     _y0, _L = _seg_y0[_k], SEG_L[_k]
+    # each segment stops 0.5 mm short of the hinges at its ends, so neighbours never overlap as they bend
+    _a, _b = _y0 - HGAP, _y0 - _L + (HGAP if _n != "fpc_b5" else 0.0)
     if _n == "fpc_b5":  # the stiffened tip, with its white insertion-depth line DEPTH from the end
-        _end = _y0 - _L
-        _boxes = [((0.0, _end + 0.003, FPC_Z), (FPC_W, 0.006, FPC_T * 1.05), STIFF),
-                  ((0.0, (_end + 0.006 + _y0) / 2, FPC_Z), (FPC_W, _y0 - _end - 0.006, FPC_T), POLYIMIDE),
-                  ((0.0, _end + DEPTH, FPC_Z + FPC_T / 2 + 0.00006), (FPC_W, 0.0005, 0.00012), WHITE)]
+        _boxes = [((0.0, _b + 0.003, FPC_Z), (FPC_W, 0.006, FPC_T * 1.05), STIFF),
+                  ((0.0, (_b + 0.006 + _a) / 2, FPC_Z), (FPC_W, _a - _b - 0.006, FPC_T), POLYIMIDE),
+                  ((0.0, _b + DEPTH, FPC_Z + FPC_T / 2 + 0.00006), (FPC_W, 0.0005, 0.00012), WHITE)]
     else:
-        _boxes = [((0.0, _y0 - _L / 2, FPC_Z), (FPC_W, _L, FPC_T), POLYIMIDE)]
+        _boxes = [((0.0, (_a + _b) / 2, FPC_Z), (FPC_W, _a - _b, FPC_T), POLYIMIDE)]
     FPC_JOINTS.append(Joint(_n, kind="hinge", axis="Z" if _n == "fpc_yaw" else "X", anchor=(0.0, _y0, FPC_Z),
                             lower=-0.6 if _n == "fpc_yaw" else -1.45, upper=0.6 if _n == "fpc_yaw" else 1.45,
                             initial=REST[_n], target=REST[_n], stiffness=FPC_K[_n], damping=0.001, mass=0.002,
