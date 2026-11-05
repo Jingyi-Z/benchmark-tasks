@@ -291,7 +291,7 @@ def weigh(boat, vial, grains) -> tuple[float, int, int]:
 
 # Air through an open top door makes the display wobble: up to DRAFT_G either way, a new value every DRAFT_EVERY
 # control steps (fixed seed, so a trial is repeatable). With the door shut the display shows the settled mass.
-DRAFT_G = 0.02
+DRAFT_G = 0.05
 DRAFT_EVERY = 4
 _draft = {"rng": np.random.default_rng(0), "n": 0, "dg": 0.0}
 _trial = {"tare_g": 0.0, "tared": False, "tare_ok": False, "tare_door_shut": False, "pressed": False, "reading": None,
