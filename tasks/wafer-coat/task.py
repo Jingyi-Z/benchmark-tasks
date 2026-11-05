@@ -407,8 +407,9 @@ def demo():
     _live_reset()
     q = TW_ROT
     right = [
-        Waypoint(3.0, _tw_tcp(np.array(TW_HOME) + [0.0, 0.0, 0.04]), TW_WIDE, "above the tweezers on their stand", q),
-        Waypoint(1.5, _tw_tcp(TW_HOME), TW_WIDE, "pads either side of the tweezers' arms", q),
+        Waypoint(3.0, _tw_tcp(np.array(TW_HOME) + [0.0, -0.045, 0.01]), TW_WIDE, "beside the tweezers on their stand", q),
+        Waypoint(1.0, _tw_tcp(np.array(TW_HOME) + [0.0, -0.045, 0.0]), TW_WIDE, "level with their arms", q),
+        Waypoint(1.5, _tw_tcp(TW_HOME), TW_WIDE, "slide in from the side: pads either side of the arms", q),
         Waypoint(0.8, _tw_tcp(TW_HOME), TW_HOLD, "hold the tweezers, blades open", q),
         Waypoint(1.2, _tw_tcp(np.array(TW_HOME) + [0.0, 0.0, 0.04]), TW_HOLD, "lift them off the stand", q),
         Waypoint(2.5, _tw_tcp(np.array(WAFER_PICK) + [-0.012, 0.0, 0.02]), TW_HOLD, "towards the wafer's near edge", q),
@@ -424,7 +425,8 @@ def demo():
         Waypoint(2.5, _tw_tcp(np.array(TW_HOME) + [0.0, 0.0, 0.04]), TW_HOLD, "back over the stand", q),
         Waypoint(1.2, _tw_tcp(np.array(TW_HOME) + [0.0, 0.0, 0.002]), TW_HOLD, "set them back on the stand", q),
         Waypoint(0.6, _tw_tcp(np.array(TW_HOME) + [0.0, 0.0, 0.002]), TW_WIDE, "let go", q),
-        Waypoint(1.0, _tw_tcp(np.array(TW_HOME) + [-0.03, 0.0, 0.03]), TW_WIDE, "back off", q),
+        Waypoint(1.2, _tw_tcp(np.array(TW_HOME) + [0.0, -0.045, 0.002]), TW_WIDE, "slide out to the side", q),
+        Waypoint(1.0, _tw_tcp(np.array(TW_HOME) + [0.0, -0.045, 0.04]), TW_WIDE, "up", q),
     ]
     ax, ay = ALIGNER_XY
     al0 = np.array([ax, ay, TOP])
