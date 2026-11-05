@@ -1,14 +1,16 @@
 # Weigh out 1.00 g of granules on an analytical balance with a draft shield
 
-An analytical balance with a glass draft shield whose top door slides back. One arm runs the door and the TARE key;
-the other puts the empty weighing boat on the pan and, once the balance is tared with the door shut, pours granules
-from a vial into the boat until the live display reads 1.00 g. Then the door is shut again.
+An analytical balance with a glass draft shield whose top door slides back, and its display terminal on the bench to
+its right. One arm runs the door and the terminal's TARE key; the other puts the empty weighing boat on the pan and,
+once the balance is tared with the door shut, pours granules from a vial into the boat until the live display reads
+1.00 g. Then the door is shut again. While the left arm pours, the arms hide the terminal from the top camera, so the
+right arm holds its wrist camera about 13 cm over the display, where it reads it close up.
 
 ## Files
 
 - `task.py`: scene, scoring and scripted demo (yam_arena task file). The balance's reading is worked out every control
   step from what rests on the pan; the task records the last TARE press (what was on the pan, whether the door was
-  shut) and drives the display's segments to show the reading.
+  shut) and drives the terminal's display segments to show the reading.
 - `labkit.py`: parts built from several shapes, with hinges and slides (the top door, the sprung TARE key and the 28
   display segments are slides). It hooks `yam_arena.scene` and the embodiment from the task's import, so no change to
   yam_arena is needed. This copy adds two things: a box may carry a yaw or a (yaw, pitch) turn (the vial's spout wall

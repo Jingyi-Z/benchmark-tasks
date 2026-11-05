@@ -1,8 +1,9 @@
 """On the station table: an analytical balance with a glass draft shield, an empty plastic weighing boat on the bench
 to its left, and a small square glass vial of plastic pellets, with a pouring spout, beside the boat.
 
-The balance: a white base with a key strip along its front edge (a live display reading in grams to 0.01 g, a green
-TARE key and a dark ON key) and, behind the strip, a low glass chamber round the round steel pan. The chamber's top is
+The balance: a white base with a low glass chamber round the round steel pan, and, on the bench to its right, its
+display terminal on a cable (as on many analytical balances): a white unit with a live display reading in grams to
+0.01 g, a green TARE key and a dark ON key. The chamber's top is
 a glass door that slides back, towards the far end of the balance, on a dark handle near its front edge; its front and
 side walls are fixed. The door starts closed, and the display reads 0.00 with the pan empty.
 
@@ -13,7 +14,8 @@ The task, in the order an analyst weighs out a powder:
 4. Close the door and leave the balance; put the vial down anywhere.
 
 The display shows the mass resting on the pan (the boat and anything in it or on the pan) minus the mass on the pan at
-the last TARE press. Two hands: one runs the door and the TARE key, the other carries the boat and pours.
+the last TARE press. Two hands: one runs the door and the TARE key, the other carries the boat and pours. While one
+hand pours, the arms hide the terminal from the top camera, so the other hand holds its wrist camera over the display.
 
 Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jitter=0 -E control_hz=20 \\
            --instruction "<see task.json>" --scorer task_score ...
@@ -60,7 +62,11 @@ DOOR_X0, DOOR_X1 = CH_X0 - WALL_T, 0.095  # the closed door's front and back edg
 DOOR_TRAVEL = 0.13  # fully open: slid 13 cm back over the rear housing
 REAR = (CH_X1, 0.225)  # rear housing, x span; its top sits just under the door
 PAN_R, PAN_T, PAN_TOP = 0.040, 0.003, 0.050  # round pan 8 cm across, its top 5 cm above the table
-STRIP_X0, STRIP_X1, STRIP_TOP = -0.170, CH_X0 - WALL_T, 0.040  # key strip in front of the chamber
+STRIP_X0, STRIP_X1, STRIP_TOP = -0.170, CH_X0 - WALL_T, 0.040  # the terminal, in the terminal frame (below)
+TERM_HW = 0.075  # its half width
+# The terminal frame: the balance frame shifted by (TERM_DX, TERM_DY): the terminal stands on the bench to the
+# balance's front right, 13 cm right of it.
+TERM_DX, TERM_DY = 0.030, -0.200
 HALF_W = CH_HY + WALL_T + 0.002  # half width of the base, strip and rear housing
 HANDLE = (0.010, 0.040, 0.012)  # dark bar on the door, along y
 HANDLE_X, HANDLE_Y = DOOR_X0 + 0.013, -0.065
@@ -153,22 +159,33 @@ BALANCE = part(
     "balance", pos=(PX, PY, TOP), fixed=True, friction=0.6,
     boxes=[
         (((CH_X0 - WALL_T + CH_X1) / 2, 0.0, FLOOR_Z / 2), (CH_X1 - CH_X0 + WALL_T, 2 * HALF_W, FLOOR_Z), CASE),  # base
-        (((STRIP_X0 + STRIP_X1) / 2, 0.0, STRIP_TOP / 2), (STRIP_X1 - STRIP_X0, 2 * HALF_W, STRIP_TOP), CASE),  # strip
         (((REAR[0] + REAR[1]) / 2, 0.0, (WALL_TOP - 0.0005) / 2), (REAR[1] - REAR[0], 2 * HALF_W, WALL_TOP - 0.0005),
          CASE),  # rear housing
         ((CH_X0 - WALL_T / 2, 0.0, FLOOR_Z + _glass_wall_h / 2), (WALL_T, 2 * (CH_HY + WALL_T), _glass_wall_h),
          GLASS),  # front glass
         *[(((CH_X0 + CH_X1) / 2, s * (CH_HY + WALL_T / 2), FLOOR_Z + _glass_wall_h / 2),
            (CH_X1 - CH_X0, WALL_T, _glass_wall_h), GLASS) for s in (1, -1)],  # side glass
-        ((DISP_X, DISP_Y, STRIP_TOP + SCREEN_SIZE[2] / 2), SCREEN_SIZE, SCREEN),
-        ((_dot[0], _dot[1], SEG_Z), (SEG_T, SEG_T, 0.001), LIT),  # decimal point (always lit)
-        ((KEY_X, ON_Y, STRIP_TOP + KEY[2] / 2), KEY, DARK),  # ON key (not used)
+        ((CH_X0 - WALL_T - 0.003, -HALF_W + 0.012, 0.012), (0.006, 0.010, 0.006), DARK),  # cable socket
     ],
     cylinders=[
         ((0.0, 0.0, (FLOOR_Z + PAN_TOP - PAN_T) / 2), 0.008, PAN_TOP - PAN_T - FLOOR_Z, STEEL),  # pan post
         ((0.0, 0.0, PAN_TOP - PAN_T / 2), PAN_R, PAN_T, STEEL),  # pan
     ],
-    joints=[DOOR, TARE, *SEGMENT_JOINTS],
+    joints=[DOOR],
+)
+TERMINAL = part(
+    "terminal", pos=(PX + TERM_DX, PY + TERM_DY, TOP), fixed=True, friction=0.6,
+    boxes=[
+        (((STRIP_X0 + STRIP_X1) / 2, 0.0, STRIP_TOP / 2), (STRIP_X1 - STRIP_X0, 2 * TERM_HW, STRIP_TOP), CASE),
+        ((DISP_X, DISP_Y, STRIP_TOP + SCREEN_SIZE[2] / 2), SCREEN_SIZE, SCREEN),
+        ((_dot[0], _dot[1], SEG_Z), (SEG_T, SEG_T, 0.001), LIT),  # decimal point (always lit)
+        ((KEY_X, ON_Y, STRIP_TOP + KEY[2] / 2), KEY, DARK),  # ON key (not used)
+        # the cable to the balance, along the bench
+        ((STRIP_X1 + 0.004, 0.06, 0.003), (0.008, 0.012, 0.006), DARK),
+        ((STRIP_X1 + 0.012, 0.06 + (-TERM_DY - HALF_W + 0.012 - 0.06) / 2, 0.0025),
+         (0.005, -TERM_DY - HALF_W + 0.012 - 0.06, 0.005), DARK),
+    ],
+    joints=[TARE, *SEGMENT_JOINTS],
 )
 
 # -- the weighing boat (loose, on the bench) ----------------------------------------------------------------------------
@@ -233,7 +250,7 @@ GRAINS = [part(f"grain{i:02d}", pos=p, mass=GRAIN_SIM_KG, friction=0.3,
           for i, p in enumerate(GRAIN_START)]
 GRAIN_NAMES = [g.name for g in GRAINS]
 
-OBJECTS = [BALANCE, BOAT_PART, VIAL, *GRAINS]
+OBJECTS = [BALANCE, TERMINAL, BOAT_PART, VIAL, *GRAINS]
 
 # -- the reading: worked out from what rests on the pan ----------------------------------------------------------------
 TARGET_G = 1.00
@@ -326,10 +343,10 @@ def _grain_positions(env) -> np.ndarray:
 def _watch(env):
     import torch
 
-    s = {n: labkit._part_state(env, labkit._SPECS[n]) for n in ("balance", "boat", "vial")}
+    s = {n: labkit._part_state(env, labkit._SPECS[n]) for n in ("balance", "terminal", "boat", "vial")}
     grains = _grain_positions(env)
     grams, counted, _ = weigh(s["boat"], s["vial"], grains)
-    down = s["balance"].joints["tare"] < PRESSED
+    down = s["terminal"].joints["tare"] < PRESSED
     if down and not _trial["pressed"]:  # a new press: the balance zeroes on what is on the pan now
         boat = s["boat"]
         _trial.update(
@@ -350,7 +367,7 @@ def _watch(env):
     seen = _trial["seen"]  # the demo's own reading of the display: a running average over about a second
     _trial["seen"] = shown if seen is None else seen + 0.05 * (shown - seen)
     text = display_text(shown)
-    asset = env.unwrapped.scene["balance"]
+    asset = env.unwrapped.scene["terminal"]
     if "segments" not in _ids:
         names = list(asset.joint_names)
         _ids["segments"] = [names.index(j.joint_name) for j in SEGMENT_JOINTS]
@@ -433,7 +450,6 @@ if not getattr(_prev_action7, "_clock", False):
     _demo.ArmPlan.action7 = _action7
 
 _DOWN = _prev_grip(0.0)  # straight down, fingers closing along world y
-WATCH_ROT = Orient(axis_angle_matrix(np.array([1.0, 0.0, 0.0]), math.radians(30.0)) @ _DOWN)  # leaning towards +y
 
 
 def pour_rot(theta: float) -> np.ndarray:
@@ -537,12 +553,11 @@ TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.15, 0.25, TOP + 0.14)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.14)
 RIGHT_ASIDE = (0.22, -0.20, TOP + 0.14)
-# While the left arm pours, the arms hide the display from the top camera, so the right arm holds its wrist camera
-# over the display, reading it close up and upright. It stays on its own side, 8 cm right of the display (clear of the
-# pouring arm), and leans its fingers 30 degrees towards it, so the camera looks across at the display from about
-# 14 cm up (WATCH_ROT, with the demo's other rotations above).
-_dx, _dy = PX + DISP_X, PY + DISP_Y
-WATCH = (_dx + 0.026, _dy - 0.08, TOP + FACE_Z + 0.14)
+# While the left arm pours, the arms hide the terminal from the top camera, so the right arm holds its wrist camera
+# about 13 cm over the display, looking straight down: the display then fills a good part of that camera's image and
+# reads upright (the camera sits beside the fingers, so the TCP is offset from the display's centre).
+_dx, _dy = PX + TERM_DX + DISP_X, PY + TERM_DY + DISP_Y
+WATCH = (_dx + 0.026, _dy - 0.001, TOP + FACE_Z + 0.13)
 
 
 def W(x, y, z):
@@ -571,7 +586,8 @@ VIAL_CARRY_Z = TOP + WALL_TOP + VIAL_H + 0.014  # the vial's bottom 14 mm over t
 PLANCHECK_BOXES = [
     ("table", (0.35, 0.0, TOP - 0.02), (0.8, 1.2, 0.04)),
     ("base", W((CH_X0 - WALL_T + CH_X1) / 2, 0.0, FLOOR_Z / 2), (CH_X1 - CH_X0 + WALL_T, 2 * HALF_W, FLOOR_Z)),
-    ("key strip", W((STRIP_X0 + STRIP_X1) / 2, 0.0, STRIP_TOP / 2), (STRIP_X1 - STRIP_X0, 2 * HALF_W, STRIP_TOP)),
+    ("terminal", W((STRIP_X0 + STRIP_X1) / 2 + TERM_DX, TERM_DY, STRIP_TOP / 2),
+     (STRIP_X1 - STRIP_X0, 2 * TERM_HW, STRIP_TOP)),
     ("rear housing", W((REAR[0] + REAR[1]) / 2, 0.0, WALL_TOP / 2), (REAR[1] - REAR[0], 2 * HALF_W, WALL_TOP)),
     ("front glass", W(CH_X0 - WALL_T / 2, 0.0, (FLOOR_Z + WALL_TOP) / 2), (WALL_T, 2 * HALF_W, WALL_TOP - FLOOR_Z)),
     ("left glass", W((CH_X0 + CH_X1) / 2, CH_HY + WALL_T / 2, (FLOOR_Z + WALL_TOP) / 2),
@@ -638,7 +654,7 @@ def demo():
 
     _wait_until(right, t_boat_out, RIGHT_ASIDE, FINGER_OPEN, "wait for the boat", math.pi / 2)
     _door(right, HANDLE_OPEN, HANDLE_SHUT, "slide the door shut")
-    kx, ky = W(KEY_X, TARE_Y, 0.0)[:2]
+    kx, ky = W(KEY_X + TERM_DX, TARE_Y + TERM_DY, 0.0)[:2]
     right += [
         Waypoint(1.5, (kx, ky, KEY_TOP + 0.04), FINGER_CLOSED, "above TARE"),
         Waypoint(1.0, (kx, ky, KEY_TOP + 0.003 + TIP_ABOVE_TCP), FINGER_CLOSED, "onto the key"),
@@ -647,7 +663,7 @@ def demo():
         Waypoint(0.8, (kx, ky, KEY_TOP + 0.04), FINGER_CLOSED, "release"),
     ]
     _door(right, HANDLE_SHUT, HANDLE_OPEN, "slide the door open again")
-    right.append(Waypoint(2.0, WATCH, FINGER_OPEN, "wrist camera on the display, to read it during the pour", WATCH_ROT))
+    right.append(Waypoint(2.0, WATCH, FINGER_OPEN, "wrist camera over the display, to read it during the pour"))
     t_tared = _dur(right) - 1.0
 
     xs = pour_tcp(0.0)[0]
@@ -667,7 +683,7 @@ def demo():
     ]
     t_vial_out = _dur(left) - 7.6  # the vial is out of the chamber and on its way back
 
-    _wait_until(right, t_vial_out, WATCH, FINGER_OPEN, "watch the display while the left arm pours", WATCH_ROT)
+    _wait_until(right, t_vial_out, WATCH, FINGER_OPEN, "watch the display while the left arm pours")
     _door(right, HANDLE_OPEN, HANDLE_SHUT, "slide the door shut")
     right.append(Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"))
     t_end = max(_dur(left), _dur(right)) + 2.0
