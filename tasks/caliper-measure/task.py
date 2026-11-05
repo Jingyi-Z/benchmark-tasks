@@ -270,7 +270,7 @@ def score(objects):
     return 0.25 if err <= NEAR_MM + 1e-6 else 0.1
 
 
-SUCCESS_HOLD_S = 3.0
+SUCCESS_HOLD_S = 10.0  # end a trial early only once it has stayed measured for 10 s, so the demo plays to its end
 
 
 def success(objects):
