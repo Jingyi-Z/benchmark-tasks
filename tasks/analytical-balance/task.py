@@ -465,7 +465,7 @@ _pour = {"t0": None, "tl": 0.0, "theta": POUR_TH0, "mode": "rise", "mark": 0.0, 
 
 
 def _pour_reset():
-    _pour.update(t0=None, tl=0.0, theta=POUR_TH0, mode="rise", mark=0.0, flow=POUR_TH_MAX, since=0.0)
+    _pour.update(t0=None, tl=0.0, theta=POUR_TH0, mode="rise", mark=0.0, flow=POUR_TH_MAX, since=0.0, low=None)
 
 
 def _pour_theta() -> float:
@@ -487,8 +487,13 @@ def _pour_theta() -> float:
     else:
         if p["mode"] != "level" and r >= POUR_STOP_G:
             p["mode"] = "level"
-        if p["mode"] != "level" and r < p["mark"] - 0.1:  # the reading fell: something is wrong, stop pouring
-            p["mode"] = "level"
+        if r < p["mark"] - 0.1:  # the reading fell; if it stays down for a second, something is wrong: stop pouring
+            if p.get("low") is None:
+                p["low"] = t_eff
+            elif t_eff - p["low"] >= 1.0 and p["mode"] != "level":
+                p["mode"] = "level"
+        else:
+            p["low"] = None
         if p["mode"] == "rise" and r - p["mark"] >= POUR_BURST_G:
             p.update(mode="back", flow=th)
         if p["mode"] == "back" and th <= p["flow"] - POUR_BACK:
