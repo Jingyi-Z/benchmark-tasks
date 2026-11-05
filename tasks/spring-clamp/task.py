@@ -344,7 +344,7 @@ RELEASE_OPEN = -0.032  # let go 64 mm apart, 26 mm clear of grip and trigger: fu
 SET_GAP = 0.0003
 
 C_LEFT = np.array([1.12, -0.73, 2.16]) / 1000.0  # m/N, the left arm's compliance at the pads, as on the servo rig
-HOLD_F = 3.0
+HOLD_F = 5.0
 PRESS_DX = 0.018  # the press point behind the cover's centre
 
 
@@ -573,7 +573,7 @@ def demo():
     right.append(Waypoint(2.0, _ClampAt(BACK), SQUEEZE, "line the jaws up on the stack", fl))
     _plan["k_trim1"] = _dur(right)
     right += [
-        Waypoint(2.0, _ClampAt(0.0), SQUEEZE, "slide the jaws over the stack through the notch", fl),
+        Waypoint(3.5, _ClampAt(0.0), SQUEEZE, "slide the jaws over the stack through the notch, slowly", fl),
         Waypoint(0.5, _ClampAt(0.0), SQUEEZE, "settle", fl),
         Waypoint(1.0, _ClampAt(0.0), RELEASE_OPEN, "let go: open the fingers wide", fl),
         Waypoint(0.6, _ClampAt(0.0), RELEASE_OPEN, "wait for the fingers to clear grip and trigger", fl),
