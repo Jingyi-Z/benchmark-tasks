@@ -166,7 +166,7 @@ BALANCE = part(
 )
 
 # -- the weighing boat (loose, on the bench) ----------------------------------------------------------------------------
-BOAT, BOAT_WALL, BOAT_FLOOR, BOAT_H = 0.050, 0.0015, 0.0015, 0.012
+BOAT, BOAT_WALL, BOAT_FLOOR, BOAT_H = 0.050, 0.0015, 0.004, 0.012  # floor 4 mm: falling pellets do not pass through it
 BOAT_G = 1.20  # grams
 BOAT_XY = (0.18, 0.20)
 BOAT_SIM_KG = 0.012  # simulated mass (kg): heavier than a real 1.2 g boat so falling pellets don't shove it; the
