@@ -189,13 +189,15 @@ def jaw_force(j: dict) -> float:
     return FLEX_K * max(0.0, -j["jaw"])
 
 
-_trial = {"flex": None, "pin_y": None, "text": display_text(GAP0 * 1000)}
+_trial = {"flex": None, "text": display_text(GAP0 * 1000)}
+_loose = {"dy": 0.0}
 _ids: dict = {}
 
 
 @on_reset
 def _clear(env):
-    _trial.update(flex=None, pin_y=None, text=display_text(GAP0 * 1000))
+    _trial.update(flex=None, text=display_text(GAP0 * 1000))
+    _loose["dy"] = 0.0
     _ids.pop("set", None)
     _push_reset()
 
@@ -208,7 +210,10 @@ def _watch(env):
 
     j = labkit._part_state(env, labkit._SPECS["caliper"]).joints
     _trial["flex"] = j["jaw"]
-    _trial["pin_y"] = float(labkit._part_state(env, labkit._SPECS["pin"]).pos[1])
+    f = jaw_force(j)
+    if f > YIELD_F:  # the holding hand gives way to the sliding jaw's push, towards the fixed jaw
+        dt = float(getattr(env.unwrapped, "step_dt", 0.05))
+        _loose["dy"] = min(YIELD_MAX, _loose["dy"] + YIELD_GAIN * f * dt)
     text = display_text(reading_mm(j))
     asset = env.unwrapped.scene["caliper"]
     if "segments" not in _ids:
@@ -289,9 +294,9 @@ def distance(objects):
 
 # -- scripted demo ---------------------------------------------------------------------------------------------------
 # Left arm: picks the pin off the bench by its upper part (fingers closing along x, pad tips 14.5 mm above its bottom),
-# lifts it over the jaws, lowers it between them 3 mm clear of the fixed jaw and holds it there loosely: from then on
-# its target across the jaws (y) follows the pin, so the hand carries the pin's weight and keeps it square but lets it
-# move sideways (``_LooseHold``). The sliding jaw then seats the pin against the fixed jaw, as a person lets a part
+# lifts it over the jaws, lowers it between them 3 mm clear of the fixed jaw and holds it there loosely: it carries
+# the pin's weight and keeps it square, but gives way sideways whenever the sliding jaw presses on the pin, moving its
+# target towards the fixed jaw in proportion to the jaw's force (``_LooseHold``). The sliding jaw then seats the pin against the fixed jaw, as a person lets a part
 # settle onto the fixed jaw while closing the caliper.
 # Right arm: meanwhile comes down behind the thumb rest with closed fingers, leaning 30 degrees towards the fixed jaw
 # (``Orient`` lets a Waypoint's ``yaw`` carry the full rotation); once the pin is held, it pushes the rest to
@@ -320,7 +325,10 @@ PICK_HOVER = TOP + PIN_H + 0.05
 CARRY_Z = TOP + Z_TOP + 0.010 + GRIP_UP + TIP_ABOVE_TCP  # the pin's bottom 10 mm over the jaws
 HOLD_Z = TOP + HOLD_BOTTOM + GRIP_UP + TIP_ABOVE_TCP
 HOLD_X = CX - 0.025  # the pin's axis 25 mm out from the beam, 20 mm in from the jaw tips
-CLEAR = 0.003  # the pin is let go of sideways 3 mm clear of the fixed jaw; the sliding jaw seats it
+CLEAR = 0.003  # the pin is held 3 mm clear of the fixed jaw; the sliding jaw seats it
+YIELD_F = 0.03  # N: the holding hand gives way while the sliding jaw presses on the pin with more than this,
+YIELD_GAIN = 0.05  # m/s per N of jaw force (5 mm/s at 0.1 N: faster than the 3 mm/s push),
+YIELD_MAX = CLEAR + 0.0015  # at most until it aims 1.5 mm into the fixed jaw: the pin then rests on it
 HOLD = (HOLD_X, CY - PIN_R - CLEAR, HOLD_Z)
 ENTRY = (HOLD_X, CY - PIN_R - 0.005, HOLD_Z)
 
@@ -410,20 +418,12 @@ class _PushPos:
         return np.asarray((PUSH_X, PUSH_Y0 + _push_dy() + self.dy, PUSH_Z + self.dz), dtype=dtype or float)
 
 
-_loose = {"c": None}
-
-
 class _LooseHold:
-    """The holding hand's TCP target, read every control step: HOLD's x and z, and across the jaws (y) wherever the
-    pin is now (plus the TCP-to-pin offset when the loose hold began). Offline (no simulator) it is HOLD."""
+    """The holding hand's TCP target, read every control step: HOLD, moved towards the fixed jaw by however far the
+    hand has given way to the sliding jaw's push so far (``_loose``)."""
 
     def __array__(self, dtype=None, copy=None):
-        y = _trial["pin_y"]
-        if y is None:
-            return np.asarray(HOLD, dtype=dtype or float)
-        if _loose["c"] is None:
-            _loose["c"] = HOLD[1] - y
-        return np.asarray((HOLD[0], y + _loose["c"], HOLD[2]), dtype=dtype or float)
+        return np.asarray((HOLD[0], HOLD[1] + _loose["dy"], HOLD[2]), dtype=dtype or float)
 
 
 def _dur(wps):
@@ -432,7 +432,7 @@ def _dur(wps):
 
 def demo():
     _push_reset()
-    _loose["c"] = None
+    _loose["dy"] = 0.0
     px, py = PIN_XY
     left = [
         Waypoint(2.5, (px, py, PICK_HOVER), FINGER_OPEN, "above the pin", PIN_YAW),
