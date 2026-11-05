@@ -74,7 +74,7 @@ def _ring(r, n, rad, z0, h, colour):
 
 LID = Joint(
     "lid", kind="hinge", axis="Z", anchor=(0.0, -PIVOT_DY, LID_Z0), lower=-LID_MAX, upper=0.0, initial=0.0,
-    stiffness=0.3, damping=0.04, target=0.0, mass=0.08,  # spring: 0.3 N m/rad, about 5 N at the post fully open
+    stiffness=0.2, damping=0.04, target=0.0, mass=0.08,  # spring: 0.2 N m/rad, about 3 N at the post held at 80 deg
     cylinders=[
         ((0.0, 0.0, LID_Z0 + LID_T / 2), LID_R, LID_T, LID_C),  # the lid
         ((0.0, -PIVOT_DY, LID_Z0 + 0.003), 0.009, 0.006, DARK),  # hub over the pin
@@ -169,25 +169,36 @@ def distance(objects):
 
 
 # -- scripted demo ----------------------------------------------------------------------------------------------------
-# Right arm: pushes the lever's post to the right with closed fingers on its left side (the spring holds the post
-# against them), so the lid swings back off the bowl; holds it there while the left arm loads the wafer, then eases off
-# so the lid closes. Left arm: grips the wafer across its diameter by the edge, pad tips 3 mm below its underside beside
+# Right arm: comes down with its fingers part-open round the lever's post, the pads either side of it along its path
+# (the fingers close along that path), and drives the post round its arc in steps of about 11 degrees, the trailing
+# pad's flat inner face pushing it, out to 80 degrees open (the whole bowl uncovered); holds it there while the left arm
+# loads the wafer and comes up out of the bowl, then takes it back along the arc so the lid closes, opens and lifts off.
+# The pads hold the post over its top 16 mm and 26 mm along the lever, so it cannot slip out from under or beside them.
+# Left arm: grips the wafer across its diameter by the edge, pad tips 3 mm below its underside beside
 # the narrow pad, carries it over the chuck and lowers it to 3 mm above. There it centres the wafer closed loop: an
 # ``on_step`` hook reads the wafer's position and moves the commanded hand position by part of the remaining offset
-# from the chuck's axis each step (``_Live`` waypoints read it every control step). Then it lowers the wafer to 0.5 mm
-# above the chuck, lets go and lifts out.
+# from the chuck's axis each step (``_Live`` waypoints read it every control step). Then it lowers the wafer until its
+# underside is on the chuck's top, lets go and lifts out.
 TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.15, 0.25, TOP + 0.14)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.14)
-OPEN = 1.45  # how far the post is pushed (rad): the lid's near edge ends up 6.8 cm from the chuck's axis
-POST_GRIP_Z = TOP + POST_Z0 + POST_H * 0.55 + TIP_ABOVE_TCP
+OPEN = 1.40  # how far the lid is held open (rad, 80 degrees): its near edge 6.4 cm from the chuck's axis, outside the
+#              bowl wall (5.7 cm). The left hand's fingers would touch the lid below about 55 degrees; at 80 they
+#              clear it by 26 mm. The stop is at 97.
+OPEN_STEPS = (0.2, 0.4, 0.6, 0.8, 1.0, 1.2, OPEN)  # waypoints along the arc, about 11 degrees apart
+POST_GRIP_Z = TOP + POST_Z0 + 0.004 + TIP_ABOVE_TCP  # pad tips 4 mm above the handle: on the post's top 16 mm
+POST_GAP = 0.016  # pads 16 mm apart round the 10 mm post
+POST_WIDE = -POST_GAP / 2
+POST_DOWN = -0.010  # 20 mm apart while coming down over it
+POST_FREE = -0.016  # 32 mm apart to lift off it
+POST_PRELOAD = 0.001  # the trailing pad 1 mm into the post: it stays on it
 WAFER_WIDE = -0.029  # pads 58 mm apart round the 50.8 mm wafer
 WAFER_HOLD = -0.021  # squeezes it: the pads stop on its edge at 25.4 mm
 PICK_Z = TOP + PAD_TOP - 0.003 + TIP_ABOVE_TCP  # pad tips 3 mm below the wafer's underside, beside the 24 mm pad
 CARRY_Z = TOP + RIM + 0.015 - 0.003 + TIP_ABOVE_TCP  # the wafer's underside 15 mm above the rim
 CLEAR_Z = CARRY_Z + 0.02  # pad tips 2.6 cm above the lid's top: clear of it as it closes
 HOVER_Z = TOP + CHUCK_TOP + 0.003 - 0.003 + TIP_ABOVE_TCP  # the wafer's underside 3 mm above the chuck
-PLACE_Z = TOP + CHUCK_TOP + 0.0005 - 0.003 + TIP_ABOVE_TCP  # 0.5 mm above: it drops onto the chuck when let go
+PLACE_Z = TOP + CHUCK_TOP - 0.003 + TIP_ABOVE_TCP  # the wafer's underside on the chuck's top
 CENTRE_GAIN, CENTRE_STEP, CENTRE_MAX = 0.15, 0.0004, 0.006  # per control step: 15% of the offset, at most 0.4 mm;
 #                                                              at most 6 mm in all
 
@@ -203,16 +214,20 @@ def _post_at(phi: float):
     return CX + r * math.cos(phi), CY - PIVOT_DY - r * math.sin(phi)
 
 
-def _push_at(phi: float):
-    """TCP xy for closed fingers pushing the post, on its left side, when the lid is open by phi."""
+def _push_at(phi: float, lead: float | None = None):
+    """TCP xy with the post between the part-open pads when the lid is open by phi: ``lead`` ahead of the post along
+    its path, by default so that the trailing pad's inner face is POST_PRELOAD into the post (it pushes it)."""
+    if lead is None:
+        lead = POST_GAP / 2 - POST_R + POST_PRELOAD
     px, py = _post_at(phi)
     ux, uy = -math.sin(phi), -math.cos(phi)  # the way the post moves as the lid opens
-    return px - (POST_R + 0.010) * ux, py - (POST_R + 0.010) * uy
+    return px + lead * ux, py + lead * uy
 
 
 def _push_yaw(phi: float) -> float:
-    """Wrist yaw while pushing: the closed pads' width (along x at yaw 0) lies along the post's path."""
-    return math.pi / 2 - phi
+    """Wrist yaw round the post: the fingers close along the post's path (along y at yaw 0, as at phi 0) and the pads'
+    26 mm width lies along the lever."""
+    return -phi
 
 
 def _lid_centre(phi: float):
@@ -263,7 +278,11 @@ PLANCHECK_BOXES = [
       for i, (c, *_) in enumerate(_ribs) if i % 3 == 0],
     ("open lid", (_lc[0], _lc[1], TOP + LID_Z0 + LID_T / 2), (2 * LID_R, 2 * LID_R, LID_T)),
     ("pivot hub", W(0.0, -PIVOT_DY, LID_Z0 + 0.003), (0.018, 0.018, 0.006)),
-    ("tray", (*TRAY_XY, TOP + TRAY[2] / 2), TRAY),
+    *[(f"open lid arm {k}", W(d * math.sin(OPEN), -PIVOT_DY + d * math.cos(OPEN), LID_Z0 + LID_T / 2),
+       (0.016, 0.016, LID_T)) for k, d in enumerate((0.015, 0.030))],
+    *[(f"open lever handle {k}", W(d * math.cos(OPEN), -PIVOT_DY - d * math.sin(OPEN), LID_Z0 + HANDLE_T / 2),
+       (0.008, 0.008, HANDLE_T)) for k, d in enumerate((0.015, 0.030, 0.045, 0.060, 0.075))],
+    ("tray",(*TRAY_XY, TOP + TRAY[2] / 2), TRAY),
     ("tray pad", (*TRAY_XY, TOP + PAD_TOP / 2), (2 * PAD_R, 2 * PAD_R, PAD_TOP)),
 ]
 
@@ -276,12 +295,16 @@ def demo():
     _place.update(dx=0.0, dy=0.0)
     tx, ty = TRAY_XY
     right = [
-        Waypoint(2.5, (*_push_at(0.0), POST_GRIP_Z + 0.04), FINGER_CLOSED, "above the left side of the lever post"),
-        Waypoint(1.0, (*_push_at(0.0), POST_GRIP_Z), FINGER_CLOSED, "down beside the post"),
+        Waypoint(2.5, (*_push_at(0.0, 0.0), POST_GRIP_Z + 0.04), POST_DOWN, "above the lever post, fingers part-open",
+                 _push_yaw(0.0)),
+        Waypoint(1.0, (*_push_at(0.0, 0.0), POST_GRIP_Z), POST_DOWN, "down round the post", _push_yaw(0.0)),
+        Waypoint(0.4, (*_push_at(0.0, 0.0), POST_GRIP_Z), POST_WIDE, "pads 16 mm apart round the post",
+                 _push_yaw(0.0)),
     ]
-    for phi in (0.3, 0.6, 0.9, 1.2, OPEN):
-        right.append(Waypoint(0.8, (*_push_at(phi), POST_GRIP_Z), FINGER_CLOSED, "push the post: the lid swings back",
+    for phi in OPEN_STEPS:
+        right.append(Waypoint(0.7, (*_push_at(phi), POST_GRIP_Z), POST_WIDE, "push the post: the lid swings back",
                               _push_yaw(phi)))
+    right.append(Waypoint(0.5, (*_push_at(OPEN), POST_GRIP_Z), POST_WIDE, "hold the lid open", _push_yaw(OPEN)))
     t_open = _dur(right)
 
     left = [
@@ -291,6 +314,7 @@ def demo():
         Waypoint(1.0, (tx, ty, CARRY_Z), WAFER_HOLD, "lift"),
     ]
     left.append(Waypoint(max(0.3, t_open - _dur(left)), (tx, ty, CARRY_Z), WAFER_HOLD, "wait for the lid to open"))
+    # the lid is held open from t_open: the left hand goes over the bowl only after that
     hover, place, up = _Live((CX, CY, HOVER_Z)), _Live((CX, CY, PLACE_Z)), _Live((CX, CY, CLEAR_Z))
     left += [
         Waypoint(2.0, (CX, CY, CARRY_Z), WAFER_HOLD, "over the chuck"),
@@ -300,7 +324,7 @@ def demo():
     _place["t0"] = _dur(left)
     left += [
         Waypoint(2.5, hover, WAFER_HOLD, "centre the wafer over the chuck"),
-        Waypoint(1.5, place, WAFER_HOLD, "lower it to just above the chuck"),
+        Waypoint(1.5, place, WAFER_HOLD, "lower it onto the chuck"),
         Waypoint(0.5, place, WAFER_HOLD, "steady"),
     ]
     _place["t1"] = _dur(left)
@@ -311,15 +335,16 @@ def demo():
     t_left_clear = _dur(left)
     left.append(Waypoint(1.5, LEFT_PARK, FINGER_OPEN, "park"))
 
-    right.append(Waypoint(max(0.3, t_left_clear - _dur(right)), (*_push_at(OPEN), POST_GRIP_Z), FINGER_CLOSED,
+    right.append(Waypoint(max(0.3, t_left_clear - _dur(right)), (*_push_at(OPEN), POST_GRIP_Z), POST_WIDE,
                           "hold the lid open until the left arm is clear", _push_yaw(OPEN)))
-    for phi in (1.2, 0.9, 0.6, 0.3, 0.0):
-        right.append(Waypoint(0.8, (*_push_at(phi), POST_GRIP_Z), FINGER_CLOSED, "ease off: the lid closes",
+    for phi in reversed((0.0, *OPEN_STEPS[:-1])):
+        right.append(Waypoint(0.7, (*_push_at(phi), POST_GRIP_Z), POST_WIDE, "ease off: the lid closes",
                               _push_yaw(phi)))
+    shut = (*_push_at(-0.06), POST_GRIP_Z)  # the trailing pad 4 mm off the closed post, the leading one 2 mm
     right += [
-        Waypoint(0.6, (*_push_at(-0.15), POST_GRIP_Z), FINGER_CLOSED, "clear of the post", _push_yaw(-0.15)),
-        Waypoint(0.8, (_push_at(-0.15)[0] - 0.05, _push_at(-0.15)[1] - 0.03, POST_GRIP_Z + 0.03), FINGER_CLOSED,
-                 "up, towards the robots", _push_yaw(-0.15)),
+        Waypoint(0.6, shut, POST_WIDE, "off the post: the lid shut", _push_yaw(-0.06)),
+        Waypoint(0.4, shut, POST_FREE, "open the fingers", _push_yaw(-0.06)),
+        Waypoint(0.8, (shut[0], shut[1], POST_GRIP_Z + 0.04), POST_FREE, "up off the post", _push_yaw(-0.06)),
         Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
     ]
     t_end = max(_dur(left), _dur(right)) + 2.0

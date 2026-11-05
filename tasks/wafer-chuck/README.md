@@ -11,6 +11,9 @@ flat on the 3 cm vacuum chuck, centred within 1 mm. Then both hands come out and
     closed and a stop at 97 degrees open.
   - The bowl wall is a ring of 48 upright ribs and the centring marks are 24 flat dots, since labkit's boxes are not
     turned.
+  - The scripted demo holds the lid open with the right hand's fingers part-open round the post (16 mm apart, closing
+    along the post's path), driving it round its arc in steps of about 11 degrees to 80 degrees open and holding it
+    there until the left hand is up out of the bowl.
   - The scripted demo centres the wafer closed loop before setting it down: an `on_step` hook reads the wafer's position
     and moves the left hand's commanded position by part of the remaining offset from the chuck's axis each control
     step (the `_Live` waypoints), so yam_arena itself is unchanged.
@@ -28,7 +31,7 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
         --instruction "$(python -c 'import json;print(json.load(open("task.json"))["instruction"])')" \
         --scorer task_score --max-steps 1800 --store-frames --log-dir logs
 
-Scripted demo: the same command with `--policy yam_scripted` (about 27 s of motion). Run one trial per process: the
+Scripted demo: the same command with `--policy yam_scripted` (about 30 s of motion). Run one trial per process: the
 demo's centring state is kept in the task module and cleared at each reset.
 
 The score is `task_score` in the log, computed by `score()` in `task.py` from the final state.
