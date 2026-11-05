@@ -56,7 +56,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import arena_assets_fix  # noqa: E402,F401
 
 __all__ = ["Joint", "Part", "PartState", "part", "Model", "JointSet", "model", "on_step", "on_reset", "env", "install",
-           "GLASS_COLORS", "stl_mesh", "Mesh"]
+           "GLASS_COLORS", "stl_mesh", "lathe_mesh", "Mesh"]
 
 GLASS_COLORS: set = set()  # colours drawn as glass
 
@@ -152,6 +152,26 @@ def stl_mesh(path, color, pos=(0.0, 0.0, 0.0), rpy=(0.0, 0.0, 0.0), scale=0.001,
     if collide not in ("hull", "decomp", "none"):
         raise ValueError("collide must be 'hull', 'decomp' or 'none'")
     return Mesh(points=pts, tris=tris, color=_vec3(color, str(path)), collide=collide)
+
+
+def lathe_mesh(profile, color, pos=(0.0, 0.0, 0.0), segments=64, collide="none") -> Mesh:
+    """A turned (axisymmetric) shape about the vertical through ``pos``: ``profile`` is a list of (radius, height)
+    points (metres) traced from one end to the other; a radius of 0 closes that end. Drawn from both sides."""
+    prof = [(float(r), float(z)) for r, z in profile]
+    a = np.linspace(0.0, 2 * math.pi, int(segments), endpoint=False)
+    rings = [np.stack([r * np.cos(a), r * np.sin(a), np.full_like(a, z)], axis=1) for r, z in prof]
+    pts, tris = [], []
+    n = len(a)
+    for k in range(len(prof) - 1):
+        p0, p1 = rings[k], rings[k + 1]
+        for i in range(n):
+            j = (i + 1) % n
+            quad = [p0[i], p0[j], p1[j], p1[i]]
+            base = len(pts)
+            pts.extend(quad)
+            tris.extend([(base, base + 1, base + 2), (base, base + 2, base + 3)])
+    pts = np.asarray(pts, float) + np.asarray(pos, float)
+    return Mesh(points=pts, tris=np.asarray(tris, int), color=_vec3(color, "lathe"), collide=collide)
 
 
 def _meshes(specs, what):
