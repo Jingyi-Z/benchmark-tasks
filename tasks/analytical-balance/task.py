@@ -291,8 +291,8 @@ def weigh(boat, vial, grains) -> tuple[float, int, int]:
 
 # Air through an open top door makes the display wobble: up to DRAFT_G either way, a new value every DRAFT_EVERY
 # control steps (fixed seed, so a trial is repeatable). With the door shut the display shows the settled mass.
-DRAFT_G = 0.05
-DRAFT_EVERY = 4
+DRAFT_G = 0.04
+DRAFT_EVERY = 16  # 0.8 s, so each value shows long enough to read
 _draft = {"rng": np.random.default_rng(0), "n": 0, "dg": 0.0}
 _trial = {"tare_g": 0.0, "tared": False, "tare_ok": False, "tare_door_shut": False, "pressed": False, "reading": None,
           "shown": None, "seen": None,
@@ -448,7 +448,7 @@ POUR_FALL = math.radians(25.0)  # rad/s, tipping back to stop the flow, and to u
 POUR_BACK = math.radians(6.0)  # how far to tip back after each burst
 POUR_SETTLE = 1.5  # s to wait after each burst, for the averaged reading to catch up
 POUR_BURST_G = 0.03  # a burst: the reading has gone up by a pellet since the last pause
-POUR_STOP_G = TARGET_G - 0.05  # level the vial at this (averaged, so slightly lagging) reading
+POUR_STOP_G = TARGET_G - 0.06  # level the vial at this (averaged, so slightly lagging) reading
 POUR_WINDOW = 45.0  # s
 
 

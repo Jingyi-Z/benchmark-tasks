@@ -29,7 +29,7 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
         --scorer task_score --max-steps 2400 --store-frames --log-dir logs
 
 Scripted demo: the same command with `--policy yam_scripted` (about 100 s of motion; 2,100 steps are enough). The
-demo's pour is closed loop on the display (averaged over about a second, since it wobbles by up to 0.05 g while the
+demo's pour is closed loop on the display (averaged over about a second, since it wobbles by up to 0.04 g while the
 door is open), in short bursts as a person taps out a powder: the vial tips slowly until
 the reading goes up by a pellet, tips back 6 degrees, waits a second for the reading to settle, and goes on; at
 0.95 g on the averaged display it levels the vial; the door is then shut and the settled reading is the result. Run one trial
