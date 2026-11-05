@@ -345,6 +345,7 @@ SET_GAP = 0.0003
 
 C_LEFT = np.array([1.12, -0.73, 2.16]) / 1000.0  # m/N, the left arm's compliance at the pads, as on the servo rig
 HOLD_F = 5.0
+PRESS_SPREAD = -0.014  # the left fingers 28 mm apart when pressing: two pads across the cover's 40 mm width, so it cannot twist under one point
 PRESS_DX = 0.018  # the press point behind the cover's centre
 
 
@@ -547,12 +548,12 @@ def demo():
         Waypoint(1.0, _CoverAt(SET_Z), FINGER_OPEN, "let go: open the fingers wide", cyaw),
         Waypoint(0.6, _CoverAt(SET_Z), FINGER_OPEN, "wait for the fingers to clear the cover", cyaw),
         Waypoint(1.0, _CoverAt(OPEN_UP_Z), FINGER_OPEN, "up off the cover", cyaw),
-        Waypoint(0.8, _CoverAt(OPEN_UP_Z, PRESS_DX, trim=False), FINGER_CLOSED, "close the fingers over its back half",
+        Waypoint(0.8, _CoverAt(OPEN_UP_Z, PRESS_DX, trim=False), PRESS_SPREAD, "close the fingers over its back half",
                  _PRESS_YAW),
-        Waypoint(1.0, _CoverAt(TOUCH_Z + 0.002, PRESS_DX, trim=False), FINGER_CLOSED, "down to just above the cover",
+        Waypoint(1.0, _CoverAt(TOUCH_Z + 0.002, PRESS_DX, trim=False), PRESS_SPREAD, "down to just above the cover",
                  _PRESS_YAW),
-        Waypoint(1.2, _Press(TOUCH_Z), FINGER_CLOSED, "press the cover straight down", _PRESS_YAW),
-        Waypoint(0.5, _Press(TOUCH_Z), FINGER_CLOSED, "settle", _PRESS_YAW),
+        Waypoint(1.2, _Press(TOUCH_Z), PRESS_SPREAD, "press the cover straight down", _PRESS_YAW),
+        Waypoint(0.5, _Press(TOUCH_Z), PRESS_SPREAD, "settle", _PRESS_YAW),
     ]
     t_held = _dur(left)
 
@@ -582,12 +583,12 @@ def demo():
     _plan["t_clamped"] = _dur(right) - 2.1
     t_away = _dur(right)
     right.append(Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park", fw))
-    left.append(Waypoint(t_away - _dur(left), _Press(TOUCH_Z), FINGER_CLOSED,
+    left.append(Waypoint(t_away - _dur(left), _Press(TOUCH_Z), PRESS_SPREAD,
                          "hold the cover down while the clamp goes on", _PRESS_YAW))
     left += [
-        Waypoint(0.8, _CoverAt(TOUCH_Z + 0.003, PRESS_DX, trim=False), FINGER_CLOSED, "lift straight off the cover",
+        Waypoint(0.8, _CoverAt(TOUCH_Z + 0.003, PRESS_DX, trim=False), PRESS_SPREAD, "lift straight off the cover",
                  _PRESS_YAW),
-        Waypoint(1.0, _CoverAt(TOUCH_Z + 0.03, PRESS_DX, trim=False), FINGER_CLOSED, "up", _PRESS_YAW),
+        Waypoint(1.0, _CoverAt(TOUCH_Z + 0.03, PRESS_DX, trim=False), PRESS_SPREAD, "up", _PRESS_YAW),
         Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "park"),
     ]
     t_end = max(_dur(left), _dur(right)) + 2.0
