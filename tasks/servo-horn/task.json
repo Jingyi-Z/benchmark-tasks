@@ -1,0 +1,21 @@
+{
+  "title": "Fit a servo horn at its centre position while holding the arm link",
+  "category": "Impact on AI timelines",
+  "keywords": [
+    "robot assembly",
+    "servo horn",
+    "spline",
+    "press fit",
+    "hold and press",
+    "two arms"
+  ],
+  "instruction": "Fit the white horn onto the servo in the blue arm link. The servo has been centred: the white dot on top of its brass output shaft points along the white line on the servo's top. Keep the shaft there. Pick up the horn, turn it so that its arm points along the white line, flat side down, and lower its hub over the shaft. Then press it firmly down until the hub stops on the servo. The servo sticks out past the end of the link's foot, so pressed on its own the link tips over: hold the link down by the block at its left end with one hand while you press with the other. Let go once the horn is on.",
+  "context": "Every small robot arm built from hobby servos, such as the SO-101, needs each horn pressed on with the servo at its centre and the horn on the right spline tooth; one tooth off puts the joint's zero 14.4 degrees out. Robots that can do this can help build more robots.",
+  "setup": "Station table (top 0.7475 m). Robot base frame: x forward, y to the robots' left. Arm link, loose, 120 g with its servo: blue PLA, 32 mm wide (x 0.284 to 0.316), lying along y: a block 3.2 cm long and 3.4 cm tall at its left end (y 0.094 to 0.126), a flat foot 8 mm thick (y -0.060 to 0.094), an upright 1 cm thick and 5 cm tall at its right end (y -0.070 to -0.060), and on the upright a shelf 4 mm thick, 5 cm above the table, running out to y = -0.130 past the foot, with a cut-out the servo hangs in. Servo, screwed into the shelf by its two mounting tabs: black case 20 x 40 x 36 mm (x 0.29 to 0.31, y -0.12 to -0.08), its bottom 3 cm and its top 6.6 cm above the table, output shaft pointing up at (0.30, -0.11), 10 mm from the case's right end. Shaft: brass, a 25-tooth spline 6 mm across standing 5.5 mm above the case, with a black collar 10 mm across, 3.5 mm above the case, on which an unpressed hub rests. A white dot on the shaft's top and a white line 1 mm wide printed on the case's top, running along +y from 6.5 to 29.5 mm from the shaft, mark the centre position; the shaft starts centred (dot on the line) and turns if twisted. Horn, loose, 5 g: white plastic, 37 mm long, flat underneath: a square hub 12 mm across and 6 mm tall with an 8.4 mm square hole, and an arm 6 mm wide and 2.5 mm thick with a rounded end. It lies flat side down with its hub centred at (0.22, -0.20) and its arm pointing along +x, away from the robots. No other objects.",
+  "scoring": "Measured once everything has come to rest, relative to the arm link (angles seen from above). The horn is on the shaft if its hub is centred on the shaft within 2 mm, tilted no more than 10 degrees from it, and its underside is no more than 4.5 mm above the servo's top (so the shaft is at least 1 mm into the hub). It is seated if that underside is at most 1.5 mm above the servo's top (within 1 mm of its seat, 0.5 mm above the top). 0 if the horn is not on the shaft. 0.25 if it is on the shaft but not seated. Seated, by where the arm points with the servo at its centre: the arm's angle from the white line minus the angle the shaft's white dot has turned from the line. 1.0 if within 7.2 degrees (half a spline step: the tooth on the line); 0.75 if within 21.6 degrees (one tooth off); 0.5 if further off.",
+  "run_limit": "1,200 steps (60 seconds at 20 Hz)",
+  "reset_notes": "Nothing is consumed. Pull the horn off, turn the shaft back so its dot is on the line, lay the horn flat side down at its start with its arm pointing away from the robots, and lay the link with its foot flat at its start position. In simulation the press fit is restored at each reset.",
+  "fidelity": "Rigid bodies in PhysX at 240 Hz. The spline is a plain 6 mm pin in an 8.4 mm square hole; the 25 teeth are kept in the task code: once the hub is on, the shaft turns with the horn at the tooth it met. The press fit is a sprung collar on the shaft that gives at 5 N and then lets the hub drop to its seat. The unpowered shaft holds where it is left. The link and servo are one body of uniform density; a real servo is denser.",
+  "scores": "Dream-1 run: TBD; demo: TBD",
+  "media": ""
+}
