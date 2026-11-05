@@ -5,11 +5,11 @@ along the jaw to the top of the gripper body, where a sensor communication board
 3.3 cm is free: it ends in a stiffened tip that plugs into a flip-lock ZIF connector on the board.
 
 The task: plug the FPC into the connector and lock it. The connector's actuator (latch) starts open, standing up behind
-the slot. The free FPC holds a curl (bend memory) that keeps its tip lifted 1.5 cm and 3 mm short of the slot, 2 mm
-off to one side. Pressed flat and slid in, the tip reaches the slot's back stop (3.5 mm in), but let go with the latch
-open, the curl pulls it back out; the latch has to be closed while the FPC is held in. Closed onto an inserted FPC, the
-latch clamps it; closed on an empty slot it clamps nothing, and an FPC pushed in under a closed latch is not clamped
-either. Bending any hinge of the FPC past 60 degrees creases it.
+the slot. The free FPC holds an arch (bend memory) that leaves its tip
+flat on the board 3.5 mm short of the slot and 1.6 mm off to the side. Pressed flat and slid in, the tip reaches the
+slot's back stop (3.2 mm past the mouth), but let go with the latch open, the arch pulls it back out; the latch has to
+be closed while the FPC is held in. Closed onto an inserted FPC, the latch clamps it; closed on an empty slot it clamps
+nothing, and an FPC pushed in under a closed latch is not clamped either. Bending any hinge of the FPC past 60 degrees creases it.
 
 Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jitter=0 -E control_hz=20 \\
            --instruction "<see task.json>" --scorer task_score ...
@@ -119,7 +119,7 @@ LATCH = Joint(
 
 # The free FPC: from where it leaves its foam pad (y = PAD_Y) towards the connector (-y): a yaw hinge (about z) at the
 # pad, five 5 mm segments joined by bend hinges (about x), then the 12 mm stiffened tip. Its rest shape (bend memory) is
-# an arch 6 mm high that leaves the tip flat on the board 1.7 mm short of the mouth and 1.7 mm off to the side; flat
+# an arch 6.6 mm high that leaves the tip flat on the board 3.5 mm short of the mouth and 1.6 mm off to the side; flat
 # (all hinges at 0) the tip sits 0.3 mm short of the back stop. Bending up is negative.
 ARCH = 0.005
 TIP_L = 0.012
@@ -127,9 +127,9 @@ FPC_L = 5 * ARCH + TIP_L
 PAD_Y = STOP_Y + 0.0003 + FPC_L
 FPC_Z = BT + 0.0002 + FPC_T / 2  # the FPC's mid-plane when flat, 0.2 mm over the board (the slot's floor)
 FPC_NAMES = ["fpc_yaw", "fpc_b1", "fpc_b2", "fpc_b3", "fpc_b4", "fpc_b5"]
-REST = dict(zip(FPC_NAMES, [math.radians(a) for a in (3.0, -55.0, 35.0, 40.0, 35.0, -55.0)]))
-FPC_K = {n: (0.004 if n == "fpc_yaw" else 0.006) for n in FPC_NAMES}  # N m/rad
-CREASE = math.radians(70.0)
+REST = dict(zip(FPC_NAMES, [math.radians(a) for a in (3.0, -65.0, 40.0, 50.0, 40.0, -65.0)]))
+FPC_K = {n: (0.010 if n == "fpc_yaw" else 0.015) for n in FPC_NAMES}  # N m/rad
+CREASE = math.radians(75.0)
 SEG_L = [ARCH] * 5 + [TIP_L]  # the segment after each hinge
 _seg_y0 = [PAD_Y - ARCH * k for k in range(6)]  # each segment's start (flat), = its hinge's position
 
@@ -146,7 +146,7 @@ for _k, _n in enumerate(FPC_NAMES):
         _boxes = [((0.0, _y0 - _L / 2, FPC_Z), (FPC_W, _L, FPC_T), POLYIMIDE)]
     FPC_JOINTS.append(Joint(_n, kind="hinge", axis="Z" if _n == "fpc_yaw" else "X", anchor=(0.0, _y0, FPC_Z),
                             lower=-0.6 if _n == "fpc_yaw" else -1.45, upper=0.6 if _n == "fpc_yaw" else 1.45,
-                            initial=REST[_n], target=REST[_n], stiffness=FPC_K[_n], damping=0.0003, mass=0.0004,
+                            initial=REST[_n], target=REST[_n], stiffness=FPC_K[_n], damping=0.001, mass=0.002,
                             parent=_prev, boxes=_boxes))
     _prev = _n
 
@@ -380,7 +380,7 @@ class _Drag:
         if _live["t0"] is None or t < _live["tl"] - 0.5:
             _live.update(t0=t, tl=t, push=0.0)
         if not _live["seated"]:
-            _live["push"] = min(0.0065, _live["push"] + DRAG_V * max(0.0, t - _live["tl"]))
+            _live["push"] = min(0.0085, _live["push"] + DRAG_V * max(0.0, t - _live["tl"]))
         _live["tl"] = t
         p = W((_live["side"], PRESS_Y0 - _live["push"] - self.extra, PRESS_Z + self.dz))
         return np.asarray(p - _fingertip_offset(PRESS_ROT.rot), dtype=dtype or float)
