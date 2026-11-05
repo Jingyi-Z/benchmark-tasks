@@ -169,9 +169,11 @@ BALANCE = part(
 BOAT, BOAT_WALL, BOAT_FLOOR, BOAT_H = 0.050, 0.0015, 0.0015, 0.012
 BOAT_G = 1.20  # grams
 BOAT_XY = (0.18, 0.20)
+BOAT_SIM_KG = 0.012  # simulated mass (kg): heavier than a real 1.2 g boat so falling pellets don't shove it; the
+#   reading counts the boat as BOAT_G
 _w = BOAT / 2 - BOAT_WALL / 2
 BOAT_PART = part(
-    "boat", pos=(*BOAT_XY, TOP), mass=BOAT_G / 1000, friction=0.6,
+    "boat", pos=(*BOAT_XY, TOP), mass=BOAT_SIM_KG, friction=0.9,
     boxes=[
         ((0.0, 0.0, BOAT_FLOOR / 2), (BOAT, BOAT, BOAT_FLOOR), BOAT_C),
         ((_w, 0.0, BOAT_H / 2), (BOAT_WALL, BOAT, BOAT_H), BOAT_C),
@@ -484,6 +486,8 @@ def _pour_theta() -> float:
         rate = POUR_RISE
     else:
         if p["mode"] != "level" and r >= POUR_STOP_G:
+            p["mode"] = "level"
+        if p["mode"] != "level" and r < p["mark"] - 0.1:  # the reading fell: something is wrong, stop pouring
             p["mode"] = "level"
         if p["mode"] == "rise" and r - p["mark"] >= POUR_BURST_G:
             p.update(mode="back", flow=th)
