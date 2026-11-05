@@ -1,4 +1,4 @@
-"""On the station table: a spare robot gripper finger standing in a printed holder, and a tactile sensor pad lying on a
+"""On the station table: a spare robot gripper finger standing in a printed holder, and a tactile sensor pad on a
 small tray in front of it.
 
 The finger is an aluminium bar, 60 mm long, 20 mm wide and 10 mm thick, lying along y with its gripping face up. Its
@@ -7,10 +7,10 @@ sticks out 45 mm past the head to the right, in the air. Behind the head, the ho
 on the bench and ends in a block. On the finger's gripping face, centred 11 mm from the fingertip, are two locating
 holes 10 mm apart along the finger.
 
-The pad is a small tactile sensor: an 18 x 18 mm green board with a 2.4 mm grey rubber face on top, two steel
-locating pins 2 mm across sticking 3.5 mm out of its underside, 10 mm apart, and a flat amber cable tab sticking out
-8 mm from one edge, in line with the pins. It lies rubber side up on the tray, pins down in the tray's slot, its tab
-pointing away from the robots.
+The pad is a small tactile sensor module, 6 mm thick: an 18 x 18 mm green rigid board with a 3 mm grey rubber face on
+top, two steel locating pins 2 mm across sticking 3.5 mm out of its underside, 10 mm apart, and a flat amber cable tab
+sticking out 8 mm from one edge, in line with the pins. It sits rubber side up on a narrow post in the middle of the
+tray, pins down in the channel across the post's top, its tab pointing away from the robots.
 
 Fitting it means: turn the pad so its tab points along the finger, away from the fingertip, set the pins in the holes
 and press the pad down until it sits flat on the face. The pins are a light press fit: the pad stops with its
@@ -113,28 +113,32 @@ SEAT = Joint(
 
 HOLDER = part("holder", pos=(LX, LY, TOP), mass=HOLDER_MASS, friction=0.6, boxes=_finger + _holder, joints=[SEAT])
 
-# -- the tray (fixed): a black plate 5 x 5 cm, 8 mm thick, with a slot along x the pad's pins stand in. --------------
-PX, PY = 0.22, -0.20  # the pad's centre on the tray, world
-TRAY, TRAY_T = 0.050, 0.008
-SLOT_W, SLOT_L, SLOT_D = 0.0034, 0.0144, 0.0045
-_sz = TRAY_T - SLOT_D
+# -- the tray (fixed): a black plate 5 x 5 cm, 4 mm thick, with a raised post in its middle that the pad sits on. The
+# post (14 mm along x, 10 mm along y, 12 mm tall) is narrower than the pad, so the fingertips can come down beside it,
+# below the pad's underside, and close on the pad's whole side. A channel along x across the post's top holds the pins.
+PX, PY = 0.22, -0.20  # the pad's centre on the post, world
+TRAY, TRAY_T = 0.050, 0.004
+POST_X, POST_Y, POST_H = 0.014, 0.010, 0.012
+SLOT_W, SLOT_D = 0.0034, 0.0045  # the channel: 3.4 mm wide, 4.5 mm deep, open at both ends
+POST_TOP = TRAY_T + POST_H  # the pad's underside, 16 mm above the table
+_sz = POST_TOP - SLOT_D
+_rail = (POST_Y - SLOT_W) / 2
 TRAY_PART = part(
     "tray", pos=(PX, PY, TOP), fixed=True, friction=0.6,
     boxes=[
-        ((0.0, 0.0, _sz / 2), (TRAY, TRAY, _sz), TRAY_C),
-        ((0.0, (TRAY + SLOT_W) / 4, TRAY_T - SLOT_D / 2), (TRAY, (TRAY - SLOT_W) / 2, SLOT_D), TRAY_C),
-        ((0.0, -(TRAY + SLOT_W) / 4, TRAY_T - SLOT_D / 2), (TRAY, (TRAY - SLOT_W) / 2, SLOT_D), TRAY_C),
-        (((TRAY + SLOT_L) / 4, 0.0, TRAY_T - SLOT_D / 2), ((TRAY - SLOT_L) / 2, SLOT_W, SLOT_D), TRAY_C),
-        ((-(TRAY + SLOT_L) / 4, 0.0, TRAY_T - SLOT_D / 2), ((TRAY - SLOT_L) / 2, SLOT_W, SLOT_D), TRAY_C),
+        ((0.0, 0.0, TRAY_T / 2), (TRAY, TRAY, TRAY_T), TRAY_C),
+        ((0.0, 0.0, (TRAY_T + _sz) / 2), (POST_X, POST_Y, _sz - TRAY_T), TRAY_C),
+        ((0.0, SLOT_W / 2 + _rail / 2, POST_TOP - SLOT_D / 2), (POST_X, _rail, SLOT_D), TRAY_C),
+        ((0.0, -SLOT_W / 2 - _rail / 2, POST_TOP - SLOT_D / 2), (POST_X, _rail, SLOT_D), TRAY_C),
     ],
 )
 
 # -- the pad (loose). Frame: origin at the middle of its underside; pins and tab along +x. ---------------------------
-PAD_W, BOARD_T, RUBBER_T = 0.018, 0.0016, 0.0024
-PAD_H = BOARD_T + RUBBER_T  # 4 mm
+PAD_W, BOARD_T, RUBBER_T = 0.018, 0.003, 0.003  # a rigid board (circuit board on its carrier) and the rubber face
+PAD_H = BOARD_T + RUBBER_T  # 6 mm
 TAB_L, TAB_W, TAB_T, TAB_Z = 0.008, 0.010, 0.0005, 0.001  # the tab's underside 1 mm above the pad's
 PAD = part(
-    "pad", pos=(PX, PY, TOP + TRAY_T), mass=0.003, friction=0.8,
+    "pad", pos=(PX, PY, TOP + POST_TOP), mass=0.004, friction=0.8,
     boxes=[
         ((0.0, 0.0, BOARD_T / 2), (PAD_W, PAD_W, BOARD_T), BOARD_C),
         ((0.0, 0.0, BOARD_T + RUBBER_T / 2), (PAD_W, PAD_W, RUBBER_T), RUBBER_C),
@@ -234,21 +238,24 @@ def distance(objects):
 # it into the bench (about 3 N) until the pad is home; then lifts straight off and parks. It does not grip the block:
 # the arm is laterally soft (about 7 mm/N at the pads), so a grip would let any sideways give of the hand drag the
 # holder; pressing on the top, the commanded point is leaned against the arm's compliance so the force is vertical.
-# Right arm: picks the pad by its two sides without the tab (pad tips 1.5 mm above its underside), lifting it straight
-# up off the tray's slot, and turns it a quarter turn anticlockwise on the way, so its tab points along the finger,
-# away from the fingertip. From there it is closed loop on the live holder (see ``_track``): every control step the
-# hand is aimed at the holes where the holder is now, turned with the holder's yaw, and trimmed by the measured offset
-# of the pad from the holes and of its tab from the finger's line. With the pins 2 mm above the face the trim settles
-# and is frozen; the pins go straight down into the holes onto the sprung plate. The hand lets go, lifts, closes its
-# fingers over the pad's middle and presses the rubber face down slowly (3 mm/s, commanded up to 16 mm below the seat:
-# the arm gives about 2.2 mm/N, so the 4 N latch is reached about 10 mm in) until the press fit gives, then eases to a
-# light push at the seat, lifts straight off and parks.
+# Right arm: comes down with its fingers 32 mm apart either side of the pad, pad tips 1 mm below the pad's underside
+# beside the narrow post, settles, and closes on the pad's two sides without the tab (commanded 12 mm apart, so the
+# pads squeeze the 18 mm pad over its whole 6 mm side), lifts it straight up off the post's channel, and turns it a
+# quarter turn anticlockwise on the way, so its tab points along the finger, away from the fingertip. From there it is
+# closed loop on the live holder (see ``_track``): every control step the hand is aimed at the holes where the holder
+# is now, turned with the holder's yaw, and trimmed by the measured offset of the pad from the holes and of its tab
+# from the finger's line. With the pins 2 mm above the face the trim settles and is frozen; the pins go straight down
+# into the holes onto the sprung plate. The hand lets go, lifts, closes its fingers over the pad's middle and presses
+# the rubber face down slowly (3 mm/s, commanded up to 16 mm below the seat: the arm gives about 2.2 mm/N, so the 4 N
+# latch is reached about 10 mm in) until the press fit gives, then eases to a light push at the seat, lifts straight
+# off and parks.
 TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.15, 0.25, TOP + 0.14)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.14)
-GRIP_UP = 0.0015  # pad tips 1.5 mm above the pad's underside
-PAD_WIDE = -0.013  # pads 26 mm apart round the 18 mm pad
-PICK_Z = TOP + TRAY_T + GRIP_UP + TIP_ABOVE_TCP
+GRIP_UP = -0.001  # pad tips 1 mm below the pad's underside (beside the post), so they cover its whole 6 mm side
+PAD_WIDE = -0.016  # pads 32 mm apart round the 18 mm pad: 7 mm clear of it each side
+PAD_HOLD = -0.006  # commanded 12 mm apart: the pads stop on the pad's sides at 18 mm (-0.009), 3 mm short, ~15 N each
+PICK_Z = TOP + POST_TOP + GRIP_UP + TIP_ABOVE_TCP
 PICK_HOVER = TOP + 0.06
 
 # The arms' compliance at the pad tips (mm of give per N pushed up on the pads, x, y, z), as measured for the same
@@ -412,6 +419,7 @@ PLANCHECK_BOXES = [
     ("foot", H(0.0, (HEAD_Y1 + FOOT_Y1) / 2, FOOT_T / 2), (2 * HEAD_HW, FOOT_Y1 - HEAD_Y1, FOOT_T)),
     ("block", H(0.0, (FOOT_Y1 + BLOCK_Y1) / 2, BLOCK_H / 2), (2 * HEAD_HW, BLOCK_Y1 - FOOT_Y1, BLOCK_H)),
     ("tray", (PX, PY, TOP + TRAY_T / 2), (TRAY, TRAY, TRAY_T)),
+    ("post", (PX, PY, TOP + TRAY_T + POST_H / 2), (POST_X, POST_Y, POST_H)),
     ("seated pad", H(0.0, 0.0, Z_FACE + PAD_H / 2), (PAD_W, PAD_W, PAD_H)),
 ]
 
@@ -434,22 +442,23 @@ def demo():
     yaw = _PadYaw()
     right = [
         Waypoint(2.5, (PX, PY, PICK_HOVER), PAD_WIDE, "above the pad", PAD_YAW0),
-        Waypoint(1.5, (PX, PY, PICK_Z), PAD_WIDE, "pads either side of the sensor pad", PAD_YAW0),
-        Waypoint(0.8, (PX, PY, PICK_Z), FINGER_CLOSED, "grip the pad", PAD_YAW0),
-        Waypoint(1.2, (PX, PY, PICK_HOVER), FINGER_CLOSED, "lift it off the tray's slot", PAD_YAW0),
-        Waypoint(2.5, _PadAt(CARRY_Z), FINGER_CLOSED, "over the holes, tab turned along the finger", yaw),
+        Waypoint(1.5, (PX, PY, PICK_Z), PAD_WIDE, "pads either side of the sensor pad, beside the post", PAD_YAW0),
+        Waypoint(0.5, (PX, PY, PICK_Z), PAD_WIDE, "settle", PAD_YAW0),
+        Waypoint(0.8, (PX, PY, PICK_Z), PAD_HOLD, "grip the pad by its two sides", PAD_YAW0),
+        Waypoint(1.2, (PX, PY, PICK_HOVER), PAD_HOLD, "lift it off the post", PAD_YAW0),
+        Waypoint(2.5, _PadAt(CARRY_Z), PAD_HOLD, "over the holes, tab turned along the finger", yaw),
     ]
     _plan["t_trim"] = _dur(right)  # the pad is turned and over the holes: the trim starts
-    right.append(Waypoint(max(0.5, t_held - _dur(right)), _PadAt(CARRY_Z), FINGER_CLOSED,
+    right.append(Waypoint(max(0.5, t_held - _dur(right)), _PadAt(CARRY_Z), PAD_HOLD,
                           "wait for the holder to be held", yaw))
     right += [
-        Waypoint(1.5, _PadAt(ENTRY_Z), FINGER_CLOSED, "pins 2 mm above the face", yaw),
-        Waypoint(2.0, _PadAt(ENTRY_Z), FINGER_CLOSED, "line the pins up on the holes", yaw),
+        Waypoint(1.5, _PadAt(ENTRY_Z), PAD_HOLD, "pins 2 mm above the face", yaw),
+        Waypoint(2.0, _PadAt(ENTRY_Z), PAD_HOLD, "line the pins up on the holes", yaw),
     ]
     _plan["t_freeze"] = _dur(right)
     right += [
-        Waypoint(1.5, _PadAt(REST_Z), FINGER_CLOSED, "pins straight down into the holes", yaw),
-        Waypoint(0.5, _PadAt(REST_Z), FINGER_CLOSED, "settle", yaw),
+        Waypoint(1.5, _PadAt(REST_Z), PAD_HOLD, "pins straight down into the holes", yaw),
+        Waypoint(0.5, _PadAt(REST_Z), PAD_HOLD, "settle", yaw),
         Waypoint(0.8, _PadAt(REST_Z), PAD_WIDE, "let go", yaw),
         Waypoint(1.0, _PadAt(OPEN_UP_Z), PAD_WIDE, "up off the pad", yaw),
         Waypoint(1.0, _PadAt(OPEN_UP_Z, trim=False), FINGER_CLOSED, "close the fingers over the pad's middle", yaw),

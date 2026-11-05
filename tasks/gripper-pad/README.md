@@ -1,7 +1,7 @@
 # Fit a tactile sensor pad on a gripper fingertip while holding the finger's holder
 
 A spare robot gripper finger stands in a printed holder, its fingertip sticking out past the holder's head, and a
-small tactile sensor pad lies on a tray. One arm holds the holder down by the block at its far end; the other picks up
+small tactile sensor pad sits on a narrow post on a tray. One arm holds the holder down by the block at its far end; the other picks up
 the pad, turns it a quarter turn so its cable tab points along the finger away from the fingertip, sets its two pins
 in the finger's holes and presses it home. The fingertip overhangs the head, so pressing without holding tips the
 holder over.
@@ -29,12 +29,13 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
 
 Scripted demo: the same command with `--policy yam_scripted` (about 34 s of motion). The left hand presses straight
 down on the top of the holder's block (about 3 N) rather than gripping it, so it cannot drag the holder sideways. The
-right hand grips the pad by the two sides without the tab and turns it on the way over. Its placement is closed loop:
-every control step it reads the holder's pose and the pad's, aims the pad at the holes where they are now, turns with
-the holder's yaw and trims out the pad's measured offset and the tab's angle; the trim is frozen once the pins go down
-towards the holes. It then lets go, closes its fingers over the middle of the pad, presses the rubber face down slowly
-until the press fit gives, eases off and lifts away. Run one trial per process: the press-fit latch and the demo's live
-state are kept in the task module and cleared at each reset.
+right hand comes down with its fingertips beside the post, 1 mm below the pad's underside (the post is narrower than
+the pad), and squeezes the pad by the two sides without the tab over their whole 6 mm height, then turns it on the way
+over. Its placement is closed loop: every control step it reads the holder's pose and the pad's, aims the pad at the
+holes where they are now, turns with the holder's yaw and trims out the pad's measured offset and the tab's angle; the
+trim is frozen once the pins go down towards the holes. It then lets go, closes its fingers over the middle of the
+pad, presses the rubber face down slowly until the press fit gives, eases off and lifts away. Run one trial per
+process: the press-fit latch and the demo's live state are kept in the task module and cleared at each reset.
 
 The score is `task_score` in the log, computed by `score()` in `task.py` from the final state: whether the pins are in
 the holes, whether the pad is seated, and which way its tab points.
