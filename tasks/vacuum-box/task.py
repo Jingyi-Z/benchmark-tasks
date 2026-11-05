@@ -54,7 +54,7 @@ WHITE = (0.97, 0.97, 0.96)
 
 # -- the base (loose). Frame: origin on the table under its axis. -----------------------------------------------------
 BX, BY = 0.24, -0.05
-BASE_KG = 0.8
+BASE_KG = 1.5  # with its rubber feet, it does not turn on the bench when a valve is turned
 FLANGE_R, FLANGE_TOP = 0.085, 0.075
 WALL_R = 0.072  # inside of the wall at the top
 PLATE_Z = 0.032  # the perforated plate's top
@@ -80,13 +80,13 @@ for _i in range(N_WALL):
                         (FLANGE_R - WALL_R, 2 * math.pi * _rf / N_WALL + 0.002, 0.006), PP, _a))
 STOPCOCK = Joint(
     "stopcock", kind="hinge", axis="Z", anchor=(*STOP_XY, STOP_Z + 0.010), lower=-0.05, upper=STOP_OPEN + 0.05,
-    initial=0.0, target=0.0, stiffness=0.0, damping=0.02, friction=0.30, mass=0.01,
+    initial=0.0, target=0.0, stiffness=0.0, damping=0.02, friction=0.12, mass=0.01,
     boxes=[((STOP_XY[0] - LEVER_L / 2, STOP_XY[1], STOP_Z + 0.014), (LEVER_L, 0.008, 0.004), RED)],
     cylinders=[((STOP_XY[0], STOP_XY[1], STOP_Z + 0.013), 0.007, 0.006, RED),
                ((STOP_XY[0] - LEVER_L + 0.004, STOP_XY[1], STOP_Z + 0.020), 0.0045, 0.012, RED)],  # lever post
 )
 BASE = part(
-    "base", pos=(BX, BY, TOP), mass=BASE_KG, friction=0.30,
+    "base", pos=(BX, BY, TOP), mass=BASE_KG, friction=0.8,
     meshes=[lathe_mesh(BASE_PROFILE, PP, segments=72),
             lathe_mesh([(0.0, PLATE_Z), (PLATE_R, PLATE_Z), (PLATE_R, PLATE_Z - 0.003), (0.0, PLATE_Z - 0.003)],
                        WHITE, segments=72)],
@@ -114,7 +114,7 @@ LID_PROFILE = [(FLANGE_R, 0.0), (FLANGE_R, 0.008), (0.080, 0.010), (0.078, 0.025
 VENT_FULL = math.pi / 2
 KNOB = Joint(
     "vent", kind="hinge", axis="Z", anchor=(0.0, 0.0, DOME_H), lower=-0.05, upper=VENT_FULL + 0.05, initial=0.0,
-    target=0.0, stiffness=0.0, damping=0.01, friction=0.25, mass=0.01,
+    target=0.0, stiffness=0.0, damping=0.01, friction=0.08, mass=0.01,
     cylinders=[((0.0, 0.0, DOME_H + KNOB_H / 2), KNOB_R, KNOB_H, CLEAR)],
     boxes=[((KNOB_R * math.cos(a), KNOB_R * math.sin(a), DOME_H + KNOB_H / 2), (0.003, 0.003, KNOB_H), CLEAR, a)
            for a in np.linspace(0, 2 * math.pi, 12, endpoint=False)]  # grip ribs
@@ -329,7 +329,8 @@ KNOB_Z = TOP + FLANGE_TOP + DOME_H + KNOB_H - 0.007 + TIP_ABOVE_TCP  # pad tips 
 KNOB_WIDE, KNOB_HOLD = -0.026, -0.0095  # round the 26 mm knob, squeezing it
 LIFT = 0.020
 KNOB_YAW = math.pi / 2  # fingers close along x on the knob, so the hand's wide side keeps clear of the left hand
-LID_ASIDE = (0.16, -0.23)
+LID_HELD = (0.15, -0.18)  # where the right hand holds the dome while the vial goes in
+HELD_UP = 0.040  # the dome's rim this far above the flange's top while held
 STEADY_XY = (BX, BY + FLANGE_R - 0.004)  # on the flange's left edge, fingers closing along x so the hand stays
 #   clear of the knob
 STEADY_Z = TOP + FLANGE_TOP - 0.003 + TIP_ABOVE_TCP  # closed fingertips 3 mm into the flange: pressing on it
@@ -423,25 +424,26 @@ def demo():
     ]
     t_vent1 = _dur(right)
     left = [Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "wait")]
-    _steady(left, t_vent0, t_vent1 + 0.5, "steady the base: press on its flange")
-    # lift the lid off by the knob (the vent stays open), set it down in front
+    # lift the dome off by its knob (the vent stays open) and hold it up beside the base: it is glass and is not set
+    # down on the bench, so the other hand loads the vial meanwhile
     lid_xy = np.array([kx, ky])
-    aside = np.array(LID_ASIDE)
+    held = np.array(LID_HELD)
     right += [
-        Waypoint(1.5, (kx, ky, KNOB_Z + LIFT), KNOB_HOLD, "lift the lid off by its knob", _KnobYaw(KNOB_YAW)),
-        Waypoint(3.0, (*aside, KNOB_Z + LIFT), KNOB_HOLD, "carry it to the bench in front", _KnobYaw(KNOB_YAW)),
-        Waypoint(1.5, (*aside, KNOB_Z - FLANGE_TOP - 0.001), KNOB_HOLD, "set it down on its rim", _KnobYaw(KNOB_YAW)),
-        Waypoint(0.6, (*aside, KNOB_Z - FLANGE_TOP - 0.001), KNOB_WIDE, "let go", _KnobYaw(KNOB_YAW)),
-        Waypoint(1.0, (*aside, KNOB_Z - FLANGE_TOP + 0.03), KNOB_WIDE, "up", _KnobYaw(KNOB_YAW)),
+        Waypoint(1.5, (kx, ky, KNOB_Z + LIFT), KNOB_HOLD, "lift the dome off by its knob, level", _KnobYaw(KNOB_YAW)),
+        Waypoint(1.5, (kx, ky, KNOB_Z + HELD_UP), KNOB_HOLD, "lift it clear of the base", _KnobYaw(KNOB_YAW)),
+        Waypoint(3.0, (*held, KNOB_Z + HELD_UP), KNOB_HOLD, "hold it up to the side, level", _KnobYaw(KNOB_YAW)),
     ]
     t_lid_off = _dur(right)
     vx, vy = VIAL_XY
-    left.append(Waypoint(max(0.3, t_lid_off - _dur(left)), LEFT_PARK, FINGER_OPEN, "wait for the lid to be off"))
+    left.append(Waypoint(max(0.3, t_lid_off - 3.5 - _dur(left)), LEFT_PARK, FINGER_OPEN, "wait for the dome to come off"))
     left += [
         Waypoint(2.5, (vx, vy, VIAL_GRIP_Z + 0.05), VIAL_WIDE, "above the vial"),
         Waypoint(1.2, (vx, vy, VIAL_GRIP_Z), VIAL_WIDE, "fingers round the vial"),
         Waypoint(0.6, (vx, vy, VIAL_GRIP_Z), VIAL_HOLD, "grip it"),
         Waypoint(1.2, (vx, vy, VIAL_CARRY_Z), VIAL_HOLD, "lift it over the flange"),
+    ]
+    left.append(Waypoint(max(0.3, t_lid_off - _dur(left)), (vx, vy, VIAL_CARRY_Z), VIAL_HOLD, "wait for the base to be open"))
+    left += [
         Waypoint(2.5, (BX, BY, VIAL_CARRY_Z), VIAL_HOLD, "over the plate's middle"),
         Waypoint(2.0, (BX, BY, VIAL_GRIP_Z + PLATE_Z + 0.001), VIAL_HOLD, "stand it on the plate"),
         Waypoint(0.6, (BX, BY, VIAL_GRIP_Z + PLATE_Z + 0.001), VIAL_WIDE, "let go"),
@@ -449,13 +451,11 @@ def demo():
         Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "out of the way"),
     ]
     t_vial = _dur(left) - 2.0
-    right.append(Waypoint(max(0.3, t_vial - _dur(right)), (*aside, KNOB_Z - FLANGE_TOP + 0.03), KNOB_WIDE,
-                          "wait for the vial", _KnobYaw(KNOB_YAW)))
+    right.append(Waypoint(max(0.3, t_vial - _dur(right)), (*held, KNOB_Z + HELD_UP), KNOB_HOLD,
+                          "hold the dome while the vial goes in", _KnobYaw(KNOB_YAW)))
     right += [
-        Waypoint(2.0, (*aside, KNOB_Z - FLANGE_TOP - 0.001), KNOB_WIDE, "fingers round the knob", _KnobYaw(KNOB_YAW)),
-        Waypoint(0.6, (*aside, KNOB_Z - FLANGE_TOP - 0.001), KNOB_HOLD, "grip it", _KnobYaw(KNOB_YAW)),
-        Waypoint(1.2, (*aside, KNOB_Z + LIFT), KNOB_HOLD, "lift the lid", _KnobYaw(KNOB_YAW)),
-        Waypoint(3.0, (*lid_xy, KNOB_Z + LIFT), KNOB_HOLD, "over the base", _KnobYaw(KNOB_YAW)),
+        Waypoint(3.0, (*lid_xy, KNOB_Z + HELD_UP), KNOB_HOLD, "back over the base", _KnobYaw(KNOB_YAW)),
+        Waypoint(1.5, (*lid_xy, KNOB_Z + LIFT), KNOB_HOLD, "down, level", _KnobYaw(KNOB_YAW)),
         Waypoint(2.0, (*lid_xy, KNOB_Z - 0.0015), KNOB_HOLD, "lower it onto the flange, centred", _KnobYaw(KNOB_YAW)),
     ]
     t_shut0 = _dur(right)
@@ -479,8 +479,6 @@ def demo():
         right.append(Waypoint(0.5, (x, y, POST_Z), POST_WIDE, "swing the stopcock shut", 0.6 * phi))
     t_stop1 = _dur(right)
     right.append(Waypoint(0.8, (x, y, POST_Z + 0.03), POST_WIDE, "up off the post", 0.6 * phi))
-    _steady(left, t_shut0, t_shut1, "steady the base while the vent is shut")
-    _steady(left, t_stop0, t_stop1, "steady the base while the stopcock turns")
     right += [
         Waypoint(2.0, (kx, ky, KNOB_Z + 0.03), KNOB_WIDE, "above the knob", KNOB_YAW),
         Waypoint(1.0, (kx, ky, KNOB_Z + 0.03), KNOB_WIDE, "settle over the knob", KNOB_YAW),
