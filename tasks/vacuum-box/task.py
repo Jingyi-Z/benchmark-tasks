@@ -326,7 +326,8 @@ KNOB_Z = TOP + FLANGE_TOP + 0.076 + KNOB_H - 0.007 + TIP_ABOVE_TCP  # pad tips 7
 KNOB_WIDE, KNOB_HOLD = -0.020, -0.0095  # round the 26 mm knob, squeezing it
 LIFT = 0.020
 LID_ASIDE = (0.16, -0.23)
-STEADY_XY = (BX - 0.012, BY + FLANGE_R - 0.006)  # on the flange's left edge
+STEADY_XY = (BX, BY + FLANGE_R - 0.004)  # on the flange's left edge, fingers closing along x so the hand stays
+#   clear of the knob
 STEADY_Z = TOP + FLANGE_TOP - 0.003 + TIP_ABOVE_TCP  # closed fingertips 3 mm into the flange: pressing on it
 VIAL_GRIP_Z = TOP + 0.022 + TIP_ABOVE_TCP
 VIAL_WIDE, VIAL_HOLD = -0.020, -0.008
@@ -395,10 +396,11 @@ def _steady(left, t_from, t_to, label):
     """Left hand: be pressing on the flange from t_from to t_to, then lift off."""
     sx, sy = STEADY_XY
     left.append(Waypoint(max(0.3, t_from - 2.0 - _dur(left)), left[-1].pos, left[-1].finger, "wait", left[-1].yaw))
-    left += [Waypoint(1.2, (sx, sy, STEADY_Z + 0.03), FINGER_CLOSED, "above the base's flange"),
-             Waypoint(0.8, (sx, sy, STEADY_Z), FINGER_CLOSED, label)]
-    left.append(Waypoint(max(0.3, t_to - _dur(left)), (sx, sy, STEADY_Z), FINGER_CLOSED, label))
-    left.append(Waypoint(0.8, (sx, sy, STEADY_Z + 0.04), FINGER_CLOSED, "off the flange"))
+    q = -math.pi / 2
+    left += [Waypoint(1.2, (sx, sy, STEADY_Z + 0.03), FINGER_CLOSED, "above the base's flange", q),
+             Waypoint(0.8, (sx, sy, STEADY_Z), FINGER_CLOSED, label, q)]
+    left.append(Waypoint(max(0.3, t_to - _dur(left)), (sx, sy, STEADY_Z), FINGER_CLOSED, label, q))
+    left.append(Waypoint(0.8, (sx, sy, STEADY_Z + 0.04), FINGER_CLOSED, "off the flange", q))
 
 
 def demo():
