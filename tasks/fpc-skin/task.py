@@ -181,6 +181,7 @@ GRIPPER = part(
     boxes=BODY_BOXES + SKIN_BOXES + CONNECTOR_BOXES + ROUTE_BOXES + BOARD_BOXES,
     meshes=MESHES,
     joints=[LATCH, *FPC_JOINTS],
+    self_collide=True,  # the FPC lies on the board and slides into the connector, all parts of this one articulation
 )
 OBJECTS = [GRIPPER]
 

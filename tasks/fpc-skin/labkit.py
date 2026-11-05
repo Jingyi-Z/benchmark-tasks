@@ -233,6 +233,7 @@ class Part(Box):
     joints: tuple = ()
     fixed: bool = False
     meshes: tuple = field(default=(), compare=False, hash=False)
+    self_collide: bool = False
     friction: float = 0.8
     meta: dict = field(default_factory=dict, compare=False, hash=False)
 
@@ -273,8 +274,10 @@ def _extent(boxes, cyls, meshes=()):
 
 
 def part(name, pos, boxes=(), cylinders=(), mass=None, fixed=False, yaw=0.0, joints=(), color=(0.5, 0.5, 0.5),
-         friction=0.8, meshes=()) -> Part:
-    """Build a Part; its ``size`` is the rest extent of all its shapes (joints included)."""
+         friction=0.8, meshes=(), self_collide=False) -> Part:
+    """Build a Part; its ``size`` is the rest extent of all its shapes (joints included). ``self_collide``: the part's
+    joint bodies collide with its other bodies (PhysX still ignores a body and the one it hangs on), e.g. a flexible
+    cable of hinged segments lying on the part's own board."""
     b, c = _boxes(boxes, name), _cyls(cylinders, name)
     js = tuple(j.checked() for j in joints)
     names = [j.name for j in js]
@@ -288,7 +291,7 @@ def part(name, pos, boxes=(), cylinders=(), mass=None, fixed=False, yaw=0.0, joi
     lo, hi = _extent(all_b, all_c, all_m)
     return Part(name=name, pos=_vec3(pos, name), size=tuple((hi - lo).tolist()), mass=None if fixed else mass,
                 color=_vec3(color, name), yaw=float(yaw), boxes=b, cylinders=c, joints=js, fixed=bool(fixed),
-                friction=float(friction), meshes=m)
+                friction=float(friction), meshes=m, self_collide=bool(self_collide))
 
 
 
@@ -549,7 +552,7 @@ def _author(prim_path: str, cfg, translation=None, orientation=None, **kwargs):
             art_prim = stage.GetPrimAtPath(main)
         UsdPhysics.ArticulationRootAPI.Apply(art_prim)
         art = PhysxSchema.PhysxArticulationAPI.Apply(art_prim)
-        art.CreateEnabledSelfCollisionsAttr(False)
+        art.CreateEnabledSelfCollisionsAttr(bool(spec.self_collide))
         art.CreateSolverPositionIterationCountAttr(SOLVER_POS_ITERS)
         art.CreateSolverVelocityIterationCountAttr(SOLVER_VEL_ITERS)
     return root.GetPrim()
