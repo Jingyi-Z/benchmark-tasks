@@ -18,5 +18,5 @@
   "reset_notes": "Nothing is consumed. Take the pin out of the jaws and stand it on end at (0.19, 0.17); slide the jaws back open until the display reads 40.00.",
   "fidelity": "Rigid bodies in PhysX at 240 Hz. The caliper is clamped in place; its slider is a damped slide with light friction. The display shows the slider's position, and the sliding jaw rides on a spring, 0.1 mm per newton (a real jaw is far stiffer), so squeezing shows as a low reading. The digits are raised boxes, larger than a real caliper's. The pin is an ideal cylinder, with no burrs or dirt.",
   "scores": "Dream-1 run: 0.0; demo: 1.0",
-  "media": ""
+  "media": "M-FYQQ3K"
 }
