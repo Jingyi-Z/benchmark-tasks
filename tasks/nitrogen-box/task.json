@@ -17,6 +17,6 @@
   "run_limit": "1,200 steps (60 seconds at 20 Hz)",
   "reset_notes": "Nothing is consumed. Take the jar out, stand it upright at (0.24, 0.17) and shut the door. With a real purged box, let the humidity come back down before the next trial.",
   "fidelity": "Rigid bodies in PhysX at 240 Hz. The door turns on a hinge whose spring drive (0.2 N m/rad) and damping stand in for a door closer. The magnetic catch is not simulated: the door counts as latched with its free edge within 5 mm of the front. No nitrogen flow or humidity. The jar is a rigid cylinder with no thread; the shelf is a plain plate. The acrylic may be drawn opaque.",
-  "scores": "Dream-1 run: TBD; demo: TBD",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
   "media": ""
 }
