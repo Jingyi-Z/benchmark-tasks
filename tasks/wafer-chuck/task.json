@@ -1,0 +1,22 @@
+{
+  "title": "Load a wafer centred on a spin coater's chuck while holding the sprung lid open",
+  "category": "Impact on jobs",
+  "keywords": [
+    "cleanroom",
+    "spin coater",
+    "silicon wafer",
+    "vacuum chuck",
+    "centring",
+    "sprung lid",
+    "two arms"
+  ],
+  "instruction": "Load the silicon wafer onto the spin coater's chuck. Push the black post at the end of the lid's lever to the right, away from the bowl, and hold it there: the lid swings back off the bowl, and it springs shut as soon as the post is let go. With the other hand, pick the wafer up from its tray by its edge and lay it flat on the black chuck in the middle of the bowl, with its centre within 1 mm of the chuck's centre: the gap between the wafer's edge and the ring of white dots on the bowl floor should be even all round, about 2 mm. You may nudge the wafer by its edge to centre it. Then take your hand out of the bowl and let the lid close.",
+  "context": "Loading a wafer centred on the vacuum chuck is the first step of every spin coating run in a cleanroom: an off-centre wafer gets an uneven resist coat or comes off the chuck at speed. The lid is held open with one hand while the other places the wafer.",
+  "setup": "Station table (top 0.7475 m). Robot base frame: x forward, y to the robots' left. Spin coater, fixed: a white housing 15 x 19 cm and 3 cm tall spanning x 0.225 to 0.375 and y -0.095 to 0.095, with a dark 2 x 3 cm control panel on its top at (0.238, 0.075). On it, a grey polypropylene catch bowl centred at (0.30, 0.02): a ring of 48 upright ribs 7 mm across, 10 cm across inside and 11.4 cm outside, rim 6.2 cm above the table, floor 3 cm above the table. In its middle, a black vacuum chuck 3 cm across with its top 4.2 cm above the table (1.2 cm above the bowl floor). On the bowl floor, 24 white dots 2.4 mm across on a ring round the chuck, their inner edges 2 mm outside the edge of a centred wafer. Lid: a tinted acrylic disc 11.6 cm across and 5 mm thick, underside 6.3 cm above the table, closed over the bowl at the start. It is part of a dark aluminium L-shaped lever that turns about a vertical pivot pin at (0.30, -0.075): a 1.6 cm wide arm from the lid to the pin, and a handle 8 mm wide and 4 mm thick running 9 cm back from the pin (away from the robots), ending in a black post 10 mm across and 2 cm tall at (0.387, -0.075), its top 8.7 cm above the table. Pushing the post to the right turns the lever clockwise seen from above and swings the lid back, away from the robots, up to a stop at 97 degrees; a spring (0.3 N m per radian) swings it shut when let go. Wafer tray, fixed: a grey anodised aluminium plate 8 x 8 cm and 4 mm thick centred at (0.20, 0.21), with a round raised pad 2.4 cm across in its middle, top 2.5 cm above the table. Wafer, loose, 4 g: a 2-inch silicon wafer, 50.8 mm across, drawn 1.5 mm thick, lying flat centred on the tray's pad. No other objects.",
+  "scoring": "Measured once everything has come to rest. 0 unless the wafer rests flat on the chuck: tilted no more than 2 degrees, its underside within 1 mm of the chuck's top and its centre within 15 mm of the chuck's centre. 0.25 if it rests on the chuck; 0.5 if its centre is also within 3 mm of the chuck's centre; 1.0 if within 1 mm. The score is halved if the lid is open by more than 3 degrees. In a real trial, open the lid after the trial and measure the gap from the wafer's edge to the bowl's inner wall on opposite sides, along x and along y: the centre's offset is half the difference of each pair, combined as the square root of the sum of their squares.",
+  "run_limit": "1,800 steps (90 seconds at 20 Hz)",
+  "reset_notes": "Nothing is consumed. Take the wafer off the chuck and lay it flat, centred, on the tray's pad; let the lid close.",
+  "fidelity": "Rigid bodies in PhysX at 240 Hz. The lid swings aside on a damped hinge with a light spring (about 5 N at the post when held open); real coater lids usually lift on a rear hinge. The bowl wall is a ring of ribs. The wafer is drawn 1.5 mm thick and weighs 4 g (real 0.28 mm, 1.3 g) for stable contact; it has no flat. No vacuum, spinning or resist: only the loading and centring are scored.",
+  "scores": "Dream-1 run: TBD; demo: TBD",
+  "media": ""
+}
