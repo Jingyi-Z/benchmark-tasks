@@ -104,18 +104,21 @@ BASE = part(
 
 # -- the lid (loose): the dome sits on the flange; the knob on top is the vent valve ----------------------------------
 LID_KG = 0.5
-DOME_TOP = 0.148
-KNOB_R, KNOB_H = 0.013, 0.022
-LID_PROFILE = [(FLANGE_R, 0.0), (FLANGE_R, 0.008), (0.080, 0.010), (0.078, 0.025), (0.072, 0.045), (0.060, 0.060),
-               (0.042, 0.069), (0.020, 0.073), (0.016, 0.073), (0.016, 0.076), (0.0, 0.076)]
+DOME_TOP = FLANGE_TOP + 0.060 + 0.018  # the knob's top above the table
+KNOB_R, KNOB_H = 0.013, 0.018
+DOME_H = 0.060  # the dome's top (the knob's seat) above its rim; low enough for the right arm to reach the knob
+_k = DOME_H / 0.076
+LID_PROFILE = [(FLANGE_R, 0.0), (FLANGE_R, 0.008), (0.080, 0.010), (0.078, 0.025 * _k), (0.072, 0.045 * _k),
+               (0.060, 0.060 * _k), (0.042, 0.069 * _k), (0.020, 0.073 * _k), (0.016, 0.073 * _k), (0.016, DOME_H),
+               (0.0, DOME_H)]
 VENT_FULL = math.pi / 2
 KNOB = Joint(
-    "vent", kind="hinge", axis="Z", anchor=(0.0, 0.0, 0.076), lower=-0.05, upper=VENT_FULL + 0.05, initial=0.0,
+    "vent", kind="hinge", axis="Z", anchor=(0.0, 0.0, DOME_H), lower=-0.05, upper=VENT_FULL + 0.05, initial=0.0,
     target=0.0, stiffness=0.0, damping=0.01, friction=0.25, mass=0.01,
-    cylinders=[((0.0, 0.0, 0.076 + KNOB_H / 2), KNOB_R, KNOB_H, CLEAR)],
-    boxes=[((KNOB_R * math.cos(a), KNOB_R * math.sin(a), 0.076 + KNOB_H / 2), (0.003, 0.003, KNOB_H), CLEAR, a)
+    cylinders=[((0.0, 0.0, DOME_H + KNOB_H / 2), KNOB_R, KNOB_H, CLEAR)],
+    boxes=[((KNOB_R * math.cos(a), KNOB_R * math.sin(a), DOME_H + KNOB_H / 2), (0.003, 0.003, KNOB_H), CLEAR, a)
            for a in np.linspace(0, 2 * math.pi, 12, endpoint=False)]  # grip ribs
-          + [((KNOB_R - 0.003, 0.0, 0.076 + KNOB_H + 0.0002), (0.006, 0.0015, 0.0005), RED)],  # its mark
+          + [((KNOB_R - 0.003, 0.0, DOME_H + KNOB_H + 0.0002), (0.006, 0.0015, 0.0005), RED)],  # its mark
 )
 _rim_boxes = []
 for _i in range(N_WALL):
@@ -127,7 +130,7 @@ LID = part(
     "lid", pos=(BX, BY, TOP + FLANGE_TOP), mass=LID_KG, friction=1.0,
     meshes=[lathe_mesh(LID_PROFILE, CLEAR, segments=72)],
     boxes=_rim_boxes,
-    cylinders=[((0.0, 0.0, 0.0745), 0.018, 0.003, CLEAR)],  # the knob's boss
+    cylinders=[((0.0, 0.0, DOME_H - 0.0015), 0.018, 0.003, CLEAR)],  # the knob's boss
     joints=[KNOB],
 )
 
@@ -322,7 +325,7 @@ if not getattr(_prev_action7, "_clock", False):
 TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.15, 0.25, TOP + 0.16)
 RIGHT_PARK = (0.17, -0.24, TOP + 0.13)
-KNOB_Z = TOP + FLANGE_TOP + 0.076 + KNOB_H - 0.007 + TIP_ABOVE_TCP  # pad tips 7 mm down the knob
+KNOB_Z = TOP + FLANGE_TOP + DOME_H + KNOB_H - 0.007 + TIP_ABOVE_TCP  # pad tips 7 mm down the knob
 KNOB_WIDE, KNOB_HOLD = -0.026, -0.0095  # round the 26 mm knob, squeezing it
 LIFT = 0.020
 LID_ASIDE = (0.16, -0.23)
@@ -332,7 +335,7 @@ STEADY_Z = TOP + FLANGE_TOP - 0.003 + TIP_ABOVE_TCP  # closed fingertips 3 mm in
 VIAL_GRIP_Z = TOP + 0.022 + TIP_ABOVE_TCP
 VIAL_WIDE, VIAL_HOLD = -0.020, -0.008
 VIAL_CARRY_Z = TOP + FLANGE_TOP + 0.015 + 0.022 + TIP_ABOVE_TCP
-POST_Z = TOP + STOP_Z + 0.020 + 0.003 - 0.004 + TIP_ABOVE_TCP
+POST_Z = TOP + STOP_Z + 0.020 + 0.003 - 0.001 + TIP_ABOVE_TCP  # tips 6 mm above the lever bar
 POST_WIDE = -0.008
 VENT_RATE_AIM = 9.0
 _live = {"vent": 0.0, "tl": None, "p": P0}
@@ -463,18 +466,18 @@ def demo():
     t_shut1 = _dur(right) - 1.6
     # stopcock: open, wait for the pump, shut
     px, py = _post(0.0)
-    right += [Waypoint(2.0, (px, py, POST_Z + 0.03), POST_WIDE, "above the stopcock lever's post", math.pi / 2),
-              Waypoint(1.0, (px, py, POST_Z), POST_WIDE, "fingers round the post", math.pi / 2)]
+    right += [Waypoint(2.0, (px, py, POST_Z + 0.03), POST_WIDE, "above the stopcock lever's post", 0.0),
+              Waypoint(1.0, (px, py, POST_Z), POST_WIDE, "fingers round the post", 0.0)]
     t_stop0 = _dur(right)
     for phi in np.linspace(0.25, STOP_OPEN, 6):
         x, y = _post(phi)
-        right.append(Waypoint(0.5, (x, y, POST_Z), POST_WIDE, "swing the stopcock open", math.pi / 2 + 0.35 * phi))
-    right.append(Waypoint(7.0, (x, y, POST_Z), POST_WIDE, "pump down: wait for -90 kPa or lower", math.pi / 2 + 0.35 * phi))
+        right.append(Waypoint(0.5, (x, y, POST_Z), POST_WIDE, "swing the stopcock open", 0.6 * phi))
+    right.append(Waypoint(7.0, (x, y, POST_Z), POST_WIDE, "pump down: wait for -90 kPa or lower", 0.6 * phi))
     for phi in np.linspace(STOP_OPEN - 0.25, -0.03, 6):
         x, y = _post(phi)
-        right.append(Waypoint(0.5, (x, y, POST_Z), POST_WIDE, "swing the stopcock shut", math.pi / 2 + 0.35 * phi))
+        right.append(Waypoint(0.5, (x, y, POST_Z), POST_WIDE, "swing the stopcock shut", 0.6 * phi))
     t_stop1 = _dur(right)
-    right.append(Waypoint(0.8, (x, y, POST_Z + 0.03), POST_WIDE, "up off the post", math.pi / 2 + 0.35 * phi))
+    right.append(Waypoint(0.8, (x, y, POST_Z + 0.03), POST_WIDE, "up off the post", 0.6 * phi))
     _steady(left, t_shut0, t_shut1, "steady the base while the vent is shut")
     _steady(left, t_stop0, t_stop1, "steady the base while the stopcock turns")
     right += [
