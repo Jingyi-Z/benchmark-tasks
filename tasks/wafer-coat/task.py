@@ -172,7 +172,7 @@ _zu = OPEN_GAP / 2 + BLADE_T / 2
 _back = (-BLADE_L - ARM_L * _c, 0.0, (_zl + _zu) / 2 + ARM_L * _s)
 TWEEZER_JAW = Joint(
     "jaw", kind="slide", axis="Z", anchor=(-BLADE_L / 2, 0.0, _zu), lower=-(OPEN_GAP - 0.0002), upper=0.0, initial=0.0,
-    target=0.0, stiffness=300.0, damping=2.0, mass=0.008,
+    target=0.0, stiffness=2000.0, damping=5.0, mass=0.008,
     boxes=[((-BLADE_L / 2, 0.0, _zu), (BLADE_L, BLADE_W, BLADE_T), STEEL), _arm(_zu)],
 )
 # The tweezers' stand: a base with two posts holding them at their 45 degree pose, the blades in the air: a low post
@@ -304,8 +304,8 @@ GRIP_D = 0.035  # the tweezers are gripped this far up their arms from the blade
 _mid = (_zl + _zu) / 2
 TW_GRIP = np.array([-BLADE_L - GRIP_D * _c, 0.0, _mid + GRIP_D * _s])  # tweezer frame
 TW_WIDE = -0.010  # pads 20 mm apart round the arms
-TW_HOLD = -0.0030  # pads 6 mm apart: on the arms (6.9 mm over their outer faces), blades still open
-TW_PINCH = -0.0016  # squeezes the blades onto the wafer
+TW_HOLD = -0.0045  # just closed on the arms (6.9 mm over their outer faces): the blades stay open
+TW_PINCH = -0.0025  # squeezes the blades onto the wafer
 
 
 def _tw_tcp(origin):
@@ -384,9 +384,10 @@ BAR_WIDE = -0.008  # pads 16 mm apart round the 10 mm bar
 
 
 def _lid_rot(th):
-    """The holding hand's rotation with the lid open th: its approach tilted forward more as the bar rises (20 degrees
-    from straight down with the lid shut, 62 at 70 degrees open)."""
-    return Orient(axis_angle_matrix(Y, -math.radians(20.0) - 0.6 * th) @ _prev_grip(-math.pi / 2))
+    """The holding hand's rotation: approach nearly level (+x), fingers closing nearly vertically, so the pads lie
+    above and below the round bar and it can turn between them as the lid swings."""
+    pitch = math.radians(-75.0 + 15.0 * th / LID_OPEN)  # 75 degrees from straight down, 60 when held open
+    return Orient(axis_angle_matrix(Y, pitch) @ _prev_grip(-math.pi / 2))
 
 
 def _lid_tcp(th, lift=0.0):
