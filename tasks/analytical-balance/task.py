@@ -289,14 +289,22 @@ def weigh(boat, vial, grains) -> tuple[float, int, int]:
     return grams, int(counted.sum()), spilled
 
 
+# Air through an open top door makes the display wobble: up to DRAFT_G either way, a new value every DRAFT_EVERY
+# control steps (fixed seed, so a trial is repeatable). With the door shut the display shows the settled mass.
+DRAFT_G = 0.02
+DRAFT_EVERY = 4
+_draft = {"rng": np.random.default_rng(0), "n": 0, "dg": 0.0}
 _trial = {"tare_g": 0.0, "tared": False, "tare_ok": False, "tare_door_shut": False, "pressed": False, "reading": None,
+          "shown": None, "seen": None,
           "text": display_text(0.0)}
 _ids: dict = {}
 
 
 @on_reset
 def _clear(env):
-    _trial.update(tare_g=0.0, tared=False, tare_ok=False, tare_door_shut=False, pressed=False, reading=None,
+    _draft.update(rng=np.random.default_rng(0), n=0, dg=0.0)
+    _trial.update(tare_g=0.0, tared=False, tare_ok=False, tare_door_shut=False, pressed=False, reading=None, shown=None,
+                  seen=None,
                   text=display_text(0.0))
     _pour_reset()
 
@@ -324,7 +332,17 @@ def _watch(env):
         )
     _trial["pressed"] = down
     _trial["reading"] = grams - _trial["tare_g"]
-    text = display_text(_trial["reading"])
+    if s["balance"].joints["door"] > DOOR_SHUT:  # door open: the display wobbles
+        if _draft["n"] % DRAFT_EVERY == 0:
+            _draft["dg"] = float(_draft["rng"].uniform(-DRAFT_G, DRAFT_G))
+        _draft["n"] += 1
+    else:
+        _draft["dg"] = 0.0
+    shown = _trial["reading"] + _draft["dg"]
+    _trial["shown"] = shown
+    seen = _trial["seen"]  # the demo's own reading of the display: a running average over about a second
+    _trial["seen"] = shown if seen is None else seen + 0.05 * (shown - seen)
+    text = display_text(shown)
     asset = env.unwrapped.scene["balance"]
     if "segments" not in _ids:
         names = list(asset.joint_names)
@@ -428,9 +446,9 @@ POUR_RISE = math.radians(1.5)  # rad/s, tipping further while nothing is falling
 POUR_FAST = math.radians(6.0)  # rad/s, tipping back up to just short of where pellets last started to flow
 POUR_FALL = math.radians(25.0)  # rad/s, tipping back to stop the flow, and to upright at the end
 POUR_BACK = math.radians(6.0)  # how far to tip back after each burst
-POUR_SETTLE = 1.0  # s to wait after each burst, for the reading to settle
+POUR_SETTLE = 1.5  # s to wait after each burst, for the averaged reading to catch up
 POUR_BURST_G = 0.03  # a burst: the reading has gone up by a pellet since the last pause
-POUR_STOP_G = TARGET_G - 0.03  # level the bottle at this reading
+POUR_STOP_G = TARGET_G - 0.05  # level the vial at this (averaged, so slightly lagging) reading
 POUR_WINDOW = 45.0  # s
 
 
@@ -455,11 +473,11 @@ def _pour_theta() -> float:
     t = float(getattr(_demo, "_plan_clock", 0.0))
     p = _pour
     if p["t0"] is None or t < p["tl"] - 0.5:
-        p.update(t0=t, tl=t, theta=POUR_TH0, mode="rise", mark=_trial["reading"] or 0.0, flow=POUR_TH_MAX, since=t)
+        p.update(t0=t, tl=t, theta=POUR_TH0, mode="rise", mark=_trial["seen"] or 0.0, flow=POUR_TH_MAX, since=t)
     t_eff = min(t, p["t0"] + POUR_WINDOW)
     dt = max(0.0, t_eff - p["tl"])
     p["tl"] = max(p["tl"], t_eff)
-    r = _trial["reading"]
+    r = _trial["seen"]  # what the display shows, averaged: the demo reads the display, not the true mass
     th = p["theta"]
     if r is None:  # offline
         rate = POUR_RISE
