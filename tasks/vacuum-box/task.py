@@ -328,6 +328,7 @@ RIGHT_PARK = (0.17, -0.24, TOP + 0.13)
 KNOB_Z = TOP + FLANGE_TOP + DOME_H + KNOB_H - 0.007 + TIP_ABOVE_TCP  # pad tips 7 mm down the knob
 KNOB_WIDE, KNOB_HOLD = -0.026, -0.0095  # round the 26 mm knob, squeezing it
 LIFT = 0.020
+KNOB_YAW = math.pi / 2  # fingers close along x on the knob, so the hand's wide side keeps clear of the left hand
 LID_ASIDE = (0.16, -0.23)
 STEADY_XY = (BX, BY + FLANGE_R - 0.004)  # on the flange's left edge, fingers closing along x so the hand stays
 #   clear of the knob
@@ -410,15 +411,15 @@ def demo():
     _live_reset()
     kx, ky = BX, BY
     right = [
-        Waypoint(2.5, (kx, ky, KNOB_Z + 0.03), KNOB_WIDE, "above the vent knob"),
-        Waypoint(1.0, (kx, ky, KNOB_Z + 0.03), KNOB_WIDE, "settle over the knob"),
-        Waypoint(2.0, (kx, ky, KNOB_Z), KNOB_WIDE, "fingers round the knob"),
+        Waypoint(2.5, (kx, ky, KNOB_Z + 0.03), KNOB_WIDE, "above the vent knob", KNOB_YAW),
+        Waypoint(1.0, (kx, ky, KNOB_Z + 0.03), KNOB_WIDE, "settle over the knob", KNOB_YAW),
+        Waypoint(2.0, (kx, ky, KNOB_Z), KNOB_WIDE, "fingers round the knob", KNOB_YAW),
     ]
     t_vent0 = _dur(right)
     right += [
-        Waypoint(0.6, (kx, ky, KNOB_Z), KNOB_HOLD, "grip the knob"),
-        Waypoint(0.1, (kx, ky, KNOB_Z), KNOB_HOLD, "turn it open slowly, watching the gauge", _KnobYaw(0.0, True)),
-        Waypoint(13.0, (kx, ky, KNOB_Z), KNOB_HOLD, "turn it open slowly, watching the gauge", _KnobYaw(0.0, True)),
+        Waypoint(0.6, (kx, ky, KNOB_Z), KNOB_HOLD, "grip the knob", KNOB_YAW),
+        Waypoint(0.1, (kx, ky, KNOB_Z), KNOB_HOLD, "turn it open slowly, watching the gauge", _KnobYaw(KNOB_YAW, True)),
+        Waypoint(13.0, (kx, ky, KNOB_Z), KNOB_HOLD, "turn it open slowly, watching the gauge", _KnobYaw(KNOB_YAW, True)),
     ]
     t_vent1 = _dur(right)
     left = [Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "wait")]
@@ -427,11 +428,11 @@ def demo():
     lid_xy = np.array([kx, ky])
     aside = np.array(LID_ASIDE)
     right += [
-        Waypoint(1.5, (kx, ky, KNOB_Z + LIFT), KNOB_HOLD, "lift the lid off by its knob", _KnobYaw()),
-        Waypoint(3.0, (*aside, KNOB_Z + LIFT), KNOB_HOLD, "carry it to the bench in front", _KnobYaw()),
-        Waypoint(1.5, (*aside, KNOB_Z - FLANGE_TOP - 0.001), KNOB_HOLD, "set it down on its rim", _KnobYaw()),
-        Waypoint(0.6, (*aside, KNOB_Z - FLANGE_TOP - 0.001), KNOB_WIDE, "let go", _KnobYaw()),
-        Waypoint(1.0, (*aside, KNOB_Z - FLANGE_TOP + 0.03), KNOB_WIDE, "up", _KnobYaw()),
+        Waypoint(1.5, (kx, ky, KNOB_Z + LIFT), KNOB_HOLD, "lift the lid off by its knob", _KnobYaw(KNOB_YAW)),
+        Waypoint(3.0, (*aside, KNOB_Z + LIFT), KNOB_HOLD, "carry it to the bench in front", _KnobYaw(KNOB_YAW)),
+        Waypoint(1.5, (*aside, KNOB_Z - FLANGE_TOP - 0.001), KNOB_HOLD, "set it down on its rim", _KnobYaw(KNOB_YAW)),
+        Waypoint(0.6, (*aside, KNOB_Z - FLANGE_TOP - 0.001), KNOB_WIDE, "let go", _KnobYaw(KNOB_YAW)),
+        Waypoint(1.0, (*aside, KNOB_Z - FLANGE_TOP + 0.03), KNOB_WIDE, "up", _KnobYaw(KNOB_YAW)),
     ]
     t_lid_off = _dur(right)
     vx, vy = VIAL_XY
@@ -449,19 +450,19 @@ def demo():
     ]
     t_vial = _dur(left) - 2.0
     right.append(Waypoint(max(0.3, t_vial - _dur(right)), (*aside, KNOB_Z - FLANGE_TOP + 0.03), KNOB_WIDE,
-                          "wait for the vial", _KnobYaw()))
+                          "wait for the vial", _KnobYaw(KNOB_YAW)))
     right += [
-        Waypoint(2.0, (*aside, KNOB_Z - FLANGE_TOP - 0.001), KNOB_WIDE, "fingers round the knob", _KnobYaw()),
-        Waypoint(0.6, (*aside, KNOB_Z - FLANGE_TOP - 0.001), KNOB_HOLD, "grip it", _KnobYaw()),
-        Waypoint(1.2, (*aside, KNOB_Z + LIFT), KNOB_HOLD, "lift the lid", _KnobYaw()),
-        Waypoint(3.0, (*lid_xy, KNOB_Z + LIFT), KNOB_HOLD, "over the base", _KnobYaw()),
-        Waypoint(2.0, (*lid_xy, KNOB_Z - 0.0015), KNOB_HOLD, "lower it onto the flange, centred", _KnobYaw()),
+        Waypoint(2.0, (*aside, KNOB_Z - FLANGE_TOP - 0.001), KNOB_WIDE, "fingers round the knob", _KnobYaw(KNOB_YAW)),
+        Waypoint(0.6, (*aside, KNOB_Z - FLANGE_TOP - 0.001), KNOB_HOLD, "grip it", _KnobYaw(KNOB_YAW)),
+        Waypoint(1.2, (*aside, KNOB_Z + LIFT), KNOB_HOLD, "lift the lid", _KnobYaw(KNOB_YAW)),
+        Waypoint(3.0, (*lid_xy, KNOB_Z + LIFT), KNOB_HOLD, "over the base", _KnobYaw(KNOB_YAW)),
+        Waypoint(2.0, (*lid_xy, KNOB_Z - 0.0015), KNOB_HOLD, "lower it onto the flange, centred", _KnobYaw(KNOB_YAW)),
     ]
     t_shut0 = _dur(right)
     right += [
-        Waypoint(2.5, (kx, ky, KNOB_Z - 0.0015), KNOB_HOLD, "turn the vent shut", -0.04),
-        Waypoint(0.6, (kx, ky, KNOB_Z - 0.0015), KNOB_WIDE, "let go", 0.0),
-        Waypoint(1.0, (kx, ky, KNOB_Z + 0.03), KNOB_WIDE, "up", 0.0),
+        Waypoint(2.5, (kx, ky, KNOB_Z - 0.0015), KNOB_HOLD, "turn the vent shut", KNOB_YAW - 0.04),
+        Waypoint(0.6, (kx, ky, KNOB_Z - 0.0015), KNOB_WIDE, "let go", KNOB_YAW),
+        Waypoint(1.0, (kx, ky, KNOB_Z + 0.03), KNOB_WIDE, "up", KNOB_YAW),
     ]
     t_shut1 = _dur(right) - 1.6
     # stopcock: open, wait for the pump, shut
@@ -481,13 +482,13 @@ def demo():
     _steady(left, t_shut0, t_shut1, "steady the base while the vent is shut")
     _steady(left, t_stop0, t_stop1, "steady the base while the stopcock turns")
     right += [
-        Waypoint(2.0, (kx, ky, KNOB_Z + 0.03), KNOB_WIDE, "above the knob"),
-        Waypoint(1.0, (kx, ky, KNOB_Z + 0.03), KNOB_WIDE, "settle over the knob"),
-        Waypoint(2.0, (kx, ky, KNOB_Z), KNOB_WIDE, "fingers round the knob"),
-        Waypoint(0.6, (kx, ky, KNOB_Z), KNOB_HOLD, "grip it"),
-        Waypoint(1.5, (kx, ky, KNOB_Z + 0.006), KNOB_HOLD, "pull up gently: the lid is held"),
-        Waypoint(0.6, (kx, ky, KNOB_Z + 0.006), KNOB_WIDE, "let go"),
-        Waypoint(1.0, (kx, ky, KNOB_Z + 0.04), KNOB_WIDE, "up"),
+        Waypoint(2.0, (kx, ky, KNOB_Z + 0.03), KNOB_WIDE, "above the knob", KNOB_YAW),
+        Waypoint(1.0, (kx, ky, KNOB_Z + 0.03), KNOB_WIDE, "settle over the knob", KNOB_YAW),
+        Waypoint(2.0, (kx, ky, KNOB_Z), KNOB_WIDE, "fingers round the knob", KNOB_YAW),
+        Waypoint(0.6, (kx, ky, KNOB_Z), KNOB_HOLD, "grip it", KNOB_YAW),
+        Waypoint(1.5, (kx, ky, KNOB_Z + 0.006), KNOB_HOLD, "pull up gently: the lid is held", KNOB_YAW),
+        Waypoint(0.6, (kx, ky, KNOB_Z + 0.006), KNOB_WIDE, "let go", KNOB_YAW),
+        Waypoint(1.0, (kx, ky, KNOB_Z + 0.04), KNOB_WIDE, "up", KNOB_YAW),
         Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
     ]
     left.append(Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "park"))
