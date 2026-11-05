@@ -61,7 +61,7 @@ CHUCK_R, CHUCK_TOP = 0.012, 0.052
 LID_T = 0.005
 HINGE = (HW, 0.0, RIM + 0.0035)  # the lid's hinge, along y at the housing's back top edge
 HOLE = 0.012  # the dispense hole, square, over the chuck
-HANDLE_Y, HANDLE_L, HANDLE_S, HANDLE_UP = 0.040, 0.060, 0.010, 0.012
+HANDLE_Y, HANDLE_L, HANDLE_S, HANDLE_UP = 0.040, 0.060, 0.010, 0.020
 HANDLE_X = -HW + 0.010
 LID_MAX = 1.30  # the lid's stop (rad, 74 degrees): short of upright, so it always falls shut
 _lz = RIM + 0.001 + LID_T / 2
@@ -75,14 +75,15 @@ LID_BOXES = [
     *[((sx * (HOLE / 2 + 0.002), 0.0, _lz + LID_T / 2 + 0.001), (0.004, HOLE + 0.008, 0.002), DARK) for sx in (-1, 1)],
     *[((0.0, sy * (HOLE / 2 + 0.002), _lz + LID_T / 2 + 0.001), (HOLE, 0.004, 0.002), DARK) for sy in (-1, 1)],
     # the handle: a bar along y on two posts at the front
-    ((HANDLE_X, HANDLE_Y, _lz + LID_T / 2 + HANDLE_UP + HANDLE_S / 2), (HANDLE_S, HANDLE_L, HANDLE_S), BLACK),
     *[((HANDLE_X, HANDLE_Y + e * (HANDLE_L / 2 - 0.005), _lz + LID_T / 2 + HANDLE_UP / 2), (HANDLE_S, 0.010, HANDLE_UP),
        BLACK) for e in (-1, 1)],
     # hinge knuckles
     *[((HW - 0.004, e * 0.07, _lz), (0.008, 0.03, 0.008), STEEL) for e in (-1, 1)],
 ]
+BAR_Z = _lz + LID_T / 2 + HANDLE_UP + HANDLE_S / 2  # the handle bar's axis, lid shut
 LID = Joint("lid", kind="hinge", axis="Y", anchor=HINGE, lower=0.0, upper=LID_MAX, initial=0.0, target=0.0,
-            stiffness=0.0, damping=0.08, mass=0.25, boxes=LID_BOXES)
+            stiffness=0.0, damping=0.08, mass=0.25, boxes=LID_BOXES,
+            cylinders=[((HANDLE_X, HANDLE_Y, BAR_Z), HANDLE_S / 2, HANDLE_L, BLACK, "Y")])
 
 
 def _ring(r, n, rad, z0, h, colour):
@@ -249,6 +250,234 @@ def distance(objects):
     return wafer_offset(w) + abs(float(w.pos[2]) - CHUCK_Z)
 
 
+# -- scripted demo ----------------------------------------------------------------------------------------------------
+# Right arm, with the tweezers: takes them off their stand, gripping their two arms half way up (gripper tilted 45
+# degrees to match), slides the open blades round the wafer's near edge on its stand, pinches it, carries it to the
+# aligner on the bench and lowers it into the pocket (the lower blade drops into the notch), lets go, backs the blades
+# out, and puts the tweezers back on their stand. Left arm: lifts the lid by its handle bar, the bar riding between its
+# part-open fingers along the lid's arc, to 70 degrees, and holds it there. Right arm: picks the aligner up by its
+# handle, carries it over the chuck, lowers it until its slot straddles the chuck (closed loop on the aligner's live
+# position), pushes it on until the V seats against the chuck, lowers it 4.5 mm (the wafer is left on the chuck), slides
+# it back out from under the wafer, lifts it out of the bowl and sets it down. Left arm: lowers the lid shut.
+_prev_action7 = _demo.ArmPlan.action7
+if not getattr(_prev_action7, "_clock", False):
+    def _action7(self, t, _prev=_prev_action7):
+        _demo._plan_clock = float(t)
+        return _prev(self, t)
+
+    _action7._clock = True
+    _demo.ArmPlan.action7 = _action7
+
+
+class Orient(float):
+    """A Waypoint ``yaw`` that carries a full TCP rotation."""
+
+    def __new__(cls, rot):
+        obj = float.__new__(cls, 0.0)
+        obj.rot = np.asarray(rot, float)
+        return obj
+
+
+_prev_grip = _demo.grip_rotation
+if not getattr(_prev_grip, "_rot", False):
+    def _grip(yaw=0.0):
+        return yaw.rot if hasattr(yaw, "rot") else _prev_grip(yaw)
+
+    _grip._rot = True
+    _demo.grip_rotation = _grip
+
+TIP_ABOVE_TCP = 0.013
+LEFT_PARK = (0.15, 0.25, TOP + 0.16)
+RIGHT_PARK = (0.15, -0.25, TOP + 0.16)
+Y = np.array([0.0, 1.0, 0.0])
+TW_ROT = Orient(axis_angle_matrix(Y, math.radians(-45.0)) @ _prev_grip(math.pi / 2))  # approach forward-down 45 deg
+PAD_IN = 0.006  # the pad tips reach this far past the point gripped
+
+
+def _tcp(point, rot):
+    """TCP that puts the pads round ``point`` (world), their tips PAD_IN beyond it along the approach."""
+    a = rot.rot[:, 2]
+    return tuple(np.asarray(point, float) - a * (TIP_ABOVE_TCP - PAD_IN))
+
+
+GRIP_D = 0.035  # the tweezers are gripped this far up their arms from the blades
+_mid = (_zl + _zu) / 2
+TW_GRIP = np.array([-BLADE_L - GRIP_D * _c, 0.0, _mid + GRIP_D * _s])  # tweezer frame
+TW_WIDE = -0.010  # pads 20 mm apart round the arms
+TW_HOLD = -0.0030  # pads 6 mm apart: on the arms (6.9 mm over their outer faces), blades still open
+TW_PINCH = -0.0016  # squeezes the blades onto the wafer
+
+
+def _tw_tcp(origin):
+    """TCP holding the tweezers with their origin (between the blade tips) at ``origin`` (world), blades flat."""
+    return _tcp(np.asarray(origin, float) + TW_GRIP, TW_ROT)
+
+
+PINCH_IN = 0.006  # the blade tips this far inside the wafer's edge
+_wb = TOP + PAD_TOP  # the wafer's underside on its stand
+WAFER_PICK = (STAND_XY[0] - WAFER_R + PINCH_IN, STAND_XY[1], _wb + 0.0002 + OPEN_GAP / 2 - 0.0005)
+POCKET_PLACE = (ALIGNER_XY[0] - WAFER_R + PINCH_IN, ALIGNER_XY[1], TOP + PT + 0.0008 + OPEN_GAP / 2 - 0.0005)
+TW_HOME = (TW_XY[0], TW_XY[1], TOP + TW_Z)
+
+AL_HANDLE_X = -0.078  # gripped here along its handle (aligner frame)
+AL_WIDE, AL_HOLD = -0.012, -0.004
+AL_GRIP_Z = HANDLE_A[2][1] - 0.004  # pad tips 4 mm down the 6 mm handle
+DOCK_Z = CHUCK_TOP - 0.002  # the plate's underside: its top 1 mm over the chuck's, the wafer resting on it
+DROP = 0.0045
+BACK = 0.055  # slide the aligner back this far after the drop, clear of the wafer
+DOCK_PRE = 0.004  # come down this far short of the V seating
+DOCK_PUSH = 0.0015  # aim this far past seating: a light push
+
+
+def _al_tcp(pocket):
+    """TCP holding the aligner by its handle, its pocket centre (plate underside) at ``pocket`` (world)."""
+    p = np.asarray(pocket, float)
+    return (p[0] + AL_HANDLE_X, p[1], p[2] + AL_GRIP_Z + TIP_ABOVE_TCP)
+
+
+_live = {"corr": np.zeros(2), "on": False}
+
+
+def _live_reset():
+    _live.update(corr=np.zeros(2), on=False)
+
+
+@on_reset
+def _reset(env):
+    _live_reset()
+
+
+@on_step
+def _track(env):
+    """While ``on``, trim the aligner hand so the pocket's centre comes over the chuck's axis (part of the error per
+    step)."""
+    if not _live["on"]:
+        return
+    a = labkit._part_state(env, labkit._SPECS["aligner"])
+    err = CHUCK_XY + np.array([-DOCK_PRE, 0.0]) - a.pos[:2]
+    _live["corr"] = np.clip(_live["corr"] + np.clip(0.15 * err, -0.0004, 0.0004), -0.004, 0.004)
+
+
+class _AlLive:
+    """The aligner hand's TCP read every step: ``pocket`` plus the closed-loop trim (frozen once ``freeze``)."""
+
+    def __init__(self, pocket, track=True):
+        self.pocket = np.asarray(pocket, float)
+        self.track = track
+
+    def __array__(self, dtype=None, copy=None):
+        _live["on"] = self.track
+        c = _live["corr"]
+        return np.asarray(_al_tcp(self.pocket + np.array([c[0], c[1], 0.0])), dtype=dtype or float)
+
+
+def _bar_at(th: float):
+    """World position of the lid's handle bar axis with the lid open th (rad)."""
+    d = np.array([HANDLE_X - HINGE[0], 0.0, BAR_Z - HINGE[2]])
+    x = d[0] * math.cos(th) + d[2] * math.sin(th)
+    z = -d[0] * math.sin(th) + d[2] * math.cos(th)
+    return np.array(C(HINGE[0] + x, HANDLE_Y, HINGE[2] + z))
+
+
+LID_OPEN = math.radians(70.0)
+BAR_WIDE = -0.008  # pads 16 mm apart round the 10 mm bar
+
+
+def _lid_rot(th):
+    """The holding hand's rotation with the lid open th: its approach tilted forward more as the bar rises (20 degrees
+    from straight down with the lid shut, 62 at 70 degrees open)."""
+    return Orient(axis_angle_matrix(Y, -math.radians(20.0) - 0.6 * th) @ _prev_grip(-math.pi / 2))
+
+
+def _lid_tcp(th, lift=0.0):
+    """TCP with the bar between the part-open pads, the lower pad bearing on it (``lift`` m below the bar's centre)."""
+    rot = _lid_rot(th)
+    n = rot.rot[:, 0]  # the fingers' closing direction (mostly vertical)
+    if n[2] < 0:
+        n = -n
+    return _tcp(_bar_at(th) - n * lift, rot)
+
+
+def _dur(wps):
+    return sum(w.duration for w in wps)
+
+
 def demo():
-    return {"left": [Waypoint(4.0, (0.15, 0.25, TOP + 0.14), FINGER_OPEN, "park")],
-            "right": [Waypoint(4.0, (0.15, -0.25, TOP + 0.14), FINGER_OPEN, "park")]}
+    _live_reset()
+    q = TW_ROT
+    right = [
+        Waypoint(3.0, _tw_tcp(np.array(TW_HOME) + [0.0, 0.0, 0.04]), TW_WIDE, "above the tweezers on their stand", q),
+        Waypoint(1.5, _tw_tcp(TW_HOME), TW_WIDE, "pads either side of the tweezers' arms", q),
+        Waypoint(0.8, _tw_tcp(TW_HOME), TW_HOLD, "hold the tweezers, blades open", q),
+        Waypoint(1.2, _tw_tcp(np.array(TW_HOME) + [0.0, 0.0, 0.04]), TW_HOLD, "lift them off the stand", q),
+        Waypoint(2.5, _tw_tcp(np.array(WAFER_PICK) + [-0.012, 0.0, 0.02]), TW_HOLD, "towards the wafer's near edge", q),
+        Waypoint(1.2, _tw_tcp(np.array(WAFER_PICK) + [-0.012, 0.0, 0.0]), TW_HOLD, "blades level with the wafer", q),
+        Waypoint(1.5, _tw_tcp(WAFER_PICK), TW_HOLD, "slide the open blades round its edge", q),
+        Waypoint(0.8, _tw_tcp(WAFER_PICK), TW_PINCH, "pinch the wafer by its edge", q),
+        Waypoint(1.2, _tw_tcp(np.array(WAFER_PICK) + [0.0, 0.0, 0.03]), TW_PINCH, "lift it off the stand", q),
+        Waypoint(3.0, _tw_tcp(np.array(POCKET_PLACE) + [0.0, 0.0, 0.03]), TW_PINCH, "over the aligner's pocket", q),
+        Waypoint(1.5, _tw_tcp(POCKET_PLACE), TW_PINCH, "lower it into the pocket, the lower blade in the notch", q),
+        Waypoint(0.8, _tw_tcp(POCKET_PLACE), TW_HOLD, "let go: open the blades", q),
+        Waypoint(1.2, _tw_tcp(np.array(POCKET_PLACE) + [-0.015, 0.0, 0.0]), TW_HOLD, "back the blades out", q),
+        Waypoint(1.0, _tw_tcp(np.array(POCKET_PLACE) + [-0.015, 0.0, 0.03]), TW_HOLD, "up", q),
+        Waypoint(2.5, _tw_tcp(np.array(TW_HOME) + [0.0, 0.0, 0.04]), TW_HOLD, "back over the stand", q),
+        Waypoint(1.2, _tw_tcp(np.array(TW_HOME) + [0.0, 0.0, 0.002]), TW_HOLD, "set them back on the stand", q),
+        Waypoint(0.6, _tw_tcp(np.array(TW_HOME) + [0.0, 0.0, 0.002]), TW_WIDE, "let go", q),
+        Waypoint(1.0, _tw_tcp(np.array(TW_HOME) + [-0.03, 0.0, 0.03]), TW_WIDE, "back off", q),
+    ]
+    ax, ay = ALIGNER_XY
+    al0 = np.array([ax, ay, TOP])
+    right += [
+        Waypoint(2.5, _al_tcp(al0 + [0, 0, 0.04]), AL_WIDE, "above the aligner's handle"),
+        Waypoint(1.2, _al_tcp(al0), AL_WIDE, "fingers round the handle"),
+        Waypoint(0.8, _al_tcp(al0), AL_HOLD, "grip the handle"),
+        Waypoint(1.2, _al_tcp(al0 + [0, 0, 0.05]), AL_HOLD, "lift the aligner level, the wafer in its pocket"),
+    ]
+    t_al = _dur(right)
+
+    left = [Waypoint(3.0, LEFT_PARK, FINGER_OPEN, "wait")]
+    left.append(Waypoint(max(0.3, t_al - 10.0 - _dur(left)), LEFT_PARK, FINGER_OPEN, "wait"))
+    left += [
+        Waypoint(2.5, tuple(np.array(_lid_tcp(0.0)) + [-0.03, 0.0, 0.02]), BAR_WIDE, "in front of the lid's handle",
+                 _lid_rot(0.0)),
+        Waypoint(1.2, _lid_tcp(0.0), BAR_WIDE, "the handle bar between the fingers", _lid_rot(0.0)),
+    ]
+    for th in np.linspace(0.12, LID_OPEN, 8):
+        left.append(Waypoint(0.7, _lid_tcp(th, 0.0015), BAR_WIDE, "lift the lid along its arc", _lid_rot(th)))
+    t_open = _dur(left)
+
+    dock_hi = np.array(C(-DOCK_PRE, 0.0, DOCK_Z + 0.030))
+    dock = np.array(C(-DOCK_PRE, 0.0, DOCK_Z))
+    right.append(Waypoint(max(0.3, t_open - _dur(right)), _al_tcp(al0 + [0, 0, 0.05]), AL_HOLD, "wait for the lid"))
+    right += [
+        Waypoint(3.0, _al_tcp(dock_hi), AL_HOLD, "over the chuck, the slot lined up with it"),
+        Waypoint(0.1, _AlLive(dock_hi), AL_HOLD, "line the slot up with the chuck"),
+        Waypoint(2.0, _AlLive(dock_hi), AL_HOLD, "line the slot up with the chuck"),
+        Waypoint(2.0, _AlLive(dock), AL_HOLD, "lower it: the slot straddles the chuck"),
+        Waypoint(1.5, _AlLive(dock + [DOCK_PRE + DOCK_PUSH, 0, 0], track=False), AL_HOLD,
+                 "push it on: the V seats against the chuck, the pocket centred on it"),
+        Waypoint(0.5, _AlLive(dock + [DOCK_PRE + DOCK_PUSH, 0, 0], track=False), AL_HOLD, "steady"),
+        Waypoint(1.5, _AlLive(dock + [DOCK_PRE + DOCK_PUSH, 0, -DROP], track=False), AL_HOLD,
+                 "lower it: the wafer is left on the chuck"),
+        Waypoint(2.5, _AlLive(dock + [DOCK_PRE - BACK, 0, -DROP], track=False), AL_HOLD,
+                 "slide it back out from under the wafer"),
+        Waypoint(1.5, _AlLive(dock + [DOCK_PRE - BACK, 0, 0.04], track=False), AL_HOLD, "lift it out of the bowl"),
+        Waypoint(3.0, _al_tcp(al0 + [0, 0, 0.02]), AL_HOLD, "back over the bench"),
+        Waypoint(1.2, _al_tcp(al0 + [0, 0, 0.002]), AL_HOLD, "set it down"),
+        Waypoint(0.6, _al_tcp(al0 + [0, 0, 0.002]), AL_WIDE, "let go"),
+        Waypoint(1.0, _al_tcp(al0 + [0, 0, 0.04]), AL_WIDE, "up"),
+        Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
+    ]
+    t_out = _dur(right) - 6.3
+    left.append(Waypoint(max(0.3, t_out - _dur(left)), _lid_tcp(LID_OPEN, 0.0015), BAR_WIDE, "hold the lid open",
+                         _lid_rot(LID_OPEN)))
+    for th in np.linspace(LID_OPEN - 0.15, 0.0, 8):
+        left.append(Waypoint(0.7, _lid_tcp(th, 0.0015), BAR_WIDE, "lower the lid shut", _lid_rot(th)))
+    left += [
+        Waypoint(1.0, tuple(np.array(_lid_tcp(0.0)) + [-0.03, 0.0, 0.02]), BAR_WIDE, "off the handle", _lid_rot(0.0)),
+        Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "park"),
+    ]
+    t_end = max(_dur(left), _dur(right)) + 2.0
+    left.append(Waypoint(t_end - _dur(left), LEFT_PARK, FINGER_OPEN, "rest"))
+    right.append(Waypoint(t_end - _dur(right), RIGHT_PARK, FINGER_OPEN, "rest"))
+    return {"left": left, "right": right}
