@@ -16,6 +16,6 @@
   "run_limit": "1,200 steps (60 seconds at 20 Hz)",
   "reset_notes": "Nothing is consumed. Push the chassis back in until its ears touch the front posts; the latches catch it there. The tabs spring out on their own.",
   "fidelity": "Rigid bodies in PhysX at 240 Hz. The rails are one slide joint and the latches are modelled, not contact: over the first 30 mm a stiff spring holds the chassis where it is unless both tabs are pushed in 4.5 mm or more; past that it slides with 0.4 N friction, and a detent holds it in the last 3 mm. The tabs are sprung slides, 0.36 N fully in. Rail friction is far lighter than a real server's; no ball-bearing stages or latch clicks.",
-  "scores": "Dream-1 run: TBD; demo: TBD",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
   "media": ""
 }
