@@ -17,6 +17,6 @@
   "run_limit": "1,200 steps (60 seconds at 20 Hz)",
   "reset_notes": "Nothing is consumed. Swing the lever back until its handle points at the robots, slide the module out of the slot and stand it upright on its tongue, centred on the tray, jaws up.",
   "fidelity": "Rigid bodies in PhysX at 240 Hz. A squared-off T-slot stands in for a dovetail, with 1 to 1.5 mm clearances and no chamfers. The lever's lock is the tooth in the notch; a real changer's cam also draws the tool tight, which is not modelled. The plunger is a sprung slide. The module is one rigid body of uniform density with fixed jaws and no cable or air connections.",
-  "scores": "Dream-1 run: TBD; demo: TBD",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
   "media": ""
 }
