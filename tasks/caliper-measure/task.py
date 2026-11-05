@@ -114,17 +114,24 @@ def _lit(text: str) -> list[float]:
     return [0.0 if s in GLYPHS[ch] else SEG_SUNK for ch in text for s in SEGS]
 
 
+# Each segment is built where it sits at the start, with the opening gap showing, so the very first rendered frames
+# already read it (the renderer takes about a second to pick up joint positions set at reset). A segment joint's
+# position is its offset from that start height.
 _START = _lit(display_text(GAP0 * 1000))
 SEGMENT_JOINTS = []
 for _i in range(4):
     for _k, _s in enumerate(SEGS):
         (_cx, _cy), (_sx, _sy) = _segment(_i, _s)
-        _q = _START[7 * _i + _k]
+        _o = _START[7 * _i + _k]
         SEGMENT_JOINTS.append(Joint(
-            f"seg{_i}{_s}", kind="slide", axis="Z", anchor=(_cx, _cy, SEG_Z), lower=SEG_SUNK, upper=0.0, initial=_q,
-            target=_q, stiffness=200.0, damping=2.0, mass=0.002, parent="slider",
-            boxes=[((_cx, _cy, SEG_Z), (_sx, _sy, 0.001), DIGIT)],
+            f"seg{_i}{_s}", kind="slide", axis="Z", anchor=(_cx, _cy, SEG_Z + _o), lower=SEG_SUNK - _o, upper=-_o,
+            initial=0.0, target=0.0, stiffness=200.0, damping=2.0, mass=0.002, parent="slider",
+            boxes=[((_cx, _cy, SEG_Z + _o), (_sx, _sy, 0.001), DIGIT)],
         ))
+
+
+def _seg_targets(text: str) -> list[float]:
+    return [q - o for q, o in zip(_lit(text), _START)]
 _dot = (DISP_X - DIG_H / 2 + SEG_T / 2, (_digit_y(1) + _digit_y(2)) / 2)
 
 SLIDER = Joint(  # the slider: housing, screen, buttons and thumb rest. Positive closes the jaws.
@@ -207,7 +214,7 @@ def _watch(env):
         names = list(asset.joint_names)
         _ids["segments"] = [names.index(s.joint_name) for s in SEGMENT_JOINTS]
     if text != _trial["text"] or "set" not in _ids:
-        targets = torch.tensor([_lit(text)], device=asset.device)
+        targets = torch.tensor([_seg_targets(text)], device=asset.device)
         asset.set_joint_position_target(targets, joint_ids=_ids["segments"])
         _trial["text"], _ids["set"] = text, True
 
