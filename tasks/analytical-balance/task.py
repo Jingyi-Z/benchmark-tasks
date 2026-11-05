@@ -1,5 +1,5 @@
 """On the station table: an analytical balance with a glass draft shield, an empty plastic weighing boat on the bench
-to its left, and a small glass vial of plastic granules beside the boat.
+to its left, and a small square glass vial of plastic pellets, with a pouring spout, beside the boat.
 
 The balance: a white base with a key strip along its front edge (a live display reading in grams to 0.01 g, a green
 TARE key and a dark ON key) and, behind the strip, a low glass chamber round the round steel pan. The chamber's top is
@@ -20,7 +20,6 @@ Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jit
 """
 
 import math
-import os
 import pathlib
 import sys
 
@@ -293,23 +292,10 @@ def weigh(boat, vial, grains) -> tuple[float, int, int]:
 _trial = {"tare_g": 0.0, "tared": False, "tare_ok": False, "tare_door_shut": False, "pressed": False, "reading": None,
           "text": display_text(0.0)}
 _ids: dict = {}
-_DBG = bool(os.environ.get("TASK_DBG"))
-_dbg = {"n": 0}
 
 
 @on_reset
 def _clear(env):
-    _dbg["n"] = 0
-    if _DBG:
-        try:
-            g = _grain_positions(env)
-            d = np.linalg.norm(g[:, None] - g[None], axis=-1) + np.eye(len(g))
-            v = labkit._part_state(env, labkit._SPECS["vial"])
-            print(f"DBGRESET grains min {np.round(g.min(0), 4).tolist()} max {np.round(g.max(0), 4).tolist()} "
-                  f"min pair {d.min():.4f} vial {np.round(v.pos, 4).tolist()} first {np.round(g[:3], 4).tolist()}",
-                  flush=True)
-        except Exception as e:  # noqa: BLE001
-            print("DBGRESET failed", e, flush=True)
     _trial.update(tare_g=0.0, tared=False, tare_ok=False, tare_door_shut=False, pressed=False, reading=None,
                   text=display_text(0.0))
     _pour_reset()
@@ -327,7 +313,7 @@ def _watch(env):
 
     s = {n: labkit._part_state(env, labkit._SPECS[n]) for n in ("balance", "boat", "vial")}
     grains = _grain_positions(env)
-    grams, counted, spilled = weigh(s["boat"], s["vial"], grains)
+    grams, counted, _ = weigh(s["boat"], s["vial"], grains)
     down = s["balance"].joints["tare"] < PRESSED
     if down and not _trial["pressed"]:  # a new press: the balance zeroes on what is on the pan now
         boat = s["boat"]
@@ -338,16 +324,6 @@ def _watch(env):
         )
     _trial["pressed"] = down
     _trial["reading"] = grams - _trial["tare_g"]
-    if _DBG:
-        _dbg["n"] += 1
-        if _dbg["n"] % 20 == 0 or _dbg["n"] <= 6:
-            b, v = s["boat"], s["vial"]
-            print(f"DBG {_dbg['n']} door {s['balance'].joints['door']:.4f} tare {s['balance'].joints['tare']:.4f} "
-                  f"boat {np.round(b.pos, 4).tolist()} tilt {b.tilt_deg():.1f} on_pan {boat_on_pan(b)} "
-                  f"vial {np.round(v.pos, 4).tolist()} vtilt {v.tilt_deg():.0f} grams {grams:.2f} counted {counted} "
-                  f"trial {dict((k, _trial[k]) for k in ('tare_g', 'tared', 'tare_ok', 'reading'))} "
-                  f"theta {math.degrees(_pour['theta']):.0f} mode {_pour['mode']} spilled {spilled} "
-                  f"gz [{grains[:, 2].min():.3f},{grains[:, 2].max():.3f}]", flush=True)
     text = display_text(_trial["reading"])
     asset = env.unwrapped.scene["balance"]
     if "segments" not in _ids:
@@ -384,6 +360,9 @@ def score(objects):
     if spilled:
         s *= 0.5
     return s
+
+
+SUCCESS_HOLD_S = 6.0  # end a trial early only once it has held for 6 s (time for the arms to park)
 
 
 def success(objects):

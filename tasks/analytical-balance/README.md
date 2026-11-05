@@ -11,9 +11,11 @@ from a vial into the boat until the live display reads 1.00 g. Then the door is 
   shut) and drives the display's segments to show the reading.
 - `labkit.py`: parts built from several shapes, with hinges and slides (the top door, the sprung TARE key and the 28
   display segments are slides). It hooks `yam_arena.scene` and the embodiment from the task's import, so no change to
-  yam_arena is needed. This copy adds two things: a box may carry a yaw (the vial's 16 wall faces), and colours listed
-  in `labkit.GLASS_COLORS` are drawn with Omniverse's glass material (falling back to a translucent, then a plain
-  surface).
+  yam_arena is needed. This copy adds two things: a box may carry a yaw or a (yaw, pitch) turn (the vial's spout wall
+  leans out 30 degrees), and colours listed in `labkit.GLASS_COLORS` are drawn with Omniverse's glass material
+  (falling back to a translucent, then a plain surface).
+- The 70 pellets are labkit parts (one short cylinder each). In simulation a pellet weighs 0.2 g and the boat 12 g, so
+  falling pellets neither upset the contact solve nor shove the boat; the reading still counts 0.03 g and 1.2 g.
 - `arena_assets_fix.py`: imported by `labkit.py`; points Arena library assets at NVIDIA's production bucket. This task
   uses no library assets.
 
@@ -26,13 +28,15 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
         --instruction "$(python -c 'import json;print(json.load(open("task.json"))["instruction"])')" \
         --scorer task_score --max-steps 2400 --store-frames --log-dir logs
 
-Scripted demo: the same command with `--policy yam_scripted` (about 84 s of motion). The demo's pour is closed loop:
-the vial tips slowly (2.5 degrees a second from 30 degrees) until the display reads 0.95 g, then levels. Run one trial
+Scripted demo: the same command with `--policy yam_scripted` (about 100 s of motion; 2,100 steps are enough). The
+demo's pour is closed loop on the display, in short bursts as a person taps out a powder: the vial tips slowly until
+the reading goes up by a pellet, tips back 6 degrees, waits a second for the reading to settle, and goes on; at
+0.97 g it levels the vial. Run one trial
 per process: the tare record and the pour state are kept in the task module and cleared at each reset.
 
 The score is `task_score` in the log, computed by `score()` in `task.py` from the final state.
 
 ## Runtime and seeds
 
-- 2,400 control steps (120 s of simulated time) per trial; wall time not yet measured (73 bodies, 70 of them granules).
+- 2,400 control steps (120 s of simulated time) per trial; about 12 minutes of wall time on one L40S with frames stored at 640 x 352 (73 bodies, 70 of them pellets).
 - One fixed starting layout: run with `-E object_jitter=0`. No other randomness.
