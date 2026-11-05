@@ -2,9 +2,9 @@
 
 A digital caliper clamped flat on a holder block, its jaws pointing at the robots and overhanging the block, and a
 turned aluminium pin 23.40 mm across standing on the bench. One arm holds the pin upright between the open jaws,
-against the fixed jaw; the other pushes the slider's thumb rest until the sliding jaw just touches the pin, then lets
-go. The live display then shows the diameter. There is nothing under the jaws, so the pin must be held, and the
-display reads the slider, not the jaw tip: squeezing flexes the jaw and the display reads low.
+loosely and close to the fixed jaw; the other pushes the slider's thumb rest until the sliding jaw has carried the pin
+onto the fixed jaw and both just touch it, then lets go. The live display then shows the diameter. There is nothing
+under the jaws, so the pin must be held, and the display reads the slider, not the jaw tip: squeezing flexes the jaw and the display reads low.
 
 ## Files
 
@@ -30,8 +30,10 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
 
 Scripted demo: the same command with `--policy yam_scripted` (about 30 s of motion; 650 steps are enough). The demo's
 push is closed loop on the sliding jaw: the finger advances at 3 mm/s and stops as soon as the jaw flexes by 0.02 mm
-(0.2 N, first touch), then backs off so the jaw rests on the pin without load. Run one trial per process: the push
-state is kept in the task module and cleared at each reset.
+(0.2 N, first touch), then backs off so the jaw rests on the pin without load. The holding hand lets the pin go 3 mm
+clear of the fixed jaw and then holds it loosely: its target across the jaws follows the pin every control step, so
+the sliding jaw carries the pin onto the fixed jaw before the push feels any force. Run one trial per process: the
+push and hold state is kept in the task module and cleared at each reset.
 
 The score is `task_score` in the log, computed by `score()` in `task.py` from the final state: the pin's pose between
 the jaws, the display reading and the jaw's flex.
