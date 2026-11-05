@@ -5,19 +5,25 @@ The plates are 60 mm long (along x, away from the robots), 40 mm wide and 6 mm t
 grey gluing stand, 45 mm above the bench, its front edge flush with the stand's front face; white lines on the stand's
 top, 1 mm outside the plate on its other three sides, mark where it belongs. Under the middle of the plate's front edge
 the stand has a notch, 22 mm wide and 26 mm deep, open at the front and marked by two red marks on the front face: the
-clamp relief. The base plate's top has been glued, so the cover slides on it easily. The cover lies flat on the mat.
+clamp relief. The base plate's top has been glued, so the cover slides on it easily (wet glue: friction 0.08 between
+the plates). The cover lies flat on the mat.
 
 The clamp is a small sprung C-clamp, 66 mm long, 12 mm wide: an orange nylon frame with a fixed lower jaw, a top
 grip and a back spine, and a black upper jaw on a slide in the spine, sprung down onto the lower jaw (about 6 N on a
 12 mm stack). Under the top grip is a trigger on the same slide: squeezing trigger and grip together lifts the upper
-jaw, up to 18 mm open. Grip and trigger are ribbed and slope up towards their ends by 10 degrees. The clamp hangs on
-the rack's 10 mm thick front edge with its jaws closed on it and pointing away from the robots, grip and trigger
-towards them.
+jaw, but only to 14 mm open, 2 mm more than the stack. Under the upper jaw is a soft black foam pad that stands 2.5 mm
+proud of it, with a rounded nose 10 mm across at the jaw tip; it squashes flat at 0.3 N. So even fully open, the gap
+between the lower jaw and the pad (11.5 mm) is less than the stack: as the clamp goes on, the pad's nose rides up onto
+the cover and slides along its top, pressing on it, and that drags the cover along on the wet glue unless the cover is
+pressed down. Grip and trigger are ribbed and slope up towards their ends by 10 degrees. The clamp hangs on the rack's
+10 mm thick front edge with its jaws closed on it and pointing away from the robots, grip and trigger towards them.
 
 Clamping means: set the cover on the base with all four edges flush and hold it there, pressing straight down on it;
 squeeze the clamp open, take it off the rack, slide its open jaws over the stacked plates' front edge through the
 notch, lower jaw under the base plate and upper jaw over the cover, and let go so the jaws close on both plates; then
-take the holding hand away. On the glue the cover slides easily, so it is held while the clamp goes on.
+take the holding hand away. On the glue the cover slides easily, and the clamp's pad drags it as the jaws go on, so it
+is held, pressed down, while the clamp goes on: the press adds to the glue's grip on the cover, which on its own is
+less than the pad's drag.
 
 Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jitter=0 -E control_hz=20 \\
            --instruction "<see task.json>" --scorer task_score ...
@@ -56,11 +62,15 @@ SX, SY = 0.31, -0.04  # the base plate's centre on the stand, world
 STAND_H = 0.045  # the stand's top: the base plate's underside, 45 mm above the bench
 EDGE_X = SX - PL / 2  # the front edge (towards the robots): the one that is clamped
 MAT_XY, MAT = (0.30, 0.12), (0.080, 0.060, 0.003)
-GLUE_MU = 0.3  # both plates: wet glue between them (they combine to 0.3); 0.65 on the stand
+# Friction: PhysX averages the two materials of a contact. Wet glue between the plates is modelled as low friction,
+# no viscosity or adhesion: the plates combine to 0.08. The base is 0.56 on the stand (1.0), the cover 0.42 on the mat
+# (0.8) and 0.27 on the robot's fingers (0.5), the clamp (0.66) 0.35 on the cover and 0.39 on the base.
+BASE_MU, COVER_MU, CLAMP_MU = 0.12, 0.04, 0.66
+GLUE_MU = (BASE_MU + COVER_MU) / 2  # 0.08
 
-BASE = part("base_plate", pos=(SX, SY, TOP + STAND_H), mass=0.039, friction=GLUE_MU,
+BASE = part("base_plate", pos=(SX, SY, TOP + STAND_H), mass=0.039, friction=BASE_MU,
             boxes=[((0.0, 0.0, PT / 2), (PL, PW, PT), ALU)])
-COVER = part("cover_plate", pos=(*MAT_XY, TOP + MAT[2]), mass=0.018, friction=GLUE_MU,
+COVER = part("cover_plate", pos=(*MAT_XY, TOP + MAT[2]), mass=0.018, friction=COVER_MU,
              boxes=[((0.0, 0.0, PT / 2), (PL, PW, PT), COVER_C)])
 MAT_PART = part("mat", pos=(*MAT_XY, TOP), fixed=True, friction=0.8, boxes=[((0.0, 0.0, MAT[2] / 2), MAT, MAT_C)])
 
@@ -94,9 +104,16 @@ JAW_L, JAW_T, HALF_W = 0.022, 0.005, 0.006  # jaws 22 mm long, 5 mm thick, 12 mm
 SPINE_T = 0.006  # the spine from x -6 to 0 mm
 GRIP_X0, GRIP_X1 = -0.044, -0.006  # grip and trigger: 38 mm long behind the spine
 O_RACK = 0.010  # the jaw opening on the rack (its edge is 10 mm thick): the slide's zero
-O_OPEN = 0.018  # squeezed fully open
+O_OPEN = 0.014  # squeezed fully open: the slide's stop, only 2 mm more than the stack
 O_STACK = 2 * PT  # clamped on the two plates
-CLAMP_K, CLAMP_C = 500.0, 5.0  # N/m: 5 N on the rack, 6 N on the plates, 9 N squeezed open
+CLAMP_K, CLAMP_C = 500.0, 5.0  # N/m: 5 N on the rack, 6 N on the plates, 7 N squeezed open
+# The foam pad under the upper jaw: a slide on the jaw, 2.5 mm proud when free, squashed flat (into the jaw) under the
+# clamp's spring. Its spring has no preload: 0 N free, 0.3 N squashed flat. Fully open, the gap from the lower jaw to
+# the pad is 11.5 mm, less than the 12 mm stack, so the pad always presses on the cover as the jaws go on.
+PAD_OUT = 0.0025
+PAD_K, PAD_C = 120.0, 1.0  # N/m, N s/m
+PAD_R = 0.005  # its nose: a rounded end 10 mm across at the jaw tip, so it rides up onto the cover's edge
+PAD_L = JAW_L - PAD_R  # the flat of the pad, from the spine to the middle of the nose
 PITCH = math.radians(10.0)  # grip and trigger slope up 10 degrees towards their ends, square to a hand tilted so
 _s, _c = math.sin(PITCH), math.cos(PITCH)
 # The hand's centre between its fingers, squeezing the clamp fully open, in the clamp's frame; grip and trigger faces
@@ -142,10 +159,20 @@ JAW = Joint(
     cylinders=_trig_ribs,
 )
 
+# The pad, built where it starts: squashed flat on the rack, its underside flush with the upper jaw's face. Its slide
+# runs from -2.5 mm (free, proud of the jaw) to 0 (flat).
+_jaw_face = JAW_T + O_RACK
+PAD = Joint(
+    "pad", kind="slide", axis="Z", parent="jaw", anchor=(PAD_L / 2, 0.0, _jaw_face + PAD_OUT / 2),
+    lower=-PAD_OUT, upper=0.0, initial=0.0, stiffness=PAD_K, damping=PAD_C, target=0.0, mass=0.003,
+    boxes=[((PAD_L / 2, 0.0, _jaw_face + PAD_OUT / 2), (PAD_L, 2 * HALF_W - 0.001, PAD_OUT), BLACK)],
+    cylinders=[((PAD_L, 0.0, _jaw_face + PAD_R), PAD_R, 2 * HALF_W - 0.001, BLACK, "Y")],
+)
+
 CLAMP_START = (EDGE_X - 0.002, SY - 0.09, TOP + 0.036)  # on the rack: jaws 20 mm over its edge
 _cheek = HALF_W - 0.0025
 CLAMP = part(
-    "clamp", pos=CLAMP_START, mass=0.025, friction=0.9,
+    "clamp", pos=CLAMP_START, mass=0.025, friction=CLAMP_MU,
     boxes=[
         (((JAW_L - SPINE_T) / 2, 0.0, JAW_T / 2), (JAW_L + SPINE_T, 2 * HALF_W, JAW_T), NYLON),  # lower jaw
         ((JAW_L / 2, 0.0, JAW_T - 0.0004), (JAW_L, 2 * HALF_W - 0.001, 0.0008), BLACK),  # its rubber face
@@ -156,7 +183,7 @@ CLAMP = part(
         *_grip_posts,
     ],
     cylinders=_grip_ribs,
-    joints=[JAW],
+    joints=[JAW, PAD],
 )
 
 # -- the clamp rack (fixed): a steel bar 10 mm thick, its front edge level with the stand's, on a block at its back --
@@ -176,15 +203,18 @@ OBJECTS = [BASE, COVER, MAT_PART, STAND, CLAMP, RACK]
 
 
 # -- the spring --------------------------------------------------------------------------------------------------
-# The slide is built at its start (jaws 10 mm apart on the rack, slide at 0, drive target 0); from the first control
-# step its drive target is the closed jaws, so the spring presses the jaws shut on whatever is between them.
+# The slide is built at its start (jaws 10 mm apart on the rack, slide at 0, drive target 0), and so is the pad
+# (squashed flat, at 0); from the first control step the slide's drive target is the closed jaws, so the spring
+# presses the jaws shut on whatever is between them, and the pad's is free (2.5 mm proud, no preload), so the pad
+# stands proud whenever nothing presses on it.
 @on_step
 def _spring(env):
     import torch
 
     asset = env.unwrapped.scene["clamp"]
-    ids = [list(asset.joint_names).index(JAW.joint_name)]
-    asset.set_joint_position_target(torch.tensor([[-O_RACK]], device=asset.device), joint_ids=ids)
+    names = list(asset.joint_names)
+    ids = [names.index(JAW.joint_name), names.index(PAD.joint_name)]
+    asset.set_joint_position_target(torch.tensor([[-O_RACK, -PAD_OUT]], device=asset.device), joint_ids=ids)
 
 
 # -- scoring -------------------------------------------------------------------------------------------------------
@@ -288,11 +318,17 @@ def distance(objects):
 # Right arm: points forward and 10 degrees down, fingers closing in the vertical plane, the closing line square to the
 # clamp's sloped grip and trigger. It comes in behind the clamp on the rack with its fingers 40 mm apart, top finger
 # over the grip and bottom finger under the trigger, and squeezes them together to the slide's stop (commanded 4 mm
-# past it each side, about 20 N against the spring's 9 N): the jaws open to 18 mm, 4 mm clear of the rack's edge each
-# side. It draws the clamp off the rack, carries it beside the stand and waits there until the cover is held. Then it
-# brings the open jaws 30 mm in front of the stack, trims the clamp's measured position onto the stack's (closed
-# loop), freezes the trim, slides the jaws in through the notch (lower jaw 3 mm under the base, upper jaw 3 mm over the
-# cover, tips 16 mm in) and lets go: it opens its fingers 64 mm apart, waits, draws back and parks.
+# past it each side, about 20 N against the spring's 7 N): the jaws open to 14 mm, the lower jaw and the pad 0.75 mm
+# clear of the rack's edge. It draws the clamp off the rack, carries it beside the stand and waits there until the
+# cover is held. Then it brings the open jaws 30 mm in front of the stack, trims the clamp's measured position onto the
+# stack's (closed loop), freezes the trim, slides the jaws in through the notch (lower jaw 1 mm under the base, upper
+# jaw 1 mm over the cover, tips 16 mm in) and lets go: it opens its fingers 64 mm apart, waits, draws back and parks.
+# On the way in the pad, 1.5 mm lower than the cover's top, rides up onto it on its rounded nose and slides along it,
+# pressing about 0.15 to 0.2 N (its spring in series with the right arm's give): that drags the cover 0.05 to 0.07 N,
+# twice what the wet glue alone holds it with (0.03 N: 0.08 of its weight and the pad's force), and a quarter of what
+# the glue holds it with under the left hand's 3 N press (0.27 N), so the pressed cover stays put. The pad's push while
+# its nose rides up the cover's edge peaks at 0.11 to 0.15 N, still well under the 0.27 N. Unheld, the cover goes along
+# with the jaws, about 18 mm.
 TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.15, 0.25, TOP + 0.14)
 RIGHT_PARK = (0.16, -0.20, TOP + 0.12)
@@ -301,7 +337,7 @@ COVER_WIDE = -0.028  # pads 56 mm apart round the 40 mm cover
 COVER_HOLD = -0.017  # commanded 34 mm apart: 3 mm inside it each side
 PICK_Z = TOP + MAT[2] + GRIP_UP + TIP_ABOVE_TCP
 PICK_HOVER = TOP + 0.07
-SQUEEZE_WIDE = -0.020  # the right fingers 40 mm apart round grip and trigger (20 mm across them on the rack)
+SQUEEZE_WIDE = -0.020  # the right fingers 40 mm apart round grip and trigger (16 mm across them on the rack)
 SQUEEZE = -0.002  # past the stop: grip and trigger are 12 mm across when the jaws are fully open
 RELEASE_OPEN = -0.032  # let go 64 mm apart, 26 mm clear of grip and trigger: fully open, the bottom finger would
 #                        reach down to the table
@@ -324,7 +360,8 @@ OPEN_UP_Z = cover_z(PT + 0.010)  # open pad tips 10 mm over the cover's top
 TOUCH_Z = TOP + STAND_H + 2 * PT + TIP_ABOVE_TCP  # closed tips on the cover's top
 
 # The clamp in the right hand, fully open: where its frame is relative to the base plate when its jaws are in place.
-CLAMP_IN = np.array([-PL / 2 - 0.006, 0.0, -0.003 - JAW_T])  # spine 6 mm in front of the edge, lower jaw 3 mm under
+LOW_GAP = 0.001  # the lower jaw under the base, and so the upper jaw over the cover (14 - 12 - 1 mm)
+CLAMP_IN = np.array([-PL / 2 - 0.006, 0.0, -LOW_GAP - JAW_T])  # spine 6 mm in front of the edge, lower jaw 1 mm under
 BACK = 0.030  # drawn back 30 mm for the line-up
 HAND_IN_CLAMP = np.array([GRIP_U, 0.0, GRIP_Z])
 
@@ -461,9 +498,9 @@ _FORWARD_LIVE = Orient(fn=lambda: _rz(_live["psi"]) @ FORWARD)
 _FORWARD = Orient(FORWARD)
 _PRESS_YAW = Orient(fn=lambda: _prev_grip(_live["psi"]))  # the left hand's closed fingers on the cover
 
-# Where the right hand squeezes the clamp on the rack: the clamp frame 4 mm below its start (the rack's edge centred in
-# the open jaws), and the same with the jaws drawn 30 mm off it.
-_k0 = np.array(CLAMP_START) + np.array([0.0, 0.0, -(O_OPEN - O_RACK) / 2])
+# Where the right hand squeezes the clamp on the rack: the clamp frame 0.75 mm below its start (the rack's edge centred
+# between the lower jaw and the free pad, 11.5 mm apart), and the same with the jaws drawn 30 mm off it.
+_k0 = np.array(CLAMP_START) + np.array([0.0, 0.0, -(O_OPEN - PAD_OUT - O_RACK) / 2])
 RACK_GRIP = tuple(_k0 + HAND_IN_CLAMP)
 RACK_BEHIND = tuple(_k0 + HAND_IN_CLAMP + np.array([-0.030, 0.0, 0.0]))
 RACK_OFF = tuple(_k0 + HAND_IN_CLAMP + np.array([-0.035, 0.0, 0.0]))

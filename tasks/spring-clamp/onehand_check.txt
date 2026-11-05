@@ -1,0 +1,22 @@
+One-hand check for the spring-clamp task (construct validity: the holding hand must be needed).
+
+Run on a copy, from this folder:
+
+    cp task.py task_onehand.py
+    sed -i 's/_Press(TOUCH_Z)/_CoverAt(TOUCH_Z + 0.04, PRESS_DX, trim=False)/g' task_onehand.py
+
+This raises the left hand's three press waypoints ("press the cover straight down", "settle", "hold the cover down
+while the clamp goes on") 40 mm above the cover. The left hand still sets the cover flush and lets go, comes down to
+2 mm above the cover, then waits 40 mm above it while the clamp goes on, and lifts away 3 mm above it: it never touches
+the cover after setting it down. Check that the sed changed exactly three lines:
+
+    grep -c "_CoverAt(TOUCH_Z + 0.04, PRESS_DX, trim=False)" task_onehand.py    # 3
+    grep -c "_Press(TOUCH_Z)" task_onehand.py                                   # 0
+
+Then run the scripted demo on it as in README.md, with -E task=$PWD/task_onehand.py and --policy yam_scripted.
+
+Expected: below 1.0, most likely 0. The clamp's pad rides up onto the unheld cover and drags it along with the jaws
+(drag 0.05 to 0.07 N against 0.03 N of wet-glue friction), about 18 mm towards the back, so the cover is far off flush
+and the jaw tips end up near its front edge, not 8 mm in: not clamped, 0. If the cover only slips a few mm the clamp
+still grips it and the score is 0.5. The unmodified demo (cover pressed down with 3 N, glue friction 0.27 N) should
+score 1.0.
