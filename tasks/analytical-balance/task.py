@@ -1,9 +1,8 @@
 """On the station table: an analytical balance with a glass draft shield, an empty plastic weighing boat on the bench
 to its left, and a small square glass vial of plastic pellets, with a pouring spout, beside the boat.
 
-The balance: a white base with a low glass chamber round the round steel pan, and, on the bench to its right, its
-display terminal on a cable (as on many analytical balances): a white unit with a live display reading in grams to
-0.01 g, a green TARE key and a dark ON key. The chamber's top is
+The balance: a white base with a key strip along its front edge (a live display reading in grams to 0.01 g, a green
+TARE key and a dark ON key) and, behind the strip, a low glass chamber round the round steel pan. The chamber's top is
 a glass door that slides back, towards the far end of the balance, on a dark handle near its front edge; its front and
 side walls are fixed. The door starts closed, and the display reads 0.00 with the pan empty.
 
@@ -14,8 +13,7 @@ The task, in the order an analyst weighs out a powder:
 4. Close the door and leave the balance; put the vial down anywhere.
 
 The display shows the mass resting on the pan (the boat and anything in it or on the pan) minus the mass on the pan at
-the last TARE press. Two hands: one runs the door and the TARE key, the other carries the boat and pours. While one
-hand pours, the arms hide the terminal from the top camera, so the other hand holds its wrist camera over the display.
+the last TARE press. Two hands: one runs the door and the TARE key, the other carries the boat and pours.
 
 Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jitter=0 -E control_hz=20 \\
            --instruction "<see task.json>" --scorer task_score ...
@@ -62,11 +60,7 @@ DOOR_X0, DOOR_X1 = CH_X0 - WALL_T, 0.095  # the closed door's front and back edg
 DOOR_TRAVEL = 0.13  # fully open: slid 13 cm back over the rear housing
 REAR = (CH_X1, 0.225)  # rear housing, x span; its top sits just under the door
 PAN_R, PAN_T, PAN_TOP = 0.040, 0.003, 0.050  # round pan 8 cm across, its top 5 cm above the table
-STRIP_X0, STRIP_X1, STRIP_TOP = -0.170, CH_X0 - WALL_T, 0.040  # the terminal, in the terminal frame (below)
-TERM_HW = 0.075  # its half width
-# The terminal frame: the balance frame shifted by (TERM_DX, TERM_DY): the terminal stands on the bench to the
-# balance's front right, 13 cm right of it.
-TERM_DX, TERM_DY = 0.030, -0.200
+STRIP_X0, STRIP_X1, STRIP_TOP = -0.170, CH_X0 - WALL_T, 0.040  # key strip in front of the chamber
 HALF_W = CH_HY + WALL_T + 0.002  # half width of the base, strip and rear housing
 HANDLE = (0.010, 0.040, 0.012)  # dark bar on the door, along y
 HANDLE_X, HANDLE_Y = DOOR_X0 + 0.013, -0.065
@@ -134,24 +128,17 @@ def _lit(text: str) -> list[float]:
     return [0.0 if s in GLYPHS[ch] else SEG_SUNK for ch in text for s in SEGS]
 
 
-# Each segment is built where it sits at the start, with 0.00 showing, so the very first rendered frames already read
-# 0.00 (the renderer takes about a second to pick up joint positions set at reset). A joint's position is then its
-# offset from that start height.
 _START = _lit(display_text(0.0))
 SEGMENT_JOINTS = []
 for _i in range(4):
     for _k, _s in enumerate(SEGS):
         (_cx, _cy), (_sx, _sy) = _segment(_i, _s)
-        _o = _START[7 * _i + _k]
+        _q = _START[7 * _i + _k]
         SEGMENT_JOINTS.append(Joint(
-            f"seg{_i}{_s}", kind="slide", axis="Z", anchor=(_cx, _cy, SEG_Z + _o), lower=SEG_SUNK - _o, upper=-_o,
-            initial=0.0, target=0.0, stiffness=200.0, damping=2.0, mass=0.002,
-            boxes=[((_cx, _cy, SEG_Z + _o), (_sx, _sy, 0.001), LIT)],
+            f"seg{_i}{_s}", kind="slide", axis="Z", anchor=(_cx, _cy, SEG_Z), lower=SEG_SUNK, upper=0.0, initial=_q,
+            target=_q, stiffness=200.0, damping=2.0, mass=0.002,
+            boxes=[((_cx, _cy, SEG_Z), (_sx, _sy, 0.001), LIT)],
         ))
-
-
-def _seg_targets(text: str) -> list[float]:
-    return [q - o for q, o in zip(_lit(text), _START)]
 _dot = (DISP_X - DIG_H / 2 + SEG_T / 2, (_digit_y(1) + _digit_y(2)) / 2)
 
 _glass_wall_h = WALL_TOP - FLOOR_Z
@@ -159,33 +146,22 @@ BALANCE = part(
     "balance", pos=(PX, PY, TOP), fixed=True, friction=0.6,
     boxes=[
         (((CH_X0 - WALL_T + CH_X1) / 2, 0.0, FLOOR_Z / 2), (CH_X1 - CH_X0 + WALL_T, 2 * HALF_W, FLOOR_Z), CASE),  # base
+        (((STRIP_X0 + STRIP_X1) / 2, 0.0, STRIP_TOP / 2), (STRIP_X1 - STRIP_X0, 2 * HALF_W, STRIP_TOP), CASE),  # strip
         (((REAR[0] + REAR[1]) / 2, 0.0, (WALL_TOP - 0.0005) / 2), (REAR[1] - REAR[0], 2 * HALF_W, WALL_TOP - 0.0005),
          CASE),  # rear housing
         ((CH_X0 - WALL_T / 2, 0.0, FLOOR_Z + _glass_wall_h / 2), (WALL_T, 2 * (CH_HY + WALL_T), _glass_wall_h),
          GLASS),  # front glass
         *[(((CH_X0 + CH_X1) / 2, s * (CH_HY + WALL_T / 2), FLOOR_Z + _glass_wall_h / 2),
            (CH_X1 - CH_X0, WALL_T, _glass_wall_h), GLASS) for s in (1, -1)],  # side glass
-        ((CH_X0 - WALL_T - 0.003, -HALF_W + 0.012, 0.012), (0.006, 0.010, 0.006), DARK),  # cable socket
+        ((DISP_X, DISP_Y, STRIP_TOP + SCREEN_SIZE[2] / 2), SCREEN_SIZE, SCREEN),
+        ((_dot[0], _dot[1], SEG_Z), (SEG_T, SEG_T, 0.001), LIT),  # decimal point (always lit)
+        ((KEY_X, ON_Y, STRIP_TOP + KEY[2] / 2), KEY, DARK),  # ON key (not used)
     ],
     cylinders=[
         ((0.0, 0.0, (FLOOR_Z + PAN_TOP - PAN_T) / 2), 0.008, PAN_TOP - PAN_T - FLOOR_Z, STEEL),  # pan post
         ((0.0, 0.0, PAN_TOP - PAN_T / 2), PAN_R, PAN_T, STEEL),  # pan
     ],
-    joints=[DOOR],
-)
-TERMINAL = part(
-    "terminal", pos=(PX + TERM_DX, PY + TERM_DY, TOP), fixed=True, friction=0.6,
-    boxes=[
-        (((STRIP_X0 + STRIP_X1) / 2, 0.0, STRIP_TOP / 2), (STRIP_X1 - STRIP_X0, 2 * TERM_HW, STRIP_TOP), CASE),
-        ((DISP_X, DISP_Y, STRIP_TOP + SCREEN_SIZE[2] / 2), SCREEN_SIZE, SCREEN),
-        ((_dot[0], _dot[1], SEG_Z), (SEG_T, SEG_T, 0.001), LIT),  # decimal point (always lit)
-        ((KEY_X, ON_Y, STRIP_TOP + KEY[2] / 2), KEY, DARK),  # ON key (not used)
-        # the cable to the balance, along the bench
-        ((STRIP_X1 + 0.004, 0.06, 0.003), (0.008, 0.012, 0.006), DARK),
-        ((STRIP_X1 + 0.012, 0.06 + (-TERM_DY - HALF_W + 0.012 - 0.06) / 2, 0.0025),
-         (0.005, -TERM_DY - HALF_W + 0.012 - 0.06, 0.005), DARK),
-    ],
-    joints=[TARE, *SEGMENT_JOINTS],
+    joints=[DOOR, TARE, *SEGMENT_JOINTS],
 )
 
 # -- the weighing boat (loose, on the bench) ----------------------------------------------------------------------------
@@ -250,7 +226,7 @@ GRAINS = [part(f"grain{i:02d}", pos=p, mass=GRAIN_SIM_KG, friction=0.3,
           for i, p in enumerate(GRAIN_START)]
 GRAIN_NAMES = [g.name for g in GRAINS]
 
-OBJECTS = [BALANCE, TERMINAL, BOAT_PART, VIAL, *GRAINS]
+OBJECTS = [BALANCE, BOAT_PART, VIAL, *GRAINS]
 
 # -- the reading: worked out from what rests on the pan ----------------------------------------------------------------
 TARGET_G = 1.00
@@ -313,22 +289,14 @@ def weigh(boat, vial, grains) -> tuple[float, int, int]:
     return grams, int(counted.sum()), spilled
 
 
-# Air through an open top door makes the display wobble: up to DRAFT_G either way, a new value every DRAFT_EVERY
-# control steps (fixed seed, so a trial is repeatable). With the door shut the display shows the settled mass.
-DRAFT_G = 0.02
-DRAFT_EVERY = 24  # 1.2 s: the renderer blends about half a second after each change, so a value must hold past that
-_draft = {"rng": np.random.default_rng(0), "n": 0, "dg": 0.0}
 _trial = {"tare_g": 0.0, "tared": False, "tare_ok": False, "tare_door_shut": False, "pressed": False, "reading": None,
-          "shown": None, "seen": None,
           "text": display_text(0.0)}
 _ids: dict = {}
 
 
 @on_reset
 def _clear(env):
-    _draft.update(rng=np.random.default_rng(0), n=0, dg=0.0)
-    _trial.update(tare_g=0.0, tared=False, tare_ok=False, tare_door_shut=False, pressed=False, reading=None, shown=None,
-                  seen=None,
+    _trial.update(tare_g=0.0, tared=False, tare_ok=False, tare_door_shut=False, pressed=False, reading=None,
                   text=display_text(0.0))
     _pour_reset()
 
@@ -343,10 +311,10 @@ def _grain_positions(env) -> np.ndarray:
 def _watch(env):
     import torch
 
-    s = {n: labkit._part_state(env, labkit._SPECS[n]) for n in ("balance", "terminal", "boat", "vial")}
+    s = {n: labkit._part_state(env, labkit._SPECS[n]) for n in ("balance", "boat", "vial")}
     grains = _grain_positions(env)
     grams, counted, _ = weigh(s["boat"], s["vial"], grains)
-    down = s["terminal"].joints["tare"] < PRESSED
+    down = s["balance"].joints["tare"] < PRESSED
     if down and not _trial["pressed"]:  # a new press: the balance zeroes on what is on the pan now
         boat = s["boat"]
         _trial.update(
@@ -356,23 +324,13 @@ def _watch(env):
         )
     _trial["pressed"] = down
     _trial["reading"] = grams - _trial["tare_g"]
-    if s["balance"].joints["door"] > DOOR_SHUT:  # door open: the display wobbles
-        if _draft["n"] % DRAFT_EVERY == 0:
-            _draft["dg"] = float(_draft["rng"].uniform(-DRAFT_G, DRAFT_G))
-        _draft["n"] += 1
-    else:
-        _draft["dg"] = 0.0
-    shown = _trial["reading"] + _draft["dg"]
-    _trial["shown"] = shown
-    seen = _trial["seen"]  # the demo's own reading of the display: a running average over about a second
-    _trial["seen"] = shown if seen is None else seen + 0.05 * (shown - seen)
-    text = display_text(shown)
-    asset = env.unwrapped.scene["terminal"]
+    text = display_text(_trial["reading"])
+    asset = env.unwrapped.scene["balance"]
     if "segments" not in _ids:
         names = list(asset.joint_names)
         _ids["segments"] = [names.index(j.joint_name) for j in SEGMENT_JOINTS]
     if text != _trial["text"] or "set" not in _ids:
-        targets = torch.tensor([_seg_targets(text)], device=asset.device)
+        targets = torch.tensor([_lit(text)], device=asset.device)
         asset.set_joint_position_target(targets, joint_ids=_ids["segments"])
         _trial["text"], _ids["set"] = text, True
 
@@ -470,9 +428,9 @@ POUR_RISE = math.radians(1.5)  # rad/s, tipping further while nothing is falling
 POUR_FAST = math.radians(6.0)  # rad/s, tipping back up to just short of where pellets last started to flow
 POUR_FALL = math.radians(25.0)  # rad/s, tipping back to stop the flow, and to upright at the end
 POUR_BACK = math.radians(6.0)  # how far to tip back after each burst
-POUR_SETTLE = 1.5  # s to wait after each burst, for the averaged reading to catch up
+POUR_SETTLE = 1.0  # s to wait after each burst, for the reading to settle
 POUR_BURST_G = 0.03  # a burst: the reading has gone up by a pellet since the last pause
-POUR_STOP_G = TARGET_G - 0.05  # level the vial at this (averaged, so slightly lagging) reading
+POUR_STOP_G = TARGET_G - 0.03  # level the bottle at this reading
 POUR_WINDOW = 45.0  # s
 
 
@@ -497,11 +455,11 @@ def _pour_theta() -> float:
     t = float(getattr(_demo, "_plan_clock", 0.0))
     p = _pour
     if p["t0"] is None or t < p["tl"] - 0.5:
-        p.update(t0=t, tl=t, theta=POUR_TH0, mode="rise", mark=_trial["seen"] or 0.0, flow=POUR_TH_MAX, since=t)
+        p.update(t0=t, tl=t, theta=POUR_TH0, mode="rise", mark=_trial["reading"] or 0.0, flow=POUR_TH_MAX, since=t)
     t_eff = min(t, p["t0"] + POUR_WINDOW)
     dt = max(0.0, t_eff - p["tl"])
     p["tl"] = max(p["tl"], t_eff)
-    r = _trial["seen"]  # what the display shows, averaged: the demo reads the display, not the true mass
+    r = _trial["reading"]
     th = p["theta"]
     if r is None:  # offline
         rate = POUR_RISE
@@ -553,11 +511,6 @@ TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.15, 0.25, TOP + 0.14)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.14)
 RIGHT_ASIDE = (0.22, -0.20, TOP + 0.14)
-# While the left arm pours, the arms hide the terminal from the top camera, so the right arm holds its wrist camera
-# about 13 cm over the display, looking straight down: the display then fills a good part of that camera's image and
-# reads upright (the camera sits beside the fingers, so the TCP is offset from the display's centre).
-_dx, _dy = PX + TERM_DX + DISP_X, PY + TERM_DY + DISP_Y
-WATCH = (_dx + 0.026, _dy - 0.001, TOP + FACE_Z + 0.13)
 
 
 def W(x, y, z):
@@ -586,8 +539,7 @@ VIAL_CARRY_Z = TOP + WALL_TOP + VIAL_H + 0.014  # the vial's bottom 14 mm over t
 PLANCHECK_BOXES = [
     ("table", (0.35, 0.0, TOP - 0.02), (0.8, 1.2, 0.04)),
     ("base", W((CH_X0 - WALL_T + CH_X1) / 2, 0.0, FLOOR_Z / 2), (CH_X1 - CH_X0 + WALL_T, 2 * HALF_W, FLOOR_Z)),
-    ("terminal", W((STRIP_X0 + STRIP_X1) / 2 + TERM_DX, TERM_DY, STRIP_TOP / 2),
-     (STRIP_X1 - STRIP_X0, 2 * TERM_HW, STRIP_TOP)),
+    ("key strip", W((STRIP_X0 + STRIP_X1) / 2, 0.0, STRIP_TOP / 2), (STRIP_X1 - STRIP_X0, 2 * HALF_W, STRIP_TOP)),
     ("rear housing", W((REAR[0] + REAR[1]) / 2, 0.0, WALL_TOP / 2), (REAR[1] - REAR[0], 2 * HALF_W, WALL_TOP)),
     ("front glass", W(CH_X0 - WALL_T / 2, 0.0, (FLOOR_Z + WALL_TOP) / 2), (WALL_T, 2 * HALF_W, WALL_TOP - FLOOR_Z)),
     ("left glass", W((CH_X0 + CH_X1) / 2, CH_HY + WALL_T / 2, (FLOOR_Z + WALL_TOP) / 2),
@@ -654,7 +606,7 @@ def demo():
 
     _wait_until(right, t_boat_out, RIGHT_ASIDE, FINGER_OPEN, "wait for the boat", math.pi / 2)
     _door(right, HANDLE_OPEN, HANDLE_SHUT, "slide the door shut")
-    kx, ky = W(KEY_X + TERM_DX, TARE_Y + TERM_DY, 0.0)[:2]
+    kx, ky = W(KEY_X, TARE_Y, 0.0)[:2]
     right += [
         Waypoint(1.5, (kx, ky, KEY_TOP + 0.04), FINGER_CLOSED, "above TARE"),
         Waypoint(1.0, (kx, ky, KEY_TOP + 0.003 + TIP_ABOVE_TCP), FINGER_CLOSED, "onto the key"),
@@ -663,7 +615,7 @@ def demo():
         Waypoint(0.8, (kx, ky, KEY_TOP + 0.04), FINGER_CLOSED, "release"),
     ]
     _door(right, HANDLE_SHUT, HANDLE_OPEN, "slide the door open again")
-    right.append(Waypoint(2.0, WATCH, FINGER_OPEN, "wrist camera over the display, to read it during the pour"))
+    right.append(Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"))
     t_tared = _dur(right) - 1.0
 
     xs = pour_tcp(0.0)[0]
@@ -674,10 +626,7 @@ def demo():
                  Orient(pour_rot(POUR_TH0))),
         Waypoint(0.1, _PourPos(), VIAL_HOLD, "pour", _PourOrient()),
         Waypoint(POUR_WINDOW, _PourPos(), VIAL_HOLD, "pour slowly, watching the display", _PourOrient()),
-        Waypoint(1.0, tuple(pour_tcp(0.0)), VIAL_HOLD, "level the vial over the boat", Orient(pour_rot(0.0))),
-        Waypoint(1.0, tuple(pour_tcp(0.0)), VIAL_HOLD, "hold it there: a pellet left on the lip drops into the boat",
-                 Orient(pour_rot(0.0))),
-        Waypoint(2.0, (xs, PY, VIAL_CARRY_Z), VIAL_HOLD, "lift it out"),
+        Waypoint(2.0, (xs, PY, VIAL_CARRY_Z), VIAL_HOLD, "level the vial and lift it out"),
         Waypoint(2.5, (vx, vy, VIAL_CARRY_Z), VIAL_HOLD, "carry it back"),
         Waypoint(1.5, (vx, vy, VIAL_GRIP_Z + 0.002), VIAL_HOLD, "set it down"),
         Waypoint(0.6, (vx, vy, VIAL_GRIP_Z + 0.002), VIAL_WIDE, "let go"),
@@ -686,7 +635,7 @@ def demo():
     ]
     t_vial_out = _dur(left) - 7.6  # the vial is out of the chamber and on its way back
 
-    _wait_until(right, t_vial_out, WATCH, FINGER_OPEN, "watch the display while the left arm pours")
+    _wait_until(right, t_vial_out, RIGHT_PARK, FINGER_OPEN, "wait while the left arm pours")
     _door(right, HANDLE_OPEN, HANDLE_SHUT, "slide the door shut")
     right.append(Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"))
     t_end = max(_dur(left), _dur(right)) + 2.0
