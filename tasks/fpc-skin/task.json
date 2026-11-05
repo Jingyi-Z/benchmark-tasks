@@ -1,0 +1,14 @@
+{
+  "title": "Plug a tactile skin's flat cable into its ZIF connector on a robot gripper and lock the latch",
+  "category": "Impact on AI timelines",
+  "keywords": ["robot building", "tactile sensing", "FPC", "ZIF connector", "flip-lock latch", "cable assembly", "two arms"],
+  "instruction": "Connect the tactile skin on the gripper's left finger to its communication board. The skin's flat flexible cable (FPC) ends near the white ZIF connector on the green board on top of the gripper, curled up and short of the connector. Press the cable's stiffened end flat and slide it straight into the connector's slot until its white line reaches the slot's mouth, and keep holding it there: let go with the latch open and the cable springs back out. With the other hand, swing the connector's black latch over from upright until it lies flat on the connector, locking the cable in. Do not fold the cable sharply.",
+  "context": "Wiring tactile sensors to their readout boards is a routine step in building robot hands, and flat-cable connectors are fragile: a cable not fully in or not square, or a latch closed before the cable is in, gives dead or shorted channels.",
+  "setup": "",
+  "scoring": "",
+  "run_limit": "1,200 steps (60 seconds at 20 Hz)",
+  "reset_notes": "Nothing is consumed. Open the latch to upright, pull the cable out and let it return to its curl.",
+  "fidelity": "",
+  "scores": "",
+  "media": ""
+}
