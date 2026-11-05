@@ -83,7 +83,7 @@ STOPCOCK = Joint(
     initial=0.0, target=0.0, stiffness=0.0, damping=0.02, friction=0.12, mass=0.01,
     boxes=[((STOP_XY[0] - LEVER_L / 2, STOP_XY[1], STOP_Z + 0.014), (LEVER_L, 0.008, 0.004), RED)],
     cylinders=[((STOP_XY[0], STOP_XY[1], STOP_Z + 0.013), 0.007, 0.006, RED),
-               ((STOP_XY[0] - LEVER_L + 0.004, STOP_XY[1], STOP_Z + 0.020), 0.0045, 0.012, RED)],  # lever post
+               ((STOP_XY[0] - LEVER_L + 0.004, STOP_XY[1], STOP_Z + 0.024), 0.0045, 0.020, RED)],  # lever post
 )
 BASE = part(
     "base", pos=(BX, BY, TOP), mass=BASE_KG, friction=0.8,
@@ -255,6 +255,8 @@ def _air(env):
     _wrench(base_env.scene["base"], (0.0, 0.0, push))  # the same push holds the base up against the lid
     _wrench(base_env.scene["dish"], (0.0, 0.5, 0.4) if blow else (0.0, 0.0, 0.0))
     _live["p"] = p
+    _live["lid_xy"] = np.asarray(s["lid"].pos[:2], float)
+    _live["base_xy"] = np.asarray(s["base"].pos[:2], float)
 
 
 def gauge_kpa() -> float:
@@ -337,14 +339,40 @@ STEADY_Z = TOP + FLANGE_TOP - 0.003 + TIP_ABOVE_TCP  # closed fingertips 3 mm in
 VIAL_GRIP_Z = TOP + 0.022 + TIP_ABOVE_TCP
 VIAL_WIDE, VIAL_HOLD = -0.020, -0.008
 VIAL_CARRY_Z = TOP + FLANGE_TOP + 0.015 + 0.022 + TIP_ABOVE_TCP
-POST_Z = TOP + STOP_Z + 0.020 + 0.003 - 0.001 + TIP_ABOVE_TCP  # tips 6 mm above the lever bar
-POST_WIDE = -0.008
+POST_Z = TOP + STOP_Z + 0.019 + TIP_ABOVE_TCP  # tips 3 mm above the lever bar, 15 mm down the 20 mm post
+POST_WIDE = -0.010
 VENT_RATE_AIM = 9.0
-_live = {"vent": 0.0, "tl": None, "p": P0}
+_live = {"vent": 0.0, "tl": None, "p": P0, "lid_xy": None, "base_xy": None, "off": np.zeros(2)}
 
 
 def _live_reset():
-    _live.update(vent=0.0, tl=None, p=P0)
+    _live.update(vent=0.0, tl=None, p=P0, lid_xy=None, base_xy=None, off=np.zeros(2))
+
+
+class _Held:
+    """Where the right hand holds the dome aside; also measures, each step, how far the hanging dome's centre sits from
+    the hand (the knob slips a little in the grip), so the dome can be set back centred."""
+
+    def __init__(self, z):
+        self.z = z
+
+    def __array__(self, dtype=None, copy=None):
+        held = np.asarray(LID_HELD, float)
+        if _live["lid_xy"] is not None:
+            _live["off"] = held - _live["lid_xy"]
+        return np.asarray((held[0], held[1], self.z), dtype=dtype or float)
+
+
+class _Back:
+    """The right hand over the base, offset so the dome it holds comes down centred on the base."""
+
+    def __init__(self, z):
+        self.z = z
+
+    def __array__(self, dtype=None, copy=None):
+        b = np.asarray((BX, BY), float) if _live["base_xy"] is None else _live["base_xy"]
+        xy = b + _live["off"]
+        return np.asarray((xy[0], xy[1], self.z), dtype=dtype or float)
 
 
 def _clock():
@@ -451,24 +479,26 @@ def demo():
         Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "out of the way"),
     ]
     t_vial = _dur(left) - 2.0
-    right.append(Waypoint(max(0.3, t_vial - _dur(right)), (*held, KNOB_Z + HELD_UP), KNOB_HOLD,
+    right.append(Waypoint(max(0.3, t_vial - _dur(right)), _Held(KNOB_Z + HELD_UP), KNOB_HOLD,
                           "hold the dome while the vial goes in", _KnobYaw(KNOB_YAW)))
     right += [
-        Waypoint(3.0, (*lid_xy, KNOB_Z + HELD_UP), KNOB_HOLD, "back over the base", _KnobYaw(KNOB_YAW)),
-        Waypoint(1.5, (*lid_xy, KNOB_Z + LIFT), KNOB_HOLD, "down, level", _KnobYaw(KNOB_YAW)),
-        Waypoint(2.0, (*lid_xy, KNOB_Z - 0.0015), KNOB_HOLD, "lower it onto the flange, centred", _KnobYaw(KNOB_YAW)),
+        Waypoint(3.0, _Back(KNOB_Z + HELD_UP), KNOB_HOLD, "back over the base", _KnobYaw(KNOB_YAW)),
+        Waypoint(1.5, _Back(KNOB_Z + LIFT), KNOB_HOLD, "down, level", _KnobYaw(KNOB_YAW)),
+        Waypoint(2.0, _Back(KNOB_Z - 0.0015), KNOB_HOLD, "lower it onto the flange, centred", _KnobYaw(KNOB_YAW)),
+        Waypoint(0.8, _Back(KNOB_Z - 0.0015), KNOB_HOLD, "let it settle on the seal", _KnobYaw(KNOB_YAW)),
     ]
     t_shut0 = _dur(right)
     right += [
-        Waypoint(2.5, (kx, ky, KNOB_Z - 0.0015), KNOB_HOLD, "turn the vent shut", KNOB_YAW - 0.04),
-        Waypoint(0.6, (kx, ky, KNOB_Z - 0.0015), KNOB_WIDE, "let go", KNOB_YAW),
-        Waypoint(1.0, (kx, ky, KNOB_Z + 0.03), KNOB_WIDE, "up", KNOB_YAW),
+        Waypoint(2.5, _Back(KNOB_Z - 0.0015), KNOB_HOLD, "turn the vent shut", KNOB_YAW - 0.04),
+        Waypoint(0.6, _Back(KNOB_Z - 0.0015), KNOB_WIDE, "let go", KNOB_YAW),
+        Waypoint(1.0, _Back(KNOB_Z + 0.03), KNOB_WIDE, "up", KNOB_YAW),
     ]
     t_shut1 = _dur(right) - 1.6
     # stopcock: open, wait for the pump, shut
     px, py = _post(0.0)
     right += [Waypoint(2.0, (px, py, POST_Z + 0.03), POST_WIDE, "above the stopcock lever's post", 0.0),
-              Waypoint(1.0, (px, py, POST_Z), POST_WIDE, "fingers round the post", 0.0)]
+              Waypoint(1.0, (px, py, POST_Z + 0.03), POST_WIDE, "settle over the post", 0.0),
+              Waypoint(1.5, (px, py, POST_Z), POST_WIDE, "fingers either side of the post", 0.0)]
     t_stop0 = _dur(right)
     for phi in np.linspace(0.25, STOP_OPEN, 6):
         x, y = _post(phi)
