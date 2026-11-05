@@ -1,0 +1,21 @@
+{
+  "title": "Pull a 1U chassis out on its slide rails by both release tabs",
+  "category": "Impact on AI timelines",
+  "keywords": [
+    "data centre",
+    "server rack",
+    "slide rails",
+    "release latches",
+    "two-handed release",
+    "coordinated two arms"
+  ],
+  "instruction": "Pull the 1U chassis out of the rack on its slide rails to its service position. A latch on each rail holds it in until that rail's blue release tab, on the handle block in front of each ear, is pushed in. With one hand on each tab, push both blue tabs in towards the middle of the chassis at the same time and keep both held in while you draw the chassis out towards you by the tabs, until it stops at the end of its rails, 120 mm out, with the yellow bands on its rails lined up with the front of the rack's front posts. A tab let go within the first 30 mm lets its latch catch the chassis again. Then let go of both tabs.",
+  "context": "Sliding a rack server or instrument out on its rails for service is a routine data-centre and lab chore, and its two release latches need both hands at once. Robots that can service compute hardware help scale the infrastructure that AI runs on.",
+  "setup": "Station table (top 0.7475 m). Robot base frame: x forward, y to the robots' left. Rack section, fixed, grey powder-coated steel: a base plate 10 mm thick (x 0.380 to 0.710, y -0.150 to 0.150); four posts 20 x 22 mm, 11 cm tall, front pair at x 0.380 to 0.400 and rear pair at x 0.690 to 0.710, each at y 0.128 to 0.150 and mirrored; a 10 mm top side rail joining the posts along each side, 10 to 11 cm above the table; and a fixed steel outer slide rail along the inside of each side (x 0.380 to 0.710, y 0.118 to 0.128 and mirrored, 2.8 to 5.6 cm above the table). Chassis, 1.5 kg, in the rack at home: a zinc-plated steel body 300 x 220 x 44 mm (x 0.380 to 0.680, y -0.110 to 0.110, 2.0 to 6.4 cm above the table) with a black front bezel 4 mm thick carrying three vents and a green LED; steel ears 4 mm thick (x 0.376 to 0.380, y 0.110 to 0.150 and mirrored) resting against the front posts; in front of each ear a grey steel handle block 52 x 34 x 44 mm (x 0.324 to 0.376, y 0.112 to 0.146 and mirrored); a steel inner rail 8 x 24 mm along each side, riding in the outer rail, with a yellow band 4 mm wide across its top 118 to 122 mm behind its front end. Release tabs: two blue plastic posts 10 mm across and 34 mm tall, standing on blue sliders in black slots in the handle blocks' tops (top of post 9.8 cm above the table), at (0.340, 0.125) and (0.340, -0.125), 25 cm apart, each sprung outwards and pushed in 6 mm towards the middle to its stop. Service position: the chassis 120 mm out, its tabs at x 0.220. No other objects.",
+  "scoring": "Measured at the end of the trial, as how far the chassis is out from home (the gap between its ears and the front posts' front face). 0 if it is 30 mm or less out. 0.25 if it is more than 30 mm but less than 60 mm out. 1.0 if it is within 5 mm of the service position (120 mm out) and both tabs are let go, each within 1 mm of fully out. Otherwise (60 mm or more out) 0.5.",
+  "run_limit": "1,200 steps (60 seconds at 20 Hz)",
+  "reset_notes": "Nothing is consumed. Push the chassis back in until its ears touch the front posts; the latches catch it there. The tabs spring out on their own.",
+  "fidelity": "Rigid bodies in PhysX at 240 Hz. The rails are one slide joint and the latches are modelled, not contact: over the first 30 mm a stiff spring holds the chassis where it is unless both tabs are pushed in 4.5 mm or more; past that it slides with 0.4 N friction, and a detent holds it in the last 3 mm. The tabs are sprung slides, 0.36 N fully in. Rail friction is far lighter than a real server's; no ball-bearing stages or latch clicks.",
+  "scores": "Dream-1 run: TBD; demo: TBD",
+  "media": ""
+}
