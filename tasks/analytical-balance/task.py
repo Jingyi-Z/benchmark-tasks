@@ -433,6 +433,7 @@ if not getattr(_prev_action7, "_clock", False):
     _demo.ArmPlan.action7 = _action7
 
 _DOWN = _prev_grip(0.0)  # straight down, fingers closing along world y
+WATCH_ROT = Orient(axis_angle_matrix(np.array([1.0, 0.0, 0.0]), math.radians(30.0)) @ _DOWN)  # leaning towards +y
 
 
 def pour_rot(theta: float) -> np.ndarray:
@@ -537,10 +538,11 @@ LEFT_PARK = (0.15, 0.25, TOP + 0.14)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.14)
 RIGHT_ASIDE = (0.22, -0.20, TOP + 0.14)
 # While the left arm pours, the arms hide the display from the top camera, so the right arm holds its wrist camera
-# about 13 cm above the display, looking straight down: the display then fills a good part of that camera's image,
-# reading upright (TCP at yaw 0; the camera sits beside the fingers, so the TCP is offset from the display's centre).
+# over the display, reading it close up and upright. It stays on its own side, 8 cm right of the display (clear of the
+# pouring arm), and leans its fingers 30 degrees towards it, so the camera looks across at the display from about
+# 14 cm up (WATCH_ROT, with the demo's other rotations above).
 _dx, _dy = PX + DISP_X, PY + DISP_Y
-WATCH = (_dx + 0.026, _dy - 0.001, TOP + FACE_Z + 0.13)
+WATCH = (_dx + 0.026, _dy - 0.08, TOP + FACE_Z + 0.14)
 
 
 def W(x, y, z):
@@ -645,7 +647,7 @@ def demo():
         Waypoint(0.8, (kx, ky, KEY_TOP + 0.04), FINGER_CLOSED, "release"),
     ]
     _door(right, HANDLE_SHUT, HANDLE_OPEN, "slide the door open again")
-    right.append(Waypoint(2.0, WATCH, FINGER_OPEN, "wrist camera over the display, to read it during the pour"))
+    right.append(Waypoint(2.0, WATCH, FINGER_OPEN, "wrist camera on the display, to read it during the pour", WATCH_ROT))
     t_tared = _dur(right) - 1.0
 
     xs = pour_tcp(0.0)[0]
@@ -665,7 +667,7 @@ def demo():
     ]
     t_vial_out = _dur(left) - 7.6  # the vial is out of the chamber and on its way back
 
-    _wait_until(right, t_vial_out, WATCH, FINGER_OPEN, "watch the display while the left arm pours")
+    _wait_until(right, t_vial_out, WATCH, FINGER_OPEN, "watch the display while the left arm pours", WATCH_ROT)
     _door(right, HANDLE_OPEN, HANDLE_SHUT, "slide the door shut")
     right.append(Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"))
     t_end = max(_dur(left), _dur(right)) + 2.0
