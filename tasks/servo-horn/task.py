@@ -1,17 +1,32 @@
 """On the station table: a 3D-printed arm link for a small robot arm with a hobby servo screwed into its right end, and
 the servo's horn lying on the bench in front of it.
 
-The link lies along y. Its left end is a printed block; its middle is a flat foot on the bench; at its right end an
-upright and a shelf hold the servo by its mounting tabs, 3 cm above the bench and out past the end of the foot, with
-the servo's output shaft pointing up. The servo has been centred: the white dot on top of its splined shaft points
-along a white line printed on the servo's top, which runs from the shaft towards the link's left end. The shaft is not
-powered and turns if it is twisted.
+The link lies along y, an L-shaped printed bracket 38 cm long. Its left end is a printed block; its middle is a flat
+foot on the bench; at the foot's right end an upright rises, and from its top an arm reaches out past the upright,
+ending in a shelf that holds the servo by its mounting tabs: the case 2.5 cm above the bench, the output shaft pointing
+up, 10 cm out from the upright. The servo has been centred: the white dot on top of its splined shaft points along a
+white line printed on the servo's top, which runs from the shaft towards the link's left end. The shaft is not powered
+and turns if it is twisted.
 
 The horn is a white plastic arm, 37 mm long, flat underneath, with a square hub around a hole for the shaft. It lies
 flat side down, its arm pointing away from the robots. Fitting it means: turn it so its arm points along the white
 line, set the hub over the shaft and press it down until the hub sits on the servo. The spline has 25 teeth, so the
 horn goes on in 14.4 degree steps, and once on, the shaft turns with it. The press takes about 5 N; pressing on the
-servo alone tips the link over its foot, so one hand holds the link down while the other presses.
+servo alone tips the link over the upright's foot edge, so one hand holds the link down while the other presses.
+
+Why the shaft is 10 cm out (statics: link and servo 120 g, W, plus 15 g of shaft and collar on the shaft's axis; the
+hub presses at h = 64.5 mm above the bench, d = 100 mm outside the tipping edge; the COM is c = 83 mm and the hold
+point b = 240 mm inside it):
+- Unheld, a vertical press at the shaft tips the link at 0.8 N.
+- The pressing hand also grips the horn, whose hub is on the shaft, so it can push the shaft sideways. A tip about the
+  edge moves the shaft out by h and down by d per radian. A hand that stops the sideways part makes the link a ladder
+  leaning on the hand: it stays put only while the bench's friction at the edge (mu) carries the hand's sideways push,
+  that is while F (d - 5 mm - mu h) <= M + mu W h for a press F, M = 82 N mm being the weights' moment about the edge.
+  So even a laterally rigid hand cannot press more than 2.2 N (mu 0.55: the link's 0.6 on the table's 0.5) or 2.9 N
+  (mu 0.7) before the link tips or its edge slides; the fit needs 5 N. Tipped, the case's bottom
+  reaches the bench only once the hub has dropped 24 mm, deeper than the demo's press goes.
+- Held down by 4 N on the block (the demo), the link stays put up to 10.4 N at the shaft (9.2 N at 3.5 N, 8.0 N at
+  3 N); the 5 N press needs 1.7 N on the block.
 
 Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jitter=0 -E control_hz=20 \\
            --instruction "<see task.json>" --scorer task_score ...
@@ -42,8 +57,8 @@ HORN_C = (0.95, 0.95, 0.93)
 
 # -- the arm link with its servo (one loose body). Frame: origin on the bench under the shaft, x away from the robots,
 # y to their left. The servo's case spans y -10 to +30 mm (the shaft is 10 mm from its right end), x +-10 mm. --------
-LX, LY = 0.30, -0.11  # the shaft, world
-SB = 0.030  # the case's bottom, above the bench
+LX, LY = 0.30, -0.16  # the shaft, world
+SB = 0.025  # the case's bottom, above the bench
 CASE = (0.020, 0.040, 0.036)
 CASE_Y0, CASE_Y1 = -0.010, 0.030
 Z_TOP = SB + CASE[2]  # the case's top, 66 mm above the bench
@@ -51,9 +66,10 @@ TAB_Z0, TAB_T, TAB_L = SB + 0.0245, 0.0025, 0.007  # mounting tabs at each end, 
 SHELF_T, HALF_W = 0.004, 0.016  # the link is 32 mm wide
 SHELF_Y0, SHELF_Y1 = -0.020, 0.050
 CUT = 0.0005  # the shelf's cut-out clears the case by 0.5 mm
-RISER_Y0 = 0.040  # the upright's right face: the edge the link tips over
-FOOT_Y1, FOOT_T = 0.204, 0.008
-BLOCK_Y1, BLOCK_H = 0.236, 0.034  # the block at the link's left end, 22 cm from the shaft
+BEAM_T = 0.008  # the arm from the shelf to the upright, its top flush with the shelf's
+RISER_Y0, RISER_T = 0.100, 0.010  # the upright's right face: the edge the link tips over, 10 cm from the shaft
+FOOT_Y1, FOOT_T = 0.320, 0.008
+BLOCK_Y1, BLOCK_H = 0.360, 0.034  # the block at the link's left end, 34 cm from the shaft
 LINK_MASS = 0.12  # link and servo
 
 LINE_Y0, LINE_Y1, LINE_W = 0.0065, 0.0295, 0.001  # the centre line on the case's top, along +y
@@ -82,7 +98,8 @@ COLLAR = Joint(
 
 _shelf_z = SB + 0.0245 - SHELF_T / 2
 _cx, _cy0, _cy1 = CASE[0] / 2 + CUT, CASE_Y0 - CUT, CASE_Y1 + CUT
-_riser_h = TAB_Z0 - SHELF_T
+_beam_z0 = TAB_Z0 - BEAM_T  # the arm's underside, and the upright's top
+_riser_y1 = RISER_Y0 + RISER_T
 LINK = part(
     "arm_link", pos=(LX, LY, TOP), mass=LINK_MASS, friction=0.6,
     boxes=[
@@ -91,13 +108,14 @@ LINK = part(
         ((0.0, CASE_Y0 - TAB_L / 2, TAB_Z0 + TAB_T / 2), (CASE[0], TAB_L, TAB_T), CASE_C),
         ((0.0, CASE_Y1 + TAB_L / 2, TAB_Z0 + TAB_T / 2), (CASE[0], TAB_L, TAB_T), CASE_C),
         ((0.0, (LINE_Y0 + LINE_Y1) / 2, Z_TOP - 0.00005), (LINE_W, LINE_Y1 - LINE_Y0, 0.0003), WHITE),
-        # the shelf round the case, the upright under its left part, the foot and the block
+        # the shelf round the case, the arm out to the upright, the upright, the foot and the block
         ((0.0, (SHELF_Y0 + _cy0) / 2, _shelf_z), (2 * HALF_W, _cy0 - SHELF_Y0, SHELF_T), PLA),
         ((0.0, (_cy1 + SHELF_Y1) / 2, _shelf_z), (2 * HALF_W, SHELF_Y1 - _cy1, SHELF_T), PLA),
         (((_cx + HALF_W) / 2, (_cy0 + _cy1) / 2, _shelf_z), (HALF_W - _cx, _cy1 - _cy0, SHELF_T), PLA),
         ((-(_cx + HALF_W) / 2, (_cy0 + _cy1) / 2, _shelf_z), (HALF_W - _cx, _cy1 - _cy0, SHELF_T), PLA),
-        ((0.0, (RISER_Y0 + SHELF_Y1) / 2, _riser_h / 2), (2 * HALF_W, SHELF_Y1 - RISER_Y0, _riser_h), PLA),
-        ((0.0, (SHELF_Y1 + FOOT_Y1) / 2, FOOT_T / 2), (2 * HALF_W, FOOT_Y1 - SHELF_Y1, FOOT_T), PLA),
+        ((0.0, (SHELF_Y1 + _riser_y1) / 2, _beam_z0 + BEAM_T / 2), (2 * HALF_W, _riser_y1 - SHELF_Y1, BEAM_T), PLA),
+        ((0.0, (RISER_Y0 + _riser_y1) / 2, _beam_z0 / 2), (2 * HALF_W, RISER_T, _beam_z0), PLA),
+        ((0.0, (_riser_y1 + FOOT_Y1) / 2, FOOT_T / 2), (2 * HALF_W, FOOT_Y1 - _riser_y1, FOOT_T), PLA),
         ((0.0, (FOOT_Y1 + BLOCK_Y1) / 2, BLOCK_H / 2), (2 * HALF_W, BLOCK_Y1 - FOOT_Y1, BLOCK_H), PLA),
     ],
     joints=[SHAFT, COLLAR],
@@ -234,10 +252,10 @@ def distance(objects):
 
 # -- scripted demo --------------------------------------------------------------------------------------------------
 # Left arm: comes straight down onto the top of the block at the link's left end with its fingers closed and presses
-# it into the bench (about 3 N) until the horn is on; then lifts straight off and parks. It does not grip the block:
+# it into the bench (about 4 N) until the horn is on; then lifts straight off and parks. It does not grip the block:
 # the arm is laterally soft (about 7 mm/N at the pads), so a grip locks the link to the hand and any sideways give of
 # the hand drags the link with it (the earlier demo shoved it 10 mm this way). Pressing on the top, the pads can only
-# pass on friction from that 3 N, less than the bench holds the link with (that 3 N plus its weight), so the link
+# pass on friction from that 4 N, less than the bench holds the link with (that 4 N plus its weight), so the link
 # cannot be dragged; and the commanded press point is leaned against the arm's measured compliance so that the pads go
 # straight down and the contact force is vertical.
 # Right arm: picks the horn by the sides of its hub (pad tips 2 mm above its underside) and turns it a quarter turn
@@ -245,8 +263,8 @@ def distance(objects):
 # ``_track``): every control step the hand is aimed at the shaft where the link is now, turned with the link's yaw and
 # the shaft's dot, and trimmed by the measured offset of the hub from the shaft and of the horn's arm from the dot.
 # With the hub 2 mm above the shaft the trim settles and is then frozen; the hub goes straight down over the shaft onto
-# the collar and is pressed slowly (3 mm/s, commanded up to 16 mm below the seat: the arm gives about 0.45 mm/N, so the
-# 5 N latch is reached about 12 mm in) until the press fit gives, then eased to a light push at the seat, to no push,
+# the collar and is pressed slowly (3 mm/s, commanded up to 16 mm below the seat: the arm gives about 2 mm/N, so the
+# 5 N latch is reached about 11 mm in) until the press fit gives, then eased to a light push at the seat, to no push,
 # let go and lifted straight off.
 TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.15, 0.25, TOP + 0.14)
@@ -259,8 +277,8 @@ PICK_HOVER = TOP + 0.06
 # The arms' compliance at the pad tips (mm of give per N pushed up on the pads, x, y, z), from the URDF Jacobian and the
 # joint drives (80 N m/rad shoulder, 10 N m/rad wrist): pushed up, the pads also move sideways. A press commanded at
 # (point - F * C) leaves the pads at the point with a purely vertical force F.
-C_LEFT = np.array([1.12, -0.73, 2.16]) / 1000.0  # m/N, left arm on the block
-C_RIGHT = np.array([0.94, 0.61, 2.20]) / 1000.0  # m/N, right arm at the shaft
+C_LEFT = np.array([1.22, -0.51, 1.88]) / 1000.0  # m/N, left arm on the block
+C_RIGHT = np.array([1.04, 0.50, 1.99]) / 1000.0  # m/N, right arm at the shaft
 
 
 def hub_z(underside: float) -> float:
@@ -274,15 +292,15 @@ REST_Z = hub_z(COLLAR_TOP0 - Z_TOP + 0.0003)
 SEAT_Z = hub_z(SEAT_GAP)
 PRESS_MIN_Z = SEAT_Z - 0.016  # the deepest the press is commanded
 PRESS_RATE = 0.003  # m/s, down until the fit gives, then back up to the light push
-PUSH_Z = SEAT_Z - 0.003  # the light push on the seated hub (about 1.4 N)
+PUSH_Z = SEAT_Z - 0.003  # the light push on the seated hub (about 1.5 N)
 PRESS_F_MAX = 8.0  # N, cap on the estimated press force used for the lean
 HORN_YAW0 = 0.0  # fingers close along y, on the hub's sides, while the arm points along +x
 HORN_YAW1 = math.pi / 2  # and along x once the arm points along +y, the line (link and dot at 0)
 BX, BY = LX, LY + (FOOT_Y1 + BLOCK_Y1) / 2  # the block's centre (link at its start)
 BLOCK_TOUCH = TOP + BLOCK_H + TIP_ABOVE_TCP  # closed pad tips on the block's top
 BLOCK_HOVER = BLOCK_TOUCH + 0.03
-HOLD_F = 3.0  # N, the hold-down force on the block
-HOLD = (BX - HOLD_F * C_LEFT[0], BY - HOLD_F * C_LEFT[1], BLOCK_TOUCH - HOLD_F * C_LEFT[2])  # 6.5 mm in, leaned
+HOLD_F = 4.0  # N, the hold-down force on the block (the 5 N press needs 1.7 N there)
+HOLD = (BX - HOLD_F * C_LEFT[0], BY - HOLD_F * C_LEFT[1], BLOCK_TOUCH - HOLD_F * C_LEFT[2])  # 7.5 mm in, leaned
 
 # The live part of the plan. ``_track`` (below) reads the link and the horn every control step; the right arm's
 # waypoints from the carry on read their pose from ``_live``. Offline (no simulator) the values stay nominal, so the
@@ -408,8 +426,9 @@ PLANCHECK_BOXES = [
     ("table", (0.35, 0.0, TOP - 0.02), (0.8, 1.2, 0.04)),
     ("servo case", L(0.0, (CASE_Y0 + CASE_Y1) / 2, SB + CASE[2] / 2), CASE),
     ("shelf", L(0.0, (SHELF_Y0 + SHELF_Y1) / 2, _shelf_z), (2 * HALF_W, SHELF_Y1 - SHELF_Y0, SHELF_T)),
-    ("upright", L(0.0, (RISER_Y0 + SHELF_Y1) / 2, _riser_h / 2), (2 * HALF_W, SHELF_Y1 - RISER_Y0, _riser_h)),
-    ("foot", L(0.0, (SHELF_Y1 + FOOT_Y1) / 2, FOOT_T / 2), (2 * HALF_W, FOOT_Y1 - SHELF_Y1, FOOT_T)),
+    ("arm", L(0.0, (SHELF_Y1 + _riser_y1) / 2, _beam_z0 + BEAM_T / 2), (2 * HALF_W, _riser_y1 - SHELF_Y1, BEAM_T)),
+    ("upright", L(0.0, (RISER_Y0 + _riser_y1) / 2, _beam_z0 / 2), (2 * HALF_W, RISER_T, _beam_z0)),
+    ("foot", L(0.0, (_riser_y1 + FOOT_Y1) / 2, FOOT_T / 2), (2 * HALF_W, FOOT_Y1 - _riser_y1, FOOT_T)),
     ("block", L(0.0, (FOOT_Y1 + BLOCK_Y1) / 2, BLOCK_H / 2), (2 * HALF_W, BLOCK_Y1 - FOOT_Y1, BLOCK_H)),
 ]
 

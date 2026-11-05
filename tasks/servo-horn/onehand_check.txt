@@ -1,0 +1,15 @@
+One-hand variant of the scripted demo, for checking in simulation that the link has to be held.
+
+Run in this folder, on a copy of task.py (it edits the file in place):
+
+    sed -i 's/^BLOCK_TOUCH = TOP + BLOCK_H + TIP_ABOVE_TCP  #/BLOCK_TOUCH = TOP + BLOCK_H + TIP_ABOVE_TCP + 0.06  #/' task.py
+
+It raises every left-hand waypoint over the block (hover, touch and hold) by 6 cm, so the left hand comes no closer
+than about 5 cm to the link (offline plan check: left to block 52.7 mm at its lowest) and never touches it. The right
+hand's demo is unchanged. Then run the trial with --policy yam_scripted as in README.md.
+
+Expected: below 1.0. Unheld, a vertical press at the shaft tips the link at 0.8 N, and even with the hub held
+sideways by the pressing hand the link tips or its upright's edge slides above about 2.2 N (2.9 N with a bench
+friction of 0.7), short of the 5 N the press fit needs. So the collar never latches: the horn ends at best on the
+shaft but not seated (0.25), or off it (0.0). The link should be seen tipping towards the servo during the press and
+rocking back onto its foot once the horn is let go.

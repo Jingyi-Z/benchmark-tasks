@@ -1,9 +1,11 @@
 # Fit a servo horn at its centre position while holding the arm link
 
-A 3D-printed arm link for a small robot arm, with a centred hobby servo screwed into its right end, and the servo's
-horn lying on the bench. One arm holds the link down by the block at its left end; the other picks up the horn, turns
-it so its arm points along the white centre line on the servo, sets the hub over the splined shaft and presses it
-down until it is seated. The servo sticks out past the link's foot, so pressing without holding the link tips it over.
+A 3D-printed arm link for a small robot arm, an L-shaped bracket with a centred hobby servo screwed into the end of
+its arm, and the servo's horn lying on the bench. The link stands on a foot with a block at its left end; at the foot's
+right end an upright carries the arm, which holds the servo 10 cm out past the upright and 2.5 cm above the bench. One
+arm holds the link down by the block; the other picks up the horn, turns it so its arm points along the white centre
+line on the servo, sets the hub over the splined shaft and presses it down until it is seated. Pressed without holding
+the link, the link tips over the upright's edge, and the pressing hand cannot keep it up by itself (see below).
 
 ## Files
 
@@ -31,7 +33,7 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
         --scorer task_score --max-steps 1200 --store-frames --log-dir logs
 
 Scripted demo: the same command with `--policy yam_scripted` (about 29 s of motion). The left hand presses straight
-down on the top of the link's block (about 3 N) rather than gripping it, so it cannot drag the link sideways. The right
+down on the top of the link's block (about 4 N) rather than gripping it, so it cannot drag the link sideways. The right
 hand's placement is closed loop: every control step it reads the link's pose and the horn's, aims the hub at the shaft
 where it is now, turns with the link's yaw and the shaft's dot, and trims out the hub's measured offset; the trim is
 frozen once the hub goes down over the shaft. It then presses slowly until the press fit gives, eases off and lets go.
@@ -40,6 +42,23 @@ and cleared at each reset.
 
 The score is `task_score` in the log, computed by `score()` in `task.py` from the final state: whether the hub is on
 the shaft and seated, and where the horn's arm points with the servo at its centre.
+
+## Why it takes two hands
+
+Statics of the link as built (120 g with its servo, plus 15 g of shaft and collar; the hub presses 64.5 mm above the
+bench and 100 mm outside the upright's edge; the block is 240 mm inside it):
+
+- Unheld, a vertical press at the shaft tips the link at 0.8 N. The press fit needs 5 N.
+- The pressing hand grips the horn, whose hub is on the shaft, so it can also push the shaft sideways, and a tip moves
+  the shaft out as well as down. Even a laterally rigid hand cannot keep the link up past 2.2 N of press (2.9 N with a
+  bench friction of 0.7 instead of the simulated 0.55): beyond that the bench cannot carry the sideways push at the
+  edge, and the link tips or its edge slides.
+- Held down by 4 N on the block, the link stays put up to 10.4 N at the shaft (8.0 N at 3 N); the 5 N press needs
+  1.7 N on the block.
+
+`onehand_check.txt` has the `sed` command for the one-hand variant (the left hand stays 6 cm above the block and never
+touches it). It is expected to score below 1.0: the collar never latches, so the horn ends at best on the shaft but not
+seated (0.25).
 
 ## Runtime and seeds
 
