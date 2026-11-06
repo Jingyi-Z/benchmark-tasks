@@ -334,7 +334,7 @@ def distance(objects):
 TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.15, 0.25, TOP + 0.14)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.14)
-FPC_WIDE, FPC_HOLD = -0.006, -0.0003  # pads 12 mm apart round the flat cable, then closed gently on it
+FPC_WIDE, FPC_HOLD = -0.006, FINGER_CLOSED  # pads 12 mm apart round the flat cable, then closed on it
 PICK_WIDE = -0.015  # pads 30 mm apart, one either side of the cable over the slot, to pick it up
 CABLE_IN = 0.007  # the finger tips this far in from the cable's near edge (it is 10 mm wide)
 FLAT_YAW = math.pi / 2  # fingers closing along x
