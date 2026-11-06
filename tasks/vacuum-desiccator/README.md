@@ -1,7 +1,7 @@
 # Load a sample into a vacuum desiccator and pump it back down
 
-A 24 cm vacuum desiccator under vacuum, a red stopcock on its side, a vacuum line running to a pump controller box with
-a dial gauge and a rocker switch, and a sample vial on the bench. One arm vents the desiccator by swinging the stopcock
+A 24 cm vacuum desiccator under vacuum, a red stopcock on its side, a vacuum line running past a dial gauge beside the stopcock to a pump
+controller box with a rocker switch, and a sample vial on the bench. One arm vents the desiccator by swinging the stopcock
 open slowly with the pump off, lifts the dome off by its knob and holds it up beside the base; the other arm stands the
 vial on a ring marked on the plate inside. The dome goes back on, the pump is switched on until the gauge reads
 -90 kPa or lower, the stopcock is shut and the pump switched off. Last, a pull on the knob checks the dome is held

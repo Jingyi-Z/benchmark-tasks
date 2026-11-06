@@ -1,5 +1,6 @@
 """On the station table: a 24 cm vacuum desiccator holding a dish of a moisture-sensitive powder, under vacuum; its
-vacuum line running to a pump controller box with a dial gauge and a pump switch, in front of the right arm; and a
+vacuum line running past a dial gauge beside the stopcock to a pump controller box with a pump switch, in front of
+the right arm; and a
 sample vial standing on the bench to the left.
 
 The desiccator: a white polypropylene bowl base, 24 cm across its flange and 7 cm tall, with a perforated white plate
