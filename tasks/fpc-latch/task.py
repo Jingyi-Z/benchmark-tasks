@@ -153,24 +153,25 @@ PAD_HW, PAD_L, PAD_T = 0.009, 0.015, 0.004  # the sensor pad: 18 x 15 x 4 mm
 PAD_MASS = 0.010
 SKIN_C = (0.12, 0.12, 0.13)
 CABLE_L = SEG * N_SEG + FPC_STIFF
-OVERHANG = 0.045  # the cable's end sticks out this far past the block
-GAP = 0.015  # and stops this far short of the board's edge
+OVERHANG = 0.036  # the cable's end lies this far past the slot cut across the block (on the block's short end piece)
+GAP = 0.015  # the block's end stops this far short of the board's edge
 BLOCK_H, BLOCK_L, BLOCK_W = 0.065, 0.12, 0.04
-BLOCK_END = HY + BOARD_Y0 - GAP - OVERHANG  # the block's end towards the board, world y
+SLOT_W, SLOT_D, END_L = 0.022, 0.025, 0.018  # the slot cut across the block under the cable, and the end piece past it
+BLOCK_END = HY + BOARD_Y0 - GAP - END_L - SLOT_W  # the slot's near edge, world y
 _hinge_y = [EDGE + SEG * k for k in range(N_SEG + 1)]  # hinge k at the front end of link k; link N_SEG is the tip
 _links = []
 for _k in range(N_SEG + 1):
     _y0 = _hinge_y[_k]
     if _k < N_SEG:
         _bx = [((0.0, _y0 + SEG / 2, FPC_T / 2), (2 * FPC_HW, SEG - 0.0006, FPC_T), FPC_C)]
-        _m = 0.00015
+        _m = 0.00005
     else:  # the stiffened contact end
         _end = _y0 + FPC_STIFF
         _bx = [((0.0, _y0 + FPC_STIFF / 2 + 0.0002, FPC_T / 2), (2 * FPC_HW, FPC_STIFF - 0.0004, FPC_T), FPC_C),
                ((0.0, _y0 + FPC_STIFF / 2, FPC_T + 0.0001), (2 * FPC_HW, FPC_STIFF - 0.006, 0.0002), STIFF_C),
                *[((x, _end - 0.0015, FPC_T + 0.0002), (0.0004, 0.003, 0.0001), GOLD)
                  for x in np.linspace(-0.0045, 0.0045, 10)]]
-        _m = 0.0003
+        _m = 0.0001
     _links.append(Joint(f"bend{_k}", kind="hinge", axis="X", anchor=(0.0, _y0, FPC_T / 2), lower=-1.7, upper=1.7,
                         initial=0.0, target=0.0, stiffness=SEG_K, damping=SEG_D, mass=_m, boxes=_bx,
                         parent=f"bend{_k - 1}" if _k else ""))
@@ -181,8 +182,10 @@ FPC = part(
            ((0.0, -PAD_L / 2, PAD_T + 0.0005), (2 * PAD_HW - 0.002, PAD_L - 0.002, 0.001), SKIN_C)],
     joints=_links,
 )
-BLOCK = part("foam_block", pos=(HX, BLOCK_END - BLOCK_L / 2, TOP), fixed=True, friction=0.6,
-             boxes=[((0.0, 0.0, BLOCK_H / 2), (BLOCK_W, BLOCK_L, BLOCK_H), FOAM_C)])
+BLOCK = part("foam_block", pos=(HX, BLOCK_END, TOP), fixed=True, friction=0.6,
+             boxes=[((0.0, -BLOCK_L / 2, BLOCK_H / 2), (BLOCK_W, BLOCK_L, BLOCK_H), FOAM_C),
+                    ((0.0, SLOT_W + END_L / 2, BLOCK_H / 2), (BLOCK_W, END_L, BLOCK_H), FOAM_C),
+                    ((0.0, SLOT_W / 2, (BLOCK_H - SLOT_D) / 2), (BLOCK_W, SLOT_W, BLOCK_H - SLOT_D), FOAM_C)])
 
 
 def cable_tip(fpc):
