@@ -86,7 +86,8 @@ for _i in range(N_WALL):
                         (FLANGE_R - WALL_R, 2 * math.pi * _rf / N_WALL + 0.002, 0.006), PP, _a))
 STOPCOCK = Joint(
     "stopcock", kind="hinge", axis="Z", anchor=(*STOP_XY, STOP_Z + 0.010), lower=-0.05, upper=STOP_OPEN + 0.05,
-    initial=0.0, target=0.0, stiffness=0.0, damping=0.02, friction=0.12, mass=0.01,
+    initial=0.0, target=0.0, stiffness=0.0, damping=0.05, friction=0.0, mass=0.01,  # PhysX joint friction scales with
+    #   the load on the hinge, so a push on the post would lock it: plain damping instead
     boxes=[((STOP_XY[0] - LEVER_L / 2, STOP_XY[1], STOP_Z + 0.014), (LEVER_L, 0.008, 0.004), RED)],
     cylinders=[((STOP_XY[0], STOP_XY[1], STOP_Z + 0.013), 0.007, 0.006, RED),
                ((STOP_XY[0] - LEVER_L + 0.004, STOP_XY[1], STOP_Z + 0.024), 0.0045, 0.020, RED)],  # lever post
@@ -112,7 +113,7 @@ BASE = part(
 )
 
 # -- the lid (loose): a clear dome sitting on the flange, a solid knob on top to lift it by -------------------------
-LID_KG = 0.9
+LID_KG = 0.45  # polycarbonate
 DOME_H = 0.065
 KNOB_R, KNOB_H = 0.016, 0.022
 DOME_TOP = FLANGE_TOP + DOME_H + KNOB_H  # the knob's top above the table
@@ -138,8 +139,8 @@ LID = part(
 
 # -- the vacuum line (fixed): a hose from the stopcock's barb to a manifold with the gauge and the pump's switch -------
 LINE_XY = (BX, BY + STOP_XY[1] - 0.100)
-BOX = (0.070, 0.040, 0.030)  # the manifold
-GAUGE_X = -0.012  # the gauge on the manifold's near half, the switch on its far half
+BOX = (0.080, 0.040, 0.030)  # the manifold
+GAUGE_X = -0.018  # the gauge on the manifold's near half, the switch on its far half
 GAUGE_R = 0.020
 GAUGE_TOP = BOX[2] + 0.025
 NEEDLE_PER_KPA = math.radians(270.0) / 100.0
@@ -155,13 +156,13 @@ for _k in range(11):  # every 10 kPa, from 0 (pointing +y, towards the desiccato
                    (0.0012, 0.0012, 0.0004), BLACK if _k < 9 else RED))
 # The pump switch: a rocker on the manifold's far end, pivot across it (about y). Red PUMP ON half away from the robots,
 # black OFF half towards them. Off: the red end tilted up. Pressing an end down tips it there; it stays where pushed.
-SWITCH_X = 0.022
+SWITCH_X = 0.020
 ROCKER_PIVOT = (SWITCH_X, 0.0, BOX[2] + 0.004)
 ROCKER = Joint(
     "pump", kind="hinge", axis="Y", anchor=ROCKER_PIVOT, lower=-0.25, upper=0.25, initial=-0.25,
     stiffness=0.0, damping=0.02, target=0.0,
-    boxes=[((SWITCH_X + 0.0065, 0.0, ROCKER_PIVOT[2]), (0.013, 0.016, 0.004), RED),
-           ((SWITCH_X - 0.0065, 0.0, ROCKER_PIVOT[2]), (0.013, 0.016, 0.004), BLACK)],
+    boxes=[((SWITCH_X + 0.008, 0.0, ROCKER_PIVOT[2]), (0.016, 0.018, 0.004), RED),
+           ((SWITCH_X - 0.008, 0.0, ROCKER_PIVOT[2]), (0.016, 0.018, 0.004), BLACK)],
 )
 ON_ANGLE = 0.10  # the rocker counts as on past this (rad)
 _hose_len = (BY + STOP_XY[1] - 0.025) - (LINE_XY[1] + BOX[1] / 2)
@@ -360,13 +361,13 @@ LIFT = 0.020
 KNOB_YAW = math.pi / 2  # fingers close along x on the knob
 LID_HELD = (0.33, -0.22)  # where the right hand holds the dome while the vial goes in: beside the base, away from the
 #   ring the vial goes on
-HELD_UP = 0.040  # the dome's rim this far above the flange's top while held
+HELD_UP = 0.050  # the dome's rim this far above the flange's top while held
 VIAL_GRIP_Z = TOP + 0.022 + TIP_ABOVE_TCP
 VIAL_WIDE, VIAL_HOLD = -0.020, -0.008
 VIAL_CARRY_Z = TOP + FLANGE_TOP + 0.015 + 0.022 + TIP_ABOVE_TCP
 POST_Z = TOP + STOP_Z + 0.019 + TIP_ABOVE_TCP  # tips 3 mm above the lever bar, 15 mm down the 20 mm post
 POST_WIDE = -0.010
-SWITCH_Z = TOP + BOX[2] + 0.004 - 0.001 + TIP_ABOVE_TCP  # closed tips 1 mm below the pivot: the paddle bottoms out
+SWITCH_Z = TOP + BOX[2] + 0.004 - 0.003 + TIP_ABOVE_TCP  # closed tips 3 mm below the pivot, near the paddle's end
 VENT_RATE_AIM = 9.0
 _live = {"stop": 0.0, "tl": None, "p": P0, "lid_xy": None, "base_xy": None, "off": np.zeros(2), "t_back": 1e9}
 
@@ -519,7 +520,7 @@ def demo():
     ]
     # 4. pump down: switch the pump on (the stopcock is still open), wait, swing the stopcock shut, switch it off
     sx, sy = LINE_XY[0] + SWITCH_X, LINE_XY[1]
-    on_x, off_x = sx + 0.0065, sx - 0.0065
+    on_x, off_x = sx + 0.012, sx - 0.012  # near each end of the 32 mm paddle
     right += [
         Waypoint(2.5, (on_x, sy, SWITCH_Z + 0.04), FINGER_CLOSED, "above the pump switch's red end", 0.0),
         Waypoint(1.0, (on_x, sy, SWITCH_Z), FINGER_CLOSED, "press it down: pump on", 0.0),
