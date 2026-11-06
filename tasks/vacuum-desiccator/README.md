@@ -27,10 +27,11 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
         --scorer task_score --max-steps 2400 --store-frames --log-dir logs
 
 Scripted demo: the same command with `--policy yam_scripted` (about 95 s of motion; the trial ends 20 s after full
-score, which leaves time for the seal check). The demo is open loop: every move is fixed in advance and it reads nothing from the
-simulation while it runs (no pressure, joint angle or object pose). The hand on the stopcock's post opens the lever on a
-fixed slow schedule, then swings it fully open; the dome is set back over the base's axis; the pump runs for a fixed
-time before the stopcock is shut. Run one
+score, which leaves time for the seal check). The demo reads only what a policy can see: the gauge's dial,
+which sits beside the stopcock in view of the right wrist camera while that hand works the lever. It never reads the
+box's pressure, a joint angle or an object pose. The hand on the stopcock's post opens the lever further only while the
+gauge's reading rises slower than 7 kPa a second, then swings it fully open; the dome is set back over the base's axis;
+the pump runs for a fixed time before the stopcock is shut. Run one
 trial per process: the box's pressure is kept in the task module and cleared at each reset.
 
 The score is `task_score` in the log, computed by `score()` in `task.py` from the final state: the vial's pose on the

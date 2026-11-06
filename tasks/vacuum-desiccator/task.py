@@ -6,8 +6,9 @@ The desiccator: a white polypropylene bowl base, 24 cm across its flange and 7 c
 inside and a dark ring marked on the plate; and a clear dome, 6.5 cm tall, sitting on the flange (an O-ring seals it),
 with a solid clear knob on top to lift it by. On the base's right side, on a 2.5 cm port, a red stopcock: its 4 cm
 lever pointing at the robots is shut; turned a quarter turn anticlockwise (seen from above, pointing right) it is open
-to the vacuum line. The line runs to the controller box, which carries the gauge (it reads the line: the box's pressure
-while the stopcock is open) and a rocker switch for the pump: red end down is on, black end down is off. The pump
+to the vacuum line. The line runs past a dial gauge on a tee just beyond the stopcock (it reads the line: the box's
+pressure while the stopcock is open) to the controller box, which carries a rocker switch for the pump: red end down is
+on, black end down is off. The pump
 starts off, and its line is then open to the room, so opening the stopcock lets air in, faster the further it is
 turned. With the pump on and the stopcock open, the box is pumped down.
 
@@ -185,8 +186,8 @@ LINE = part(
     boxes=[((0.0, 0.0, BOX[2] / 2), BOX, STEEL),  # manifold
            ((GX, GY, (GAUGE_TOP - 0.008) / 2), (0.012, 0.012, GAUGE_TOP - 0.008), STEEL),  # the gauge's stand
            *_ticks,
-           _hose(_barb, _stand, STOP_Z * 0.6),  # hose from the barb to the gauge's tee
-           _hose(_stand, _inlet, 0.012),  # on to the controller box
+           _hose(_barb, _stand, 0.008),  # hose from the barb to the gauge's tee, under the dial
+           _hose(_stand, _inlet, 0.008),  # on to the controller box
            ((0.0, -BOX[1] / 2 - 0.025, 0.008), (0.010, 0.050, 0.010), HOSE)],  # on to the pump
     cylinders=[((GX, GY, GAUGE_TOP - 0.004), GAUGE_R, 0.008, DARK),
                ((GX, GY, GAUGE_TOP + 0.0001), GAUGE_R - 0.002, 0.0002, WHITE)],
