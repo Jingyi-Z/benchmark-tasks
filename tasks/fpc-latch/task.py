@@ -1,7 +1,7 @@
 """On the station table: a helping-hands station holding a bare sensor board up in two alligator clips, lit by its small
 LED work light, and a tactile sensor pad with a flat flex cable (FPC) lying on a foam block in front of it.
 
-The board is green, 50 x 66 mm, held level 11.5 cm above the bench, its connector edge towards the robots' right. On its
+The board is green, 50 x 72 mm, held level 11.5 cm above the bench, its connector edge towards the robots' right. On its
 top at that edge is a flip-lock ZIF connector: a black housing with a slot facing the board's edge, and a brown actuator
 hinged along the housing's back edge, with a small upright tab on its front. The actuator lies flat (locked); flipped up
 about 70 degrees it is open, and the cable can be slid into the slot. Flipped back down it clamps the cable. Closed, its
@@ -50,7 +50,7 @@ LED_C = (0.96, 0.96, 0.94)
 # -- the board (fixed, held in the clips). Frame: origin on the board's underside under the connector's centre, x away
 # from the robots, y to their left. -----------------------------------------------------------------------------------
 HX, HY = 0.30, -0.04  # the connector's centre, world
-BOARD_HX, BOARD_Y0, BOARD_Y1, BOARD_T = 0.025, -0.006, 0.060, 0.0016
+BOARD_HX, BOARD_Y0, BOARD_Y1, BOARD_T = 0.025, -0.012, 0.060, 0.0016
 ZT = BOARD_T
 ZB = 0.115  # the board's underside above the bench
 BOARD_Z0 = TOP + ZB
@@ -162,14 +162,14 @@ for _k in range(N_SEG + 1):
     _y0 = _hinge_y[_k]
     if _k < N_SEG:
         _bx = [((0.0, _y0 + SEG / 2, FPC_T / 2), (2 * FPC_HW, SEG - 0.0006, FPC_T), FPC_C)]
-        _m = 0.00005
+        _m = 0.0002
     else:  # the stiffened contact end
         _end = _y0 + FPC_STIFF
         _bx = [((0.0, _y0 + FPC_STIFF / 2 + 0.0002, FPC_T / 2), (2 * FPC_HW, FPC_STIFF - 0.0004, FPC_T), FPC_C),
                ((0.0, _y0 + FPC_STIFF / 2, FPC_T + 0.0001), (2 * FPC_HW, FPC_STIFF - 0.006, 0.0002), STIFF_C),
                *[((x, _end - 0.0015, FPC_T + 0.0002), (0.0004, 0.003, 0.0001), GOLD)
                  for x in np.linspace(-0.0045, 0.0045, 10)]]
-        _m = 0.0001
+        _m = 0.0003
     _links.append(Joint(f"bend{_k}", kind="hinge", axis="X", anchor=(0.0, _y0, FPC_T / 2), lower=-1.7, upper=1.7,
                         initial=0.0, target=0.0, stiffness=SEG_K, damping=SEG_D, mass=_m, boxes=_bx,
                         parent=f"bend{_k - 1}" if _k else ""))
@@ -334,7 +334,7 @@ def distance(objects):
 TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.15, 0.25, TOP + 0.14)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.14)
-FPC_WIDE, FPC_HOLD = -0.006, FINGER_CLOSED  # pads 12 mm apart round the flat cable, then closed on it
+FPC_WIDE, FPC_HOLD = -0.006, -0.0003  # pads 12 mm apart round the flat cable, then closed gently on it
 PICK_WIDE = -0.015  # pads 30 mm apart, one either side of the cable over the slot, to pick it up
 CABLE_IN = 0.007  # the finger tips this far in from the cable's near edge (it is 10 mm wide)
 FLAT_YAW = math.pi / 2  # fingers closing along x
@@ -480,13 +480,13 @@ def demo():
         Waypoint(1.5, (px, py, pz + 0.025), FPC_HOLD, "lift it", POINT_X),
     ]
     _wait_until(right, t_open, (px, py, pz + 0.025), FPC_HOLD, "wait for the connector to open", POINT_X)
-    # Right 2. insert: level, its end 10 mm in front of the slot's mouth, then straight in to the back
+    # Right 2. insert: level, its end laid on the board 5.5 mm in front of the slot's mouth, then straight in to the back
     flat = _PointXOnBoard()
-    cz = 0.0004 + FPC_T / 2  # the cable's underside 0.4 mm above the board's top: in the middle of the slot's mouth
-    y0 = ZY0 - 0.010 + PINCH_D
+    cz = 0.0003 + FPC_T / 2  # the cable's underside 0.3 mm above the board's top: low in the slot's mouth
+    y0 = ZY0 - 0.0055 + PINCH_D  # its end over the board, 5.5 mm in front of the slot's mouth
     right += [
-        Waypoint(2.5, _AtZif(ex, y0, 0.03), FPC_HOLD, "carry it over, in line with the slot", flat),
-        Waypoint(1.5, _AtZif(ex, y0, cz), FPC_HOLD, "down level with the slot", flat),
+        Waypoint(2.5, _AtZif(ex, y0, 0.03), FPC_HOLD, "carry it over the board, in line with the slot", flat),
+        Waypoint(1.5, _AtZif(ex, y0, cz), FPC_HOLD, "lay its end down on the board in front of the slot", flat),
     ]
     _trim["t0"] = _dur(right)
     right.append(Waypoint(2.0, _AtZif(ex, y0, cz, True), FPC_HOLD, "line it up across the slot", flat))
