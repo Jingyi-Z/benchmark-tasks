@@ -1,1 +1,22 @@
-{"instruction": "Store the vial in the vacuum box and put the box back under vacuum."}
+{
+  "title": "Load a sample into a vacuum desiccator: vent it gently, hold the dome up while loading, reseal and pump down",
+  "category": "Impact on jobs",
+  "keywords": [
+    "vacuum desiccator",
+    "venting",
+    "dome lid",
+    "stopcock",
+    "pressure gauge",
+    "sample storage",
+    "two arms"
+  ],
+  "instruction": "Store the sample vial in the vacuum desiccator and put it back under vacuum. The desiccator is under vacuum now, so its clear dome cannot be lifted. First let air in gently: turn the clear VENT knob on top of the dome slowly anticlockwise (seen from above). Venting faster than 12 kPa a second blows the powder in the dish about; at full vacuum that happens once the knob is past about 40 degrees, so open it a little at a time. When the box is full of air, lift the dome off by its knob, keeping it level, and hold it up clear of the base: do not set it down. With the other hand stand the vial upright on the middle of the white plate inside. Lower the dome back level onto the flange, centred on the base, and turn the vent knob back shut. Then swing the red stopcock lever on the base's right a quarter turn anticlockwise, from pointing at you to pointing right, and wait until the gauge on the vacuum line reads -90 kPa or lower; swing it back to point at you. Finally pull up gently on the knob to check the dome is held down, and let go.",
+  "context": "Air- and moisture-sensitive samples are kept in vacuum desiccators. Venting too fast scatters powders, a dome set down on the bench gets scratched or knocked over, and a dome put back off-centre does not seal.",
+  "setup": "Station table, both arms parked. Vacuum desiccator (polypropylene base, polycarbonate dome) centred at (0.24, -0.05) m: white bowl base 17 cm across its flange, 7.5 cm tall, 1.5 kg on rubber feet, with a perforated white plate 3.2 cm above its floor; a clear dome 6 cm tall seated on the flange, with a clear 26 mm knob 18 mm tall on top (the vent valve, shut, a red mark on its top); the box at 8 kPa absolute (-93 kPa). A red stopcock on the base's right side with a 40 mm lever and a 9 mm post at its end, lever pointing at the robots (shut), connected by an amber rubber hose to a steel manifold 15 cm further right carrying a 40 mm dial gauge (0 to -100 kPa, 270 degree scale, red ticks past -90). Inside on the plate, a 40 mm glass dish of yellow powder off centre. On the bench at (0.20, 0.20) m, a glass sample vial 22 mm across and 45 mm tall with a blue cap, standing upright.",
+  "scoring": "0 unless the vial stands upright (within 10 degrees) on the plate inside the base and the dome is seated on the flange (flat within 1.5 degrees, rim within 1.5 mm of the flange, centre within 4 mm of the base's axis). Then 0.25; 0.5 if the box is also at -90 kPa or lower (the gauge, read with the stopcock open); 0.75 if, besides, the vent knob and the stopcock are both shut (within 10 degrees); 1.0 if, besides, the vial's centre is within 1.5 cm of the plate's centre. Capped at 0.25 if the box was ever vented faster than 12 kPa a second. The pressure is simulated from the valve openings and is read off the gauge in a real trial.",
+  "run_limit": "2,400 steps (2 minutes at 20 Hz)",
+  "reset_notes": "Nothing is consumed. Take the vial out and stand it at (0.20, 0.20); put the dish back; seat the dome; shut both valves and pump the box down to -93 kPa.",
+  "fidelity": "Rigid-body sim. Air is a simple model: pressure set from the vent and stopcock openings, holding the dome down while sealed. The O-ring seal is a pose check. The dome and knob are lathe meshes; the dome's shell does not collide, only its rim and knob. Powder is a static dish.",
+  "scores": "",
+  "media": ""
+}
