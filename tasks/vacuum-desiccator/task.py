@@ -139,23 +139,26 @@ LID = part(
                ((0.0, 0.0, DOME_H + KNOB_H / 2), KNOB_R, KNOB_H, CLEAR)],  # the knob
 )
 
-# -- the vacuum line (fixed): a hose from the stopcock's barb to a manifold with the gauge and the pump's switch -------
+# -- the vacuum line (fixed): a hose from the stopcock's barb past a dial gauge on a short stand beside the stopcock, on to
+# a controller box with the pump's switch --------------------------------------------------------------------------------
 LINE_XY = (0.17, -0.36)  # the pump's controller box, in front of the right arm and clear of the held dome
-BOX = (0.080, 0.050, 0.080)  # the controller box: the line's manifold, gauge on top, pump switch
-GAUGE_X = -0.026  # well clear of the switch, so a hand pressing the switch misses the gauge  # the gauge on the manifold's near half, the switch on its far half
-GAUGE_R = 0.020
-GAUGE_TOP = BOX[2] + 0.025
+BOX = (0.080, 0.050, 0.080)  # the controller box: the line's manifold and the pump switch
+GAUGE_XY = (0.29, -0.29)  # the gauge, world: beside the stopcock, where the right wrist camera sees it while that hand
+#   works the lever
+GX, GY = GAUGE_XY[0] - LINE_XY[0], GAUGE_XY[1] - LINE_XY[1]  # in the line's frame
+GAUGE_R = 0.030  # a 60 mm dial
+GAUGE_TOP = 0.040
 NEEDLE_PER_KPA = math.radians(270.0) / 100.0
 NEEDLE = Joint(
-    "needle", kind="hinge", axis="Z", anchor=(GAUGE_X, 0.0, GAUGE_TOP + 0.001), lower=-4.8, upper=0.1, initial=0.0,
+    "needle", kind="hinge", axis="Z", anchor=(GX, GY, GAUGE_TOP + 0.001), lower=-4.8, upper=0.1, initial=0.0,
     target=0.0, stiffness=0.02, damping=0.0008, mass=0.001,
-    boxes=[((GAUGE_X, 0.007, GAUGE_TOP + 0.0012), (0.0012, 0.015, 0.0008), RED)],
+    boxes=[((GX, GY + 0.011, GAUGE_TOP + 0.0012), (0.0025, 0.024, 0.0008), RED)],
 )
 _ticks = []
 for _k in range(11):  # every 10 kPa, from 0 (pointing +y, towards the desiccator) clockwise seen from above
     _a = -_k * 10 * NEEDLE_PER_KPA
-    _ticks.append(((GAUGE_X - 0.0155 * math.sin(_a), 0.0155 * math.cos(_a), GAUGE_TOP + 0.0003),
-                   (0.0012, 0.0012, 0.0004), BLACK if _k < 9 else RED))
+    _ticks.append(((GX - 0.024 * math.sin(_a), GY + 0.024 * math.cos(_a), GAUGE_TOP + 0.0003),
+                   (0.0025, 0.0025, 0.0004), BLACK if _k < 9 else RED))
 # The pump switch: a rocker on the manifold's far end, pivot across it (about y). Red PUMP ON half away from the robots,
 # black OFF half towards them. Off: the red end tilted up. Pressing an end down tips it there; it stays where pushed.
 SWITCH_X = 0.022
@@ -168,19 +171,25 @@ ROCKER = Joint(
 )
 ON_ANGLE = 0.10  # the rocker counts as on past this (rad)
 _barb = np.array((BX + STOP_XY[0], BY + STOP_XY[1] - 0.025)) - np.array(LINE_XY)  # the barb's end, box frame
+_stand = np.array((GX, GY))
 _inlet = np.array((0.0, BOX[1] / 2))
-_hose_len = float(np.linalg.norm(_barb - _inlet))
-_hose_mid = (_barb + _inlet) / 2
-_hose_yaw = math.atan2(*(_barb - _inlet)[::-1])
+
+
+def _hose(p, q, z):
+    d = q - p
+    return (((p + q) / 2)[0], ((p + q) / 2)[1], z), (float(np.linalg.norm(d)), 0.010, 0.010), HOSE, math.atan2(d[1], d[0])
+
+
 LINE = part(
     "vacuum_line", pos=(*LINE_XY, TOP), fixed=True, friction=0.6,
     boxes=[((0.0, 0.0, BOX[2] / 2), BOX, STEEL),  # manifold
-           ((GAUGE_X, 0.0, (BOX[2] + GAUGE_TOP - 0.008) / 2), (0.008, 0.008, GAUGE_TOP - 0.008 - BOX[2]), STEEL),
+           ((GX, GY, (GAUGE_TOP - 0.008) / 2), (0.012, 0.012, GAUGE_TOP - 0.008), STEEL),  # the gauge's stand
            *_ticks,
-           ((_hose_mid[0], _hose_mid[1], STOP_Z * 0.6), (_hose_len, 0.010, 0.010), HOSE, _hose_yaw),  # hose to the barb
+           _hose(_barb, _stand, STOP_Z * 0.6),  # hose from the barb to the gauge's tee
+           _hose(_stand, _inlet, 0.012),  # on to the controller box
            ((0.0, -BOX[1] / 2 - 0.025, 0.008), (0.010, 0.050, 0.010), HOSE)],  # on to the pump
-    cylinders=[((GAUGE_X, 0.0, GAUGE_TOP - 0.004), GAUGE_R, 0.008, DARK),
-               ((GAUGE_X, 0.0, GAUGE_TOP + 0.0001), GAUGE_R - 0.002, 0.0002, WHITE)],
+    cylinders=[((GX, GY, GAUGE_TOP - 0.004), GAUGE_R, 0.008, DARK),
+               ((GX, GY, GAUGE_TOP + 0.0001), GAUGE_R - 0.002, 0.0002, WHITE)],
     joints=[NEEDLE, ROCKER],
 )
 
@@ -340,12 +349,12 @@ def distance(objects):
 
 
 # -- scripted demo ----------------------------------------------------------------------------------------------------
-# Open loop: every move is fixed in advance and the demo reads nothing from the simulation while it runs (no pressure,
-# joint angle or object pose). Right arm: straddles the stopcock's post with its fingers and swings the lever open on a
-# fixed, slow schedule (a gentle vent), then fully open; grips the dome's knob, lifts the dome and holds it up beside the
+# The demo reads only what a policy can see: the gauge's dial, in view of the right wrist camera while that hand is on
+# the stopcock. It never reads the box's pressure, a joint angle or an object pose. Right arm: straddles the stopcock's
+# post with its fingers and swings the lever open a little at a time, only while the gauge's reading rises slowly (a
+# gentle vent), then fully open; grips the dome's knob, lifts the dome and holds it up beside the
 # base. Left arm (meanwhile): picks up the vial and, once the dome is up, stands it on the ring. Right arm: sets the dome
-# back on the flange, lets go; presses the pump switch on; after a fixed wait swings the stopcock shut; presses the
-# switch off; pulls up gently on the knob, lets go; both park.
+# back on the flange, lets go; presses the pump switch on; after a wait swings the stopcock shut; presses the switch off; pulls up gently on the knob, lets go; both park.
 TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.15, 0.25, TOP + 0.16)
 RIGHT_PARK = (0.17, -0.22, TOP + 0.14)
@@ -364,8 +373,28 @@ POST_Z = TOP + STOP_Z + 0.019 + TIP_ABOVE_TCP  # tips 3 mm above the lever bar, 
 POST_WIDE = -0.010
 SWITCH_Z = TOP + BOX[2] + 0.004 - 0.005 + TIP_ABOVE_TCP  # closed tips 5 mm below the pivot, near the paddle's end
 SWITCH_YAW = math.pi / 2  # closed fingers side by side along x: a narrow press on one end of the paddle
-VENT_S, VENT_STEP = 26.0, 0.5  # the slow part of the vent, and the schedule's step
+VENT_S = 26.0  # the slow part of the vent
 VENT_DEG_S = 8.0  # the lever's opening speed while the gauge rises gently
+VENT_AIM = 7.0  # kPa a second, read off the gauge over the last half second
+_vent = {"phi": 0.0, "tl": None, "seen": []}
+
+_prev_action7 = _demo.ArmPlan.action7
+if not getattr(_prev_action7, "_clock", False):
+    def _action7(self, t, _prev=_prev_action7):
+        _demo._plan_clock = float(t)
+        return _prev(self, t)
+
+    _action7._clock = True
+    _demo.ArmPlan.action7 = _action7
+
+
+def _clock():
+    return float(getattr(_demo, "_plan_clock", 0.0))
+
+
+@on_reset
+def _vent_reset(env):
+    _vent.update(phi=0.0, tl=None, seen=[])
 
 
 def _post(phi):
@@ -375,21 +404,53 @@ def _post(phi):
     return ax - r * math.cos(phi), ay - r * math.sin(phi)
 
 
-def vent_schedule():
-    """The lever's opening, every VENT_STEP seconds, for a gentle vent: fixed in advance, the way an operator learns how
-    fast to open this stopcock (opened at VENT_DEG_S while the inflow it gives is under 8 kPa a second, by the model
-    above; the hand lags the plan a little, so the real inflow stays lower)."""
-    p, phi, dt, out = P0, 0.0, 0.01, []
-    n = int(round(VENT_S / dt))
-    every = int(round(VENT_STEP / dt))
-    for k in range(1, n + 1):
-        rate = VENT_K * open_fraction(phi) * math.sqrt(max(0.0, ATM - p) / ATM)
-        if rate < 8.0 and p < ATM - 0.5:
-            phi = min(STOP_OPEN, phi + math.radians(VENT_DEG_S) * dt)
-        p = min(ATM, p + rate * dt)
-        if k % every == 0:
-            out.append(phi)
-    return out
+def _vent_step():
+    """Read the gauge's dial and open the lever further only while its reading rises slower than VENT_AIM."""
+    t = _clock()
+    dt = 0.0 if _vent["tl"] is None else max(0.0, t - _vent["tl"])
+    _vent["tl"] = t
+    g = gauge_kpa()  # what the dial shows
+    seen = _vent["seen"]
+    seen.append((t, g))
+    while len(seen) > 2 and seen[1][0] <= t - 0.5:
+        seen.pop(0)
+    t0, g0 = seen[0]
+    rate = (g - g0) / (t - t0) if t - t0 > 0.2 else 0.0
+    shut = _vent["phi"] < math.radians(6.0)  # the dial shows the line, not the box, until the stopcock is open
+    if (shut or g < -0.5) and rate < VENT_AIM:
+        _vent["phi"] = min(STOP_OPEN, _vent["phi"] + math.radians(VENT_DEG_S) * dt)
+
+
+class _PostAt:
+    """The right hand on the lever's post at the vent's current opening (advanced each step)."""
+
+    def __init__(self, z):
+        self.z = z
+
+    def __array__(self, dtype=None, copy=None):
+        _vent_step()
+        x, y = _post(_vent["phi"])
+        return np.asarray((x, y, self.z), dtype=dtype or float)
+
+
+class _PostYaw(float):
+    """The hand's yaw on the post: turned with the lever (60 percent of its angle; the post turns in the open fingers)."""
+
+    def __new__(cls):
+        return float.__new__(cls, 0.0)
+
+    @property
+    def rot(self):
+        return _prev_grip(0.6 * _vent["phi"])
+
+
+_prev_grip = _demo.grip_rotation
+if not getattr(_prev_grip, "_rot", False):
+    def _grip(yaw=0.0):
+        return yaw.rot if hasattr(yaw, "rot") else _prev_grip(yaw)
+
+    _grip._rot = True
+    _demo.grip_rotation = _grip
 
 
 def _dur(wps):
@@ -404,9 +465,10 @@ def demo():
         Waypoint(1.0, (px, py0, POST_Z + 0.03), POST_WIDE, "settle over the post", 0.0),
         Waypoint(1.5, (px, py0, POST_Z), POST_WIDE, "fingers either side of the post", 0.0),
     ]
-    for phi in vent_schedule():
-        right.append(Waypoint(VENT_STEP, (*_post(phi), POST_Z), POST_WIDE,
-                              "swing the stopcock open slowly, watching the gauge", 0.6 * phi))
+    right += [
+        Waypoint(0.1, _PostAt(POST_Z), POST_WIDE, "swing the stopcock open slowly, watching the gauge", _PostYaw()),
+        Waypoint(VENT_S, _PostAt(POST_Z), POST_WIDE, "swing the stopcock open slowly, watching the gauge", _PostYaw()),
+    ]
     right += [
         Waypoint(1.5, (*_post(STOP_OPEN + 0.08), POST_Z), POST_WIDE, "swing it fully open", 0.6 * STOP_OPEN),
         Waypoint(0.8, (*_post(STOP_OPEN), POST_Z + 0.03), POST_WIDE, "up off the post", 0.6 * STOP_OPEN),
