@@ -147,10 +147,10 @@ LIGHT_INTENSITY, LIGHT_RADIUS = 4.0e5, 0.02
 FPC_HW, FPC_T = 0.005, 0.0008
 FPC_STIFF = 0.015  # the stiffened contact end, rigid
 SEG, N_SEG = 0.005, 20  # 20 segments of 5 mm: the cable is 115 mm long
-SEG_K, SEG_D = 0.0015, 0.00004  # N m/rad per hinge: a flexible polyimide cable
+SEG_K, SEG_D = 0.006, 0.00015  # N m/rad per hinge: a flexible polyimide cable
 EDGE = 0.002  # the first hinge, 2 mm past the pad's front edge
 PAD_HW, PAD_L, PAD_T = 0.009, 0.015, 0.004  # the sensor pad: 18 x 15 x 4 mm
-PAD_MASS = 0.005
+PAD_MASS = 0.010
 SKIN_C = (0.12, 0.12, 0.13)
 CABLE_L = SEG * N_SEG + FPC_STIFF
 OVERHANG = 0.045  # the cable's end sticks out this far past the block
@@ -163,14 +163,14 @@ for _k in range(N_SEG + 1):
     _y0 = _hinge_y[_k]
     if _k < N_SEG:
         _bx = [((0.0, _y0 + SEG / 2, FPC_T / 2), (2 * FPC_HW, SEG - 0.0006, FPC_T), FPC_C)]
-        _m = 0.0002
+        _m = 0.0004
     else:  # the stiffened contact end
         _end = _y0 + FPC_STIFF
         _bx = [((0.0, _y0 + FPC_STIFF / 2 + 0.0002, FPC_T / 2), (2 * FPC_HW, FPC_STIFF - 0.0004, FPC_T), FPC_C),
                ((0.0, _y0 + FPC_STIFF / 2, FPC_T + 0.0001), (2 * FPC_HW, FPC_STIFF - 0.006, 0.0002), STIFF_C),
                *[((x, _end - 0.0015, FPC_T + 0.0002), (0.0004, 0.003, 0.0001), GOLD)
                  for x in np.linspace(-0.0045, 0.0045, 10)]]
-        _m = 0.0001
+        _m = 0.0004
     _links.append(Joint(f"bend{_k}", kind="hinge", axis="X", anchor=(0.0, _y0, FPC_T / 2), lower=-1.7, upper=1.7,
                         initial=0.0, target=0.0, stiffness=SEG_K, damping=SEG_D, mass=_m, boxes=_bx,
                         parent=f"bend{_k - 1}" if _k else ""))
