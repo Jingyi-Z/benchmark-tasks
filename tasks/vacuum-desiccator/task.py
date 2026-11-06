@@ -236,7 +236,6 @@ def pump_on(line) -> bool:
 @on_reset
 def _reset(env):
     _trial.update(p=P0, gauge=ATM, max_rate=0.0, blown=False)
-    _live_reset()
 
 
 def _wrench(asset, force):
@@ -289,9 +288,6 @@ def _air(env):
     _wrench(base_env.scene["lid"], (0.0, 0.0, -push))
     _wrench(base_env.scene["base"], (0.0, 0.0, push))  # the same push holds the base up against the lid
     _wrench(base_env.scene["dish"], (0.0, 0.5, 0.4) if blow else (0.0, 0.0, 0.0))
-    _live["p"] = p
-    _live["lid_xy"] = np.asarray(s["lid"].pos[:2], float)
-    _live["base_xy"] = np.asarray(s["base"].pos[:2], float)
 
 
 def gauge_kpa() -> float:
@@ -344,20 +340,12 @@ def distance(objects):
 
 
 # -- scripted demo ----------------------------------------------------------------------------------------------------
-# Right arm: straddles the stopcock's post with its fingers and swings the lever open in small steps, closed loop on the
-# pressure (keeping the inflow under about 9 kPa a second), then leaves it open; grips the dome's knob, lifts the dome and
-# holds it up beside the base. Left arm (meanwhile): picks up the vial and, once the dome is up, stands it on the ring.
-# Right arm: sets the dome back centred on the flange, lets go; presses the pump switch on; when the box is at about
-# -95 kPa swings the stopcock shut; presses the switch off; pulls up gently on the knob, lets go; both park.
-_prev_action7 = _demo.ArmPlan.action7
-if not getattr(_prev_action7, "_clock", False):
-    def _action7(self, t, _prev=_prev_action7):
-        _demo._plan_clock = float(t)
-        return _prev(self, t)
-
-    _action7._clock = True
-    _demo.ArmPlan.action7 = _action7
-
+# Open loop: every move is fixed in advance and the demo reads nothing from the simulation while it runs (no pressure,
+# joint angle or object pose). Right arm: straddles the stopcock's post with its fingers and swings the lever open on a
+# fixed, slow schedule (a gentle vent), then fully open; grips the dome's knob, lifts the dome and holds it up beside the
+# base. Left arm (meanwhile): picks up the vial and, once the dome is up, stands it on the ring. Right arm: sets the dome
+# back on the flange, lets go; presses the pump switch on; after a fixed wait swings the stopcock shut; presses the
+# switch off; pulls up gently on the knob, lets go; both park.
 TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.15, 0.25, TOP + 0.16)
 RIGHT_PARK = (0.17, -0.22, TOP + 0.14)
@@ -368,6 +356,7 @@ KNOB_YAW = math.pi / 2  # fingers close along x on the knob
 LID_HELD = (0.33, -0.22)  # where the right hand holds the dome while the vial goes in: beside the base, away from the
 #   ring the vial goes on
 HELD_UP = 0.050  # the dome's rim this far above the flange's top while held
+BACK_OFF = (0.0, 0.0)  # the hand's offset from the base's axis when it sets the dome back
 VIAL_GRIP_Z = TOP + 0.022 + TIP_ABOVE_TCP
 VIAL_WIDE, VIAL_HOLD = -0.020, -0.008
 VIAL_CARRY_Z = TOP + FLANGE_TOP + 0.015 + 0.022 + TIP_ABOVE_TCP
@@ -375,16 +364,8 @@ POST_Z = TOP + STOP_Z + 0.019 + TIP_ABOVE_TCP  # tips 3 mm above the lever bar, 
 POST_WIDE = -0.010
 SWITCH_Z = TOP + BOX[2] + 0.004 - 0.005 + TIP_ABOVE_TCP  # closed tips 5 mm below the pivot, near the paddle's end
 SWITCH_YAW = math.pi / 2  # closed fingers side by side along x: a narrow press on one end of the paddle
-VENT_RATE_AIM = 9.0
-_live = {"stop": 0.0, "tl": None, "p": P0, "lid_xy": None, "base_xy": None, "off": np.zeros(2), "t_back": 1e9}
-
-
-def _live_reset():
-    _live.update(stop=0.0, tl=None, p=P0, lid_xy=None, base_xy=None, off=np.zeros(2))  # t_back stays: demo() sets it, and the env resets after
-
-
-def _clock():
-    return float(getattr(_demo, "_plan_clock", 0.0))
+VENT_S, VENT_STEP = 26.0, 0.5  # the slow part of the vent, and the schedule's step
+VENT_DEG_S = 8.0  # the lever's opening speed while the gauge rises gently
 
 
 def _post(phi):
@@ -394,74 +375,21 @@ def _post(phi):
     return ax - r * math.cos(phi), ay - r * math.sin(phi)
 
 
-def _vent_step():
-    """Advance the stopcock's opening while the inflow it gives is under the aim (it rises as the box fills)."""
-    t = _clock()
-    dt = 0.0 if _live["tl"] is None else max(0.0, t - _live["tl"])
-    _live["tl"] = t
-    p = _live["p"]
-    rate_now = VENT_K * open_fraction(_live["stop"]) * math.sqrt(max(0.0, ATM - p) / ATM)
-    if rate_now < VENT_RATE_AIM and p < ATM - 0.5:
-        _live["stop"] = min(STOP_OPEN, _live["stop"] + math.radians(8.0) * dt)
-
-
-class _PostAt:
-    """The right hand on the lever's post at the vent loop's opening (advanced each step while ``venting``)."""
-
-    def __init__(self, z, venting=False):
-        self.z, self.venting = z, venting
-
-    def __array__(self, dtype=None, copy=None):
-        if self.venting:
-            _vent_step()
-        x, y = _post(_live["stop"])
-        return np.asarray((x, y, self.z), dtype=dtype or float)
-
-
-class _PostYaw(float):
-    """The hand's yaw on the post: turned with the lever (60 percent of its angle; the post turns in the open fingers)."""
-
-    def __new__(cls):
-        return float.__new__(cls, 0.0)
-
-    @property
-    def rot(self):
-        return _prev_grip(0.6 * _live["stop"])
-
-
-class _Held:
-    """Where the right hand holds the dome aside; also measures how far the hanging dome's centre sits from the hand
-    (the knob slips a little in the grip) until the hand starts back, so the dome can be set back centred."""
-
-    def __init__(self, z):
-        self.z = z
-
-    def __array__(self, dtype=None, copy=None):
-        held = np.asarray(LID_HELD, float)
-        if _live["lid_xy"] is not None and _clock() < _live["t_back"] - 0.2:
-            _live["off"] = held - _live["lid_xy"]
-        return np.asarray((held[0], held[1], self.z), dtype=dtype or float)
-
-
-class _Back:
-    """The right hand over the base, offset so the dome it holds comes down centred on the base."""
-
-    def __init__(self, z):
-        self.z = z
-
-    def __array__(self, dtype=None, copy=None):
-        b = np.asarray((BX, BY), float) if _live["base_xy"] is None else _live["base_xy"]
-        xy = b + _live["off"]
-        return np.asarray((xy[0], xy[1], self.z), dtype=dtype or float)
-
-
-_prev_grip = _demo.grip_rotation
-if not getattr(_prev_grip, "_rot", False):
-    def _grip(yaw=0.0):
-        return yaw.rot if hasattr(yaw, "rot") else _prev_grip(yaw)
-
-    _grip._rot = True
-    _demo.grip_rotation = _grip
+def vent_schedule():
+    """The lever's opening, every VENT_STEP seconds, for a gentle vent: fixed in advance, the way an operator learns how
+    fast to open this stopcock (opened at VENT_DEG_S while the inflow it gives is under 8 kPa a second, by the model
+    above; the hand lags the plan a little, so the real inflow stays lower)."""
+    p, phi, dt, out = P0, 0.0, 0.01, []
+    n = int(round(VENT_S / dt))
+    every = int(round(VENT_STEP / dt))
+    for k in range(1, n + 1):
+        rate = VENT_K * open_fraction(phi) * math.sqrt(max(0.0, ATM - p) / ATM)
+        if rate < 8.0 and p < ATM - 0.5:
+            phi = min(STOP_OPEN, phi + math.radians(VENT_DEG_S) * dt)
+        p = min(ATM, p + rate * dt)
+        if k % every == 0:
+            out.append(phi)
+    return out
 
 
 def _dur(wps):
@@ -469,21 +397,23 @@ def _dur(wps):
 
 
 def demo():
-    _live_reset()
-    py = _PostYaw()
     # 1. vent: swing the stopcock open slowly with the pump off
     px, py0 = _post(0.0)
     right = [
         Waypoint(2.5, (px, py0, POST_Z + 0.03), POST_WIDE, "above the stopcock lever's post", 0.0),
         Waypoint(1.0, (px, py0, POST_Z + 0.03), POST_WIDE, "settle over the post", 0.0),
         Waypoint(1.5, (px, py0, POST_Z), POST_WIDE, "fingers either side of the post", 0.0),
-        Waypoint(0.1, _PostAt(POST_Z, True), POST_WIDE, "swing the stopcock open slowly, watching the gauge", py),
-        Waypoint(26.0, _PostAt(POST_Z, True), POST_WIDE, "swing the stopcock open slowly, watching the gauge", py),
+    ]
+    for phi in vent_schedule():
+        right.append(Waypoint(VENT_STEP, (*_post(phi), POST_Z), POST_WIDE,
+                              "swing the stopcock open slowly, watching the gauge", 0.6 * phi))
+    right += [
         Waypoint(1.5, (*_post(STOP_OPEN + 0.08), POST_Z), POST_WIDE, "swing it fully open", 0.6 * STOP_OPEN),
         Waypoint(0.8, (*_post(STOP_OPEN), POST_Z + 0.03), POST_WIDE, "up off the post", 0.6 * STOP_OPEN),
     ]
     # 2. lift the dome off by its knob and hold it up beside the base
     kx, ky = BX, BY
+    hx, hy = LID_HELD
     right += [
         Waypoint(2.5, (kx, ky, KNOB_Z + 0.03), KNOB_WIDE, "above the dome's knob", KNOB_YAW),
         Waypoint(1.0, (kx, ky, KNOB_Z + 0.03), KNOB_WIDE, "settle over the knob", KNOB_YAW),
@@ -491,7 +421,7 @@ def demo():
         Waypoint(0.6, (kx, ky, KNOB_Z), KNOB_HOLD, "grip the knob", KNOB_YAW),
         Waypoint(1.5, (kx, ky, KNOB_Z + LIFT), KNOB_HOLD, "lift the dome off, level", KNOB_YAW),
         Waypoint(1.5, (kx, ky, KNOB_Z + HELD_UP), KNOB_HOLD, "lift it clear of the base", KNOB_YAW),
-        Waypoint(3.0, _Held(KNOB_Z + HELD_UP), KNOB_HOLD, "hold it up beside the base, level", KNOB_YAW),
+        Waypoint(3.0, (hx, hy, KNOB_Z + HELD_UP), KNOB_HOLD, "hold it up beside the base, level", KNOB_YAW),
     ]
     t_lid_off = _dur(right)
     # the left hand picks the vial up meanwhile and waits with it
@@ -514,17 +444,17 @@ def demo():
         Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "out of the way"),
     ]
     t_vial = _dur(left) + 0.3  # the dome goes back once the left hand is out of the way
-    right.append(Waypoint(max(0.3, t_vial - _dur(right)), _Held(KNOB_Z + HELD_UP), KNOB_HOLD,
+    right.append(Waypoint(max(0.3, t_vial - _dur(right)), (hx, hy, KNOB_Z + HELD_UP), KNOB_HOLD,
                           "hold the dome while the vial goes in", KNOB_YAW))
-    _live["t_back"] = _dur(right)  # the offset is measured only until the hand starts back
     # 3. the dome back on, centred
+    bx, by = BX + BACK_OFF[0], BY + BACK_OFF[1]
     right += [
-        Waypoint(3.0, _Back(KNOB_Z + HELD_UP), KNOB_HOLD, "back over the base", KNOB_YAW),
-        Waypoint(1.5, _Back(KNOB_Z + LIFT), KNOB_HOLD, "down, level", KNOB_YAW),
-        Waypoint(2.0, _Back(KNOB_Z - 0.0015), KNOB_HOLD, "lower it onto the flange, centred", KNOB_YAW),
-        Waypoint(0.8, _Back(KNOB_Z - 0.0015), KNOB_HOLD, "let it settle on the seal", KNOB_YAW),
-        Waypoint(0.6, _Back(KNOB_Z - 0.0015), KNOB_WIDE, "let go", KNOB_YAW),
-        Waypoint(1.0, _Back(KNOB_Z + 0.03), KNOB_WIDE, "up", KNOB_YAW),
+        Waypoint(3.0, (bx, by, KNOB_Z + HELD_UP), KNOB_HOLD, "back over the base", KNOB_YAW),
+        Waypoint(1.5, (bx, by, KNOB_Z + LIFT), KNOB_HOLD, "down, level", KNOB_YAW),
+        Waypoint(2.0, (bx, by, KNOB_Z - 0.0015), KNOB_HOLD, "lower it onto the flange, centred", KNOB_YAW),
+        Waypoint(0.8, (bx, by, KNOB_Z - 0.0015), KNOB_HOLD, "let it settle on the seal", KNOB_YAW),
+        Waypoint(0.6, (bx, by, KNOB_Z - 0.0015), KNOB_WIDE, "let go", KNOB_YAW),
+        Waypoint(1.0, (bx, by, KNOB_Z + 0.03), KNOB_WIDE, "up", KNOB_YAW),
     ]
     # 4. pump down: switch the pump on (the stopcock is still open), wait, swing the stopcock shut, switch it off
     sx, sy = LINE_XY[0] + SWITCH_X, LINE_XY[1]
@@ -535,11 +465,12 @@ def demo():
         Waypoint(0.6, (on_x, sy, SWITCH_Z + 0.04), FINGER_CLOSED, "up", SWITCH_YAW),
     ]
     pxo, pyo = _post(STOP_OPEN)
+    yo = 0.6 * STOP_OPEN
     right += [
-        Waypoint(2.0, (pxo, pyo, POST_Z + 0.03), POST_WIDE, "above the open lever's post, watching the gauge", py),
-        Waypoint(1.0, (pxo, pyo, POST_Z + 0.03), POST_WIDE, "settle over the post", py),
-        Waypoint(1.5, (pxo, pyo, POST_Z), POST_WIDE, "fingers either side of the post", py),
-        Waypoint(3.0, (pxo, pyo, POST_Z), POST_WIDE, "wait for -90 kPa or lower on the gauge", py),
+        Waypoint(2.0, (pxo, pyo, POST_Z + 0.03), POST_WIDE, "above the open lever's post, watching the gauge", yo),
+        Waypoint(1.0, (pxo, pyo, POST_Z + 0.03), POST_WIDE, "settle over the post", yo),
+        Waypoint(1.5, (pxo, pyo, POST_Z), POST_WIDE, "fingers either side of the post", yo),
+        Waypoint(3.0, (pxo, pyo, POST_Z), POST_WIDE, "wait for -90 kPa or lower on the gauge", yo),
     ]
     for phi in np.linspace(STOP_OPEN - 0.25, -0.12, 6):  # a little past shut, against the stop
         x, y = _post(phi)

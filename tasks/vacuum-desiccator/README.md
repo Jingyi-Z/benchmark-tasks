@@ -1,4 +1,4 @@
-# Load a sample into a vacuum desiccator: vent it, hold the dome up while loading, reseal and pump down
+# Load a sample into a vacuum desiccator and pump it back down
 
 A 24 cm vacuum desiccator under vacuum, a red stopcock on its side, a vacuum line running to a pump controller box with
 a dial gauge and a rocker switch, and a sample vial on the bench. One arm vents the desiccator by swinging the stopcock
@@ -27,10 +27,11 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
         --scorer task_score --max-steps 2400 --store-frames --log-dir logs
 
 Scripted demo: the same command with `--policy yam_scripted` (about 95 s of motion; the trial ends 20 s after full
-score, which leaves time for the seal check). The demo's vent is closed loop on the pressure: the hand on the stopcock's post opens the lever further only
-while the inflow stays under 9 kPa a second, then swings it fully open once the box is at room pressure. While the dome
-is held aside, the demo measures how far the dome hangs from the hand and sets it back centred on the base. Run one
-trial per process: the vent and dome state is kept in the task module and cleared at each reset.
+score, which leaves time for the seal check). The demo is open loop: every move is fixed in advance and it reads nothing from the
+simulation while it runs (no pressure, joint angle or object pose). The hand on the stopcock's post opens the lever on a
+fixed slow schedule, then swings it fully open; the dome is set back over the base's axis; the pump runs for a fixed
+time before the stopcock is shut. Run one
+trial per process: the box's pressure is kept in the task module and cleared at each reset.
 
 The score is `task_score` in the log, computed by `score()` in `task.py` from the final state: the vial's pose on the
 plate, the dome's pose on the flange, the box's pressure, the stopcock's angle, the pump switch, and whether the box
