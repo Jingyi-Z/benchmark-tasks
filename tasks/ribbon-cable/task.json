@@ -1,0 +1,17 @@
+{
+  "title": "Plug a ribbon cable into a sensor board held up off its foam",
+  "category": "Impact on AI timelines",
+  "keywords": [
+    "robot wiring",
+    "ribbon cable",
+    "IDC connector",
+    "box header",
+    "keyed connector",
+    "press fit",
+    "hold and press",
+    "two arms"
+  ],
+  "instruction": "Plug the ribbon cable into the box header on the green sensor board without pressing the parts under the board onto the mat.",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": ""
+}
