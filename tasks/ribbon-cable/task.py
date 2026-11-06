@@ -12,7 +12,7 @@ other plugs the cable in.
 The connector is a black block, 16 mm long, 8 mm wide and 11 mm tall, with a raised key on the middle of one long side
 and a short stub of grey ribbon cable, red stripe on one edge, standing up out of its top. It stands on the tray with
 its length along y and its key towards the robots. Plugging it in means: line it up over the header with its key at the
-key slot, lower it in and press it down until it gives and seats, about 2 N. The other way round, the key lands on the
+key slot, lower it in and press it down until it gives and seats, about 1.2 N. The other way round, the key lands on the
 top of the header's wall and it cannot go in.
 
 Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jitter=0 -E control_hz=20 \\
@@ -46,6 +46,7 @@ RED = (0.80, 0.10, 0.08)
 MAT_C = (0.20, 0.22, 0.24)
 FOAM_C = (0.45, 0.47, 0.50)
 RISER_C = (0.85, 0.85, 0.82)
+PLA = (0.93, 0.45, 0.10)
 TRAY_C = (0.62, 0.63, 0.66)
 
 # -- the foam bars on the mat (fixed mat; each bar a sprung slide) -------------------------------------------------------
@@ -54,7 +55,7 @@ PED_X0, PED_X1 = -0.009, 0.036  # its extent along x in the board's frame: the b
 MAT_T = 0.003  # anti-static mat, 3 mm thick, on the riser
 FOAM_H, FOAM_W = 0.018, 0.012  # each bar 18 mm tall, 12 mm wide, along x across the board
 FOAM_X0, FOAM_X1 = -0.007, 0.032
-FOAM_K, FOAM_D = 250.0, 4.0  # N/m: soft foam, 1 N sinks it 4 mm
+FOAM_K, FOAM_D = 150.0, 3.0  # N/m: soft foam, 1 N on a bar sinks it 6.7 mm
 FOAM_TRAVEL = 0.010
 
 # -- the board (loose). Frame: origin on the board's underside under the header's centre, x away from the robots, y to
@@ -62,10 +63,11 @@ FOAM_TRAVEL = 0.010
 HX, HY = 0.30, -0.08  # the header's centre at the start, world
 BOARD_HX, BOARD_Y0, BOARD_Y1, BOARD_T = 0.025, -0.020, 0.060, 0.0016  # 50 x 80 mm; the header 20 mm from its right end
 ZT = BOARD_T  # the board's top, in its frame
-BAR_Y = (-0.014, 0.030)  # the foam bars' centres, board frame
-GRIP_Y = 0.040  # the left hand pinches the board's near edge here, where it overhangs the riser
+BAR_Y = (-0.014, 0.036)  # the foam bars' centres, board frame
+STIFF_Y0, STIFF_T = 0.046, 0.003  # a printed stiffener, 3 mm thick, screwed under the board's left end (y 46 to 60 mm)
+GRIP_Y = 0.054  # the left hand pinches the board and its stiffener here, at the near edge, over no riser
 CAP_X, CAP_Y, CAP_R, CAP_H = 0.012, 0.011, 0.004, 0.015  # the capacitor under the board, beside the header
-BOARD_MASS = 0.025
+BOARD_MASS = 0.028
 MAT_TOP = TOP + PED_H + MAT_T  # the mat's top, world
 BOARD_Z0 = MAT_TOP + FOAM_H  # the board's underside on the foam, world (before it sinks under its own weight)
 
@@ -79,11 +81,11 @@ SLOT_W = 0.005  # the key slot through the middle of the header's wall facing th
 _wall_h = WALL_TOP - FLOOR
 
 # The press fit: the pins are not contacts. The connector rests on a sprung contact plate inside the header, 4 mm above
-# the board. The plate gives way once the connector, in the header the right way round, pushes it down 1 mm (2 N); its
+# the board. The plate gives way once the connector, in the header the right way round, pushes it down 1 mm (1.2 N); its
 # target then drops to the bottom of its 2.5 mm travel and stays there, and the connector follows to its seat.
 SEAT_GAP = 0.0015
 TRAVEL, TRIGGER = 0.0025, 0.001
-PLATE_K, PLATE_C = 2000.0, 6.0
+PLATE_K, PLATE_C = 1200.0, 4.0  # 1 mm of give, the trigger, takes 1.2 N
 PIN, PIN_PROUD, PLATE_T = 0.00064, 0.0001, 0.0004
 PIN_TOP0 = ZT + SEAT_GAP + TRAVEL
 _plate_top = PIN_TOP0 - PIN_PROUD
@@ -107,6 +109,8 @@ BOARD = part(
     boxes=[
         ((0.0, (BOARD_Y0 + BOARD_Y1) / 2, BOARD_T / 2), (2 * BOARD_HX, BOARD_Y1 - BOARD_Y0, BOARD_T), FR4),
         ((-0.008, 0.032, ZT + 0.0005), (0.008, 0.008, 0.001), BLACK),  # a chip
+        # the printed stiffener under the left end
+        ((0.0, (STIFF_Y0 + BOARD_Y1) / 2, -STIFF_T / 2), (2 * BOARD_HX, BOARD_Y1 - STIFF_Y0, STIFF_T), PLA),
         # the header: floor, the two end walls, the far wall and the near wall in two pieces either side of the slot
         ((0.0, 0.0, ZT + FLOOR / 2), (OUT_LX, OUT_LY, FLOOR), BLACK),
         ((0.0, CAV_LY / 2 + WALL / 2, _wz), (OUT_LX, WALL, _wall_h), BLACK),
@@ -283,7 +287,7 @@ CONN_HOLD = -0.005
 PICK_Z = TOP + TRAY[2] + GRIP_UP + TIP_ABOVE_TCP
 PICK_HOVER = TOP + 0.07
 LIFT = 0.070  # the board held this far above where it lay
-BOARD_WIDE, BOARD_HOLD = -0.009, -0.0035  # pads 18 mm apart round the 1.6 mm board, then a firm pinch
+BOARD_WIDE, BOARD_HOLD = -0.009, FINGER_CLOSED  # pads 18 mm apart round the board's 4.6 mm end, then closed on it
 PINCH_IN = 0.013  # the pads' tips this far in from the board's near edge (it overhangs the riser 16 mm)
 C_RIGHT = np.array([0.94, 0.61, 2.20]) / 1000.0
 PRESS_RATE = 0.002  # m/s
@@ -416,7 +420,7 @@ def demo():
     # the left hand's pinch point: at the board's near edge (-x), PINCH_IN in, at GRIP_Y, at the board's mid-thickness
     gx = HX - BOARD_HX + PINCH_IN - TIP_ABOVE_TCP  # the TCP sits TIP_ABOVE_TCP behind the pad tips
     gy = HY + GRIP_Y
-    gz = BOARD_Z0 - 0.0004 + BOARD_T / 2  # the board sinks 0.4 mm into the foam under its weight
+    gz = BOARD_Z0 - 0.001 + (BOARD_T - STIFF_T) / 2  # the middle of the board and stiffener (sunk 1 mm into the foam)
     out = gx - 0.06
     left = [
         Waypoint(3.0, (out, gy, gz + 0.03), BOARD_WIDE, "level, pointing at the board's overhang", POINT_X),
