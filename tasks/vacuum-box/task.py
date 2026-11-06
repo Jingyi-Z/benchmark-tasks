@@ -140,7 +140,7 @@ LID = part(
 # -- the vacuum line (fixed): a hose from the stopcock's barb to a manifold with the gauge and the pump's switch -------
 LINE_XY = (0.17, -0.36)  # the pump's controller box, in front of the right arm and clear of the held dome
 BOX = (0.080, 0.050, 0.080)  # the controller box: the line's manifold, gauge on top, pump switch
-GAUGE_X = -0.018  # the gauge on the manifold's near half, the switch on its far half
+GAUGE_X = -0.026  # well clear of the switch, so a hand pressing the switch misses the gauge  # the gauge on the manifold's near half, the switch on its far half
 GAUGE_R = 0.020
 GAUGE_TOP = BOX[2] + 0.025
 NEEDLE_PER_KPA = math.radians(270.0) / 100.0
@@ -156,7 +156,7 @@ for _k in range(11):  # every 10 kPa, from 0 (pointing +y, towards the desiccato
                    (0.0012, 0.0012, 0.0004), BLACK if _k < 9 else RED))
 # The pump switch: a rocker on the manifold's far end, pivot across it (about y). Red PUMP ON half away from the robots,
 # black OFF half towards them. Off: the red end tilted up. Pressing an end down tips it there; it stays where pushed.
-SWITCH_X = 0.020
+SWITCH_X = 0.022
 ROCKER_PIVOT = (SWITCH_X, 0.0, BOX[2] + 0.004)
 ROCKER = Joint(
     "pump", kind="hinge", axis="Y", anchor=ROCKER_PIVOT, lower=-0.25, upper=0.25, initial=-0.25,
@@ -372,12 +372,13 @@ VIAL_CARRY_Z = TOP + FLANGE_TOP + 0.015 + 0.022 + TIP_ABOVE_TCP
 POST_Z = TOP + STOP_Z + 0.019 + TIP_ABOVE_TCP  # tips 3 mm above the lever bar, 15 mm down the 20 mm post
 POST_WIDE = -0.010
 SWITCH_Z = TOP + BOX[2] + 0.004 - 0.005 + TIP_ABOVE_TCP  # closed tips 5 mm below the pivot, near the paddle's end
+SWITCH_YAW = math.pi / 2  # closed fingers side by side along x: a narrow press on one end of the paddle
 VENT_RATE_AIM = 9.0
 _live = {"stop": 0.0, "tl": None, "p": P0, "lid_xy": None, "base_xy": None, "off": np.zeros(2), "t_back": 1e9}
 
 
 def _live_reset():
-    _live.update(stop=0.0, tl=None, p=P0, lid_xy=None, base_xy=None, off=np.zeros(2), t_back=1e9)
+    _live.update(stop=0.0, tl=None, p=P0, lid_xy=None, base_xy=None, off=np.zeros(2))  # t_back stays: demo() sets it, and the env resets after
 
 
 def _clock():
@@ -526,9 +527,9 @@ def demo():
     sx, sy = LINE_XY[0] + SWITCH_X, LINE_XY[1]
     on_x, off_x = sx + 0.012, sx - 0.012  # near each end of the 32 mm paddle
     right += [
-        Waypoint(2.5, (on_x, sy, SWITCH_Z + 0.04), FINGER_CLOSED, "above the pump switch's red end", 0.0),
-        Waypoint(1.0, (on_x, sy, SWITCH_Z), FINGER_CLOSED, "press it down: pump on", 0.0),
-        Waypoint(0.6, (on_x, sy, SWITCH_Z + 0.04), FINGER_CLOSED, "up", 0.0),
+        Waypoint(2.5, (on_x, sy, SWITCH_Z + 0.04), FINGER_CLOSED, "above the pump switch's red end", SWITCH_YAW),
+        Waypoint(1.0, (on_x, sy, SWITCH_Z), FINGER_CLOSED, "press it down: pump on", SWITCH_YAW),
+        Waypoint(0.6, (on_x, sy, SWITCH_Z + 0.04), FINGER_CLOSED, "up", SWITCH_YAW),
     ]
     pxo, pyo = _post(STOP_OPEN)
     right += [
@@ -542,9 +543,9 @@ def demo():
         right.append(Waypoint(0.5, (x, y, POST_Z), POST_WIDE, "swing the stopcock shut", 0.6 * phi))
     right += [
         Waypoint(0.8, (x, y, POST_Z + 0.03), POST_WIDE, "up off the post", 0.0),
-        Waypoint(2.0, (off_x, sy, SWITCH_Z + 0.04), FINGER_CLOSED, "above the switch's black end", 0.0),
-        Waypoint(1.0, (off_x, sy, SWITCH_Z), FINGER_CLOSED, "press it down: pump off", 0.0),
-        Waypoint(0.6, (off_x, sy, SWITCH_Z + 0.04), FINGER_CLOSED, "up", 0.0),
+        Waypoint(2.0, (off_x, sy, SWITCH_Z + 0.04), FINGER_CLOSED, "above the switch's black end", SWITCH_YAW),
+        Waypoint(1.0, (off_x, sy, SWITCH_Z), FINGER_CLOSED, "press it down: pump off", SWITCH_YAW),
+        Waypoint(0.6, (off_x, sy, SWITCH_Z + 0.04), FINGER_CLOSED, "up", SWITCH_YAW),
     ]
     # 5. check the dome is held: pull up gently on the knob
     right += [
