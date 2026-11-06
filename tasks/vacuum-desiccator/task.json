@@ -19,5 +19,5 @@
   "reset_notes": "Nothing is consumed. Take the vial out and stand it at (0.20, 0.20); seat the dome; switch the pump on, open the stopcock, pump down to -93 kPa, shut the stopcock, switch the pump off.",
   "fidelity": "Rigid-body sim. Air is a simple model: pressure set by the stopcock opening and the pump switch, and a vacuum load that holds the dome down while sealed. The seal is a pose check. Base and dome are lathe meshes; only the dome's rim and knob collide. The powder is a static dish.",
   "scores": "Dream-1 run: 0.0; demo: 1.0",
-  "media": ""
+  "media": "M-2VWAGD"
 }
