@@ -534,13 +534,13 @@ def demo():
     _trim["p1"] = t_in
     # Left 2. clip: turned so the closed fingertips are thin along the slot (8 mm), behind the open actuator, push its tab
     # forward until it snaps shut on the cable, the fingertips stopping 1 mm behind the shut tab
-    bz = HINGE_Z + 0.0027 + tip
+    bz = HINGE_Z + 0.0017 + tip  # the fingertips 3.5 mm above the board: under the open tab's end, over the bar
     along = _ZifYaw(0.0)
     _wait_until(left, t_in, behind_hi, shut, "wait for the cable to be in", yaw)
     left += [
         Waypoint(1.0, _AtZif(0.0, 0.016, 0.03), shut, "turn the fingers along the slot", along),
         Waypoint(1.5, _AtZif(0.0, 0.016, bz), shut, "fingertips down behind the open actuator", along),
-        Waypoint(2.5, _AtZif(0.0, 0.005, bz), shut, "push its tab forward until it snaps shut", along),
+        Waypoint(3.0, _AtZif(0.0, 0.005, bz), shut, "push its tab forward until it snaps shut", along),
         Waypoint(0.5, _AtZif(0.0, 0.005, bz), shut, "settle", along),
         Waypoint(1.0, _AtZif(0.0, 0.005, 0.04), shut, "lift off", along),
         Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "park"),
