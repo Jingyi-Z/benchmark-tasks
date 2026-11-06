@@ -464,12 +464,12 @@ def demo():
         Waypoint(1.2, _AtZif(0.0, yin, 0.03, True), FPC_WIDE, "up off the cable", yaw),
     ]
     # 4. clip: closed fingertips behind the open actuator's tab, push it forward until it snaps shut
-    bz = HINGE_Z + 0.0015 + tip  # the open actuator's tab sticks back, 0.7 to 2.4 mm above the hinge
+    bz = HINGE_Z + 0.0008 + tip  # the open actuator's tab sticks back, 0.7 to 2.4 mm above the hinge: push it low
     right += [
         Waypoint(2.0, _AtZif(0.0, 0.014, 0.03), shut, "fingers closed, behind the open actuator", yaw),
         Waypoint(1.5, _AtZif(0.0, 0.014, bz), shut, "fingertips down behind its tab", yaw),
-        Waypoint(2.0, _AtZif(0.0, 0.006, bz), shut, "push it forward until it snaps shut", yaw),
-        Waypoint(1.0, _AtZif(0.0, 0.006, 0.03), shut, "lift off", yaw),
+        Waypoint(2.0, _AtZif(0.0, 0.005, bz), shut, "push it forward until it snaps shut", yaw),
+        Waypoint(1.0, _AtZif(0.0, 0.005, 0.03), shut, "lift off", yaw),
         Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
     ]
     t_free = _dur(right) - 2.0
