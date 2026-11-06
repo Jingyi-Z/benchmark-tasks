@@ -3,7 +3,7 @@ lying on a cable rest beside it, and a small LED work lamp lighting the bench.
 
 The board is green, 50 x 80 mm, with a flip-lock ZIF connector for the FPC on its top near its right end: a black
 housing with a slot facing the board's right end, and a brown actuator hinged along the housing's back edge, with a
-small upright tab on its front. The actuator lies flat (locked); flipped up about 100 degrees it is open, and the cable
+small upright tab on its front. The actuator lies flat (locked); flipped up about 70 degrees it is open, and the cable
 can be slid into the slot. Flipped back down it clamps the cable. Closed, its clamping rib blocks the slot, so a cable
 cannot go in. Under the board is an upright electrolytic capacitor, 15 mm tall. The board lies across two grey foam bars,
 18 mm tall, on a dark anti-static mat on a 4 cm riser block, its near edge overhanging the riser. The foam is soft:
@@ -79,8 +79,8 @@ SLOT_HW, SLOT_BACK = 0.006, 0.0015
 ROOF0, ROOF1, WALL_H = 0.0014, 0.0018, 0.0018
 HINGE_Y, HINGE_Z = 0.0025, 0.0018
 ACT_T, RIB_Z, TAB_H, TAB_T = 0.0006, 0.00075, 0.004, 0.001
-ACT_OPEN = -math.radians(100.0)  # the actuator flipped up (negative: its front edge rises)
-DETENT = -math.radians(35.0)  # past this it snaps open, short of it it springs shut
+ACT_OPEN = -math.radians(70.0)  # the actuator flipped up (negative: its front edge rises), short of upright
+DETENT = -math.radians(30.0)  # past this it snaps open, short of it it springs shut
 ACT_K, ACT_D = 0.002, 0.00005  # N m/rad: a light detent, about 0.4 N at the tab
 
 ACTUATOR = Joint(
@@ -164,7 +164,7 @@ IN_DEPTH = SLOT_BACK - 0.0005  # its end within 0.5 mm of the slot's back,
 IN_Z = 0.0006  # and its underside within 0.6 mm of the board's top
 ENTER = ZY0 + 0.002  # its end 2 mm into the slot counts as entering
 CLOSED = math.radians(6.0)
-OPENED = math.radians(60.0)
+OPENED = math.radians(50.0)
 FLIP_MAX = 30.0
 CAP_TOUCH = 0.0005
 RELEASED = 0.030
@@ -233,7 +233,7 @@ def _add_lamp(env):
 
 @on_step
 def _watch(env):
-    """The actuator's detent (snaps open past 35 degrees, springs shut short of it); whether it has been opened; whether
+    """The actuator's detent (snaps open past 30 degrees, springs shut short of it); whether it has been opened; whether
     the cable was pushed into the slot while it was shut (forced); whether the capacitor has ever been pressed onto the
     mat; whether both hands are clear of the connector."""
     import torch
@@ -274,7 +274,7 @@ def score(objects):
     from component side up. Otherwise: 1.0 if the cable is fully inserted (its end within 0.5 mm of the slot's back,
     within 1 mm of its centre line, turned no more than 10 degrees, lying on the slot's floor), the actuator is shut
     (within 6 degrees of flat) and both hands are at least 3 cm from the connector; 0.5 if the cable is fully inserted
-    but the actuator is not shut or a hand is still at the connector; 0.25 if the actuator has been flipped open (60
+    but the actuator is not shut or a hand is still at the connector; 0.25 if the actuator has been flipped open (50
     degrees or more) at some point but the cable is not fully inserted; 0 otherwise."""
     board, fpc = objects["sensor_board"], objects["fpc"]
     if _state["pressed_cap"] or _state["forced"] or board.tilt_deg() > FLIP_MAX:
@@ -464,12 +464,12 @@ def demo():
         Waypoint(1.2, _AtZif(0.0, yin, 0.03, True), FPC_WIDE, "up off the cable", yaw),
     ]
     # 4. clip: closed fingertips behind the open actuator's tab, push it forward until it snaps shut
-    bz = HINGE_Z + 0.0008 + tip  # the open actuator's tab sticks back, 0.7 to 2.4 mm above the hinge: push it low
+    bz = HINGE_Z + 0.0027 + tip  # the open actuator stands short of upright, its back 2.5 mm tall and its tab higher
     right += [
-        Waypoint(2.0, _AtZif(0.0, 0.014, 0.03), shut, "fingers closed, behind the open actuator", yaw),
-        Waypoint(1.5, _AtZif(0.0, 0.014, bz), shut, "fingertips down behind its tab", yaw),
-        Waypoint(2.0, _AtZif(0.0, 0.005, bz), shut, "push it forward until it snaps shut", yaw),
-        Waypoint(1.0, _AtZif(0.0, 0.005, 0.03), shut, "lift off", yaw),
+        Waypoint(2.0, _AtZif(0.0, 0.016, 0.03), shut, "fingers closed, behind the open actuator", yaw),
+        Waypoint(1.5, _AtZif(0.0, 0.016, bz), shut, "fingertips down behind it", yaw),
+        Waypoint(2.0, _AtZif(0.0, 0.004, bz), shut, "push it forward until it snaps shut", yaw),
+        Waypoint(1.0, _AtZif(0.0, 0.004, 0.03), shut, "lift off", yaw),
         Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
     ]
     t_free = _dur(right) - 2.0
