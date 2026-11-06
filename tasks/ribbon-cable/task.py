@@ -241,7 +241,7 @@ def _fit(env):
 
 
 # -- scoring -----------------------------------------------------------------------------------------------------------
-SUCCESS_HOLD_S = 6.0
+SUCCESS_HOLD_S = 10.0  # end the trial 10 s after full score: the demo then has set the board back and parked
 
 
 def score(objects):
