@@ -1,0 +1,7 @@
+{
+  "title": "Connect a flex cable to a ZIF connector on a board held up off its foam",
+  "category": "Impact on AI timelines",
+  "instruction": "Connect the flat flex cable to the connector on the green sensor board without pressing the parts under the board onto the mat.",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": ""
+}
