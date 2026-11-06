@@ -8,7 +8,7 @@ about 70 degrees it is open, and the cable can be slid into the slot. Flipped ba
 clamping rib blocks the slot, so a cable cannot go in.
 
 The sensor pad lies on a grey foam block, 10 cm tall, with its cable lying flat along the block towards the board. Near
-the block's end a slot 30 mm wide and 30 mm deep is cut across it; the cable bridges the slot and its stiffened contact
+the block's end a slot 30 mm wide and 45 mm deep is cut across it; the cable bridges the slot and its stiffened contact
 end rests on the short end piece past it, 1.5 cm short of the board. The cable is a 10 mm wide, 115 mm long amber flex
 cable: held by one end it stays nearly straight, and it bends easily when pushed; it drags its pad along when pulled.
 
@@ -154,7 +154,7 @@ CABLE_L = SEG * N_SEG + FPC_STIFF
 OVERHANG = 0.044  # the cable's end lies this far past the slot's near edge, on the block's short end piece
 GAP = 0.015  # the block's end stops this far short of the board's edge
 BLOCK_H, BLOCK_L, BLOCK_W = 0.100, 0.12, 0.04
-SLOT_W, SLOT_D, END_L = 0.030, 0.030, 0.018  # the slot cut across the block under the cable, and the end piece past it
+SLOT_W, SLOT_D, END_L = 0.030, 0.045, 0.018  # the slot cut across the block under the cable, and the end piece past it
 BLOCK_END = HY + BOARD_Y0 - GAP - END_L - SLOT_W  # the slot's near edge, world y
 _hinge_y = [EDGE + SEG * k for k in range(N_SEG + 1)]  # hinge k at the front end of link k; link N_SEG is the tip
 _links = []
@@ -335,7 +335,8 @@ TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.15, 0.25, TOP + 0.14)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.14)
 FPC_WIDE, FPC_HOLD = -0.006, FINGER_CLOSED  # pads 12 mm apart round the flat cable, then closed on it
-PICK_WIDE = -0.015  # pads 30 mm apart, one either side of the cable over the slot, to pick it up
+PICK_WIDE = -0.012  # pads 24 mm apart, one either side of the cable over the slot, to pick it up
+PICK_SAG = 0.010  # the arm sits about 1 cm low at this reach, low and close in; aim that much higher
 CABLE_IN = 0.007  # the finger tips this far in from the cable's near edge (it is 10 mm wide)
 FLAT_YAW = math.pi / 2  # fingers closing along x
 
@@ -469,7 +470,7 @@ def demo():
     ex = -FPC_HW + CABLE_IN - tip  # the TCP across the cable, from its centre line: the finger tips CABLE_IN in
     px = HX + ex
     py = BLOCK_END + OVERHANG + PINCH_D
-    pz = TOP + BLOCK_H + FPC_T / 2
+    pz = TOP + BLOCK_H + FPC_T / 2 + PICK_SAG
     right = [
         Waypoint(3.0, (px - 0.05, py, pz + 0.02), PICK_WIDE, "level, beside the cable where it crosses the slot",
                  POINT_X),
