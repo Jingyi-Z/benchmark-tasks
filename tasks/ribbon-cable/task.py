@@ -54,7 +54,7 @@ PED_X0, PED_X1 = -0.009, 0.036  # its extent along x in the board's frame: the b
 MAT_T = 0.003  # anti-static mat, 3 mm thick, on the riser
 FOAM_H, FOAM_W = 0.018, 0.012  # each bar 18 mm tall, 12 mm wide, along x across the board
 FOAM_X0, FOAM_X1 = -0.007, 0.032
-FOAM_K, FOAM_C = 250.0, 4.0  # N/m: soft foam, 1 N sinks it 4 mm
+FOAM_K, FOAM_D = 250.0, 4.0  # N/m: soft foam, 1 N sinks it 4 mm
 FOAM_TRAVEL = 0.010
 
 # -- the board (loose). Frame: origin on the board's underside under the header's centre, x away from the robots, y to
@@ -123,7 +123,7 @@ BOARD = part(
 
 _fx, _fl = (FOAM_X0 + FOAM_X1) / 2, FOAM_X1 - FOAM_X0
 _bars = [Joint(f"foam{i}", kind="slide", axis="Z", anchor=(_fx, y, PED_H + MAT_T + FOAM_H), lower=-FOAM_TRAVEL,
-               upper=0.0, initial=0.0, stiffness=FOAM_K, damping=FOAM_C, target=0.0, mass=0.003,
+               upper=0.0, initial=0.0, stiffness=FOAM_K, damping=FOAM_D, target=0.0, mass=0.003,
                boxes=[((_fx, y, PED_H + MAT_T + FOAM_H / 2), (_fl, FOAM_W, FOAM_H), FOAM_C)])
          for i, y in enumerate(BAR_Y)]
 _px, _pl, _py, _pw = (PED_X0 + PED_X1) / 2, PED_X1 - PED_X0, (BOARD_Y0 + BOARD_Y1) / 2, BOARD_Y1 - BOARD_Y0 + 0.03
