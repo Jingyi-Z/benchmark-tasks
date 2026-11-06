@@ -1,15 +1,16 @@
-"""On the station table: a helping-hands station holding a bare sensor board up in two alligator clips, under the LED ring
-of its magnifier, and a tactile sensor pad with a flat flex cable (FPC) lying on a foam block in front of it.
+"""On the station table: a helping-hands station holding a bare sensor board up in two alligator clips, lit by its small
+LED work light, and a tactile sensor pad with a flat flex cable (FPC) lying on a foam block in front of it.
 
-The board is green, 50 x 66 mm, held level 8 cm above the bench, its connector edge towards the robots' right. On its
+The board is green, 50 x 66 mm, held level 11.5 cm above the bench, its connector edge towards the robots' right. On its
 top at that edge is a flip-lock ZIF connector: a black housing with a slot facing the board's edge, and a brown actuator
 hinged along the housing's back edge, with a small upright tab on its front. The actuator lies flat (locked); flipped up
 about 70 degrees it is open, and the cable can be slid into the slot. Flipped back down it clamps the cable. Closed, its
 clamping rib blocks the slot, so a cable cannot go in.
 
-The sensor pad lies on the foam block with its cable lying flat along the block towards the board, the cable's last
-45 mm (its stiffened contact end and 30 mm of bare cable) sticking out past the block's end, 1.5 cm short of the board.
-The cable is a 10 mm wide, 115 mm long amber flex cable; it bends freely and is dragged along by its pad.
+The sensor pad lies on a grey foam block, 10 cm tall, with its cable lying flat along the block towards the board. Near
+the block's end a slot 30 mm wide and 30 mm deep is cut across it; the cable bridges the slot and its stiffened contact
+end rests on the short end piece past it, 1.5 cm short of the board. The cable is a 10 mm wide, 115 mm long amber flex
+cable: held by one end it stays nearly straight, and it bends easily when pushed; it drags its pad along when pulled.
 
 One hand unclips the connector, the other picks the cable up by its end and slides it in; it holds the cable in while
 the first hand clips the actuator shut, then both let go.
@@ -51,7 +52,7 @@ LED_C = (0.96, 0.96, 0.94)
 HX, HY = 0.30, -0.04  # the connector's centre, world
 BOARD_HX, BOARD_Y0, BOARD_Y1, BOARD_T = 0.025, -0.006, 0.060, 0.0016
 ZT = BOARD_T
-ZB = 0.080  # the board's underside above the bench
+ZB = 0.115  # the board's underside above the bench
 BOARD_Z0 = TOP + ZB
 
 # The ZIF connector (heights above the board's top). The slot runs along +y from its mouth at y = -2.5 mm to its back
@@ -95,8 +96,8 @@ BOARD = part(
 )
 
 # -- the helping-hands station (fixed): a cast iron base behind the board, two steel rods ending in alligator clips on
-# the board (one on its far end, one on its far edge) and a rectangular magnifier head with an LED ring, level, 9 cm
-# over the board and beyond its far edge. Same frame as the board's, origin on the bench. -------------------------------
+# the board (one on its far end, one on its far edge) and a small LED work light on a third rod, 5 cm above the board
+# and 9 cm beyond the connector, shining back at it under the hands. Same frame as the board's, origin on the bench. -----
 _zb, _zt = ZB, ZB + BOARD_T
 _jaw = 0.002  # jaw thickness
 
@@ -111,8 +112,7 @@ def _clip(cx, cy, along_x):
 
 _RZ = _zt + 0.025  # the clip rods' height
 _PX = 0.13  # the posts' x
-_HEAD = (0.090, 0.0, _zt + 0.090)  # the magnifier head's centre
-_HW, _HL = 0.040, 0.035  # its half sizes (x, y)
+_HEAD = (0.095, 0.0, _zt + 0.050)  # the LED light head's centre
 _rod = 0.006
 STATION = part(
     "helping_hands", pos=(HX, HY, TOP), fixed=True, friction=0.6,
@@ -128,16 +128,14 @@ STATION = part(
         ((((0.034 + _PX) / 2), 0.025, _RZ), (_PX - 0.034, _rod, _rod), STEEL),
         ((0.034, 0.025, (_zt + _RZ) / 2 + _jaw), (_rod, _rod, _RZ - _zt), STEEL),
         *_clip(0.021, 0.025, True),
-        # the magnifier: a post, an arm and the head's frame with its LED ring underneath
-        ((_PX + 0.015, -0.025, (0.015 + _HEAD[2]) / 2), (0.008, 0.008, _HEAD[2] - 0.015), STEEL),
-        ((_HEAD[0] + _HW + 0.0075 + 0.005, -0.025, _HEAD[2]), (0.025, _rod, _rod), STEEL),
-        *[((_HEAD[0] + s * _HW, 0.0, _HEAD[2]), (0.010, 2 * _HL + 0.010, 0.012), BLACK) for s in (1, -1)],
-        *[((_HEAD[0], s * _HL, _HEAD[2]), (2 * _HW, 0.010, 0.012), BLACK) for s in (1, -1)],
-        *[((_HEAD[0] + s * _HW, 0.0, _HEAD[2] - 0.007), (0.006, 2 * _HL, 0.002), LED_C) for s in (1, -1)],
-        *[((_HEAD[0], s * _HL, _HEAD[2] - 0.007), (2 * _HW - 0.006, 0.006, 0.002), LED_C) for s in (1, -1)],
+        # the LED light: a post, a rod and a small head with its LED panel facing the connector
+        ((_PX + 0.015, -0.010, (0.015 + _HEAD[2]) / 2), (0.008, 0.008, _HEAD[2] - 0.015), STEEL),
+        ((_HEAD[0] + 0.035, -0.010, _HEAD[2]), (0.035, _rod, _rod), STEEL),
+        ((_HEAD[0] + 0.008, 0.0, _HEAD[2]), (0.016, 0.040, 0.020), BLACK),
+        ((_HEAD[0] - 0.0005, 0.0, _HEAD[2]), (0.001, 0.034, 0.014), LED_C),
     ],
 )
-LIGHT_POS = (HX + _HEAD[0], HY + _HEAD[1], TOP + _HEAD[2] - 0.010)  # the LED ring's light, just under the head
+LIGHT_POS = (HX + _HEAD[0] - 0.012, HY + _HEAD[1], TOP + _HEAD[2])  # the LED light, just in front of its panel
 LIGHT_INTENSITY, LIGHT_RADIUS = 4.0e5, 0.02
 
 # -- the cable (loose): a tactile sensor pad with its flat flex cable. The pad is the main body; the cable leaves its front
@@ -153,10 +151,10 @@ PAD_HW, PAD_L, PAD_T = 0.009, 0.015, 0.004  # the sensor pad: 18 x 15 x 4 mm
 PAD_MASS = 0.010
 SKIN_C = (0.12, 0.12, 0.13)
 CABLE_L = SEG * N_SEG + FPC_STIFF
-OVERHANG = 0.036  # the cable's end lies this far past the slot cut across the block (on the block's short end piece)
+OVERHANG = 0.044  # the cable's end lies this far past the slot's near edge, on the block's short end piece
 GAP = 0.015  # the block's end stops this far short of the board's edge
-BLOCK_H, BLOCK_L, BLOCK_W = 0.065, 0.12, 0.04
-SLOT_W, SLOT_D, END_L = 0.022, 0.025, 0.018  # the slot cut across the block under the cable, and the end piece past it
+BLOCK_H, BLOCK_L, BLOCK_W = 0.100, 0.12, 0.04
+SLOT_W, SLOT_D, END_L = 0.030, 0.030, 0.018  # the slot cut across the block under the cable, and the end piece past it
 BLOCK_END = HY + BOARD_Y0 - GAP - END_L - SLOT_W  # the slot's near edge, world y
 _hinge_y = [EDGE + SEG * k for k in range(N_SEG + 1)]  # hinge k at the front end of link k; link N_SEG is the tip
 _links = []
@@ -175,7 +173,7 @@ for _k in range(N_SEG + 1):
     _links.append(Joint(f"bend{_k}", kind="hinge", axis="X", anchor=(0.0, _y0, FPC_T / 2), lower=-1.7, upper=1.7,
                         initial=0.0, target=0.0, stiffness=SEG_K, damping=SEG_D, mass=_m, boxes=_bx,
                         parent=f"bend{_k - 1}" if _k else ""))
-PINCH_D = -0.025  # the hand holds the cable this far behind its contact end
+PINCH_D = -0.029  # the hand holds the cable this far behind its contact end, over the slot
 FPC = part(
     "fpc", pos=(HX, BLOCK_END + OVERHANG - CABLE_L - EDGE, TOP + BLOCK_H), mass=PAD_MASS, friction=0.9,
     boxes=[((0.0, -PAD_L / 2, PAD_T / 2), (2 * PAD_HW, PAD_L, PAD_T), FR4),
@@ -248,21 +246,21 @@ def _reset_state(env):
 
 
 def _add_lamp(env):
-    """The magnifier's LED ring: a small sphere light just under the magnifier head."""
+    """The station's LED work light: a small sphere light in front of its panel."""
     try:
         import omni.usd
         from pxr import Gf, UsdGeom, UsdLux
 
         stage = omni.usd.get_context().get_stage()
         o = env.unwrapped.scene.env_origins[0].cpu().numpy()
-        light = UsdLux.SphereLight.Define(stage, "/World/task_ring_light")
+        light = UsdLux.SphereLight.Define(stage, "/World/task_led_light")
         light.CreateIntensityAttr(LIGHT_INTENSITY)
         light.CreateRadiusAttr(LIGHT_RADIUS)
         light.CreateColorAttr(Gf.Vec3f(1.0, 0.98, 0.95))
         UsdGeom.XformCommonAPI(light.GetPrim()).SetTranslate(Gf.Vec3d(*(np.asarray(LIGHT_POS) + o).tolist()))
         _state["lamp"] = True
     except Exception as e:  # rendering only: never fail a trial over the light
-        print("ring light not added:", e)
+        print("LED light not added:", e)
 
 
 @on_step
