@@ -138,8 +138,8 @@ LID = part(
 )
 
 # -- the vacuum line (fixed): a hose from the stopcock's barb to a manifold with the gauge and the pump's switch -------
-LINE_XY = (BX, BY + STOP_XY[1] - 0.100)
-BOX = (0.080, 0.040, 0.030)  # the manifold
+LINE_XY = (0.17, -0.36)  # the pump's controller box, in front of the right arm and clear of the held dome
+BOX = (0.080, 0.050, 0.080)  # the controller box: the line's manifold, gauge on top, pump switch
 GAUGE_X = -0.018  # the gauge on the manifold's near half, the switch on its far half
 GAUGE_R = 0.020
 GAUGE_TOP = BOX[2] + 0.025
@@ -165,13 +165,17 @@ ROCKER = Joint(
            ((SWITCH_X - 0.008, 0.0, ROCKER_PIVOT[2]), (0.016, 0.018, 0.004), BLACK)],
 )
 ON_ANGLE = 0.10  # the rocker counts as on past this (rad)
-_hose_len = (BY + STOP_XY[1] - 0.025) - (LINE_XY[1] + BOX[1] / 2)
+_barb = np.array((BX + STOP_XY[0], BY + STOP_XY[1] - 0.025)) - np.array(LINE_XY)  # the barb's end, box frame
+_inlet = np.array((0.0, BOX[1] / 2))
+_hose_len = float(np.linalg.norm(_barb - _inlet))
+_hose_mid = (_barb + _inlet) / 2
+_hose_yaw = math.atan2(*(_barb - _inlet)[::-1])
 LINE = part(
     "vacuum_line", pos=(*LINE_XY, TOP), fixed=True, friction=0.6,
     boxes=[((0.0, 0.0, BOX[2] / 2), BOX, STEEL),  # manifold
            ((GAUGE_X, 0.0, (BOX[2] + GAUGE_TOP - 0.008) / 2), (0.008, 0.008, GAUGE_TOP - 0.008 - BOX[2]), STEEL),
            *_ticks,
-           ((0.0, BOX[1] / 2 + _hose_len / 2, STOP_Z * 0.6), (0.010, _hose_len, 0.010), HOSE),  # hose up to the barb
+           ((_hose_mid[0], _hose_mid[1], STOP_Z * 0.6), (_hose_len, 0.010, 0.010), HOSE, _hose_yaw),  # hose to the barb
            ((0.0, -BOX[1] / 2 - 0.025, 0.008), (0.010, 0.050, 0.010), HOSE)],  # on to the pump
     cylinders=[((GAUGE_X, 0.0, GAUGE_TOP - 0.004), GAUGE_R, 0.008, DARK),
                ((GAUGE_X, 0.0, GAUGE_TOP + 0.0001), GAUGE_R - 0.002, 0.0002, WHITE)],
@@ -367,7 +371,7 @@ VIAL_WIDE, VIAL_HOLD = -0.020, -0.008
 VIAL_CARRY_Z = TOP + FLANGE_TOP + 0.015 + 0.022 + TIP_ABOVE_TCP
 POST_Z = TOP + STOP_Z + 0.019 + TIP_ABOVE_TCP  # tips 3 mm above the lever bar, 15 mm down the 20 mm post
 POST_WIDE = -0.010
-SWITCH_Z = TOP + BOX[2] + 0.004 - 0.003 + TIP_ABOVE_TCP  # closed tips 3 mm below the pivot, near the paddle's end
+SWITCH_Z = TOP + BOX[2] + 0.004 - 0.005 + TIP_ABOVE_TCP  # closed tips 5 mm below the pivot, near the paddle's end
 VENT_RATE_AIM = 9.0
 _live = {"stop": 0.0, "tl": None, "p": P0, "lid_xy": None, "base_xy": None, "off": np.zeros(2), "t_back": 1e9}
 
@@ -505,7 +509,7 @@ def demo():
         Waypoint(1.5, (mx, my, VIAL_CARRY_Z + 0.03), VIAL_WIDE, "up out of the base"),
         Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "out of the way"),
     ]
-    t_vial = _dur(left) - 2.0
+    t_vial = _dur(left) + 0.3  # the dome goes back once the left hand is out of the way
     right.append(Waypoint(max(0.3, t_vial - _dur(right)), _Held(KNOB_Z + HELD_UP), KNOB_HOLD,
                           "hold the dome while the vial goes in", KNOB_YAW))
     _live["t_back"] = _dur(right)  # the offset is measured only until the hand starts back
