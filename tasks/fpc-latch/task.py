@@ -167,7 +167,7 @@ for _k in range(N_SEG + 1):
         _end = _y0 + FPC_STIFF
         _bx = [((0.0, _y0 + FPC_STIFF / 2 + 0.0002, FPC_T / 2), (2 * FPC_HW, FPC_STIFF - 0.0004, FPC_T), FPC_C),
                ((0.0, _y0 + FPC_STIFF / 2, FPC_T + 0.0001), (2 * FPC_HW, FPC_STIFF - 0.006, 0.0002), STIFF_C),
-               *[((x, _end - 0.0015, FPC_T + 0.0002), (0.0004, 0.003, 0.0001), GOLD)
+               *[((x, _end - 0.0015, FPC_T - 0.00005), (0.0004, 0.003, 0.00012), GOLD)
                  for x in np.linspace(-0.0045, 0.0045, 10)]]
         _m = 0.001
     _links.append(Joint(f"bend{_k}", kind="hinge", axis="X", anchor=(0.0, _y0, FPC_T / 2), lower=-1.7, upper=1.7,
