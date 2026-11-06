@@ -211,13 +211,13 @@ P_PUMP = 3.0
 LEAK = 0.002
 GENTLE = 12.0
 HOLD_MAX = 150.0  # N on a seated lid under vacuum (capped)
-SEAL_TILT, SEAL_Z, SEAL_XY = 1.5, 0.0015, 0.004
+SEAL_TILT, SEAL_Z, SEAL_XY = 1.5, 0.0015, 0.008  # the flange is 16 mm wide: 8 mm off still covers the O-ring
 _trial = {"p": P0, "gauge": ATM, "max_rate": 0.0, "blown": False, "ids": None}
 
 
 def lid_sealed(lid, base) -> bool:
     """Seated on the flange: flat within 1.5 degrees, its rim within 1.5 mm of the flange's top, and its centre within
-    4 mm of the base's axis."""
+    8 mm of the base's axis."""
     rim = base.to_world((0.0, 0.0, FLANGE_TOP))
     rel = base.to_local(lid.pos)
     return (lid.tilt_deg() <= SEAL_TILT and abs(lid.pos[2] - rim[2]) <= SEAL_Z and math.hypot(rel[0], rel[1]) <= SEAL_XY)
@@ -476,8 +476,9 @@ def demo():
         Waypoint(1.0, (px, py0, POST_Z + 0.03), POST_WIDE, "settle over the post", 0.0),
         Waypoint(1.5, (px, py0, POST_Z), POST_WIDE, "fingers either side of the post", 0.0),
         Waypoint(0.1, _PostAt(POST_Z, True), POST_WIDE, "swing the stopcock open slowly, watching the gauge", py),
-        Waypoint(17.0, _PostAt(POST_Z, True), POST_WIDE, "swing the stopcock open slowly, watching the gauge", py),
-        Waypoint(0.8, _PostAt(POST_Z + 0.03), POST_WIDE, "up off the post", py),
+        Waypoint(26.0, _PostAt(POST_Z, True), POST_WIDE, "swing the stopcock open slowly, watching the gauge", py),
+        Waypoint(1.5, (*_post(STOP_OPEN + 0.08), POST_Z), POST_WIDE, "swing it fully open", 0.6 * STOP_OPEN),
+        Waypoint(0.8, (*_post(STOP_OPEN), POST_Z + 0.03), POST_WIDE, "up off the post", 0.6 * STOP_OPEN),
     ]
     # 2. lift the dome off by its knob and hold it up beside the base
     kx, ky = BX, BY
