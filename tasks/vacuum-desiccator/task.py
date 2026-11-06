@@ -143,21 +143,21 @@ LID = part(
 # a controller box with the pump's switch --------------------------------------------------------------------------------
 LINE_XY = (0.17, -0.36)  # the pump's controller box, in front of the right arm and clear of the held dome
 BOX = (0.080, 0.050, 0.080)  # the controller box: the line's manifold and the pump switch
-GAUGE_XY = (0.29, -0.29)  # the gauge, world: beside the stopcock, where the right wrist camera sees it while that hand
-#   works the lever
+GAUGE_XY = (0.245, -0.275)  # the gauge, world: on a tee just past the stopcock's hose barb, where the right wrist camera
+#   sees it while that hand works the lever (low, so the fingers on the lever pass over it)
 GX, GY = GAUGE_XY[0] - LINE_XY[0], GAUGE_XY[1] - LINE_XY[1]  # in the line's frame
-GAUGE_R = 0.030  # a 60 mm dial
-GAUGE_TOP = 0.040
+GAUGE_R = 0.025  # a 50 mm dial
+GAUGE_TOP = 0.030
 NEEDLE_PER_KPA = math.radians(270.0) / 100.0
 NEEDLE = Joint(
     "needle", kind="hinge", axis="Z", anchor=(GX, GY, GAUGE_TOP + 0.001), lower=-4.8, upper=0.1, initial=0.0,
     target=0.0, stiffness=0.02, damping=0.0008, mass=0.001,
-    boxes=[((GX, GY + 0.011, GAUGE_TOP + 0.0012), (0.0025, 0.024, 0.0008), RED)],
+    boxes=[((GX, GY + 0.009, GAUGE_TOP + 0.0012), (0.0025, 0.020, 0.0008), RED)],
 )
 _ticks = []
 for _k in range(11):  # every 10 kPa, from 0 (pointing +y, towards the desiccator) clockwise seen from above
     _a = -_k * 10 * NEEDLE_PER_KPA
-    _ticks.append(((GX - 0.024 * math.sin(_a), GY + 0.024 * math.cos(_a), GAUGE_TOP + 0.0003),
+    _ticks.append(((GX - 0.020 * math.sin(_a), GY + 0.020 * math.cos(_a), GAUGE_TOP + 0.0003),
                    (0.0025, 0.0025, 0.0004), BLACK if _k < 9 else RED))
 # The pump switch: a rocker on the manifold's far end, pivot across it (about y). Red PUMP ON half away from the robots,
 # black OFF half towards them. Off: the red end tilted up. Pressing an end down tips it there; it stays where pushed.

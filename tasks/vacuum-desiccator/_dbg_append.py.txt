@@ -1,0 +1,11 @@
+
+
+@on_step
+def _dbg(env):
+    import os
+    s = labkit._part_state(env, labkit._SPECS["base"])
+    _dbg.n = getattr(_dbg, "n", 0) + 1
+    if _dbg.n % 10 == 0:
+        with open(os.path.expanduser("~/dbg_vac.txt"), "a") as f:
+            f.write(f"{_dbg.n} t={_clock():.1f} cmd={math.degrees(_vent['phi']):.1f} act={math.degrees(s.joints['stopcock']):.1f} "
+                    f"gauge={gauge_kpa():.1f} p={_trial['p']:.1f} maxrate={_trial['max_rate']:.2f} blown={_trial['blown']}\n")
