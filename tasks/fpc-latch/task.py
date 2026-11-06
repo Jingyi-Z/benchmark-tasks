@@ -135,7 +135,10 @@ EDGE = 0.002  # the first hinge, 2 mm past the pad's front edge
 PAD_HW, PAD_L, PAD_T = 0.009, 0.015, 0.004  # the sensor pad: 18 x 15 x 4 mm
 SKIN_C = (0.12, 0.12, 0.13)
 HANG = -math.pi / 2  # the first hinge bent down a quarter turn: the cable hangs over the stand's edge
-STAND_XY, STAND_H, STAND = (0.35, -0.165), 0.13, (0.024, 0.030)  # the stand's centre, height and size (x, y)
+STAND_XY, STAND_H, STAND = (0.35, -0.185), 0.13, (0.024, 0.030)  # the stand's centre, height and size (x, y)
+SHELF, SHELF_T = 0.020, 0.003  # a shelf on the stand's top, sticking out 20 mm towards the board: the pad sits on its
+#   end and the cable hangs from it clear of the stand
+SHELF_END = STAND_XY[1] + STAND[1] / 2 + SHELF
 _hinge_y = [EDGE + SEG * k for k in range(N_SEG + 1)]  # hinge k at the front end of link k; link N_SEG is the tip
 _links = []
 for _k in range(N_SEG + 1):
@@ -156,13 +159,14 @@ for _k in range(N_SEG + 1):
 CABLE_L = SEG * N_SEG + FPC_STIFF
 PINCH_D = -0.035  # the hand holds the cable this far behind its contact end
 FPC = part(
-    "fpc", pos=(STAND_XY[0], STAND_XY[1] + STAND[1] / 2 - EDGE + 0.0015, TOP + STAND_H), mass=0.015, friction=0.9,
+    "fpc", pos=(STAND_XY[0], SHELF_END - EDGE + 0.0015, TOP + STAND_H), mass=0.015, friction=0.9,
     boxes=[((0.0, -PAD_L / 2, PAD_T / 2), (2 * PAD_HW, PAD_L, PAD_T), FR4),
            ((0.0, -PAD_L / 2, PAD_T + 0.0005), (2 * PAD_HW - 0.002, PAD_L - 0.002, 0.001), SKIN_C)],
     joints=_links,
 )
 REST = part("cable_stand", pos=(*STAND_XY, TOP), fixed=True, friction=0.8,
-            boxes=[((0.0, 0.0, STAND_H / 2), (STAND[0], STAND[1], STAND_H), REST_C)])
+            boxes=[((0.0, 0.0, STAND_H / 2), (STAND[0], STAND[1], STAND_H), REST_C),
+                   ((0.0, STAND[1] / 2 + SHELF / 2, STAND_H - SHELF_T / 2), (STAND[0], SHELF, SHELF_T), REST_C)])
 
 
 def cable_tip(fpc):
