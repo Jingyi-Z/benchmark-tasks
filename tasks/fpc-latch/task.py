@@ -162,14 +162,14 @@ for _k in range(N_SEG + 1):
     _y0 = _hinge_y[_k]
     if _k < N_SEG:
         _bx = [((0.0, _y0 + SEG / 2, FPC_T / 2), (2 * FPC_HW, SEG - 0.0006, FPC_T), FPC_C)]
-        _m = 0.0002
+        _m = 0.001
     else:  # the stiffened contact end
         _end = _y0 + FPC_STIFF
         _bx = [((0.0, _y0 + FPC_STIFF / 2 + 0.0002, FPC_T / 2), (2 * FPC_HW, FPC_STIFF - 0.0004, FPC_T), FPC_C),
                ((0.0, _y0 + FPC_STIFF / 2, FPC_T + 0.0001), (2 * FPC_HW, FPC_STIFF - 0.006, 0.0002), STIFF_C),
                *[((x, _end - 0.0015, FPC_T + 0.0002), (0.0004, 0.003, 0.0001), GOLD)
                  for x in np.linspace(-0.0045, 0.0045, 10)]]
-        _m = 0.0003
+        _m = 0.001
     _links.append(Joint(f"bend{_k}", kind="hinge", axis="X", anchor=(0.0, _y0, FPC_T / 2), lower=-1.7, upper=1.7,
                         initial=0.0, target=0.0, stiffness=SEG_K, damping=SEG_D, mass=_m, boxes=_bx,
                         parent=f"bend{_k - 1}" if _k else ""))
@@ -243,6 +243,22 @@ def _reset_state(env):
     _state.update(opened=False, forced=False, hands_far=True, was_in=False)
     if not _state["lamp"]:
         _add_lamp(env)
+    _cable_weightless(env)
+
+
+def _cable_weightless(env):
+    """The cable's own weight (a few grams over 11 cm) is left out: gravity acts on the sensor pad only, so the cable's
+    springs hold it straight, as a real cable held by one end stays nearly straight."""
+    try:
+        import torch
+
+        view = env.unwrapped.scene["fpc"].root_physx_view
+        flags = view.get_disable_gravities()
+        flags = flags.clone() if hasattr(flags, "clone") else torch.as_tensor(flags)
+        flags[:, 1:] = 1
+        view.set_disable_gravities(flags, torch.arange(flags.shape[0], device=flags.device))
+    except Exception as e:
+        print("cable gravity not changed:", e)
 
 
 def _add_lamp(env):
