@@ -416,8 +416,7 @@ def _vent_step():
         seen.pop(0)
     t0, g0 = seen[0]
     rate = (g - g0) / (t - t0) if t - t0 > 0.2 else 0.0
-    shut = _vent["phi"] < math.radians(6.0)  # the dial shows the line, not the box, until the stopcock is open
-    if (shut or g < -0.5) and rate < VENT_AIM:
+    if rate < VENT_AIM:  # the dial reads 0 until the stopcock is cracked open, then the box, rising as it fills
         _vent["phi"] = min(STOP_OPEN, _vent["phi"] + math.radians(VENT_DEG_S) * dt)
 
 
