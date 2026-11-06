@@ -124,22 +124,28 @@ MAT_PART = part("mat", pos=(HX, HY, TOP), fixed=True, friction=0.8,
                        ((_px, _py, PED_H + MAT_T / 2), (_pl, _pw, MAT_T), MAT_C)],
                 joints=_bars)
 
-# -- the cable (loose). Frame: origin at the middle of its contact end, on its underside; it runs along -y. -----------------
+# -- the cable (loose): a tactile sensor pad with its flat flex cable. Frame: origin at the middle of the cable's contact
+# end, on its underside; the cable runs along -y to the pad. ----------------------------------------------------------------
 FPC_HW, FPC_L, FPC_T = 0.005, 0.050, 0.0008
 FPC_STIFF = 0.008  # the blue stiffener's length on the contact end
-RX, RY, REST_H = 0.24, -0.16, 0.030  # the cable's contact end at the start, and the rest's height
+PAD_HW, PAD_L, PAD_T = 0.009, 0.015, 0.004  # the sensor pad on the cable's far end: 18 x 15 x 4 mm
+PAD_Y = -FPC_L - PAD_L / 2  # its centre
+SKIN_C = (0.12, 0.12, 0.13)  # the pad's black silicone skin
+RX, RY, REST_H = 0.24, -0.15, 0.030  # the cable's contact end at the start, and the rest's height
 FPC = part(
-    "fpc", pos=(RX, RY, TOP + REST_H), mass=0.0012, friction=0.6,
+    "fpc", pos=(RX, RY, TOP + REST_H), mass=0.004, friction=0.7,
     boxes=[
         ((0.0, -FPC_L / 2, FPC_T / 2), (2 * FPC_HW, FPC_L, FPC_T), FPC_C),
         ((0.0, -FPC_STIFF / 2, FPC_T + 0.0001), (2 * FPC_HW, FPC_STIFF, 0.0002), STIFF_C),
         *[((x, -0.0015, FPC_T + 0.0002), (0.0004, 0.003, 0.0001), GOLD) for x in np.linspace(-0.0045, 0.0045, 10)],
+        ((0.0, PAD_Y, PAD_T / 2), (2 * PAD_HW, PAD_L, PAD_T), FR4),  # the pad's circuit board
+        ((0.0, PAD_Y, PAD_T + 0.0005), (2 * PAD_HW - 0.002, PAD_L - 0.002, 0.001), SKIN_C),  # its skin on top
     ],
 )
-# the rest: a post under the contact end and one under the tail, with the middle 25 mm free for the fingers
+# the rest: a post under the cable's contact end and one under the pad, the cable's middle free between them
 REST = part("cable_rest", pos=(RX, RY, TOP), fixed=True, friction=0.6,
             boxes=[((0.0, -0.010, REST_H / 2), (0.016, 0.020, REST_H), REST_C),
-                   ((0.0, -0.048, REST_H / 2), (0.016, 0.004, REST_H), REST_C)])
+                   ((0.0, PAD_Y, REST_H / 2), (0.016, PAD_L, REST_H), REST_C)])
 
 # -- the work lamp (fixed): a weighted base, a post and a head; the light itself is added to the stage at reset ----------
 LAMP_XY, LAMP_HEAD_Z = (0.47, -0.17), 0.42
@@ -294,7 +300,7 @@ def distance(objects):
 # overhanging left end, pinches the board and its stiffener, lifts it 7 cm off the foam and holds it level until the
 # right hand is done, then sets it back and parks. Right arm, once the board is up, aiming at the connector where the
 # board is now (read from the board's pose, as a camera sees it): with its fingers closed, pushes the actuator's tab back
-# until it flips open; picks the cable off its rest by its two edges, 35 mm from its end; carries it level to the slot
+# until it flips open; picks the sensor pad on the cable's far end off its rest; carries the cable level to the slot
 # and slides it straight in to the back; lets go and lifts off; then, fingers closed, pushes the actuator's tab forward
 # from behind until it snaps shut; and parks.
 TIP_ABOVE_TCP = 0.013
@@ -303,9 +309,9 @@ RIGHT_PARK = (0.15, -0.25, TOP + 0.14)
 LIFT = 0.070
 BOARD_WIDE, BOARD_HOLD = -0.009, FINGER_CLOSED
 PINCH_IN = 0.013
-FPC_WIDE, FPC_HOLD = -0.008, -0.0015  # pads 16 mm apart round the 10 mm cable, then a firm pinch
-FPC_PINCH = 0.035  # the right hand pinches the cable this far from its contact end
-TIPS_BELOW = 0.0008  # the pad tips this far below the cable's underside (the pads taper to their tips)
+FPC_WIDE, FPC_HOLD = -0.014, -0.006  # pads 28 mm apart round the 18 mm sensor pad, then a firm pinch
+FPC_PINCH = -PAD_Y  # the right hand holds the sensor pad, this far behind the cable's contact end
+TIPS_ABOVE = 0.001  # the finger tips this far above the pad's underside
 FLAT_YAW = math.pi / 2  # fingers closing along x
 
 _orig_grip = _demo.grip_rotation
@@ -416,15 +422,15 @@ def demo():
     ]
     # 2. pick the cable off its rest by its edges
     px, py = RX, RY - FPC_PINCH
-    pz = TOP + REST_H - TIPS_BELOW + tip
+    pz = TOP + REST_H + TIPS_ABOVE + tip
     right += [
-        Waypoint(2.5, (px, py, pz + 0.04), FPC_WIDE, "above the cable, between its rests", FLAT_YAW),
-        Waypoint(1.5, (px, py, pz), FPC_WIDE, "pads either side of the cable", FLAT_YAW),
-        Waypoint(0.8, (px, py, pz), FPC_HOLD, "pinch it by its edges", FLAT_YAW),
+        Waypoint(2.5, (px, py, pz + 0.04), FPC_WIDE, "above the sensor pad", FLAT_YAW),
+        Waypoint(1.5, (px, py, pz), FPC_WIDE, "fingers either side of the sensor pad", FLAT_YAW),
+        Waypoint(0.8, (px, py, pz), FPC_HOLD, "grip the sensor pad", FLAT_YAW),
         Waypoint(1.2, (px, py, pz + 0.04), FPC_HOLD, "lift it", FLAT_YAW),
     ]
     # 3. insert: level, its end 10 mm in front of the slot's mouth, then straight in to the back
-    cz = 0.0004 - TIPS_BELOW + tip  # its underside 0.4 mm above the board's top: in the middle of the slot's mouth
+    cz = 0.0004 + TIPS_ABOVE + tip  # the cable's underside 0.4 mm above the board's top: in the middle of the slot's mouth
     right += [
         Waypoint(3.0, _AtZif(0.0, ZY0 - 0.010 - FPC_PINCH, 0.03), FPC_HOLD, "carry it over, in line with the slot", yaw),
         Waypoint(1.5, _AtZif(0.0, ZY0 - 0.010 - FPC_PINCH, cz), FPC_HOLD, "down level with the slot", yaw),
