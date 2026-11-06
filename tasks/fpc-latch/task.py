@@ -81,7 +81,7 @@ HINGE_Y, HINGE_Z = 0.0025, 0.0018
 ACT_T, RIB_Z, TAB_H, TAB_T = 0.0006, 0.00095, 0.004, 0.001
 ACT_OPEN = -math.radians(100.0)  # the actuator flipped up (negative: its front edge rises)
 DETENT = -math.radians(35.0)  # past this it snaps open, short of it it springs shut
-ACT_K, ACT_D = 0.02, 0.0004  # N m/rad
+ACT_K, ACT_D = 0.002, 0.00005  # N m/rad: a light detent, about 0.4 N at the tab
 
 ACTUATOR = Joint(
     "actuator", kind="hinge", axis="X", anchor=(0.0, HINGE_Y, ZT + HINGE_Z), lower=ACT_OPEN - 0.1, upper=0.02,
@@ -305,7 +305,7 @@ BOARD_WIDE, BOARD_HOLD = -0.009, FINGER_CLOSED
 PINCH_IN = 0.013
 FPC_WIDE, FPC_HOLD = -0.008, -0.0015  # pads 16 mm apart round the 10 mm cable, then a firm pinch
 FPC_PINCH = 0.035  # the right hand pinches the cable this far from its contact end
-TIPS_BELOW = 0.0025  # the pad tips this far below the cable's underside
+TIPS_BELOW = 0.0008  # the pad tips this far below the cable's underside (the pads taper to their tips)
 FLAT_YAW = math.pi / 2  # fingers closing along x
 
 _orig_grip = _demo.grip_rotation
