@@ -58,12 +58,12 @@ BOARD_Z0 = TOP + ZB
 # The ZIF connector (heights above the board's top). The slot runs along +y from its mouth at y = -2.5 mm to its back
 # at +1.5 mm, 13 mm wide, on the board's top, under a fixed roof 1.4 mm up over its front 2.5 mm. Behind the roof the
 # actuator closes over the slot: a bar hinged at y = +2.5 mm, 1.8 mm up, with a clamping rib under it that comes down to
-# 0.75 mm (onto a 0.8 mm cable in the slot) and an upright tab, 4 mm tall, on its front edge.
+# 0.85 mm (onto a 0.8 mm cable in the slot) and an upright tab, 4 mm tall, on its front edge.
 ZW, ZY0, ZY1 = 0.009, -0.0025, 0.0025  # housing: 18 mm wide, 5 mm deep
 SLOT_HW, SLOT_BACK = 0.0065, 0.0015
 ROOF0, ROOF1, WALL_H = 0.0014, 0.0018, 0.0018
 HINGE_Y, HINGE_Z = 0.0025, 0.0018
-ACT_T, RIB_Z, TAB_H, TAB_T = 0.0006, 0.00075, 0.004, 0.001
+ACT_T, RIB_Z, TAB_H, TAB_T = 0.0006, 0.00085, 0.004, 0.001
 ACT_OPEN = -math.radians(70.0)  # the actuator flipped up (negative: its front edge rises), short of upright
 DETENT = -math.radians(30.0)  # past this it snaps open, short of it it springs shut
 ACT_K, ACT_D = 0.002, 0.00005  # N m/rad: a light detent, about 0.4 N at the tab
@@ -202,7 +202,7 @@ def cable_tip(fpc):
 OBJECTS = [BOARD, STATION, FPC, BLOCK]
 
 # -- the cable in the connector -------------------------------------------------------------------------------------------
-IN_X = 0.001  # inserted: within 1 mm of the slot's centre line,
+IN_X = SLOT_HW - FPC_HW  # inserted: its sides inside the slot's walls (1.5 mm of play either way),
 IN_YAW = math.radians(10.0)  # turned no more than 10 degrees from it,
 IN_DEPTH = SLOT_BACK - 0.0005  # its end within 0.5 mm of the slot's back,
 IN_Z = 0.0006  # and its underside within 0.6 mm of the board's top
@@ -317,8 +317,8 @@ SUCCESS_HOLD_S = 10.0
 
 def score(objects):
     """0 if the cable was ever pushed 2 mm into the slot while the actuator was shut (forced). Otherwise: 1.0 if the cable
-    is fully inserted (its end within 0.5 mm of the slot's back, within 1 mm of its centre line, turned no more than 10
-    degrees, lying on the slot's floor), the actuator is shut (within 6 degrees of flat) and both hands are at least 3 cm
+    is fully inserted (its end within 0.5 mm of the slot's back, its sides inside the slot's walls, turned no more than
+    10 degrees, lying on the slot's floor), the actuator is shut (within 6 degrees of flat) and both hands are at least 3 cm
     from the connector; 0.5 if the cable is fully inserted but the actuator is not shut or a hand is still at the
     connector; 0.25 if the actuator has been flipped open (50 degrees or more) at some point but the cable is not fully
     inserted; 0 otherwise."""
@@ -398,9 +398,10 @@ if not getattr(_prev_action7, "_clock", False):
 
 # What the demo sees: the board's pose and, once the cable is near the slot, the cable's offset across it (the wrist
 # camera sees both), read each step. From lining up until the cable's end is in the slot's mouth, the hand's aim across
-# the slot is trimmed by that offset; then the trim is frozen.
+# the slot is trimmed by that offset; then the trim is frozen. While it pushes the cable in, the hand stops where it is
+# once the cable's end is seen at the slot's back.
 _seen = {"zif": None, "psi": 0.0}
-_trim = {"x": 0.0, "t0": 1e9, "t1": 1e9}
+_trim = {"x": 0.0, "t0": 1e9, "t1": 1e9, "y": 0.0, "p0": 1e9, "p1": 1e9, "yin": 0.0}
 TRIM_GAIN, TRIM_STEP, TRIM_MAX = 0.15, 0.0003, 0.003
 
 
@@ -411,7 +412,7 @@ def _clock() -> float:
 @on_reset
 def _reset_seen(env):
     _seen.update(zif=None, psi=0.0)
-    _trim["x"] = 0.0
+    _trim.update(x=0.0, y=0.0)
 
 
 @on_step
@@ -426,6 +427,15 @@ def _look(env):
             _trim["t1"] = _clock()
         step = float(np.clip(TRIM_GAIN * fx, -TRIM_STEP, TRIM_STEP))
         _trim["x"] = float(np.clip(_trim["x"] - step, -TRIM_MAX, TRIM_MAX))
+    if _trim["p0"] <= _clock() < _trim["p1"]:
+        fy = cable_in_slot(board, labkit._part_state(env, labkit._SPECS["fpc"]))[1]
+        if fy >= SLOT_BACK - 0.0003:  # seen at the slot's back: stop pushing, hold the hand where it is
+            from yam_arena import runtime as _rt
+
+            b = env.unwrapped
+            hand = _rt.tcp_world(b.scene["right_robot"]) - b.scene.env_origins[0].cpu().numpy()
+            _trim["y"] = float(board.to_local(hand)[1]) - _trim["yin"]
+            _trim["p1"] = _clock()
 
 
 ZIF0 = np.array([HX, HY, BOARD_Z0 + BOARD_T])  # the connector's base (nominal)
@@ -444,6 +454,7 @@ class _AtZif:
         x, y, z = self.p
         if self.trim:
             x += _trim["x"]
+            y += _trim["y"] if y == _trim["yin"] else 0.0
         return np.asarray((base[0] + c * x - s * y, base[1] + s * x + c * y, base[2] + z), dtype=dtype or float)
 
 
@@ -466,7 +477,7 @@ def _wait_until(wps, t, pos, finger, label, orient):
 
 def demo():
     _seen.update(zif=None, psi=0.0)
-    _trim["x"] = 0.0
+    _trim.update(x=0.0, y=0.0)
     yaw = _ZifYaw()
     shut = FINGER_CLOSED
     tip = TIP_ABOVE_TCP
@@ -499,7 +510,7 @@ def demo():
     _wait_until(right, t_open, (px, py, pz + 0.025), FPC_HOLD, "wait for the connector to open", POINT_X)
     # Right 2. insert: level, its end laid on the board 5.5 mm in front of the slot's mouth, then straight in to the back
     flat = _PointXOnBoard()
-    cz = 0.0003 + FPC_T / 2  # the cable's underside 0.3 mm above the board's top: low in the slot's mouth
+    cz = 0.0005 + FPC_T / 2  # the cable's underside 0.5 mm above the board's top: in the slot's mouth
     y0 = ZY0 - 0.0055 + PINCH_D  # its end over the board, 5.5 mm in front of the slot's mouth
     right += [
         Waypoint(2.5, _AtZif(ex, y0, 0.03), FPC_HOLD, "carry it over the board, in line with the slot", flat),
@@ -508,12 +519,15 @@ def demo():
     _trim["t0"] = _dur(right)
     right.append(Waypoint(2.0, _AtZif(ex, y0, cz, True), FPC_HOLD, "line it up across the slot", flat))
     yin = SLOT_BACK + 0.0005 + PINCH_D
+    _trim["yin"] = yin
     _trim["t1"] = _dur(right) + 3.0  # through the push, until the cable's end is in the slot's mouth
+    _trim["p0"] = _dur(right)
     right += [
         Waypoint(3.0, _AtZif(ex, yin, cz, True), FPC_HOLD, "slide it straight in to the back", flat),
         Waypoint(0.5, _AtZif(ex, yin, cz, True), FPC_HOLD, "hold it in", flat),
     ]
     t_in = _dur(right)
+    _trim["p1"] = t_in
     # Left 2. clip: closed fingertips behind the open actuator, push it forward until it snaps shut on the cable
     bz = HINGE_Z + 0.0027 + tip
     _wait_until(left, t_in, behind_hi, shut, "wait for the cable to be in", yaw)
