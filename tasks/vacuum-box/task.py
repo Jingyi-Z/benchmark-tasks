@@ -67,7 +67,7 @@ STOP_ANGLE = -math.pi / 2  # the stopcock on the base's right (-y)
 STOP_R = FLANGE_R + 0.008
 STOP_Z = 0.050
 STOP_XY = (STOP_R * math.cos(STOP_ANGLE), STOP_R * math.sin(STOP_ANGLE))
-LEVER_L = 0.028
+LEVER_L = 0.040  # long enough that a hand on its post stays clear of the dome's rim
 STOP_OPEN = math.pi / 2  # the lever's quarter turn anticlockwise (positive about z)
 _wall_boxes = []
 for _i in range(N_WALL):
