@@ -71,14 +71,14 @@ MAT_TOP = TOP + PED_H + MAT_T
 BOARD_Z0 = MAT_TOP + FOAM_H
 
 # The ZIF connector (heights above the board's top). The slot runs along +y from its mouth at y = -2.5 mm to its back
-# at +1.5 mm, 11 mm wide, its floor 0.2 mm and its fixed roof 1.4 mm up over the front 2.5 mm. Behind the roof the
+# at +1.5 mm, 11 mm wide, on the board's top, under a fixed roof 1.4 mm up over its front 2.5 mm. Behind the roof the
 # actuator closes over the slot: a bar hinged at y = +2.5 mm, 1.8 mm up, with a clamping rib under it that comes down to
-# 0.95 mm (onto a 0.8 mm cable on the floor) and an upright tab, 4 mm tall, on its front edge.
+# 0.75 mm (onto a 0.8 mm cable in the slot) and an upright tab, 4 mm tall, on its front edge.
 ZW, ZY0, ZY1 = 0.008, -0.0025, 0.0025  # housing: 16 mm wide, 5 mm deep
 SLOT_HW, SLOT_BACK = 0.0055, 0.0015
-FLOOR, ROOF0, ROOF1, WALL_H = 0.0002, 0.0014, 0.0018, 0.0018
+ROOF0, ROOF1, WALL_H = 0.0014, 0.0018, 0.0018
 HINGE_Y, HINGE_Z = 0.0025, 0.0018
-ACT_T, RIB_Z, TAB_H, TAB_T = 0.0006, 0.00095, 0.004, 0.001
+ACT_T, RIB_Z, TAB_H, TAB_T = 0.0006, 0.00075, 0.004, 0.001
 ACT_OPEN = -math.radians(100.0)  # the actuator flipped up (negative: its front edge rises)
 DETENT = -math.radians(35.0)  # past this it snaps open, short of it it springs shut
 ACT_K, ACT_D = 0.002, 0.00005  # N m/rad: a light detent, about 0.4 N at the tab
@@ -101,8 +101,7 @@ BOARD = part(
         ((0.0, (BOARD_Y0 + BOARD_Y1) / 2, BOARD_T / 2), (2 * BOARD_HX, BOARD_Y1 - BOARD_Y0, BOARD_T), FR4),
         ((-0.008, 0.032, ZT + 0.0005), (0.008, 0.008, 0.001), BLACK),  # a chip
         ((0.0, (STIFF_Y0 + BOARD_Y1) / 2, -STIFF_T / 2), (2 * BOARD_HX, BOARD_Y1 - STIFF_Y0, STIFF_T), PLA),
-        # the ZIF housing: floor, side walls, back wall under the hinge, and the fixed roof over the slot's mouth
-        ((0.0, _ys, ZT + FLOOR / 2), (2 * ZW, ZY1 - ZY0, FLOOR), BLACK),
+        # the ZIF housing: side walls, back wall under the hinge, and the fixed roof over the slot's mouth
         *[((s * (SLOT_HW + ZW) / 2, _ys, ZT + WALL_H / 2), (ZW - SLOT_HW, ZY1 - ZY0, WALL_H), BLACK) for s in (1, -1)],
         ((0.0, (SLOT_BACK + ZY1) / 2, ZT + WALL_H / 2), (2 * SLOT_HW, ZY1 - SLOT_BACK, WALL_H), BLACK),
         ((0.0, ZY0 / 2, ZT + (ROOF0 + ROOF1) / 2), (2 * ZW, -ZY0, ROOF1 - ROOF0), BLACK),
@@ -162,7 +161,7 @@ OBJECTS = [BOARD, MAT_PART, FPC, REST, LAMP]
 IN_X = 0.001  # inserted: within 1 mm of the slot's centre line,
 IN_YAW = math.radians(10.0)  # turned no more than 10 degrees from it,
 IN_DEPTH = SLOT_BACK - 0.0005  # its end within 0.5 mm of the slot's back,
-IN_Z = 0.0008  # and its underside within 0.8 mm of the board's top
+IN_Z = 0.0006  # and its underside within 0.6 mm of the board's top
 ENTER = ZY0 + 0.002  # its end 2 mm into the slot counts as entering
 CLOSED = math.radians(6.0)
 OPENED = math.radians(60.0)
