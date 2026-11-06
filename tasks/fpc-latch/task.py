@@ -512,7 +512,7 @@ def demo():
         Waypoint(1.5, (px, py, pz + 0.025), FPC_HOLD, "lift it", POINT_X),
     ]
     _wait_until(right, t_open, (px, py, pz + 0.025), FPC_HOLD, "wait for the connector to open", POINT_X)
-    # Right 2. insert: level, its end laid on the board 5.5 mm in front of the slot's mouth, then straight in to the back
+    # Right 2. insert: level, its end laid on the board 5.5 mm in front of the slot's mouth, then straight in
     flat = _PointXOnBoard()
     cz = 0.0005 + FPC_T / 2  # the cable's underside 0.5 mm above the board's top: in the slot's mouth
     y0 = ZY0 - 0.0055 + PINCH_D  # its end over the board, 5.5 mm in front of the slot's mouth
