@@ -533,8 +533,9 @@ def demo():
     _wait_until(left, t_in, behind_hi, shut, "wait for the cable to be in", yaw)
     left += [
         Waypoint(1.5, _AtZif(0.0, 0.016, bz), shut, "fingertips down behind the open actuator", yaw),
-        Waypoint(2.0, _AtZif(0.0, 0.004, bz), shut, "push it forward until it snaps shut", yaw),
-        Waypoint(1.0, _AtZif(0.0, 0.004, 0.04), shut, "lift off", yaw),
+        Waypoint(2.5, _AtZif(0.0, 0.0, bz), shut, "push it forward until it snaps shut", yaw),
+        Waypoint(0.5, _AtZif(0.0, 0.0, bz), shut, "settle", yaw),
+        Waypoint(1.0, _AtZif(0.0, 0.0, 0.04), shut, "lift off", yaw),
         Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "park"),
     ]
     t_shut = _dur(left) - 2.0
