@@ -335,6 +335,7 @@ TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.15, 0.25, TOP + 0.14)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.14)
 FPC_WIDE, FPC_HOLD = -0.006, FINGER_CLOSED  # pads 12 mm apart round the flat cable, then closed on it
+PICK_WIDE = -0.015  # pads 30 mm apart, one either side of the cable over the slot, to pick it up
 CABLE_IN = 0.007  # the finger tips this far in from the cable's near edge (it is 10 mm wide)
 FLAT_YAW = math.pi / 2  # fingers closing along x
 
@@ -458,8 +459,9 @@ def demo():
     left = [
         Waypoint(3.0, _AtZif(0.0, -0.006, 0.04), shut, "fingers closed, above the actuator's tab", yaw),
         Waypoint(1.5, _AtZif(0.0, -0.006, tz), shut, "fingertips down in front of the tab", yaw),
-        Waypoint(2.0, _AtZif(0.0, 0.001, tz), shut, "push the tab back until the actuator flips open", yaw),
-        Waypoint(1.0, _AtZif(0.0, 0.001, 0.04), shut, "lift off", yaw),
+        Waypoint(0.7, _AtZif(0.0, -0.006, tz), shut, "settle", yaw),
+        Waypoint(2.5, _AtZif(0.0, 0.0035, tz), shut, "push the tab back until the actuator flips open", yaw),
+        Waypoint(1.0, _AtZif(0.0, 0.0035, 0.04), shut, "lift off", yaw),
         Waypoint(1.5, behind_hi, shut, "wait above and behind the connector", yaw),
     ]
     t_open = _dur(left)
@@ -469,10 +471,12 @@ def demo():
     py = BLOCK_END + OVERHANG + PINCH_D
     pz = TOP + BLOCK_H + FPC_T / 2
     right = [
-        Waypoint(3.0, (px - 0.05, py, pz + 0.02), FPC_WIDE, "level, beside the cable's overhanging end", POINT_X),
-        Waypoint(1.0, (px - 0.05, py, pz), FPC_WIDE, "fingers either side of it", POINT_X),
-        Waypoint(1.5, (px, py, pz), FPC_WIDE, "slide in from its near edge, lower finger under it", POINT_X),
-        Waypoint(0.8, (px, py, pz), FPC_HOLD, "pinch the cable", POINT_X),
+        Waypoint(3.0, (px - 0.05, py, pz + 0.02), PICK_WIDE, "level, beside the cable where it crosses the slot",
+                 POINT_X),
+        Waypoint(1.0, (px - 0.05, py, pz), PICK_WIDE, "fingers either side of it", POINT_X),
+        Waypoint(1.5, (px, py, pz), PICK_WIDE, "slide in from its near edge, lower finger in the slot under it", POINT_X),
+        Waypoint(0.5, (px, py, pz), PICK_WIDE, "settle", POINT_X),
+        Waypoint(1.0, (px, py, pz), FPC_HOLD, "pinch the cable", POINT_X),
         Waypoint(1.5, (px, py, pz + 0.025), FPC_HOLD, "lift it", POINT_X),
     ]
     _wait_until(right, t_open, (px, py, pz + 0.025), FPC_HOLD, "wait for the connector to open", POINT_X)
