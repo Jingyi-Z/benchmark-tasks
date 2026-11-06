@@ -71,11 +71,11 @@ MAT_TOP = TOP + PED_H + MAT_T
 BOARD_Z0 = MAT_TOP + FOAM_H
 
 # The ZIF connector (heights above the board's top). The slot runs along +y from its mouth at y = -2.5 mm to its back
-# at +1.5 mm, 12 mm wide, on the board's top, under a fixed roof 1.4 mm up over its front 2.5 mm. Behind the roof the
+# at +1.5 mm, 13 mm wide, on the board's top, under a fixed roof 1.4 mm up over its front 2.5 mm. Behind the roof the
 # actuator closes over the slot: a bar hinged at y = +2.5 mm, 1.8 mm up, with a clamping rib under it that comes down to
 # 0.75 mm (onto a 0.8 mm cable in the slot) and an upright tab, 4 mm tall, on its front edge.
-ZW, ZY0, ZY1 = 0.0085, -0.0025, 0.0025  # housing: 17 mm wide, 5 mm deep
-SLOT_HW, SLOT_BACK = 0.006, 0.0015
+ZW, ZY0, ZY1 = 0.009, -0.0025, 0.0025  # housing: 18 mm wide, 5 mm deep
+SLOT_HW, SLOT_BACK = 0.0065, 0.0015
 ROOF0, ROOF1, WALL_H = 0.0014, 0.0018, 0.0018
 HINGE_Y, HINGE_Z = 0.0025, 0.0018
 ACT_T, RIB_Z, TAB_H, TAB_T = 0.0006, 0.00075, 0.004, 0.001
@@ -343,8 +343,8 @@ if not getattr(_prev_action7, "_clock", False):
     _demo.ArmPlan.action7 = _action7
 
 # What the demo sees: the board's pose and, once the cable is near the slot, the cable's offset across it (the wrist
-# camera sees both), read each step. From lining up until the push starts, the hand's aim across the slot is trimmed by
-# that offset; then the trim is frozen.
+# camera sees both), read each step. From lining up until the cable's end is in the slot's mouth, the hand's aim across
+# the slot is trimmed by that offset; then the trim is frozen.
 _seen = {"zif": None, "psi": 0.0}
 _trim = {"x": 0.0, "t0": 1e9, "t1": 1e9}
 TRIM_GAIN, TRIM_STEP, TRIM_MAX = 0.15, 0.0003, 0.003
@@ -367,7 +367,9 @@ def _look(env):
     board = labkit._part_state(env, labkit._SPECS["sensor_board"])
     _seen.update(zif=np.asarray(board.to_world((0.0, 0.0, ZT)), float), psi=_yaw(board.rotation()))
     if _trim["t0"] <= _clock() < _trim["t1"]:
-        fx = cable_in_slot(board, labkit._part_state(env, labkit._SPECS["fpc"]))[0]
+        fx, fy = cable_in_slot(board, labkit._part_state(env, labkit._SPECS["fpc"]))[:2]
+        if fy >= ZY0 + 0.0015:  # its end is in the slot's mouth: hold the aim from here on
+            _trim["t1"] = _clock()
         step = float(np.clip(TRIM_GAIN * fx, -TRIM_STEP, TRIM_STEP))
         _trim["x"] = float(np.clip(_trim["x"] - step, -TRIM_MAX, TRIM_MAX))
 
@@ -455,8 +457,8 @@ def demo():
     right += [
         Waypoint(2.0, _AtZif(0.0, ZY0 - 0.010 - FPC_PINCH, cz, True), FPC_HOLD, "line it up across the slot", yaw),
     ]
-    _trim["t1"] = _dur(right)
     yin = SLOT_BACK + 0.0005 - FPC_PINCH
+    _trim["t1"] = _dur(right) + 3.0  # through the push, until the cable's end is in the slot's mouth
     right += [
         Waypoint(3.0, _AtZif(0.0, yin, cz, True), FPC_HOLD, "slide it straight in to the back", yaw),
         Waypoint(0.5, _AtZif(0.0, yin, cz, True), FPC_HOLD, "settle", yaw),
