@@ -4,7 +4,8 @@ A 24 cm vacuum desiccator under vacuum, a red stopcock on its side, a vacuum lin
 a dial gauge and a rocker switch, and a sample vial on the bench. One arm vents the desiccator by swinging the stopcock
 open slowly with the pump off, lifts the dome off by its knob and holds it up beside the base; the other arm stands the
 vial on a ring marked on the plate inside. The dome goes back on, the pump is switched on until the gauge reads
--90 kPa or lower, the stopcock is shut and the pump switched off.
+-90 kPa or lower, the stopcock is shut and the pump switched off. Last, a gentle pull on the knob checks the dome is
+held down; pulled too hard, it lifts, the seal breaks and the box fills with air.
 
 ## Files
 
@@ -25,8 +26,8 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
         --instruction "$(python -c 'import json;print(json.load(open("task.json"))["instruction"])')" \
         --scorer task_score --max-steps 2400 --store-frames --log-dir logs
 
-Scripted demo: the same command with `--policy yam_scripted` (about 85 s of motion; the trial ends 4 s after full
-score). The demo's vent is closed loop on the pressure: the hand on the stopcock's post opens the lever further only
+Scripted demo: the same command with `--policy yam_scripted` (about 95 s of motion; the trial ends 12 s after full
+score, which leaves time for the seal check). The demo's vent is closed loop on the pressure: the hand on the stopcock's post opens the lever further only
 while the inflow stays under 9 kPa a second, then swings it fully open once the box is at room pressure. While the dome
 is held aside, the demo measures how far the dome hangs from the hand and sets it back centred on the base. Run one
 trial per process: the vent and dome state is kept in the task module and cleared at each reset.

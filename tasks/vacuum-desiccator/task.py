@@ -16,7 +16,8 @@ blows the powder in the dish about: at full vacuum that happens once the stopcoc
 
 The task: vent the desiccator gently through the stopcock; lift the dome off by its knob and hold it up clear of the
 base (it is not set down) while the other hand stands the vial on the ring; lower the dome back onto the flange; switch
-the pump on and, once the gauge reads -90 kPa or lower, swing the stopcock shut and switch the pump off.
+the pump on and, once the gauge reads -90 kPa or lower, swing the stopcock shut and switch the pump off; finally pull
+up gently on the knob to check the dome is held down.
 
 Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jitter=0 -E control_hz=20 \\
            --instruction "<see task.json>" --scorer task_score ...
@@ -329,7 +330,7 @@ def score(objects):
     return min(s, 0.25) if _trial["blown"] else s
 
 
-SUCCESS_HOLD_S = 4.0
+SUCCESS_HOLD_S = 12.0  # long enough after full score for the gentle pull on the knob that checks the seal
 
 
 def success(objects):
@@ -555,8 +556,9 @@ def demo():
         Waypoint(1.0, (kx, ky, KNOB_Z + 0.03), KNOB_WIDE, "settle over the knob", KNOB_YAW),
         Waypoint(2.0, (kx, ky, KNOB_Z), KNOB_WIDE, "fingers round the knob", KNOB_YAW),
         Waypoint(0.6, (kx, ky, KNOB_Z), KNOB_HOLD, "grip it", KNOB_YAW),
-        Waypoint(1.5, (kx, ky, KNOB_Z + 0.006), KNOB_HOLD, "pull up gently: the dome is held", KNOB_YAW),
-        Waypoint(0.6, (kx, ky, KNOB_Z + 0.006), KNOB_WIDE, "let go", KNOB_YAW),
+        Waypoint(1.5, (kx, ky, KNOB_Z + 0.003), KNOB_HOLD, "pull up gently: the dome is held", KNOB_YAW),
+        Waypoint(1.0, (kx, ky, KNOB_Z + 0.003), KNOB_HOLD, "hold the pull", KNOB_YAW),
+        Waypoint(0.6, (kx, ky, KNOB_Z + 0.003), KNOB_WIDE, "let go", KNOB_YAW),
         Waypoint(1.0, (kx, ky, KNOB_Z + 0.04), KNOB_WIDE, "up", KNOB_YAW),
         Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
     ]
