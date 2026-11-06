@@ -142,21 +142,21 @@ for _k in range(N_SEG + 1):
     _y0 = _hinge_y[_k]
     if _k < N_SEG:
         _bx = [((0.0, _y0 + SEG / 2, FPC_T / 2), (2 * FPC_HW, SEG - 0.0006, FPC_T), FPC_C)]
-        _m = 0.0003
+        _m = 0.0002
     else:  # the stiffened contact end
         _end = _y0 + FPC_STIFF
         _bx = [((0.0, _y0 + FPC_STIFF / 2 + 0.0002, FPC_T / 2), (2 * FPC_HW, FPC_STIFF - 0.0004, FPC_T), FPC_C),
                ((0.0, _y0 + FPC_STIFF / 2, FPC_T + 0.0001), (2 * FPC_HW, FPC_STIFF - 0.006, 0.0002), STIFF_C),
                *[((x, _end - 0.0015, FPC_T + 0.0002), (0.0004, 0.003, 0.0001), GOLD)
                  for x in np.linspace(-0.0045, 0.0045, 10)]]
-        _m = 0.0008
+        _m = 0.0005
     _links.append(Joint(f"bend{_k}", kind="hinge", axis="X", anchor=(0.0, _y0, FPC_T / 2), lower=-1.7, upper=1.7,
                         initial=HANG if _k == 0 else 0.0, target=HANG if _k == 0 else 0.0, stiffness=SEG_K,
                         damping=SEG_D, mass=_m, boxes=_bx, parent=f"bend{_k - 1}" if _k else ""))
 CABLE_L = SEG * N_SEG + FPC_STIFF
 PINCH_D = -0.035  # the hand holds the cable this far behind its contact end
 FPC = part(
-    "fpc", pos=(STAND_XY[0], STAND_XY[1] + STAND[1] / 2 - EDGE + 0.0015, TOP + STAND_H), mass=0.0025, friction=0.7,
+    "fpc", pos=(STAND_XY[0], STAND_XY[1] + STAND[1] / 2 - EDGE + 0.0015, TOP + STAND_H), mass=0.015, friction=0.9,
     boxes=[((0.0, -PAD_L / 2, PAD_T / 2), (2 * PAD_HW, PAD_L, PAD_T), FR4),
            ((0.0, -PAD_L / 2, PAD_T + 0.0005), (2 * PAD_HW - 0.002, PAD_L - 0.002, 0.001), SKIN_C)],
     joints=_links,
