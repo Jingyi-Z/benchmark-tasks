@@ -58,12 +58,12 @@ BOARD_Z0 = TOP + ZB
 # The ZIF connector (heights above the board's top). The slot runs along +y from its mouth at y = -2.5 mm to its back
 # at +1.5 mm, 13 mm wide, on the board's top, under a fixed roof 1.4 mm up over its front 2.5 mm. Behind the roof the
 # actuator closes over the slot: a bar hinged at y = +2.5 mm, 1.8 mm up, with a clamping rib under it that comes down to
-# 0.85 mm (onto a 0.8 mm cable in the slot) and an upright tab, 4 mm tall, on its front edge.
+# 0.79 mm (onto a 0.8 mm cable in the slot) and an upright tab, 4 mm tall, on its front edge.
 ZW, ZY0, ZY1 = 0.009, -0.0025, 0.0025  # housing: 18 mm wide, 5 mm deep
 SLOT_HW, SLOT_BACK = 0.0065, 0.0015
 ROOF0, ROOF1, WALL_H = 0.0014, 0.0018, 0.0018
 HINGE_Y, HINGE_Z = 0.0025, 0.0018
-ACT_T, RIB_Z, TAB_H, TAB_T = 0.0006, 0.00085, 0.004, 0.001
+ACT_T, RIB_Z, TAB_H, TAB_T = 0.0006, 0.00079, 0.004, 0.001
 ACT_OPEN = -math.radians(70.0)  # the actuator flipped up (negative: its front edge rises), short of upright
 DETENT = -math.radians(30.0)  # past this it snaps open, short of it it springs shut
 ACT_K, ACT_D = 0.002, 0.00005  # N m/rad: a light detent, about 0.4 N at the tab
@@ -429,7 +429,7 @@ def _look(env):
         _trim["x"] = float(np.clip(_trim["x"] - step, -TRIM_MAX, TRIM_MAX))
     if _trim["p0"] <= _clock() < _trim["p1"]:
         fy = cable_in_slot(board, labkit._part_state(env, labkit._SPECS["fpc"]))[1]
-        if fy >= SLOT_BACK - 0.0003:  # seen at the slot's back: stop pushing, hold the hand where it is
+        if fy >= SLOT_BACK - 0.00015:  # seen at the slot's back: stop pushing, hold the hand where it is
             from yam_arena import runtime as _rt
 
             b = env.unwrapped
@@ -548,9 +548,9 @@ def demo():
     t_shut = _dur(left) - 2.0
     _wait_until(right, t_shut, _AtZif(ex, yin, cz, True), FPC_HOLD, "hold the cable in while it is clipped", flat)
     right += [
-        Waypoint(0.8, _AtZif(ex, yin, cz, True), FPC_WIDE, "let go", flat),
-        Waypoint(1.2, _AtZif(ex - 0.04, yin, cz, True), FPC_WIDE, "slide the fingers out from the cable", flat),
-        Waypoint(1.0, _AtZif(ex - 0.04, yin, 0.04, True), FPC_WIDE, "up", flat),
+        Waypoint(0.8, _AtZif(ex, yin, cz, True), PICK_WIDE, "let go", flat),
+        Waypoint(1.5, _AtZif(ex - 0.04, yin, cz, True), PICK_WIDE, "slide the fingers out from the cable", flat),
+        Waypoint(1.0, _AtZif(ex - 0.04, yin, 0.04, True), PICK_WIDE, "up", flat),
         Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
     ]
     t_end = max(_dur(left), _dur(right)) + 1.0
