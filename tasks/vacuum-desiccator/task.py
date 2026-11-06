@@ -212,7 +212,7 @@ PUMP_K = 0.6  # 1/s towards P_PUMP, stopcock fully open
 P_PUMP = 3.0
 LEAK = 0.002
 GENTLE = 12.0
-HOLD_MAX = 150.0  # N on a seated lid under vacuum (capped)
+HOLD_MAX = 400.0  # N on a seated dome under vacuum (capped; the real load is about 3 kN)
 SEAL_TILT, SEAL_Z, SEAL_XY = 1.5, 0.0015, 0.008  # the flange is 16 mm wide: 8 mm off still covers the O-ring
 _trial = {"p": P0, "gauge": ATM, "max_rate": 0.0, "blown": False, "ids": None}
 
@@ -330,7 +330,7 @@ def score(objects):
     return min(s, 0.25) if _trial["blown"] else s
 
 
-SUCCESS_HOLD_S = 12.0  # long enough after full score for the gentle pull on the knob that checks the seal
+SUCCESS_HOLD_S = 20.0  # long enough after full score for the pull on the knob that checks the seal
 
 
 def success(objects):
@@ -556,9 +556,9 @@ def demo():
         Waypoint(1.0, (kx, ky, KNOB_Z + 0.03), KNOB_WIDE, "settle over the knob", KNOB_YAW),
         Waypoint(2.0, (kx, ky, KNOB_Z), KNOB_WIDE, "fingers round the knob", KNOB_YAW),
         Waypoint(0.6, (kx, ky, KNOB_Z), KNOB_HOLD, "grip it", KNOB_YAW),
-        Waypoint(1.5, (kx, ky, KNOB_Z + 0.003), KNOB_HOLD, "pull up gently: the dome is held", KNOB_YAW),
-        Waypoint(1.0, (kx, ky, KNOB_Z + 0.003), KNOB_HOLD, "hold the pull", KNOB_YAW),
-        Waypoint(0.6, (kx, ky, KNOB_Z + 0.003), KNOB_WIDE, "let go", KNOB_YAW),
+        Waypoint(1.5, (kx, ky, KNOB_Z + 0.012), KNOB_HOLD, "pull up on the knob: the dome stays down", KNOB_YAW),
+        Waypoint(1.5, (kx, ky, KNOB_Z + 0.012), KNOB_HOLD, "keep pulling: still sealed", KNOB_YAW),
+        Waypoint(0.6, (kx, ky, KNOB_Z + 0.012), KNOB_WIDE, "let go", KNOB_YAW),
         Waypoint(1.0, (kx, ky, KNOB_Z + 0.04), KNOB_WIDE, "up", KNOB_YAW),
         Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
     ]
