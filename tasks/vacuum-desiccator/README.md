@@ -1,4 +1,4 @@
-# Load a sample into a vacuum desiccator: vent it through the stopcock, hold the dome up while loading, reseal and pump down
+# Load a sample into a vacuum desiccator: vent it, hold the dome up while loading, reseal and pump down
 
 A 24 cm vacuum desiccator under vacuum, a red stopcock on its side, a vacuum line running to a pump controller box with
 a dial gauge and a rocker switch, and a sample vial on the bench. One arm vents the desiccator by swinging the stopcock
