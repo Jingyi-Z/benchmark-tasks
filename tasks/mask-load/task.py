@@ -374,11 +374,43 @@ def _pre(side, c, R_mask=np.eye(3), out=0.03):
     return tuple(np.asarray(tcp) - rot.rot[:, 2] * out), rot
 
 
-def _wp2(dur, c, finger, label, R_mask=np.eye(3), out=0.0):
+# what the demo sees of the LAYER 2 mask while seating it: the hands' aim is trimmed by how far the mask still is from
+# the stop pins (and from centred across the holder), so they push it home whatever their tracking error
+_mt = {"trim": np.zeros(3), "win": None}
+
+
+@on_reset
+def _reset_mt(env):
+    _mt["trim"] = np.zeros(3)
+
+
+@on_step
+def _mtrack(env):
+    win = _mt["win"]
+    t = getattr(_demo, "_plan_clock", 0.0)
+    if not win or not win[0] <= t < win[1]:
+        return
+    p = np.asarray(labkit._part_state(env, labkit._SPECS["mask_layer2"]).pos, float)
+    e = np.array([SEAT_C[0] + 0.0004 - p[0], SEAT_C[1] - p[1], 0.0])
+    _mt["trim"] = np.clip(_mt["trim"] + np.clip(0.15 * e, -0.0002, 0.0002), -0.012, 0.012)
+
+
+class _Dyn:
+    """A TCP plus the live seating trim."""
+
+    def __init__(self, tcp):
+        self.tcp = np.asarray(tcp, float)
+
+    def __array__(self, dtype=None, copy=None):
+        return np.asarray(self.tcp + _mt["trim"], dtype=dtype or float)
+
+
+def _wp2(dur, c, finger, label, R_mask=np.eye(3), out=0.0, trim=False):
     """A waypoint pair (left, right) for both hands at the mask's side edges."""
     out_l = _pre("left", c, R_mask, out) if out else _hand("left", c, R_mask)
     out_r = _pre("right", c, R_mask, out) if out else _hand("right", c, R_mask)
-    return (Waypoint(dur, out_l[0], finger, label, out_l[1]), Waypoint(dur, out_r[0], finger, label, out_r[1]))
+    pl, pr = (_Dyn(out_l[0]), _Dyn(out_r[0])) if trim else (out_l[0], out_r[0])
+    return (Waypoint(dur, pl, finger, label, out_l[1]), Waypoint(dur, pr, finger, label, out_r[1]))
 
 
 def _dur(wps):
@@ -387,6 +419,7 @@ def _dur(wps):
 
 def demo():
     left, right = [], []
+    _mt["trim"] = np.zeros(3)
 
     def both(*pairs):
         for lw, rw in pairs:
@@ -439,9 +472,16 @@ def demo():
         _wp2(3.0, pre + [0, 0, 0.04], PINCH, "carry it over the holder", Rf),
         _wp2(2.0, pre + [0, 0, 0.004], PINCH, "down, just in front of the stop pins", Rf),
         _wp2(1.0, pre + [0, 0, 0.0004], PINCH, "set it on the holder", Rf),
-        _wp2(1.5, SEAT_C + [0.0006, 0.0, 0.0004], PINCH, "slide it back against both stop pins", Rf),
-        _wp2(0.8, SEAT_C + [0.0006, 0.0, 0.0004], OPEN_W, "let go", Rf),
-        _wp2(1.2, SEAT_C, OPEN_W, "back out sideways", Rf, out=0.05),
+    )
+    t0 = _dur(left)
+    both(
+        _wp2(1.5, SEAT_C + [0.0006, 0.0, 0.0004], PINCH, "slide it back against both stop pins", Rf, trim=True),
+        _wp2(1.5, SEAT_C + [0.0006, 0.0, 0.0004], PINCH, "push it home, seen against the pins", Rf, trim=True),
+    )
+    _mt["win"] = (t0, _dur(left))
+    both(
+        _wp2(0.8, SEAT_C + [0.0006, 0.0, 0.0004], OPEN_W, "let go", Rf, trim=True),
+        _wp2(1.2, SEAT_C, OPEN_W, "back out sideways", Rf, out=0.05, trim=True),
     )
     lo = _pre("left", SEAT_C, Rf, 0.05)
     ro = _pre("right", SEAT_C, Rf, 0.05)

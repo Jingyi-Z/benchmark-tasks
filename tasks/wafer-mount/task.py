@@ -531,6 +531,8 @@ def _reset_demo(env):
     _seen.pop("w", None)
     _seen.pop("wp", None)
     _seen.pop("w_live", None)
+    _seen.pop("w_prev", None)
+    _seen["wtrim"] = np.zeros(3)
 
 
 @on_step
@@ -552,6 +554,12 @@ def _track(env):
         _seen["w"] = _seen["w_live"]
     if t < _seen.get("wp_t", 1e9):
         _seen["wp"] = _seen["w_live"]
+    # laying it down: trim the left hand's aim by where the held wafer is seen over the chuck (while it is still)
+    p, win = _seen["w_live"][0], _seen.get("trim_win")
+    prev, _seen["w_prev"] = _seen.get("w_prev"), p
+    if win and win[0] <= t < win[1] and prev is not None and np.linalg.norm(p - prev) < 0.0002:
+        tr = _seen.setdefault("wtrim", np.zeros(3))
+        tr[:2] = np.clip(tr[:2] + np.clip(0.2 * (PLACE_C[:2] - p[:2]), -0.0003, 0.0003), -0.02, 0.02)
 
 
 class _At:
@@ -637,6 +645,7 @@ def demo():
         d.update(corr=np.zeros(3), goal=None, prev=None)
     _seen.pop("w", None)
     _seen.pop("wp", None)
+    _seen["wtrim"] = np.zeros(3)
     right, left = [], []
     # right: tweezers out of their cup
     right += [
@@ -708,17 +717,13 @@ def demo():
         _wp(1.2, "r", rb(0.025), TW_HOLD, "back the blades out along the edge", False),
         _wp(1.2, "r", rb(0.06), TW_HOLD, "away from the wafer", False),
     ]
+    # right: keeps its tweezers; rolls them back, blades flat, and moves out of the way above the carriers
     for k in range(ROLL_STEPS - 1, -1, -1):
         right.append(_wp(0.6, "r", (lambda k=k: (O_R - U * 0.06, _r_roll(k)[1])), TW_HOLD,
                          "roll them back, blades flat", False))
-    right += [
-        _wp(3.0, "r", _const(R_HOME + [0, 0, 0.06], 0.0), TW_HOLD, "upright again, over the cup", True, True),
-        _wp(2.0, "r", _const(R_HOME + [0, 0, 0.06], 0.0), TW_HOLD, "line them up over the cup", True, True),
-        _wp(1.5, "r", _const(R_HOME + [0, 0, 0.002], 0.0), TW_HOLD, "lower them into the cup", False, True),
-        _wp(0.6, "r", _const(R_HOME + [0, 0, 0.002], 0.0), TW_WIDE, "let go: they stand in it", False, True),
-        _wp(1.2, "r", _const(R_HOME + [0, 0, 0.05], 0.0), TW_WIDE, "up", False, True),
-        Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
-    ]
+    right.append(_wp(2.5, "r", _const(W0 - Rz(PICK_H) @ V0 - U * 0.06 + Z * 0.10, Rz(PICK_H)), TW_HOLD,
+                     "out of the way above the carriers, keeping the tweezers", False))
+    r_rest = right[-1]
 
     # left: hold it while the right hand lets go, then turn it over, carry it over the chuck and lay it down
     held = (lambda: (seen() - C_EDGE + O_L, L_R0))  # noqa: E731
@@ -728,15 +733,21 @@ def demo():
     for k in range(1, TURN_STEPS + 1):
         left.append(_wp(0.8, "l", lift(k), TW_PINCH, "turn it over: it lies flat, pattern side down", False))
     over = PLACE_C + [0.0, 0.0, 0.06]
-    lay = lambda up, back=0.0: (lambda: (PLACE_C + Z * up - L_R1 @ V0 - L_R1 @ X * back, L_R1))  # noqa: E731
+    lay = lambda up, back=0.0: (lambda: (PLACE_C + Z * up - L_R1 @ V0 - L_R1 @ X * back  # noqa: E731
+                                         + _seen.get("wtrim", np.zeros(3)), L_R1))
+    left += [_wp(3.0, "l", lay(0.06), TW_PINCH, "carry it over the chuck", False)]
+    t0 = _dur(left)
     left += [
-        _wp(3.0, "l", lay(0.06), TW_PINCH, "carry it over the chuck", False),
         _wp(2.0, "l", lay(0.02), TW_PINCH, "down over the chuck"),
-        _wp(1.5, "l", lay(0.02), TW_PINCH, "line up over the chuck"),
+        _wp(2.5, "l", lay(0.02), TW_PINCH, "line it up over the chuck, seen against the chuck"),
+    ]
+    _seen["trim_win"] = (t0 + 1.0, _dur(left))
+    left += [
         _wp(1.5, "l", lay(0.0), TW_PINCH, "lay it on the chuck, the lower blade in the recess", False),
         _wp(0.8, "l", lay(0.0), TW_HOLD, "let go: open the blades", False),
-        _wp(1.2, "l", lay(0.0, 0.018), TW_HOLD, "back the blades out", False),
-        _wp(1.0, "l", lay(0.03, 0.018), TW_HOLD, "up", False),
+        _wp(0.6, "l", lay(-0.0015), TW_HOLD, "drop the blades into the recess, clear of the wafer", False),
+        _wp(1.2, "l", lay(-0.0015, 0.020), TW_HOLD, "back the blades out along the recess", False),
+        _wp(1.0, "l", lay(0.03, 0.020), TW_HOLD, "up", False),
         _wp(3.0, "l", _const(L_HOME + [0, 0, 0.06], 0.0), TW_HOLD, "upright again, over the cup", True, True),
         _wp(2.0, "l", _const(L_HOME + [0, 0, 0.06], 0.0), TW_HOLD, "line them up over the cup", True, True),
         _wp(1.5, "l", _const(L_HOME + [0, 0, 0.002], 0.0), TW_HOLD, "lower them into the cup", False, True),
@@ -746,21 +757,21 @@ def demo():
     ]
     t_laid = _dur(left) - 2.0  # the left hand has stood its tweezers in their cup
 
-    # right: switch the wafer vacuum on, pushing the toggle's knob forward with closed fingers
+    # left: switch the wafer vacuum on once its tweezers are back in their cup (closed fingers push the lever forward)
     tg = np.array([VAC_XY[0], VAC_XY[1], CHUCK_TOP + 0.006])
     knob_off = tg + [0.014 * math.sin(0.42), 0.0, 0.014 * math.cos(0.42)]  # 14 mm up the lever: pushed mid-rod
     knob_on = tg + [-0.014 * math.sin(0.42), 0.0, 0.014 * math.cos(0.42)]
     dn = Orient(_prev_grip(0.0))
     tcp = lambda p: tuple(np.asarray(p, float) + [0.0, 0.0, TIP_ABOVE_TCP])  # noqa: E731
-    right.append(Waypoint(max(0.3, t_laid - _dur(right)), RIGHT_PARK, FINGER_OPEN, "wait for the wafer to be laid"))
-    right += [
+    left = left[:-1]  # (not to the park first)
+    left += [
         Waypoint(2.5, tcp(knob_off + [0.012, 0.0, 0.03]), FINGER_CLOSED, "above, behind the vacuum toggle", dn),
         Waypoint(1.2, tcp(knob_off + [0.012, 0.0, -0.002]), FINGER_CLOSED, "fingertips down behind its knob", dn),
         Waypoint(1.5, tcp(knob_on + [-0.006, 0.0, -0.004]), FINGER_CLOSED, "push it forward: WAFER VACUUM on", dn),
         Waypoint(1.0, tcp(knob_on + [0.0, 0.0, 0.05]), FINGER_CLOSED, "up", dn),
-        Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
+        Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "park"),
     ]
     t_end = max(_dur(left), _dur(right)) + 2.0
     left.append(Waypoint(t_end - _dur(left), LEFT_PARK, FINGER_OPEN, "rest"))
-    right.append(Waypoint(t_end - _dur(right), RIGHT_PARK, FINGER_OPEN, "rest"))
+    right.append(Waypoint(t_end - _dur(right), r_rest.pos, TW_HOLD, "rest", r_rest.yaw))
     return {"left": left, "right": right}
