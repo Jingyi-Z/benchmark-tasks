@@ -138,7 +138,7 @@ POST_R, POST_H = 0.0015, 0.0015
 NOTCH = ((-0.036, -0.0165), 0.012)  # the tweezer notch in the near rim, up to the V: x span, half width
 # the riser and handle stand at the plate's right side (-y), so the near rim is clear for the tweezers
 RISER = (0.006, (-0.034, -0.0295), 0.032)  # x half width, y span, height
-HANDLE_A = (0.006, (-0.110, -0.0295), (0.018, 0.032))  # the aligner's handle, a fin: x half width, y span, z span
+HANDLE_A = (0.005, (-0.070, -0.0295), (0.020, 0.032))  # the aligner's handle, a fin: x half width, y span, z span
 _t = 0.003  # the V's walls
 _u = (CHUCK_R + _t / 2) / math.sqrt(2)
 ALIGNER_BOXES = [
@@ -397,8 +397,8 @@ POCKET_PLACE = (ALIGNER_XY[0] - WAFER_R + PINCH_IN, ALIGNER_XY[1], TOP + PT + 0.
 TW_HOME = np.array([TW_XY[0], TW_XY[1], TOP + CUP_FLOOR + 0.0012])
 
 AL_HANDLE_Y = -0.052  # gripped here along its handle (aligner frame), fingers closing across it (along x)
-AL_WIDE, AL_HOLD = -0.012, -0.004
-AL_GRIP_Z = HANDLE_A[2][1] - 0.012  # pad tips 12 mm down the 14 mm fin, so the pads hold it against turning
+AL_WIDE, AL_HOLD = -0.012, -0.0032
+AL_GRIP_Z = HANDLE_A[2][1] - 0.010  # pad tips 10 mm down the 12 mm fin, so the pads hold it against turning
 DOCK_Z = CHUCK_TOP - 0.002  # the plate's underside: its top 1 mm over the chuck's, the wafer resting on it
 DROP = 0.0045
 BACK = 0.055  # slide the aligner back this far after the drop, clear of the wafer
