@@ -605,11 +605,11 @@ def demo():
         left.append(Waypoint(0.7, _lid_tcp(th, 0.0015), BAR_WIDE, "lift the lid along its arc", _lid_rot(th)))
     t_open = _dur(left)
 
-    dock_hi = np.array(C(-DOCK_PRE, 0.0, DOCK_Z + 0.030))
+    dock_hi = np.array(C(-DOCK_PRE, 0.0, DOCK_Z + 0.015))
     dock = np.array(C(-DOCK_PRE, 0.0, DOCK_Z))
     right.append(Waypoint(max(0.3, t_open - _dur(right)), _al_tcp(al0 + [0, 0, 0.05]), AL_HOLD, "wait for the lid",
                           AL_ROT))
-    over = np.array(C(-DOCK_PRE, 0.0, DOCK_Z + 0.06))
+    over = np.array(C(-DOCK_PRE, 0.0, DOCK_Z + 0.045))  # the plate 23 mm over the rim: the arm reaches no higher here
     right += [
         Waypoint(1.2, _al_tcp(al0 + [0, 0, 0.10]), AL_HOLD, "up, clear of the coater's bowl", AL_ROT),
         Waypoint(3.0, _al_tcp(over), AL_HOLD, "over the chuck, high", AL_ROT),
