@@ -4,16 +4,16 @@ flat lid lying open side up, and its domed bottom lying beside it, dome up.
 
 The coater: a white housing 22 x 22 cm with a round catch bowl and, in the middle of the bowl, a black vacuum chuck
 2.4 cm across, the wafer resting on it (vacuum off). Its clear lid is hinged along the back edge and lifts at the front
-by a black handle bar; it falls shut under its own weight unless held.
+by a black handle bar; it stands open against its stop, past upright, as it was left after spinning.
 
 The case (polypropylene): the lid is a flat round tray with a ring of low pins the wafer rests on and a low wall round
-them, open on the side towards the robots for the tweezers' blades. The domed bottom fits over the wall and sits on
+them, open on its right-hand side (towards -y) for the tweezers' blades. The domed bottom fits over the wall and sits on
 the lid's wide flange; a bayonet closes it: set on with its arrow at the lid's OPEN mark and turned 30 degrees
 clockwise to the LOCK mark.
 
-The task: hold the coater's lid open; with the tweezers, take the wafer off the chuck by its edge and lay it, pattern
-side up, in the case's lid; let the coater's lid down; set the domed bottom on the case's lid and turn it to lock while
-holding the case's lid down. The wafer is never touched by the gripper.
+The task: with the tweezers, take the wafer off the chuck by its edge and lay it, pattern side up, in the case's lid;
+set the domed bottom on the case's lid and turn it to lock while holding the case's lid down. The wafer is never
+touched by the gripper.
 
 Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jitter=0 -E control_hz=20 \\
            --instruction "<see task.json>" --scorer task_score ...
@@ -52,7 +52,7 @@ PP_B = (0.80, 0.86, 0.93)  # the domed bottom, tinted
 MARK = (0.85, 0.20, 0.12)
 
 # -- the spin coater (fixed). Frame: origin on the table under the chuck's axis, axes along the world's. --------------
-CX, CY = 0.28, -0.02
+CX, CY = 0.31, -0.12  # to the robots' right; the case sits in front of the robots' middle
 HW = 0.110  # housing half width
 HOUSING_H = 0.040  # its top is the bowl's floor
 BOWL_IN, RIB_R = 0.095, 0.0035
@@ -64,7 +64,7 @@ HINGE = (HW, 0.0, RIM + 0.0035)  # the lid's hinge, along y at the housing's bac
 HOLE = 0.012  # the dispense hole, square, over the chuck
 HANDLE_Y, HANDLE_L, HANDLE_S, HANDLE_UP = 0.080, 0.050, 0.010, 0.020
 HANDLE_X = -HW + 0.010
-LID_MAX = 1.30  # the lid's stop (rad, 74 degrees): short of upright, so it always falls shut
+LID_MAX = 1.75  # the lid's stop (rad, 100 degrees): past upright, so it stays open, as it was left after spinning
 _lz = RIM + 0.001 + LID_T / 2
 _half = (2 * HW - HOLE) / 4  # width of each strip round the hole
 LID_BOXES = [
@@ -82,7 +82,7 @@ LID_BOXES = [
     *[((HW - 0.004, e * 0.07, _lz), (0.008, 0.03, 0.008), STEEL) for e in (-1, 1)],
 ]
 BAR_Z = _lz + LID_T / 2 + HANDLE_UP + HANDLE_S / 2  # the handle bar's axis, lid shut
-LID = Joint("lid", kind="hinge", axis="Y", anchor=HINGE, lower=0.0, upper=LID_MAX, initial=0.0, target=0.0,
+LID = Joint("lid", kind="hinge", axis="Y", anchor=HINGE, lower=0.0, upper=LID_MAX, initial=LID_MAX, target=0.0,
             stiffness=0.0, damping=0.08, mass=0.25, boxes=LID_BOXES,
             cylinders=[((HANDLE_X, HANDLE_Y, BAR_Z), HANDLE_S / 2, HANDLE_L, BLACK, "Y")])
 
@@ -139,7 +139,7 @@ TWEEZER_JAW = Joint("jaw", kind="slide", axis="X", anchor=(_ax + SEP / 2, 0.0, _
                     lower=-(SEP - BLADE_T / _s - 0.0002), upper=0.0, initial=0.0, target=0.0, stiffness=600.0,
                     damping=5.0, mass=0.008, boxes=_half(SEP / 2))
 # The cup: a block on the bench; the tweezers stand in it on their blade tips, upright.
-TW_XY = (0.30, -0.28)  # off to the side, clear of the path to the wafer
+TW_XY = (0.17, -0.27)  # in front of the coater, to the right
 CUP_FLOOR, CUP_H = 0.020, 0.035  # the cup's floor above the table; its walls above the floor
 CUP_IN = ((-0.0150, 0.0065), 0.0085)  # inner x span, inner half width (y): a snug fit, so they stand upright
 _cw = 0.003
@@ -157,18 +157,19 @@ TWEEZERS = part(
 )
 
 # -- the case (loose): lid and domed bottom. Frames: origin on the axis, at the underside. ------------------------------
-CASE_XY = (0.115, -0.085)  # the lid, open side up, in front of the coater
-COVER_XY = (0.22, -0.27)  # the domed bottom, dome up, beside it
+CASE_XY = (0.16, 0.05)  # the lid, open side up, in front of the robots' middle
+COVER_XY = (0.20, 0.17)  # the domed bottom, dome up, to its left
 BASE_R, BASE_T = 0.046, 0.002  # the lid's base: floor and a wide flange
 PIN_R, PIN_RAD, PIN_H = 0.0235, 0.0012, 0.003  # the pins the wafer rests on
 WALL_R, WALL_T, WALL_H = 0.0285, 0.002, 0.007  # the low wall round the pocket
-GAP = math.radians(32.0)  # half the opening in the wall (and the pins) towards -x, for the tweezers' blades
+GAP = math.radians(32.0)  # half the opening in the wall (and the pins) towards -y, for the tweezers' blades
+GAP_DIR = -math.pi / 2
 N_WALL, N_PIN = 36, 18
 _wseg = 2 * math.pi * WALL_R / N_WALL * 1.08
 
 
 def _off_gap(a):
-    return abs(math.atan2(math.sin(a - math.pi), math.cos(a - math.pi))) > GAP
+    return abs(math.atan2(math.sin(a - GAP_DIR), math.cos(a - GAP_DIR))) > GAP
 
 
 _wall = [((WALL_R * math.cos(a), WALL_R * math.sin(a), BASE_T + WALL_H / 2), (WALL_T, _wseg, WALL_H), PP, a)
@@ -207,7 +208,7 @@ def C(x, y, z):
 
 # -- scoring ----------------------------------------------------------------------------------------------------------
 FLAT_DEG = 3.0
-POCKET_TOL = 0.002  # the wafer's centre within 2 mm of the case's axis
+POCKET_TOL = 0.0025  # the wafer's centre within 2.5 mm of the case's axis: inside the wall
 REST_Z = BASE_T + PIN_H  # the wafer's underside on the pins, above the lid's underside
 SEAT_TOL = 0.0025
 LOCK_WIN = (math.radians(-45.0), math.radians(-22.0))  # turned into the lock: 22 to 45 degrees clockwise
@@ -315,14 +316,13 @@ def distance(objects):
 
 
 # -- scripted demo ----------------------------------------------------------------------------------------------------
-# Left arm: lifts the coater's lid by its handle bar, the bar riding between its part-open fingers along the lid's arc,
-# to 70 degrees, and holds it there. Right arm, with the tweezers: lifts them out of their cup from above, gripping
-# their two arms near the top, tilts them 45 degrees so the blades lie flat, slides the open blades round the wafer's
-# near edge on the chuck (closed loop on the tweezers' live tips), pinches it, lifts it out of the bowl and lays it in
-# the case's lid through the gap in its wall, lets go, backs the blades out and stands the tweezers back in their cup.
-# Left arm: lowers the coater's lid shut. Right arm: picks the domed bottom up by its skirt, sets it on the case's lid
-# with its arrow at the OPEN mark (closed loop on the lid's live position); the left arm holds the lid's flange down
-# with closed fingertips while the right turns the bottom 30 degrees clockwise to lock it; both let go.
+# Right arm, with the tweezers: lifts them out of their cup from above, gripping their two arms near the top, tilts
+# them 45 degrees so the blades lie flat, slides the open blades round the wafer's near edge on the chuck (closed loop
+# on the tweezers' live tips), pinches it, lifts it out of the bowl, turns and lays it in the case's lid through the gap
+# in its wall, lets go, backs the blades out and stands the tweezers back in their cup. Left arm: picks the domed bottom
+# up by its skirt and sets it on the case's lid with its arrow at the OPEN mark (closed loop on the lid's live
+# position). Right arm: holds the lid's flange down with closed fingertips while the left turns the bottom 30 degrees
+# clockwise to lock it; both let go.
 _prev_action7 = _demo.ArmPlan.action7
 if not getattr(_prev_action7, "_clock", False):
     def _action7(self, t, _prev=_prev_action7):
@@ -374,9 +374,18 @@ TW_HOLD = -0.0050  # just closed on the arms' outer faces: the blades stay open
 TW_PINCH = -0.0016  # squeezes the arms: the blades close on the wafer
 
 
-def _tw_tcp(origin):
-    """TCP holding the tweezers (turned to blades flat) with their origin (between the blade tips) at ``origin``."""
-    return _tcp(np.asarray(origin, float) + TW_GRIP, TW_ROT)
+Z = np.array([0.0, 0.0, 1.0])
+
+
+def tw_rot(psi=0.0):
+    """The hand's rotation holding the tweezers blades flat, pointing along heading ``psi`` (0: +x)."""
+    return Orient(axis_angle_matrix(Z, psi) @ TW_ROT.rot)
+
+
+def _tw_tcp(origin, psi=0.0):
+    """TCP holding the tweezers (turned to blades flat, pointing along ``psi``) with their origin (between the blade
+    tips) at ``origin``."""
+    return _tcp(np.asarray(origin, float) + axis_angle_matrix(Z, psi) @ TW_GRIP, tw_rot(psi))
 
 
 def _cup_tcp(origin):
@@ -388,12 +397,12 @@ PINCH_IN = 0.0085  # the blade tips this far inside the wafer's edge (the upper 
 BLADE_Z = 0.0022  # the tips' midpoint this far above the wafer's underside: the held-open lower blade 0.3 mm under
 # it (only the upper blade moves as they close), the upper 3 mm over it
 WAFER_PICK = np.array([CX - WAFER_R + PINCH_IN, CY, TOP + CHUCK_TOP + BLADE_Z])
-CASE_PLACE = np.array([CASE_XY[0] - WAFER_R + PINCH_IN, CASE_XY[1], TOP + REST_Z + 0.0008 + BLADE_Z])
+CASE_PLACE = np.array([CASE_XY[0], CASE_XY[1] - WAFER_R + PINCH_IN, TOP + REST_Z + 0.0008 + BLADE_Z])  # from -y
 TW_HOME = np.array([TW_XY[0], TW_XY[1], TOP + CUP_FLOOR + 0.0012])
 DOWN_Y = Orient(_prev_grip(0.0))  # pointing down, fingers closing along y
 COVER_WIDE, COVER_HOLD = -0.044, -0.0335  # pads round the 75 mm skirt; squeezing it
 COVER_GRIP_Z = 0.008  # pad tips this far above the skirt's lower edge
-PRESS_R = 0.0425  # the left fingertips press the lid's flange here, on its +y side
+PRESS_R = 0.0425  # the right fingertips press the lid's flange here, on its -y side
 PRESS_IN = 0.0025  # aim this far into the flange: a firm press
 
 # what the demo sees of the case's lid: its position, every step
@@ -450,14 +459,15 @@ class _TwAt:
     """The right hand's TCP to put the held tweezers' tips at ``origin`` (blades flat, or upright when ``cup``),
     trimmed by the live correction; ``track`` False holds the correction (and, before they are held, it is zero)."""
 
-    def __init__(self, origin, cup=False, track=True):
+    def __init__(self, origin, cup=False, track=True, psi=0.0):
         self.origin = np.asarray(origin, float)
         self.cup = cup
         self.track = track
+        self.psi = psi
 
     def __array__(self, dtype=None, copy=None):
         _tw["goal"] = self.origin if self.track else None
-        tcp = _cup_tcp(self.origin) if self.cup else _tw_tcp(self.origin)
+        tcp = _cup_tcp(self.origin) if self.cup else _tw_tcp(self.origin, self.psi)
         return np.asarray(np.asarray(tcp) + _tw["corr"], dtype=dtype or float)
 
 
@@ -495,98 +505,82 @@ def _dur(wps):
 
 def demo():
     _tw.update(corr=np.zeros(3), goal=None, prev=None)
-    q, d = TW_ROT, DOWN_X
-    # left: open the coater's lid
-    left = [
-        Waypoint(2.5, tuple(np.array(_lid_tcp(0.0)) + [-0.03, 0.0, 0.02]), BAR_WIDE, "in front of the lid's handle",
-                 _lid_rot(0.0)),
-        Waypoint(1.2, _lid_tcp(0.0), BAR_WIDE, "the handle bar between the fingers", _lid_rot(0.0)),
-    ]
-    for th in np.linspace(0.12, LID_OPEN, 8):
-        left.append(Waypoint(0.7, _lid_tcp(th, 0.0015), BAR_WIDE, "lift the lid along its arc", _lid_rot(th)))
-    t_open = _dur(left)
-
+    d, q0, q1 = DOWN_X, tw_rot(0.0), tw_rot(math.pi / 2)
     P, K = WAFER_PICK, CASE_PLACE
+    H = math.pi / 2  # heading into the case's lid: +y, through the gap in its wall
     right = [
         Waypoint(3.0, _TwAt(TW_HOME + [0.0, 0.0, 0.05], cup=True, track=False), TW_WIDE,
                  "above the tweezers standing in their cup", d),
         Waypoint(1.5, _TwAt(TW_HOME, cup=True, track=False), TW_WIDE, "down: pads either side of their arms", d),
         Waypoint(0.8, _TwAt(TW_HOME, cup=True, track=False), TW_HOLD, "hold the tweezers, blades open", d),
         Waypoint(1.5, _TwAt(TW_HOME + [0.0, 0.0, 0.06], cup=True, track=False), TW_HOLD, "lift them out of the cup", d),
-        Waypoint(3.0, _TwAt(P + [-0.03, 0.0, 0.06]), TW_HOLD, "tilt them, blades flat, above the bowl", q),
-    ]
-    right.append(Waypoint(max(0.5, t_open - _dur(right)), _TwAt(P + [-0.03, 0.0, 0.06]), TW_HOLD,
-                          "wait for the coater's lid", q))
-    right += [
-        Waypoint(2.0, _TwAt(P + [-0.015, 0.0, 0.02]), TW_HOLD, "down into the bowl, towards the wafer's near edge", q),
-        Waypoint(2.0, _TwAt(P + [-0.015, 0.0, 0.0]), TW_HOLD, "blades level with the wafer", q),
-        Waypoint(1.5, _TwAt(P + [-0.015, 0.0, 0.0]), TW_HOLD, "line up, seen against the wafer", q),
-        Waypoint(2.0, _TwAt(P), TW_HOLD, "slide the open blades round its edge", q),
-        Waypoint(1.5, _TwAt(P), TW_HOLD, "line up: the lower blade just under the wafer", q),
-        Waypoint(0.8, _TwAt(P, track=False), TW_PINCH, "pinch the wafer by its edge", q),
-        Waypoint(1.5, _TwAt(P + [0.0, 0.0, 0.04], track=False), TW_PINCH, "lift it off the chuck", q),
-        Waypoint(2.0, _TwAt(P + [-0.04, 0.0, 0.06], track=False), TW_PINCH, "up and out over the bowl's rim", q),
-        Waypoint(4.0, _TwAt(K + [0.0, 0.0, 0.03]), TW_PINCH, "over the case's lid", q),
-        Waypoint(2.0, _TwAt(K + [0.0, 0.0, 0.03]), TW_PINCH, "line up over the pocket", q),
-    ]
-    t_clear = _dur(right)
-    right += [
-        Waypoint(1.5, _TwAt(K, track=False), TW_PINCH, "lower it onto the pins, the blades in the wall's gap", q),
-        Waypoint(0.8, _TwAt(K, track=False), TW_HOLD, "let go: open the blades", q),
-        Waypoint(1.2, _TwAt(K + [-0.016, 0.0, 0.0], track=False), TW_HOLD, "back the blades out", q),
-        Waypoint(1.0, _TwAt(K + [-0.016, 0.0, 0.03], track=False), TW_HOLD, "up", q),
+        Waypoint(3.0, _TwAt(P + [-0.03, 0.0, 0.06]), TW_HOLD, "tilt them, blades flat, above the bowl", q0),
+        Waypoint(2.0, _TwAt(P + [-0.015, 0.0, 0.02]), TW_HOLD, "down into the bowl, towards the wafer's near edge", q0),
+        Waypoint(2.0, _TwAt(P + [-0.015, 0.0, 0.0]), TW_HOLD, "blades level with the wafer", q0),
+        Waypoint(1.5, _TwAt(P + [-0.015, 0.0, 0.0]), TW_HOLD, "line up, seen against the wafer", q0),
+        Waypoint(2.0, _TwAt(P), TW_HOLD, "slide the open blades round its edge", q0),
+        Waypoint(1.5, _TwAt(P), TW_HOLD, "line up: the lower blade just under the wafer", q0),
+        Waypoint(0.8, _TwAt(P, track=False), TW_PINCH, "pinch the wafer by its edge", q0),
+        Waypoint(1.5, _TwAt(P + [0.0, 0.0, 0.04], track=False), TW_PINCH, "lift it off the chuck", q0),
+        Waypoint(2.0, _TwAt(P + [-0.04, 0.0, 0.06], track=False), TW_PINCH, "up and out over the bowl's rim", q0),
+        Waypoint(4.0, _TwAt(K + [0.0, 0.0, 0.03], psi=H), TW_PINCH, "turn and carry it over the case's lid", q1),
+        Waypoint(2.0, _TwAt(K + [0.0, 0.0, 0.03], psi=H), TW_PINCH, "line up over the pocket", q1),
+        Waypoint(1.5, _TwAt(K, track=False, psi=H), TW_PINCH, "lower it onto the pins, the blades in the wall's gap", q1),
+        Waypoint(0.8, _TwAt(K, track=False, psi=H), TW_HOLD, "let go: open the blades", q1),
+        Waypoint(1.2, _TwAt(K + [0.0, -0.016, 0.0], track=False, psi=H), TW_HOLD, "back the blades out", q1),
+        Waypoint(1.0, _TwAt(K + [0.0, -0.016, 0.03], track=False, psi=H), TW_HOLD, "up", q1),
         Waypoint(3.0, _TwAt(TW_HOME + [0.0, 0.0, 0.06], cup=True), TW_HOLD, "upright again, over the cup", d),
         Waypoint(2.0, _TwAt(TW_HOME + [0.0, 0.0, 0.06], cup=True), TW_HOLD, "line them up over the cup", d),
-        Waypoint(1.5, _TwAt(TW_HOME + [0.0, 0.0, 0.004], cup=True, track=False), TW_HOLD, "lower them into the cup", d),
-        Waypoint(0.6, _TwAt(TW_HOME + [0.0, 0.0, 0.004], cup=True, track=False), TW_WIDE, "let go: they stand in it", d),
+        Waypoint(1.5, _TwAt(TW_HOME + [0.0, 0.0, 0.002], cup=True, track=False), TW_HOLD, "lower them into the cup", d),
+        Waypoint(0.6, _TwAt(TW_HOME + [0.0, 0.0, 0.002], cup=True, track=False), TW_WIDE, "let go: they stand in it", d),
         Waypoint(1.2, _TwAt(TW_HOME + [0.0, 0.0, 0.05], cup=True, track=False), TW_WIDE, "up", d),
     ]
+    t_placed = _dur(right) - 11.5  # the wafer is in the case's lid and the tweezers are clear of it
+
+    # left: the domed bottom onto the case's lid, arrow at OPEN; then, with the lid held down, turn it to LOCK
     c0 = np.array([*COVER_XY, TOP])
-    right += [
+    on_lid = lambda dz, dz_extra=0.0: _OnLid(lambda L: _cover_tcp(L + [0, 0, dz]))  # noqa: E731
+    left = [Waypoint(3.0, LEFT_PARK, FINGER_OPEN, "wait")]
+    left.append(Waypoint(max(0.3, t_placed - 10.0 - _dur(left)), LEFT_PARK, FINGER_OPEN, "wait"))
+    left += [
         Waypoint(2.5, _cover_tcp(c0 + [0, 0, 0.04]), COVER_WIDE, "above the domed bottom", 0.0),
         Waypoint(1.5, _cover_tcp(c0), COVER_WIDE, "fingers either side of its skirt", 0.0),
         Waypoint(0.8, _cover_tcp(c0), COVER_HOLD, "grip the skirt", 0.0),
-        Waypoint(1.2, _cover_tcp(c0 + [0, 0, 0.04]), COVER_HOLD, "lift it", 0.0),
-        Waypoint(3.0, _OnLid(lambda L: _cover_tcp(L + [0, 0, 0.03])), COVER_HOLD,
-                 "over the case's lid, its arrow at the OPEN mark", 0.0),
-        Waypoint(1.5, _OnLid(lambda L: _cover_tcp(L + [0, 0, 0.03])), COVER_HOLD, "line up over the lid", 0.0),
-        Waypoint(2.0, _OnLid(lambda L: _cover_tcp(L + [0, 0, BASE_T - 0.001])), COVER_HOLD,
-                 "lower it over the wall onto the flange", 0.0),
+        Waypoint(1.2, _cover_tcp(c0 + [0, 0, 0.05]), COVER_HOLD, "lift it", 0.0),
     ]
-    t_seated = _dur(right)
-    right += [Waypoint(2.0, _OnLid(lambda L: _cover_tcp(L + [0, 0, BASE_T - 0.001])), COVER_HOLD,
-                       "wait for the other hand on the flange", 0.0)]
+    left.append(Waypoint(max(0.3, t_placed - _dur(left)), _cover_tcp(c0 + [0, 0, 0.05]), COVER_HOLD,
+                         "wait for the wafer to be in the case", 0.0))
+    left += [
+        Waypoint(3.0, on_lid(0.04), COVER_HOLD, "over the case's lid, its arrow at the OPEN mark", 0.0),
+        Waypoint(1.5, on_lid(0.04), COVER_HOLD, "line up over the lid", 0.0),
+        Waypoint(2.0, on_lid(BASE_T - 0.001), COVER_HOLD, "lower it over the wall onto the flange", 0.0),
+    ]
+    t_seated = _dur(left)
+    left.append(Waypoint(max(0.3, _dur(right) + 5.3 - _dur(left)), on_lid(BASE_T - 0.001), COVER_HOLD,
+                         "wait for the other hand on the flange", 0.0))
     for f in np.linspace(0.25, 1.0, 4):
-        right.append(Waypoint(0.8, _OnLid(lambda L: _cover_tcp(L + [0, 0, BASE_T - 0.001])), COVER_HOLD,
-                              "turn it clockwise to the LOCK mark", float(LOCK * f)))
-    right += [
-        Waypoint(0.6, _OnLid(lambda L: _cover_tcp(L + [0, 0, BASE_T - 0.001])), COVER_WIDE, "let go", float(LOCK)),
-        Waypoint(1.2, _OnLid(lambda L: _cover_tcp(L + [0, 0, 0.05])), COVER_WIDE, "up", float(LOCK)),
-        Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
+        left.append(Waypoint(0.8, on_lid(BASE_T - 0.001), COVER_HOLD, "turn it clockwise to the LOCK mark",
+                             float(LOCK * f)))
+    left += [Waypoint(0.5, on_lid(BASE_T - 0.001), COVER_HOLD, "steady", float(LOCK))]
+    t_turned = _dur(left)
+    left += [
+        Waypoint(0.6, on_lid(BASE_T - 0.001), COVER_WIDE, "let go", float(LOCK)),
+        Waypoint(1.2, on_lid(0.05), COVER_WIDE, "up", float(LOCK)),
+        Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "park"),
     ]
-    t_twisted = _dur(right) - 3.8
 
-    # left: hold the coater's lid until the wafer is out and over the case, then lower it shut
-    left.append(Waypoint(max(0.3, t_clear - _dur(left)), _lid_tcp(LID_OPEN, 0.0015), BAR_WIDE, "hold the lid open",
-                         _lid_rot(LID_OPEN)))
-    for th in np.linspace(LID_OPEN - 0.15, 0.0, 8):
-        left.append(Waypoint(0.7, _lid_tcp(th, 0.0015), BAR_WIDE, "lower the coater's lid shut", _lid_rot(th)))
-    left += [
-        Waypoint(1.0, tuple(np.array(_lid_tcp(0.0)) + [-0.03, 0.0, 0.02]), BAR_WIDE, "off the handle", _lid_rot(0.0)),
-        Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "out of the way"),
-    ]
-    press = lambda dz: _OnLid(lambda L: tuple(L + [0.0, PRESS_R, BASE_T + TIP_ABOVE_TCP + dz]))  # noqa: E731
-    left.append(Waypoint(max(0.3, t_seated - 3.0 - _dur(left)), press(0.03), FINGER_CLOSED,
-                         "fingers closed, above the case's flange", d))
-    left += [
+    # right, after the tweezers: fingertips closed, hold the case's lid down by its flange while the bottom is turned
+    press = lambda dz: _OnLid(lambda L: tuple(L + [0.0, -PRESS_R, BASE_T + TIP_ABOVE_TCP + dz]))  # noqa: E731
+    right += [
+        Waypoint(2.5, press(0.03), FINGER_CLOSED, "fingers closed, above the case's flange", d),
         Waypoint(1.5, press(0.0), FINGER_CLOSED, "fingertips on the flange", d),
         Waypoint(1.0, press(-PRESS_IN), FINGER_CLOSED, "hold the case's lid down", d),
     ]
-    left.append(Waypoint(max(0.3, t_twisted - _dur(left)), press(-PRESS_IN), FINGER_CLOSED,
-                         "hold it while the bottom is turned", d))
-    left += [
+    right.append(Waypoint(max(0.3, t_turned + 0.6 - _dur(right)), press(-PRESS_IN), FINGER_CLOSED,
+                          "hold it while the bottom is turned", d))
+    right += [
         Waypoint(1.0, press(0.04), FINGER_CLOSED, "up", d),
-        Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "park"),
+        Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
     ]
     t_end = max(_dur(left), _dur(right)) + 2.0
     left.append(Waypoint(t_end - _dur(left), LEFT_PARK, FINGER_OPEN, "rest"))
