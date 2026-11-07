@@ -116,7 +116,10 @@ TSTAND = part("tweezer_cup", pos=(*TW_XY, TOP), fixed=True, friction=0.8,
                         (CUP_IN[0][1] - CUP_IN[0][0], _cw, CUP_H), STAND_C) for e in (-1, 1)]])
 TWEEZERS = part(
     "tweezers", pos=(*TW_XY, TOP + CUP_FLOOR + 0.0012), mass=0.020, friction=0.9,
-    boxes=_half(-SEP / 2),  # the two halves' joined end is the slide joint: nothing stands above the arms' tops
+    boxes=[*_half(-SEP / 2),
+           # the joined end: a bridge between the arms' tops, inside their outline, so it never stops the gripper's
+           # pads (on the arms' outer faces) or palm. Self-collision is off: the sprung half closes through it.
+           ((_ax, 0.0, TOP_Z - 0.004), (SEP - ARM_T, ARM_W, 0.008), STEEL)],
     joints=[TWEEZER_JAW],
 )
 
@@ -517,12 +520,12 @@ def demo():
     # plate, from behind its far rim
     B, yb = math.pi, HP_XY[1]
     u = up_rot(B)
-    far = np.array([HP_XY[0] + WAFER_R + 0.004, yb, PUSH_Z])
+    far = np.array([HP_XY[0] + WAFER_R + 0.010, yb, PUSH_Z])
     end = np.array([SLID_X + WAFER_R, yb, PUSH_Z])
     right += [
         Waypoint(3.0, _TwAt(far + [0.0, 0.0, 0.04], cup=True, psi=B), TW_PINCH, "over the plate, tips closed", u),
         Waypoint(1.5, _TwAt(far + [0.0, 0.0, 0.01], cup=True, psi=B), TW_PINCH, "tips down behind the wafer", u),
-        Waypoint(3.0, _TwAt(far + [0.0, 0.0, 0.01], cup=True, psi=B), TW_PINCH, "line the tips up behind it", u),
+        Waypoint(4.0, _TwAt(far + [0.0, 0.0, 0.01], cup=True, psi=B), TW_PINCH, "line the tips up behind it", u),
         Waypoint(1.5, _TwAt(far, cup=True, psi=B), TW_PINCH, "tips down behind its far rim", u),
         Waypoint(1.5, _TwAt(far, cup=True, psi=B), TW_PINCH, "line up again", u),
         Waypoint(4.0, _TwAt(end, cup=True, psi=B, track=False, zlive=True), TW_PINCH,
