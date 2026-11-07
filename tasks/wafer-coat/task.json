@@ -18,5 +18,5 @@
   "reset_notes": "Nothing is consumed. Put the wafer back on its stand (pattern up), the tweezers back in their cup, the aligner back on the bench as in the screenshot, and shut the lid.",
   "fidelity": "PhysX at 240 Hz. The wafer is rigid, drawn 1 mm thick (real 0.28 mm), and cannot chip. The chuck has no vacuum and does not spin: only the wafer's placement is scored. The tweezers are two halves on a sprung slide, not a bending spring. The lid is a rigid plate on a damped hinge. Resist dispensing and spinning are left out.",
   "scores": "Dream-1 run: 0.0; demo: 1.0",
-  "media": ""
+  "media": "M-C4ALEL"
 }
