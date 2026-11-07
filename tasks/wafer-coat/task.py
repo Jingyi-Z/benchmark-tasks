@@ -177,7 +177,7 @@ TWEEZER_JAW = Joint("jaw", kind="slide", axis="X", anchor=(_ax + SEP / 2, 0.0, _
                     lower=-(SEP - BLADE_T / _s - 0.0002), upper=0.0, initial=0.0, target=0.0, stiffness=2000.0,
                     damping=5.0, mass=0.008, boxes=_half(SEP / 2))
 # The cup: a block on the bench; the tweezers stand in it on their blade tips, upright.
-TW_XY = (0.33, -0.21)
+TW_XY = (0.30, -0.28)  # off to the side, clear of the path to the wafer
 CUP_FLOOR, CUP_H = 0.020, 0.035  # the cup's floor above the table; its walls above the floor
 CUP_IN = ((-0.0150, 0.0065), 0.0065)  # inner x span, inner half width (y): a snug fit, so they stand upright
 _cw = 0.003

@@ -72,7 +72,7 @@ PADDLE0 = (0.20, 0.07)  # where it lies at the start: plate centre, flat on the 
 PADDLE = part("paddle", pos=(*PADDLE0, TOP), mass=0.060, friction=0.10, boxes=PADDLE_BOXES)
 
 # -- the hotplate (fixed): an aluminium block; a printed ring of white dots on its top plate marks the target --------
-HP_XY = (0.38, -0.08)
+HP_XY = (0.34, -0.02)  # within easy reach of the left hand, the paddle tilted
 HP_HALF, HP_H = 0.080, 0.040
 DOT_R, DOT_H, N_DOTS = 0.0012, 0.0002, 24
 RING_R = WAFER_R + 0.004 + DOT_R  # the dots' centres: 4 mm outside a centred wafer's rim
