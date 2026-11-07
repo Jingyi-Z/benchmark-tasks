@@ -477,7 +477,8 @@ def _pick_at(dx=0.0, dz=0.0):
     under it): ``dx`` further out (-x) of the pinch point, ``dz`` above it."""
     def f():
         w = _seen["wafer"]
-        return np.array([w[0] - WAFER_R + PINCH_IN - dx, w[1], HP_TOP + BLADE_Z + dz])
+        return np.array([w[0] - WAFER_R + PINCH_IN - dx, w[1], HP_TOP + BLADE_Z - 0.0008 + dz])  # the lower blade
+        # 1.1 mm under the overhang, clear of its rim
     return f
 
 
@@ -563,7 +564,8 @@ def demo():
                  du),
         Waypoint(1.5, _TwAt(a0 + [0.0, 0.0, 0.004], cup=True, psi=PUSH_PSI), TW_HOLD,
                  "line the tips up behind the wafer's rim", du),
-        Waypoint(0.8, _TwAt(a0, cup=True, track=False, psi=PUSH_PSI), TW_PINCH, "tips down to the plate, the blades squeezed shut for a firm hold", du),
+        Waypoint(0.8, _TwAt(a0, cup=True, track=False, psi=PUSH_PSI), TW_PINCH,
+                 "tips down to the plate, the blades squeezed shut for a firm hold", du),
         Waypoint(6.0, _TwAt(_push_at, cup=True, track=False, psi=PUSH_PSI), TW_PINCH,
                  "slide the wafer with the blades' sides to the plate's front edge, until it overhangs", du),
         Waypoint(1.5, _TwAt(_push_at, cup=True, track=False, psi=PUSH_PSI), TW_PINCH, "on until it overhangs", du),
