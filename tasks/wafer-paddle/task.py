@@ -68,7 +68,7 @@ PADDLE_BOXES = [
     ((0.0, HANDLE_Y0 + HANDLE[1] - 0.012, _hz + HANDLE[2] / 2 + 0.0005), (HANDLE[0], 0.02, 0.001), RED),  # grip mark
 ]
 PADDLE0 = (0.20, 0.07)  # where it lies at the start: plate centre, flat on the bench
-PADDLE = part("paddle", pos=(*PADDLE0, TOP), mass=0.060, friction=0.10, boxes=PADDLE_BOXES)
+PADDLE = part("paddle", pos=(*PADDLE0, TOP), mass=0.060, friction=0.5, boxes=PADDLE_BOXES)
 
 # -- the hotplate (fixed): an aluminium block; a printed ring of white dots on its top plate marks the target --------
 HP_XY = (0.38, -0.08)
@@ -212,7 +212,7 @@ LEFT_PARK = (0.15, 0.25, TOP + 0.16)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.16)
 X = np.array([1.0, 0.0, 0.0])
 DOWN_X = _prev_grip(math.pi / 2)  # pointing down, fingers closing along x
-GRIP_LOCAL = np.array([0.0, HANDLE_Y0 + HANDLE[1] - 0.030, _hz])  # gripped here (paddle frame)
+GRIP_LOCAL = np.array([0.0, HANDLE_Y0 + 0.022, _hz])  # gripped here (paddle frame), close to the plate
 H_WIDE, H_HOLD = -0.012, FINGER_CLOSED
 
 
@@ -250,7 +250,7 @@ def _track(env):
     pad = labkit._part_state(env, labkit._SPECS["paddle"])
     err = np.asarray(_live["goal"], float) - np.asarray(pad.pos, float)
     if np.linalg.norm(err) < 0.03:  # only near the mark: not while moving between marks
-        _live["corr"] = np.clip(_live["corr"] + np.clip(0.08 * err, -0.0005, 0.0005), -0.02, 0.02)
+        _live["corr"] = np.clip(_live["corr"] + np.clip(0.08 * err, -0.0005, 0.0005), -0.03, 0.03)
 
 
 class _PaddleAt:
@@ -277,8 +277,8 @@ def _wait_until(wps, t, pos, finger, label, orient=0.0):
 
 LOAD_GAP = 0.0015  # the paddle's top this far below the wafer's underside
 FRONT_CLEAR = 0.003  # its front edge this far from the pedestal's side
-BACK_TILT = math.radians(-15.0)
-SET_TILT = math.radians(15.0)
+BACK_TILT = math.radians(-22.0)
+SET_TILT = math.radians(25.0)
 SET_SHIFT = 0.0  # where the front edge touches down, from one wafer radius short of the ring's centre
 
 
@@ -325,7 +325,6 @@ def demo():
     # the front edge: the front edge on the top plate one wafer radius short of the ring's centre, tilt forward so the
     # wafer slides down onto the plate, draw the paddle back out from under it
     hx, hy = HP_XY
-    lift = load + [0, 0.03, 0.02]
     front_local = np.array([0.0, -PL / 2, 0.0])  # the front edge's underside, paddle frame
     touch = np.array([hx, hy - WAFER_R + SET_SHIFT, HP_TOP + 0.0005])  # the front edge, on the plate
     above = touch + [0, 0, 0.006]
@@ -334,12 +333,15 @@ def demo():
         return front - _rx(phi) @ front_local
 
     _wait_until(left, t_pushed, _PaddleAt(load), H_HOLD, "hold the paddle while the wafer is pushed on", q0)
+    load_front = load + front_local
+    up = load_front + [0, 0, 0.03]
     left += [
-        Waypoint(2.0, _PaddleAt(lift), H_HOLD, "lift it clear of the pedestal", q0),
-        Waypoint(2.0, _PaddleAt(lift, BACK_TILT), H_HOLD, "tip it back: the wafer slides to the stop",
+        Waypoint(2.0, _PaddleAt(at_front(load_front, BACK_TILT), BACK_TILT), H_HOLD,
+                 "tip it back about its front edge: the wafer slides off the pedestal to the stop", _hand_rot(BACK_TILT)),
+        Waypoint(1.5, _PaddleAt(at_front(load_front, BACK_TILT), BACK_TILT), H_HOLD, "steady", _hand_rot(BACK_TILT)),
+        Waypoint(1.5, _PaddleAt(at_front(up, BACK_TILT), BACK_TILT), H_HOLD, "lift it clear of the pedestal",
                  _hand_rot(BACK_TILT)),
-        Waypoint(1.0, _PaddleAt(lift, BACK_TILT), H_HOLD, "steady", _hand_rot(BACK_TILT)),
-        Waypoint(1.5, _PaddleAt(lift), H_HOLD, "level", q0),
+        Waypoint(1.5, _PaddleAt(at_front(up, 0.0)), H_HOLD, "level", q0),
         Waypoint(4.0, _PaddleAt(at_front(above, 0.0) + [0, 0, 0.03]), H_HOLD, "carry it over the hotplate", q0),
         Waypoint(1.5, _PaddleAt(at_front(above, 0.0)), H_HOLD, "front edge just over the plate, short of the ring's centre",
                  q0),
