@@ -8,7 +8,7 @@ of their cup, sets their tips down on the plate behind the wafer and slides it, 
 edge until about 12 mm overhangs. It then tilts the tweezers so the blades lie flat, slides the open blades round the
 overhanging edge, pinches it, lifts it and lays it, pattern side up, on the lid's ledge through the opening in the
 wall; it lets go, backs the blades out and stands the tweezers back in their cup. The other hand picks the domed bottom
-up by its skirt, sets it over the lid with its arrow at the OPEN mark and turns it 30 degrees clockwise to the LOCK
+up by its skirt, sets it over the lid with its arrow at the OPEN mark and turns it 30 degrees counterclockwise to the LOCK
 mark. The wafer's top, the hot plate and the wafer's edge are never touched by the gripper.
 
 ## Files

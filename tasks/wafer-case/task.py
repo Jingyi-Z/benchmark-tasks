@@ -9,7 +9,8 @@ the middle of the plate, so the tweezers cannot get under its edge until it is s
 The case: the lid is a shallow tray; the wafer rests by its edge on a ledge ring inside a low wall, both open on the
 side towards the robots for the tweezers' blades, and a wide ribbed flange outside the wall takes the domed bottom.
 The bottom is a clear shell, a ribbed skirt under a shallow dome; a bayonet closes the case: the bottom is set on with
-its arrow at the lid's OPEN mark and turned 30 degrees clockwise to the LOCK mark.
+its arrow at the lid's OPEN mark and turned 30 degrees counterclockwise to the LOCK mark (the reverse of a screw lid,
+so it is not opened by accident).
 
 The task: with the tweezers, slide the wafer to the plate's edge until it overhangs, pinch it by that edge and lay
 it, pattern side up, in the case's lid; set the domed bottom on and turn it to lock. The gripper never holds the
@@ -137,7 +138,8 @@ TWEEZERS = part(
 # underside. The lid is a shallow tray: the wafer rests by its edge on a ledge ring inside a low wall, both open over
 # 64 degrees towards the robots (-x) for the tweezers' blades; a wide flange outside the wall, ribbed round its edge,
 # takes the domed bottom. The bottom is a clear shell: a ribbed skirt that fits over the wall onto the flange, under a
-# shallow dome. They close with a bayonet: the bottom set on at the OPEN mark and turned 30 degrees clockwise to LOCK.
+# shallow dome. They close with a bayonet: the bottom set on at the OPEN mark and turned 30 degrees counterclockwise to
+# LOCK (the reverse of a screw lid, as on real single-wafer carriers, so they are not opened by accident).
 CASE_XY = (0.15, 0.02)  # the lid, open side up, in front of the robots' middle
 COVER_XY = (0.20, 0.17)  # the domed bottom, dome up, to the case's left
 N_SEG = 64  # segments round each ring: smooth enough to read as round
@@ -146,7 +148,7 @@ LEDGE_IN, LEDGE_OUT, LEDGE_H = 0.0230, 0.0265, 0.003  # the ledge ring the wafer
 WALL_R, WALL_T, WALL_H = 0.0285, 0.002, 0.007  # the low wall round the pocket
 GAP = math.radians(32.0)  # half the opening in the ledge and the wall, towards -x
 GAP_DIR = math.pi
-LOCK = math.radians(-30.0)  # the bayonet's turn, clockwise seen from above
+LOCK = math.radians(30.0)  # the bayonet's turn, counterclockwise seen from above
 
 
 def _off_gap(a):
@@ -219,7 +221,7 @@ FLAT_DEG = 3.0
 POCKET_TOL = 0.0025  # the wafer's centre within 2.5 mm of the case's axis: inside the wall
 REST_Z = BASE_T + LEDGE_H  # the wafer's underside on the ledge, above the lid's underside
 SEAT_TOL = 0.0025
-LOCK_WIN = (math.radians(-45.0), math.radians(-22.0))  # turned into the lock: 22 to 45 degrees clockwise
+LOCK_WIN = (math.radians(22.0), math.radians(45.0))  # turned into the lock: 22 to 45 degrees counterclockwise
 OPEN_WIN = math.radians(10.0)  # set on within 10 degrees of the OPEN mark
 TOP_TOUCH = 0.006  # a pad tip within 6 mm above the wafer's top, more than 3 mm inside its rim: the top was touched
 HANDLED = 0.002  # a pad tip within 2 mm outside the wafer's rim and 8 mm of its height: held by the gripper
@@ -312,7 +314,7 @@ def score(objects):
     40 degrees, or on the table), or the gripper touched the hotplate's top. Otherwise, with the wafer lying flat
     in the case's lid on its ledge, its centre within 2.5 mm of the case's axis: 1.0 if the domed bottom is
     seated on the lid and locked (set on at the OPEN mark, within 10 degrees, and turned 22 to 45 degrees
-    clockwise while seated) with both hands 8 cm from the case's axis; 0.5 if the bottom is seated but not
+    counterclockwise while seated) with both hands 8 cm from the case's axis; 0.5 if the bottom is seated but not
     locked, or a hand is still at the case; 0.25 if the wafer is in the lid but the bottom is not seated. 0 if
     the wafer is not in the lid."""
     if _state["touched"] or _state["handled"] or _state["dropped"] or _state["hot"]:
@@ -346,7 +348,7 @@ def distance(objects):
 # pinches it, lifts it and lays it in the case's lid through the gap in its wall, lets go, backs the blades out, stands
 # the tweezers back in their cup and moves out of the way. Left arm: picks the domed bottom up by its skirt, sets it on
 # the case's lid with its arrow at the OPEN mark
-# (closed loop on the lid's live position) and turns it 30 degrees clockwise to the LOCK mark; lets go.
+# (closed loop on the lid's live position) and turns it 30 degrees counterclockwise to the LOCK mark; lets go.
 _prev_action7 = _demo.ArmPlan.action7
 if not getattr(_prev_action7, "_clock", False):
     def _action7(self, t, _prev=_prev_action7):
@@ -600,8 +602,8 @@ def demo():
     right += [Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park, out of the way")]
     t_placed = _dur(right) - 10.3  # the wafer is in the case's lid and the tweezers are up, clear of it
 
-    # left: the domed bottom onto the case's lid, arrow at OPEN; then turn it clockwise to LOCK. The lid stays put
-    # under the turn: its underside grips the bench better than the bottom's rim grips its flange.
+    # left: the domed bottom onto the case's lid, arrow at OPEN; then turn it counterclockwise to LOCK. The lid stays
+    # put under the turn: its underside grips the bench better than the bottom's rim grips its flange.
     c0 = np.array([*COVER_XY, TOP])
     on_lid = lambda dz: _OnLid(lambda L: _cover_tcp(L + [0, 0, dz]))  # noqa: E731
     left = [Waypoint(3.0, LEFT_PARK, FINGER_OPEN, "wait")]
@@ -624,7 +626,7 @@ def demo():
         Waypoint(0.5, on_lid(BASE_T + 0.0003), COVER_HOLD, "seated", 0.0),
     ]
     for f in np.linspace(0.25, 1.0, 4):
-        left.append(Waypoint(0.8, on_lid(BASE_T + 0.0003), COVER_HOLD, "turn it clockwise to the LOCK mark",
+        left.append(Waypoint(0.8, on_lid(BASE_T + 0.0003), COVER_HOLD, "turn it counterclockwise to the LOCK mark",
                              float(LOCK * f)))
     left += [
         Waypoint(0.5, on_lid(BASE_T + 0.0003), COVER_HOLD, "steady", float(LOCK)),
