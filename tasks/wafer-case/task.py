@@ -430,7 +430,7 @@ SLIDE_X = HP_XY[0] - HP_HALF + WAFER_R - OVERHANG  # the wafer's centre (x) once
 PUSH_Z = HP_TOP + 0.0006  # pushing, the tweezers upright: their tips just clear of the plate
 PUSH_PSI = math.pi / 2  # upright, blades bent towards +y: their side edges face the wafer's back rim
 PUSH_X0 = HP_XY[0] + WAFER_R + BLADE_W / 2 + 0.004  # start: the blades' front side 4 mm behind the wafer's rim
-PUSH_X1 = SLIDE_X + WAFER_R + BLADE_W / 2 - 0.006  # end: past SLIDE_X by the hand's lag (seen: about 5 mm)
+PUSH_X1 = SLIDE_X + WAFER_R + BLADE_W / 2  # end: the blades' front side where the wafer's back rim is once slid
 CASE_PLACE = np.array([CASE_XY[0] - WAFER_R + PINCH_IN, CASE_XY[1], TOP + REST_Z + 0.0008 + BLADE_Z])  # from -x
 TW_HOME = np.array([TW_XY[0], TW_XY[1], TOP + CUP_FLOOR + 0.0012])
 DOWN_Y = Orient(_prev_grip(0.0))  # pointing down, fingers closing along y
@@ -450,8 +450,18 @@ def _see(env):
 
 @on_step
 def _see_wafer(env):
+    w = np.asarray(labkit._part_state(env, labkit._SPECS["wafer"]).pos, float)
+    _seen["wafer_live"] = w
     if getattr(_demo, "_plan_clock", 0.0) < _seen.get("wafer_t", 1e9):
-        _seen["wafer"] = np.asarray(labkit._part_state(env, labkit._SPECS["wafer"]).pos, float)
+        _seen["wafer"] = w
+
+
+def _push_at():
+    """Where the upright tweezers' tips go while sliding the wafer: 10 mm ahead of where its back rim is now, seen
+    live, but no further than where its rim will be once slid out to SLIDE_X (plus 3 mm)."""
+    w = _seen.get("wafer_live", np.array([*HP_XY, HP_TOP]))
+    x = max(SLIDE_X - 0.003, w[0] - 0.010) + WAFER_R + BLADE_W / 2
+    return np.array([x, HP_XY[1], PUSH_Z])
 
 
 @on_reset
@@ -459,6 +469,7 @@ def _reset_seen(env):
     _seen["lid"] = np.array([*CASE_XY, TOP])
     _seen["held"] = _seen["lid"].copy()
     _seen["wafer"] = np.array([SLIDE_X, HP_XY[1], HP_TOP])
+    _seen["wafer_live"] = np.array([*HP_XY, HP_TOP])
 
 
 def _pick_at(dx=0.0, dz=0.0):
@@ -553,11 +564,12 @@ def demo():
         Waypoint(1.5, _TwAt(a0 + [0.0, 0.0, 0.004], cup=True, psi=PUSH_PSI), TW_HOLD,
                  "line the tips up behind the wafer's rim", du),
         Waypoint(0.8, _TwAt(a0, cup=True, track=False, psi=PUSH_PSI), TW_HOLD, "tips down to the plate", du),
-        Waypoint(5.0, _TwAt(a1, cup=True, track=False, psi=PUSH_PSI), TW_HOLD,
+        Waypoint(6.0, _TwAt(_push_at, cup=True, track=False, psi=PUSH_PSI), TW_HOLD,
                  "slide the wafer with the blades' sides to the plate's front edge, until it overhangs", du),
-        Waypoint(0.8, _TwAt(a1 + [0.006, 0.0, 0.0], cup=True, track=False, psi=PUSH_PSI), TW_HOLD,
+        Waypoint(1.5, _TwAt(_push_at, cup=True, track=False, psi=PUSH_PSI), TW_HOLD, "on until it overhangs", du),
+        Waypoint(0.8, _TwAt(a1 + [0.020, 0.0, 0.0], cup=True, track=False, psi=PUSH_PSI), TW_HOLD,
                  "draw back off its rim", du),
-        Waypoint(1.2, _TwAt(a1 + [0.006, 0.0, 0.04], cup=True, track=False, psi=PUSH_PSI), TW_HOLD, "up", du),
+        Waypoint(1.2, _TwAt(a1 + [0.020, 0.0, 0.04], cup=True, track=False, psi=PUSH_PSI), TW_HOLD, "up", du),
     ]
     _seen["wafer_t"] = _dur(right) + 0.5  # where the wafer came to rest, seen before the hand goes round it
     right += [
