@@ -138,7 +138,7 @@ POST_R, POST_H = 0.0015, 0.0015
 NOTCH = ((-0.036, -0.0165), 0.012)  # the tweezer notch in the near rim, up to the V: x span, half width
 # the riser and handle stand at the plate's right side (-y), so the near rim is clear for the tweezers
 RISER = (0.006, (-0.034, -0.0295), 0.032)  # x half width, y span, height
-HANDLE_A = (0.006, (-0.110, -0.0295), (0.026, 0.032))  # the aligner's handle: x half width, y span, z span
+HANDLE_A = (0.006, (-0.110, -0.0295), (0.018, 0.032))  # the aligner's handle, a fin: x half width, y span, z span
 _t = 0.003  # the V's walls
 _u = (CHUCK_R + _t / 2) / math.sqrt(2)
 ALIGNER_BOXES = [
@@ -160,7 +160,7 @@ _post_angles = [a for a in range(30, 331, 15) if not 165 <= a <= 195]
 ALIGNER_CYLS = [((POCKET_R * math.cos(math.radians(a)), POCKET_R * math.sin(math.radians(a)), PT + POST_H / 2),
                  POST_R, POST_H, PTFE) for a in _post_angles]
 ALIGNER_XY = (0.125, -0.10)  # where it lies at the start: pocket centre, slot towards the coater (+x)
-ALIGNER = part("aligner", pos=(*ALIGNER_XY, TOP), mass=0.030, friction=0.5, boxes=ALIGNER_BOXES,
+ALIGNER = part("aligner", pos=(*ALIGNER_XY, TOP), mass=0.030, friction=0.7, boxes=ALIGNER_BOXES,
                cylinders=ALIGNER_CYLS)
 
 # -- the tweezers (loose): angled wafer tweezers, standing upright in a cup, tips down. Frame: origin between the two
@@ -235,6 +235,52 @@ CENTRE_TOL, NEAR_TOL = 0.0005, 0.0015
 LID_SHUT = math.radians(3.0)
 
 
+TOP_TOUCH = 0.006  # a pad tip within 6 mm above the wafer's top, more than 3 mm inside its rim: the top was touched
+HANDLED = 0.002  # a pad tip within 2 mm outside the wafer's rim and 8 mm of its height: held by the gripper
+
+_state = {"touched": False, "handled": False, "dropped": False}
+
+
+@on_reset
+def _reset_state(env):
+    _state.update(touched=False, handled=False, dropped=False)
+
+
+def _tips(env):
+    """Both pads' tips of both hands (world, env frame): either side of the gripper's centre line by half the opening,
+    along the fingers' closing direction."""
+    from yam_arena import runtime as _rt
+
+    b = env.unwrapped
+    o = b.scene.env_origins[0].cpu().numpy()
+    out = []
+    for n in ("left_robot", "right_robot"):
+        robot = b.scene[n]
+        mid = _rt.pad_tips_world(robot) - o
+        g = _rt.link_poses(robot)["gripper"]
+        ids = robot.find_joints(["joint7"], preserve_order=True)[0]
+        half = abs(float(robot.data.joint_pos.torch[0, ids].cpu().numpy()[0]))
+        out += [mid + half * g[:3, 0], mid - half * g[:3, 0]]
+    return out
+
+
+@on_step
+def _watch(env):
+    """Latch the violations: the wafer's top touched by the gripper, the wafer held by the gripper itself, the wafer
+    dropped (tilted past 40 degrees, or on the table)."""
+    w = labkit._part_state(env, labkit._SPECS["wafer"])
+    p = np.asarray(w.pos, float)
+    top = p[2] + WAFER_T
+    if w.tilt_deg() > 40.0 or p[2] < TOP + 0.0015:  # the aligner plate holds it 3 mm up
+        _state["dropped"] = True
+    for tip in _tips(env):
+        r = np.hypot(*(tip[:2] - p[:2]))
+        if r < WAFER_R - 0.003 and top - 0.001 < tip[2] < top + TOP_TOUCH:
+            _state["touched"] = True
+        if r < WAFER_R + HANDLED and abs(tip[2] - (p[2] + WAFER_T / 2)) < 0.008:
+            _state["handled"] = True
+
+
 def wafer_offset(w) -> float:
     return float(np.hypot(*(w.pos[:2] - CHUCK_XY)))
 
@@ -245,9 +291,12 @@ def on_chuck(w) -> bool:
 
 def score(objects):
     """0 unless the wafer rests flat on the chuck (tilt up to 2 degrees, underside within 1 mm of the chuck's top,
-    centre over the chuck). 0.25 on the chuck; 0.5 centred within 1.5 mm; 1.0 within 0.5 mm. Halved if the lid is not
-    shut (within 3 degrees)."""
+    centre over the chuck). 0 also if the gripper ever touched the wafer's top or held the wafer itself, or the wafer
+    was dropped. 0.25 on the chuck; 0.5 centred within 1.5 mm; 1.0 within 0.5 mm. Halved if the lid is not shut (within
+    3 degrees)."""
     w = objects["wafer"]
+    if _state["touched"] or _state["handled"] or _state["dropped"]:
+        return 0.0
     if not on_chuck(w):
         return 0.0
     e = wafer_offset(w)
@@ -347,9 +396,9 @@ WAFER_PICK = (STAND_XY[0] - WAFER_R + PINCH_IN, STAND_XY[1], _wb + BLADE_Z)
 POCKET_PLACE = (ALIGNER_XY[0] - WAFER_R + PINCH_IN, ALIGNER_XY[1], TOP + PT + 0.0008 + BLADE_Z)
 TW_HOME = np.array([TW_XY[0], TW_XY[1], TOP + CUP_FLOOR + 0.0012])
 
-AL_HANDLE_Y = -0.078  # gripped here along its handle (aligner frame), fingers closing across it (along x)
+AL_HANDLE_Y = -0.052  # gripped here along its handle (aligner frame), fingers closing across it (along x)
 AL_WIDE, AL_HOLD = -0.012, -0.004
-AL_GRIP_Z = HANDLE_A[2][1] - 0.004  # pad tips 4 mm down the 6 mm handle
+AL_GRIP_Z = HANDLE_A[2][1] - 0.012  # pad tips 12 mm down the 14 mm fin, so the pads hold it against turning
 DOCK_Z = CHUCK_TOP - 0.002  # the plate's underside: its top 1 mm over the chuck's, the wafer resting on it
 DROP = 0.0045
 BACK = 0.055  # slide the aligner back this far after the drop, clear of the wafer
@@ -401,12 +450,12 @@ class _AlLive:
 
 # what the demo sees of the tweezers once held: their origin (between the blade tips); the right hand's aim is trimmed
 # by the offset between where it means the tips to be and where they are, integrated only while they are still
-_tw = {"corr": np.zeros(3), "goal": None, "prev": None}
+_tw = {"corr": np.zeros(3), "goal": None, "prev": None, "on_pocket": False}
 
 
 @on_reset
 def _reset_tw(env):
-    _tw.update(corr=np.zeros(3), goal=None, prev=None)
+    _tw.update(corr=np.zeros(3), goal=None, prev=None, on_pocket=False)
 
 
 @on_step
@@ -416,6 +465,11 @@ def _track_tw(env):
     if _tw["goal"] is None or prev is None:
         return
     err = _tw["goal"] - pos
+    if _tw["on_pocket"]:  # over the aligner, aim with the wafer itself: its centre over the pocket's
+        S = labkit._SPECS
+        w = labkit._part_state(env, S["wafer"]).pos
+        al = labkit._part_state(env, S["aligner"]).pos
+        err[:2] = np.asarray(al[:2], float) - np.asarray(w[:2], float)
     if np.linalg.norm(pos - prev) < 0.0002 and np.linalg.norm(err) < 0.04:
         _tw["corr"] = np.clip(_tw["corr"] + np.clip(0.3 * err, -0.0005, 0.0005), -0.03, 0.03)
 
@@ -424,13 +478,15 @@ class _TwAt:
     """The right hand's TCP to put the held tweezers' tips at ``origin`` (blades flat, or upright when ``cup``),
     trimmed by the live correction; ``track`` False holds the correction (and, before they are held, it is zero)."""
 
-    def __init__(self, origin, cup=False, track=True):
+    def __init__(self, origin, cup=False, track=True, on_pocket=False):
         self.origin = np.asarray(origin, float)
         self.cup = cup
         self.track = track
+        self.on_pocket = on_pocket
 
     def __array__(self, dtype=None, copy=None):
         _tw["goal"] = self.origin if self.track else None
+        _tw["on_pocket"] = self.on_pocket
         tcp = _cup_tcp(self.origin) if self.cup else _tw_tcp(self.origin)
         return np.asarray(np.asarray(tcp) + _tw["corr"], dtype=dtype or float)
 
@@ -489,8 +545,12 @@ def demo():
                  "lift it off the stand, well clear of the coater's lid", q),
         Waypoint(6.0, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.10], track=False), TW_PINCH,
                  "carry it over the aligner's pocket, high and slow", q),
-        Waypoint(2.5, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.03]), TW_PINCH, "down towards the pocket", q),
-        Waypoint(2.0, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.03]), TW_PINCH, "line up over the pocket", q),
+        Waypoint(2.5, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.03], on_pocket=True), TW_PINCH,
+                 "down towards the pocket", q),
+        Waypoint(2.0, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.03], on_pocket=True), TW_PINCH,
+                 "line the wafer up over the pocket", q),
+        Waypoint(1.0, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.03], on_pocket=True), TW_PINCH,
+                 "line the wafer up over the pocket", q),
         Waypoint(1.5, _TwAt(POCKET_PLACE, track=False), TW_PINCH, "lower it into the pocket, the lower blade in the notch", q),
         Waypoint(0.8, _TwAt(POCKET_PLACE, track=False), TW_HOLD, "let go: open the blades", q),
         Waypoint(1.2, _TwAt(np.array(POCKET_PLACE) + [-0.015, 0.0, 0.0], track=False), TW_HOLD, "back the blades out", q),
