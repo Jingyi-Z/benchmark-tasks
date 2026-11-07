@@ -559,7 +559,11 @@ def demo():
                  "line the wafer up over the pocket", q),
         Waypoint(1.0, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.03], on_pocket=True), TW_PINCH,
                  "line the wafer up over the pocket", q),
-        Waypoint(1.5, _TwAt(POCKET_PLACE, track=False), TW_PINCH, "lower it into the pocket, the lower blade in the notch", q),
+        Waypoint(1.5, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.008], on_pocket=True), TW_PINCH,
+                 "down to just over the posts", q),
+        Waypoint(1.5, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.008], on_pocket=True), TW_PINCH,
+                 "line the wafer up over the pocket again", q),
+        Waypoint(1.0, _TwAt(POCKET_PLACE, track=False), TW_PINCH, "lower it into the pocket, the lower blade in the notch", q),
         Waypoint(0.8, _TwAt(POCKET_PLACE, track=False), TW_HOLD, "let go: open the blades", q),
         Waypoint(1.2, _TwAt(np.array(POCKET_PLACE) + [-0.015, 0.0, 0.0], track=False), TW_HOLD, "back the blades out", q),
         Waypoint(1.0, _TwAt(np.array(POCKET_PLACE) + [-0.015, 0.0, 0.03], track=False), TW_HOLD, "up", q),
@@ -595,8 +599,11 @@ def demo():
     dock = np.array(C(-DOCK_PRE, 0.0, DOCK_Z))
     right.append(Waypoint(max(0.3, t_open - _dur(right)), _al_tcp(al0 + [0, 0, 0.05]), AL_HOLD, "wait for the lid",
                           DOWN_X))
+    over = np.array(C(-DOCK_PRE, 0.0, DOCK_Z + 0.06))
     right += [
-        Waypoint(3.0, _al_tcp(dock_hi), AL_HOLD, "over the chuck, the slot lined up with it", DOWN_X),
+        Waypoint(1.2, _al_tcp(al0 + [0, 0, 0.10]), AL_HOLD, "up, clear of the coater's bowl", DOWN_X),
+        Waypoint(3.0, _al_tcp(over), AL_HOLD, "over the chuck, high", DOWN_X),
+        Waypoint(1.5, _al_tcp(dock_hi), AL_HOLD, "down into the bowl, the slot lined up with the chuck", DOWN_X),
         Waypoint(0.1, _AlLive(dock_hi), AL_HOLD, "line the slot up with the chuck", DOWN_X),
         Waypoint(2.0, _AlLive(dock_hi), AL_HOLD, "line the slot up with the chuck", DOWN_X),
         Waypoint(2.0, _AlLive(dock), AL_HOLD, "lower it: the slot straddles the chuck", DOWN_X),
@@ -609,7 +616,10 @@ def demo():
                  "slide it back out from under the wafer", DOWN_X),
         Waypoint(1.5, _AlLive(dock + [DOCK_PRE - BACK, 0, 0.04], track=False), AL_HOLD, "lift it out of the bowl",
                  DOWN_X),
-        Waypoint(3.0, _al_tcp(al0 + [0, 0, 0.02]), AL_HOLD, "back over the bench", DOWN_X),
+        Waypoint(1.0, _AlLive(dock + [DOCK_PRE - BACK, 0, 0.06], track=False), AL_HOLD, "up, clear of the rim",
+                 DOWN_X),
+        Waypoint(3.0, _al_tcp(al0 + [0, 0, 0.10]), AL_HOLD, "back over the bench", DOWN_X),
+        Waypoint(1.5, _al_tcp(al0 + [0, 0, 0.02]), AL_HOLD, "down", DOWN_X),
         Waypoint(1.2, _al_tcp(al0 + [0, 0, 0.002]), AL_HOLD, "set it down", DOWN_X),
         Waypoint(0.6, _al_tcp(al0 + [0, 0, 0.002]), AL_WIDE, "let go", DOWN_X),
         Waypoint(1.0, _al_tcp(al0 + [0, 0, 0.04]), AL_WIDE, "up", DOWN_X),
