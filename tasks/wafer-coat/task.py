@@ -303,7 +303,7 @@ def _tcp(point, rot):
 GRIP_D = 0.035  # the tweezers are gripped this far up their arms from the blades
 _mid = (_zl + _zu) / 2
 TW_GRIP = np.array([-BLADE_L - GRIP_D * _c, 0.0, _mid + GRIP_D * _s])  # tweezer frame
-TW_WIDE = -0.010  # pads 20 mm apart round the arms
+TW_WIDE = -0.018  # pads 36 mm apart round the arms (10 mm thick together): room for the arm's error
 TW_HOLD = -0.0045  # just closed on the arms (6.9 mm over their outer faces): the blades stay open
 TW_PINCH = -0.0025  # squeezes the blades onto the wafer
 
@@ -407,8 +407,8 @@ def demo():
     _live_reset()
     q = TW_ROT
     right = [
-        Waypoint(3.0, _tw_tcp(np.array(TW_HOME) + [0.0, -0.045, 0.01]), TW_WIDE, "beside the tweezers on their stand", q),
-        Waypoint(1.0, _tw_tcp(np.array(TW_HOME) + [0.0, -0.045, 0.0]), TW_WIDE, "level with their arms", q),
+        Waypoint(3.0, _tw_tcp(np.array(TW_HOME) + [0.0, -0.060, 0.01]), TW_WIDE, "beside the tweezers on their stand", q),
+        Waypoint(1.0, _tw_tcp(np.array(TW_HOME) + [0.0, -0.060, 0.0]), TW_WIDE, "level with their arms", q),
         Waypoint(1.5, _tw_tcp(TW_HOME), TW_WIDE, "slide in from the side: pads either side of the arms", q),
         Waypoint(0.8, _tw_tcp(TW_HOME), TW_HOLD, "hold the tweezers, blades open", q),
         Waypoint(1.2, _tw_tcp(np.array(TW_HOME) + [0.0, 0.0, 0.04]), TW_HOLD, "lift them off the stand", q),
