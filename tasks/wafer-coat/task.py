@@ -125,8 +125,9 @@ HEAD_HW = 0.034
 POCKET_R = WAFER_R + 0.0002 + 0.0015  # post centres
 POST_R, POST_H = 0.0015, 0.0015
 NOTCH = ((-0.036, -0.0165), 0.007)  # the tweezer notch in the near rim, up to the V: x span, half width
-RISER = ((-0.040, -0.036), 0.010, 0.032)  # x span, half width, height
-HANDLE_A = ((-0.115, -0.040), 0.006, (0.026, 0.032))  # the aligner's handle: x span, half width, z span
+# the riser and handle stand at the plate's right side (-y), so the near rim is clear for the tweezers
+RISER = (0.006, (-0.034, -0.0295), 0.032)  # x half width, y span, height
+HANDLE_A = (0.006, (-0.110, -0.0295), (0.026, 0.032))  # the aligner's handle: x half width, y span, z span
 _t = 0.003  # the V's walls
 _u = (CHUCK_R + _t / 2) / math.sqrt(2)
 ALIGNER_BOXES = [
@@ -140,9 +141,9 @@ ALIGNER_BOXES = [
     ((-_u, _u, PT / 2), (0.020, _t, PT), PTFE, math.radians(45.0)),
     ((-_u, -_u, PT / 2), (0.020, _t, PT), PTFE, math.radians(-45.0)),
     # riser and handle
-    ((sum(RISER[0]) / 2, 0.0, RISER[2] / 2), (RISER[0][1] - RISER[0][0], 2 * RISER[1], RISER[2]), PTFE),
-    ((sum(HANDLE_A[0]) / 2, 0.0, sum(HANDLE_A[2]) / 2),
-     (HANDLE_A[0][1] - HANDLE_A[0][0], 2 * HANDLE_A[1], HANDLE_A[2][1] - HANDLE_A[2][0]), PTFE),
+    ((0.0, sum(RISER[1]) / 2, RISER[2] / 2), (2 * RISER[0], RISER[1][1] - RISER[1][0], RISER[2]), PTFE),
+    ((0.0, sum(HANDLE_A[1]) / 2, sum(HANDLE_A[2]) / 2),
+     (2 * HANDLE_A[0], HANDLE_A[1][1] - HANDLE_A[1][0], HANDLE_A[2][1] - HANDLE_A[2][0]), PTFE),
 ]
 _post_angles = [a for a in range(30, 331, 15) if not 165 <= a <= 195]
 ALIGNER_CYLS = [((POCKET_R * math.cos(math.radians(a)), POCKET_R * math.sin(math.radians(a)), PT + POST_H / 2),
@@ -315,7 +316,7 @@ def _cup_tcp(origin):
     return _tcp(np.asarray(origin, float) + TW_GRIP_F, DOWN_X)
 
 
-PINCH_IN = 0.006  # the blade tips this far inside the wafer's edge
+PINCH_IN = 0.0085  # the blade tips this far inside the wafer's edge (the upper blade draws back ~3 mm as it closes)
 _wb = TOP + PAD_TOP  # the wafer's underside on its stand
 BLADE_Z = 0.0022  # the tips' midpoint this far above the wafer's underside: the held-open lower blade 0.3 mm under
 # it (only the upper blade moves as they close), the upper 3 mm over it
@@ -323,7 +324,7 @@ WAFER_PICK = (STAND_XY[0] - WAFER_R + PINCH_IN, STAND_XY[1], _wb + BLADE_Z)
 POCKET_PLACE = (ALIGNER_XY[0] - WAFER_R + PINCH_IN, ALIGNER_XY[1], TOP + PT + 0.0008 + BLADE_Z)
 TW_HOME = np.array([TW_XY[0], TW_XY[1], TOP + CUP_FLOOR + 0.0012])
 
-AL_HANDLE_X = -0.078  # gripped here along its handle (aligner frame)
+AL_HANDLE_Y = -0.078  # gripped here along its handle (aligner frame), fingers closing across it (along x)
 AL_WIDE, AL_HOLD = -0.012, -0.004
 AL_GRIP_Z = HANDLE_A[2][1] - 0.004  # pad tips 4 mm down the 6 mm handle
 DOCK_Z = CHUCK_TOP - 0.002  # the plate's underside: its top 1 mm over the chuck's, the wafer resting on it
@@ -336,7 +337,7 @@ DOCK_PUSH = 0.0015  # aim this far past seating: a light push
 def _al_tcp(pocket):
     """TCP holding the aligner by its handle, its pocket centre (plate underside) at ``pocket`` (world)."""
     p = np.asarray(pocket, float)
-    return (p[0] + AL_HANDLE_X, p[1], p[2] + AL_GRIP_Z + TIP_ABOVE_TCP)
+    return (p[0], p[1] + AL_HANDLE_Y, p[2] + AL_GRIP_Z + TIP_ABOVE_TCP)
 
 
 _live = {"corr": np.zeros(2), "on": False}
@@ -477,10 +478,11 @@ def demo():
     ax, ay = ALIGNER_XY
     al0 = np.array([ax, ay, TOP])
     right += [
-        Waypoint(2.5, _al_tcp(al0 + [0, 0, 0.04]), AL_WIDE, "above the aligner's handle"),
-        Waypoint(1.2, _al_tcp(al0), AL_WIDE, "fingers round the handle"),
-        Waypoint(0.8, _al_tcp(al0), AL_HOLD, "grip the handle"),
-        Waypoint(1.2, _al_tcp(al0 + [0, 0, 0.05]), AL_HOLD, "lift the aligner level, the wafer in its pocket"),
+        Waypoint(2.5, _al_tcp(al0 + [0, 0, 0.04]), AL_WIDE, "above the aligner's handle", DOWN_X),
+        Waypoint(1.2, _al_tcp(al0), AL_WIDE, "fingers round the handle", DOWN_X),
+        Waypoint(0.8, _al_tcp(al0), AL_HOLD, "grip the handle", DOWN_X),
+        Waypoint(1.2, _al_tcp(al0 + [0, 0, 0.05]), AL_HOLD, "lift the aligner level, the wafer in its pocket",
+                 DOWN_X),
     ]
     t_al = _dur(right)
 
@@ -497,24 +499,26 @@ def demo():
 
     dock_hi = np.array(C(-DOCK_PRE, 0.0, DOCK_Z + 0.030))
     dock = np.array(C(-DOCK_PRE, 0.0, DOCK_Z))
-    right.append(Waypoint(max(0.3, t_open - _dur(right)), _al_tcp(al0 + [0, 0, 0.05]), AL_HOLD, "wait for the lid"))
+    right.append(Waypoint(max(0.3, t_open - _dur(right)), _al_tcp(al0 + [0, 0, 0.05]), AL_HOLD, "wait for the lid",
+                          DOWN_X))
     right += [
-        Waypoint(3.0, _al_tcp(dock_hi), AL_HOLD, "over the chuck, the slot lined up with it"),
-        Waypoint(0.1, _AlLive(dock_hi), AL_HOLD, "line the slot up with the chuck"),
-        Waypoint(2.0, _AlLive(dock_hi), AL_HOLD, "line the slot up with the chuck"),
-        Waypoint(2.0, _AlLive(dock), AL_HOLD, "lower it: the slot straddles the chuck"),
+        Waypoint(3.0, _al_tcp(dock_hi), AL_HOLD, "over the chuck, the slot lined up with it", DOWN_X),
+        Waypoint(0.1, _AlLive(dock_hi), AL_HOLD, "line the slot up with the chuck", DOWN_X),
+        Waypoint(2.0, _AlLive(dock_hi), AL_HOLD, "line the slot up with the chuck", DOWN_X),
+        Waypoint(2.0, _AlLive(dock), AL_HOLD, "lower it: the slot straddles the chuck", DOWN_X),
         Waypoint(1.5, _AlLive(dock + [DOCK_PRE + DOCK_PUSH, 0, 0], track=False), AL_HOLD,
-                 "push it on: the V seats against the chuck, the pocket centred on it"),
-        Waypoint(0.5, _AlLive(dock + [DOCK_PRE + DOCK_PUSH, 0, 0], track=False), AL_HOLD, "steady"),
+                 "push it on: the V seats against the chuck, the pocket centred on it", DOWN_X),
+        Waypoint(0.5, _AlLive(dock + [DOCK_PRE + DOCK_PUSH, 0, 0], track=False), AL_HOLD, "steady", DOWN_X),
         Waypoint(1.5, _AlLive(dock + [DOCK_PRE + DOCK_PUSH, 0, -DROP], track=False), AL_HOLD,
-                 "lower it: the wafer is left on the chuck"),
+                 "lower it: the wafer is left on the chuck", DOWN_X),
         Waypoint(2.5, _AlLive(dock + [DOCK_PRE - BACK, 0, -DROP], track=False), AL_HOLD,
-                 "slide it back out from under the wafer"),
-        Waypoint(1.5, _AlLive(dock + [DOCK_PRE - BACK, 0, 0.04], track=False), AL_HOLD, "lift it out of the bowl"),
-        Waypoint(3.0, _al_tcp(al0 + [0, 0, 0.02]), AL_HOLD, "back over the bench"),
-        Waypoint(1.2, _al_tcp(al0 + [0, 0, 0.002]), AL_HOLD, "set it down"),
-        Waypoint(0.6, _al_tcp(al0 + [0, 0, 0.002]), AL_WIDE, "let go"),
-        Waypoint(1.0, _al_tcp(al0 + [0, 0, 0.04]), AL_WIDE, "up"),
+                 "slide it back out from under the wafer", DOWN_X),
+        Waypoint(1.5, _AlLive(dock + [DOCK_PRE - BACK, 0, 0.04], track=False), AL_HOLD, "lift it out of the bowl",
+                 DOWN_X),
+        Waypoint(3.0, _al_tcp(al0 + [0, 0, 0.02]), AL_HOLD, "back over the bench", DOWN_X),
+        Waypoint(1.2, _al_tcp(al0 + [0, 0, 0.002]), AL_HOLD, "set it down", DOWN_X),
+        Waypoint(0.6, _al_tcp(al0 + [0, 0, 0.002]), AL_WIDE, "let go", DOWN_X),
+        Waypoint(1.0, _al_tcp(al0 + [0, 0, 0.04]), AL_WIDE, "up", DOWN_X),
         Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
     ]
     t_out = _dur(right) - 6.3
