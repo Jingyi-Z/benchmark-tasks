@@ -1,10 +1,10 @@
 """On the station table: a 4-inch silicon wafer lying on a narrow pedestal, a PTFE wafer transfer paddle lying on the
-bench, and a hotplate with a ring of white dots printed on its top plate.
+bench, and a hotplate with a ring of black dots printed on its top plate.
 
 The wafer is 100 mm across and overhangs its pedestal, 30 mm across and 8 cm tall, by 35 mm all round. Its top is the
 patterned side and must never be touched. The paddle is a flat PTFE plate 11 x 11.5 cm with low lips along its two
 sides, a stop along its back edge and a handle running back from the stop, ending in a red grip tab; its front edge is
-open. The hotplate is an aluminium block with a top plate 16 x 16 cm; a printed ring of white dots, 4 mm outside a
+open. The hotplate is an aluminium block with a top plate 16 x 16 cm; a printed ring of black dots, 4 mm outside a
 wafer's rim, marks where the wafer goes in the middle of it.
 
 The task: hold the paddle level, front edge under the wafer's overhang, and nudge the wafer by its rim off the pedestal
@@ -71,7 +71,7 @@ PADDLE_BOXES = [
 PADDLE0 = (0.20, 0.07)  # where it lies at the start: plate centre, flat on the bench
 PADDLE = part("paddle", pos=(*PADDLE0, TOP), mass=0.060, friction=0.10, boxes=PADDLE_BOXES)
 
-# -- the hotplate (fixed): an aluminium block; a printed ring of white dots on its top plate marks the target --------
+# -- the hotplate (fixed): an aluminium block; a printed ring of black dots on its top plate marks the target --------
 HP_XY = (0.355, -0.02)  # within easy reach of the left hand, the paddle tilted
 HP_HALF, HP_H = 0.080, 0.040
 DOT_R, DOT_H, N_DOTS = 0.002, 0.0002, 24
@@ -82,7 +82,7 @@ HOTPLATE = part(
            ((-HP_HALF - 0.004, 0.0, 0.012), (0.008, 0.10, 0.016), DARK),  # front control panel
            ((-HP_HALF - 0.0085, 0.03, 0.012), (0.001, 0.02, 0.006), RED)],  # "hot" lamp
     cylinders=[((RING_R * math.cos(2 * math.pi * (i + 0.5) / N_DOTS), RING_R * math.sin(2 * math.pi * (i + 0.5) / N_DOTS),
-                 HP_H + DOT_H / 2), DOT_R, DOT_H, PTFE) for i in range(N_DOTS)],
+                 HP_H + DOT_H / 2), DOT_R, DOT_H, DARK) for i in range(N_DOTS)],
 )
 
 OBJECTS = [PEDESTAL, WAFER, PADDLE, HOTPLATE]

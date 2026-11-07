@@ -1,7 +1,7 @@
 # Move a wafer onto a hotplate with a transfer paddle, never touching its top
 
 A 4-inch silicon wafer lies on a narrow pedestal, overhanging it all round. A PTFE transfer paddle lies on the table, and
-an aluminium hotplate has a ring of white dots on its top plate marking where the wafer goes. One hand picks the paddle
+an aluminium hotplate has a ring of black dots on its top plate marking where the wafer goes. One hand picks the paddle
 up by the red tab on its handle and holds it level beside the pedestal, its open front edge under the wafer's overhang
 and its top just below the wafer. The other hand, fingers closed, pushes the wafer by its rim off the pedestal onto the
 paddle and backs off. The first hand tips the paddle back so the wafer slides against the stop, lifts it, carries it
