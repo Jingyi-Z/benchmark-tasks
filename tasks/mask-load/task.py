@@ -413,7 +413,8 @@ def demo():
         _wp2(1.5, c1, OPEN_W, "pads round its side edges, where they overhang the holder"),
         _wp2(0.8, c1, PINCH, "pinch them"),
         _wp2(1.5, c1 + [0, 0, 0.03], PINCH, "lift it off the holder"),
-        _wp2(3.0, r1 + [0, 0, 0.03], PINCH, "carry it over its rest"),
+        _wp2(2.0, np.array([*c1[:2], r1[2] + 0.03]), PINCH, "up, above the rack's upper shelf"),
+        _wp2(2.5, r1 + [0, 0, 0.03], PINCH, "carry it over its shelf"),
         _wp2(1.5, r1 + [0, 0, 0.001], PINCH, "lower it onto the rest"),
         _wp2(0.8, r1 + [0, 0, 0.001], OPEN_W, "let go"),
         _wp2(1.2, r1, OPEN_W, "back out sideways", out=0.04),
@@ -425,8 +426,9 @@ def demo():
         _wp2(1.5, c2, OPEN_W, "level with its edges", out=0.04),
         _wp2(1.5, c2, OPEN_W, "pads round its side edges"),
         _wp2(0.8, c2, PINCH, "pinch them"),
-        _wp2(1.5, c2 + [0, 0, 0.03], PINCH, "lift it off its rest"),
-        _wp2(2.5, lift, PINCH, "up, clear of everything"),
+        _wp2(1.5, c2 + [0, 0, 0.012], PINCH, "lift it off its shelf"),
+        _wp2(2.5, np.array([*H_XY, c2[2] + 0.012]), PINCH, "draw it out from under the upper shelf"),
+        _wp2(2.0, lift, PINCH, "up, clear of everything"),
     )
     for k in range(1, 9):
         R = axis_angle_matrix(Y, ROLL_SIGN * math.pi * k / 8)
