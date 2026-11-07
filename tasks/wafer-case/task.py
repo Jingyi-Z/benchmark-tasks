@@ -226,11 +226,21 @@ def _reset_state(env):
 
 
 def _tips(env):
+    """Both pads' tips of both hands (world, env frame): either side of the gripper's centre line by half the opening,
+    along the fingers' closing direction."""
     from yam_arena import runtime as _rt
 
     b = env.unwrapped
     o = b.scene.env_origins[0].cpu().numpy()
-    return [_rt.pad_tips_world(b.scene[n]) - o for n in ("left_robot", "right_robot")]
+    out = []
+    for n in ("left_robot", "right_robot"):
+        robot = b.scene[n]
+        mid = _rt.pad_tips_world(robot) - o
+        g = _rt.link_poses(robot)["gripper"]
+        ids = robot.find_joints(["joint7"], preserve_order=True)[0]
+        half = abs(float(robot.data.joint_pos.torch[0, ids].cpu().numpy()[0]))
+        out += [mid + half * g[:3, 0], mid - half * g[:3, 0]]
+    return out
 
 
 def _yaw(s) -> float:
@@ -577,14 +587,14 @@ def demo():
     # right, after the tweezers: fingertips closed, hold the case's lid down by its flange while the bottom is turned
     press = lambda dz: _OnLid(lambda L: tuple(L + [0.0, -PRESS_R, BASE_T + TIP_ABOVE_TCP + dz]), False)  # noqa: E731
     right += [
-        Waypoint(2.5, press(0.03), FINGER_CLOSED, "fingers closed, above the case's flange", d),
-        Waypoint(1.5, press(0.0), FINGER_CLOSED, "fingertips on the flange", d),
-        Waypoint(1.0, press(-PRESS_IN), FINGER_CLOSED, "hold the case's lid down", d),
+        Waypoint(2.5, press(0.03), FINGER_CLOSED, "fingers closed, above the case's flange", 0.0),
+        Waypoint(1.5, press(0.0), FINGER_CLOSED, "fingertips on the flange", 0.0),
+        Waypoint(1.0, press(-PRESS_IN), FINGER_CLOSED, "hold the case's lid down", 0.0),
     ]
     right.append(Waypoint(max(0.3, t_turned + 0.6 - _dur(right)), press(-PRESS_IN), FINGER_CLOSED,
-                          "hold it while the bottom is turned", d))
+                          "hold it while the bottom is turned", 0.0))
     right += [
-        Waypoint(1.0, press(0.04), FINGER_CLOSED, "up", d),
+        Waypoint(1.0, press(0.04), FINGER_CLOSED, "up", 0.0),
         Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
     ]
     t_end = max(_dur(left), _dur(right)) + 2.0
