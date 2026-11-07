@@ -56,7 +56,8 @@ WAFER = part("wafer", pos=(*PED_XY, TOP + PED_TOP), mass=0.010, friction=0.15,
 PW, PL, PT = 0.110, 0.115, 0.003
 LIP_W, LIP_H, STOP_H = 0.003, 0.003, 0.005
 RISER = (0.024, 0.012, 0.022)  # x, y, height above the plate's top
-HANDLE = (0.012, 0.100, 0.010)  # x width, y length, z thickness; its top flush with the riser's
+HANDLE = (0.012, 0.070, 0.010)  # x width, y length, z thickness; its top flush with the riser's
+TAB = (0.030, 0.010, 0.022)  # a grip tab across the handle's end: x, y (gripped across), z
 HANDLE_Y0 = PL / 2 + 0.004  # the handle starts here, over the riser
 _hz = PT + RISER[2] - HANDLE[2] / 2  # handle's centre height
 PADDLE_BOXES = [
@@ -65,10 +66,10 @@ PADDLE_BOXES = [
     ((0.0, PL / 2 - LIP_W / 2, PT + STOP_H / 2), (PW, LIP_W, STOP_H), PTFE),
     ((0.0, PL / 2 + RISER[1] / 2 - LIP_W, PT + RISER[2] / 2), (RISER[0], RISER[1], RISER[2]), PTFE),
     ((0.0, HANDLE_Y0 + HANDLE[1] / 2, _hz), HANDLE, PTFE),
-    ((0.0, HANDLE_Y0 + HANDLE[1] - 0.012, _hz + HANDLE[2] / 2 + 0.0005), (HANDLE[0], 0.02, 0.001), RED),  # grip mark
+    ((0.0, HANDLE_Y0 + HANDLE[1] + TAB[1] / 2, _hz + HANDLE[2] / 2 - TAB[2] / 2), TAB, RED),  # the grip tab
 ]
 PADDLE0 = (0.20, 0.07)  # where it lies at the start: plate centre, flat on the bench
-PADDLE = part("paddle", pos=(*PADDLE0, TOP), mass=0.060, friction=0.5, boxes=PADDLE_BOXES)
+PADDLE = part("paddle", pos=(*PADDLE0, TOP), mass=0.060, friction=0.10, boxes=PADDLE_BOXES)
 
 # -- the hotplate (fixed): an aluminium block; a printed ring of white dots on its top plate marks the target --------
 HP_XY = (0.38, -0.08)
@@ -211,8 +212,8 @@ PAD_IN = 0.006
 LEFT_PARK = (0.15, 0.25, TOP + 0.16)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.16)
 X = np.array([1.0, 0.0, 0.0])
-DOWN_X = _prev_grip(math.pi / 2)  # pointing down, fingers closing along x
-GRIP_LOCAL = np.array([0.0, HANDLE_Y0 + 0.022, _hz])  # gripped here (paddle frame), close to the plate
+DOWN_X = _prev_grip(0.0)  # pointing down, fingers closing along y: across the grip tab, which holds the paddle's pitch
+GRIP_LOCAL = np.array([0.0, HANDLE_Y0 + HANDLE[1] + TAB[1] / 2, _hz + HANDLE[2] / 2 - 0.008])  # the tab, 8 mm down
 H_WIDE, H_HOLD = -0.012, FINGER_CLOSED
 
 
@@ -279,8 +280,9 @@ def _wait_until(wps, t, pos, finger, label, orient=0.0):
 
 LOAD_GAP = 0.0015  # the paddle's top this far below the wafer's underside
 FRONT_CLEAR = 0.003  # its front edge this far from the pedestal's side
-BACK_TILT = math.radians(-22.0)
-SET_TILT = math.radians(25.0)
+BACK_TILT = math.radians(-15.0)
+CARRY_TILT = math.radians(-6.0)  # carried tipped back a little, the wafer against the stop
+SET_TILT = math.radians(15.0)
 SET_SHIFT = 0.0  # where the front edge touches down, from one wafer radius short of the ring's centre
 
 
@@ -343,13 +345,15 @@ def demo():
         Waypoint(1.5, _PaddleAt(at_front(load_front, BACK_TILT), BACK_TILT), H_HOLD, "steady", _hand_rot(BACK_TILT)),
         Waypoint(1.5, _PaddleAt(at_front(up, BACK_TILT), BACK_TILT), H_HOLD, "lift it clear of the pedestal",
                  _hand_rot(BACK_TILT)),
-        Waypoint(1.5, _PaddleAt(at_front(up, 0.0)), H_HOLD, "level", q0),
-        Waypoint(4.0, _PaddleAt(at_front(above, 0.0) + [0, 0, 0.03]), H_HOLD, "carry it over the hotplate", q0),
-        Waypoint(1.5, _PaddleAt(at_front(above, 0.0)), H_HOLD, "front edge just over the plate, short of the ring's centre",
-                 q0),
+        Waypoint(1.5, _PaddleAt(at_front(up, CARRY_TILT), CARRY_TILT), H_HOLD, "nearly level, the wafer at the stop",
+                 _hand_rot(CARRY_TILT)),
+        Waypoint(4.0, _PaddleAt(at_front(above + [0, 0, 0.03], CARRY_TILT), CARRY_TILT), H_HOLD,
+                 "carry it over the hotplate", _hand_rot(CARRY_TILT)),
+        Waypoint(1.5, _PaddleAt(at_front(above, CARRY_TILT), CARRY_TILT), H_HOLD,
+                 "front edge just over the plate, short of the ring's centre", _hand_rot(CARRY_TILT)),
     ]
     for f in np.linspace(0.25, 1.0, 4):
-        phi = f * SET_TILT
+        phi = CARRY_TILT + f * (SET_TILT - CARRY_TILT)
         front = above + (touch - above) * f
         left.append(Waypoint(1.0, _PaddleAt(at_front(front, phi), phi), H_HOLD,
                              "tilt it forward, front edge onto the plate: the wafer slides down onto the plate",
