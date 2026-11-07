@@ -1,4 +1,4 @@
-"""On the station table: a benchtop spin coater for small wafers, a 2-inch silicon wafer on a pad stand to its right,
+"""On the station table: a benchtop spin coater for small wafers, a 2-inch silicon wafer on a stand to its right,
 a pair of angled wafer tweezers standing tips down in a cup, and a PTFE wafer aligner lying on the bench in front.
 
 The coater: a white housing 22 x 22 cm with a round catch bowl and, in the middle of the bowl, a black vacuum chuck
@@ -107,13 +107,24 @@ COATER = part(
     joints=[LID],
 )
 
-# -- the wafer stand (fixed) and the wafer (loose) on its pad -------------------------------------------------------
+# -- the wafer stand (fixed): a post with a square rest on top, 44 x 44 mm, the wafer lying flat on it; a tweezer slot
+# milled into the rest's front edge (towards the robots) runs in under the wafer's edge --------------------------------
 STAND_XY = (0.40, -0.20)
-PAD_R, PAD_TOP = 0.010, 0.025  # narrower than the wafer, so the tweezers' lower blade fits under its edge
+PAD_TOP = 0.025  # the rest's top above the table
+REST_HALF, REST_T = 0.022, 0.004
+SLOT_W, SLOT_D = 0.018, 0.003  # the tweezer slot: width, depth
 WAFER_R, WAFER_T = 0.0254, 0.0010  # 2-inch wafer, drawn 1 mm thick (real: 0.28 mm) for stable contact
+SLOT_END = -WAFER_R + 0.0085 + 0.003  # the slot runs from the rest's front edge to here (stand frame, x)
+_sl = SLOT_END + REST_HALF
+_rz = PAD_TOP - REST_T / 2
 STAND = part("stand", pos=(*STAND_XY, TOP), fixed=True, friction=0.6,
-             boxes=[((0.0, 0.0, 0.002), (0.07, 0.07, 0.004), STAND_C)],
-             cylinders=[((0.0, 0.0, (0.004 + PAD_TOP) / 2), PAD_R, PAD_TOP - 0.004, STAND_C)])
+             boxes=[((0.0, 0.0, 0.002), (0.07, 0.07, 0.004), STAND_C),
+                    (((SLOT_END + REST_HALF) / 2, 0.0, _rz), (REST_HALF - SLOT_END, 2 * REST_HALF, REST_T), STAND_C),
+                    *[((SLOT_END - _sl / 2, e * (REST_HALF + SLOT_W / 2) / 2, _rz),
+                       (_sl, REST_HALF - SLOT_W / 2, REST_T), STAND_C) for e in (-1, 1)],
+                    ((SLOT_END - _sl / 2, 0.0, (PAD_TOP - REST_T + PAD_TOP - SLOT_D) / 2),
+                     (_sl, SLOT_W, REST_T - SLOT_D), STAND_C)],
+             cylinders=[((0.0, 0.0, (0.004 + PAD_TOP - REST_T) / 2), 0.010, PAD_TOP - REST_T - 0.004, STAND_C)])
 WAFER = part("wafer", pos=(*STAND_XY, TOP + PAD_TOP), mass=0.004, friction=0.8,
              cylinders=[((0.0, 0.0, WAFER_T / 2), WAFER_R, WAFER_T, SI)])
 
@@ -315,7 +326,7 @@ TW_GRIP = TW_TILT @ TW_GRIP_F  # the grip point, from the blade tips, when held
 DOWN_X = Orient(_prev_grip(math.pi / 2))  # pointing down, fingers closing along x (across the arms' faces)
 TW_WIDE = -0.014  # pads 28 mm apart round the arms (11.3 mm over their outer faces)
 TW_HOLD = -0.0050  # just closed on the arms' outer faces: the blades stay open
-TW_PINCH = -0.0013  # squeezes the arms: the blades close on the wafer
+TW_PINCH = -0.0016  # squeezes the arms: the blades close on the wafer
 
 
 def _tw_tcp(origin):
