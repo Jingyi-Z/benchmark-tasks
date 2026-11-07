@@ -12,8 +12,7 @@ the lid's wide flange; a bayonet closes it: set on with its arrow at the lid's O
 clockwise to the LOCK mark.
 
 The task: with the tweezers, take the wafer off the chuck by its edge and lay it, pattern side up, in the case's lid;
-set the domed bottom on the case's lid and turn it to lock while holding the case's lid down. The wafer is never
-touched by the gripper.
+set the domed bottom on the case's lid and turn it to lock. The wafer is never touched by the gripper.
 
 Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jitter=0 -E control_hz=20 \\
            --instruction "<see task.json>" --scorer task_score ...
@@ -157,9 +156,9 @@ TWEEZERS = part(
 )
 
 # -- the case (loose): lid and domed bottom. Frames: origin on the axis, at the underside. ------------------------------
-CASE_XY = (0.15, 0.025)  # the lid, open side up, in front of the robots' middle
-COVER_XY = (0.30, -0.32)  # the domed bottom, dome up, to the right, in front of the coater
-BASE_R, BASE_T = 0.060, 0.002  # the lid's base: floor and a wide flange, to hold it down by
+CASE_XY = (0.15, 0.02)  # the lid, open side up, in front of the robots' middle
+COVER_XY = (0.20, 0.17)  # the domed bottom, dome up, to the case's left
+BASE_R, BASE_T = 0.046, 0.002  # the lid's base: floor and a flange the bottom sits on
 PIN_R, PIN_RAD, PIN_H = 0.0235, 0.0012, 0.003  # the pins the wafer rests on
 WALL_R, WALL_T, WALL_H = 0.0285, 0.002, 0.007  # the low wall round the pocket
 GAP = math.radians(32.0)  # half the opening in the wall (and the pins) towards -x, for the tweezers' blades
@@ -179,7 +178,7 @@ _pins = [((PIN_R * math.cos(a), PIN_R * math.sin(a), BASE_T + PIN_H / 2), PIN_RA
 LOCK = math.radians(-30.0)  # the bayonet's turn, clockwise seen from above
 _marks = [((0.0415 * math.cos(a), 0.0415 * math.sin(a), BASE_T + 0.0002), (0.007, 0.0015, 0.0004), MARK, a)
           for a in (math.pi, math.pi + LOCK)]  # OPEN and LOCK, at the front
-CASE_LID = part("case_lid", pos=(*CASE_XY, TOP), mass=0.020, friction=0.7,
+CASE_LID = part("case_lid", pos=(*CASE_XY, TOP), mass=0.020, friction=1.0,
                 boxes=[*_wall, *_marks],
                 cylinders=[((0.0, 0.0, BASE_T / 2), BASE_R, BASE_T, PP), *_pins])
 
@@ -192,7 +191,7 @@ for r, t in _dome:
     _dome_cyl.append(((0.0, 0.0, _dz + t / 2), r, t, PP_B))
     _dz += t
 COVER_TOP = _dz
-CASE_COVER = part("case_bottom", pos=(*COVER_XY, TOP), mass=0.015, friction=0.6,
+CASE_COVER = part("case_bottom", pos=(*COVER_XY, TOP), mass=0.015, friction=0.25,
                   boxes=[*[((SKIRT_R * math.cos(a), SKIRT_R * math.sin(a), SKIRT_H / 2), (SKIRT_T, _sseg, SKIRT_H), PP_B,
                             a) for a in (2 * math.pi * (i + 0.5) / N_SKIRT for i in range(N_SKIRT))],
                          ((-(SKIRT_R + SKIRT_T / 2 + 0.0004), 0.0, SKIRT_H / 2), (0.0008, 0.003, 0.010), MARK)],  # arrow
@@ -329,9 +328,9 @@ def distance(objects):
 # Right arm, with the tweezers: lifts them out of their cup from above, gripping their two arms near the top, tilts
 # them 45 degrees so the blades lie flat, slides the open blades round the wafer's near edge on the chuck (closed loop
 # on the tweezers' live tips), pinches it, lifts it out of the bowl and lays it in the case's lid through the gap in its
-# wall, lets go, backs the blades out and stands the tweezers back in their cup. Then it picks the domed bottom up by
-# its skirt and sets it on the case's lid with its arrow at the OPEN mark (closed loop on the lid's live position). Left arm: holds the lid's flange down with closed fingertips while the right
-# turns the bottom 30 degrees clockwise to lock it; both let go.
+# wall, lets go, backs the blades out, stands the tweezers back in their cup and moves out of the way. Left arm: picks
+# the domed bottom up by its skirt, sets it on the case's lid with its arrow at the OPEN mark (closed loop on the lid's
+# live position) and turns it 30 degrees clockwise to the LOCK mark; lets go.
 _prev_action7 = _demo.ArmPlan.action7
 if not getattr(_prev_action7, "_clock", False):
     def _action7(self, t, _prev=_prev_action7):
@@ -411,8 +410,6 @@ TW_HOME = np.array([TW_XY[0], TW_XY[1], TOP + CUP_FLOOR + 0.0012])
 DOWN_Y = Orient(_prev_grip(0.0))  # pointing down, fingers closing along y
 COVER_WIDE, COVER_HOLD = -0.044, -0.0335  # pads round the 75 mm skirt; squeezing it
 COVER_GRIP_Z = 0.008  # pad tips this far above the skirt's lower edge
-PRESS_R = 0.055  # the left fingertips press the lid's flange here, at its back (+x), clear of the right hand
-PRESS_IN = 0.0025  # aim this far into the flange: a firm press
 
 # what the demo sees of the case's lid: its position, every step
 _seen = {"lid": np.array([*CASE_XY, TOP])}
@@ -551,51 +548,39 @@ def demo():
         Waypoint(1.2, _TwAt(TW_HOME + [0.0, 0.0, 0.05], cup=True, track=False), TW_WIDE, "up", d),
     ]
 
-    # right, then: the domed bottom onto the case's lid, arrow at OPEN; with the lid held down, turn it to LOCK.
-    # Fingers closing along y, so the left hand can come in at the lid's back.
-    c0 = np.array([*COVER_XY, TOP])
-    Q = 0.0  # the hand's yaw: fingers closing along y
-    on_lid = lambda dz: _OnLid(lambda L: _cover_tcp(L + [0, 0, dz]))  # noqa: E731
-    right += [
-        Waypoint(2.5, _cover_tcp(c0 + [0, 0, 0.04]), COVER_WIDE, "above the domed bottom", Q),
-        Waypoint(1.5, _cover_tcp(c0), COVER_WIDE, "fingers either side of its skirt", Q),
-        Waypoint(0.8, _cover_tcp(c0), COVER_HOLD, "grip the skirt", Q),
-        Waypoint(1.5, _cover_tcp(c0 + [0, 0, 0.10]), COVER_HOLD, "lift it, clear of the coater", Q),
-    ]
-    t_lift = _dur(right)
-    right += [
-        Waypoint(3.0, on_lid(0.10), COVER_HOLD, "over the case's lid, its arrow at the OPEN mark", Q),
-        Waypoint(1.5, on_lid(0.03), COVER_HOLD, "down towards the lid", Q),
-        Waypoint(1.5, on_lid(0.03), COVER_HOLD, "line up over the lid", Q),
-    ]
-    _seen["freeze_t"] = _dur(right)  # from here the hands bear on the case: aim at where it was seen last
-    right += [Waypoint(2.0, on_lid(BASE_T - 0.001), COVER_HOLD, "lower it over the wall onto the flange", Q)]
-    t_seated = _dur(right)
-    right.append(Waypoint(3.0, on_lid(BASE_T - 0.001), COVER_HOLD, "wait for the other hand on the flange", Q))
-    for f in np.linspace(0.25, 1.0, 4):
-        right.append(Waypoint(0.8, on_lid(BASE_T - 0.001), COVER_HOLD, "turn it clockwise to the LOCK mark",
-                              float(Q + LOCK * f)))
-    right += [Waypoint(0.5, on_lid(BASE_T - 0.001), COVER_HOLD, "steady", float(Q + LOCK))]
-    t_turned = _dur(right)
-    right += [
-        Waypoint(0.6, on_lid(BASE_T - 0.001), COVER_WIDE, "let go", float(Q + LOCK)),
-        Waypoint(1.2, on_lid(0.05), COVER_WIDE, "up", float(Q + LOCK)),
-        Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
-    ]
+    right += [Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park, out of the way")]
+    t_placed = _dur(right) - 10.3  # the wafer is in the case's lid and the tweezers are up, clear of it
 
-    # left: fingertips closed, hold the case's lid down by its flange while the bottom is turned
-    press = lambda dz: _OnLid(lambda L: tuple(L + [PRESS_R, 0.0, BASE_T + TIP_ABOVE_TCP + dz]))  # noqa: E731
+    # left: the domed bottom onto the case's lid, arrow at OPEN; then turn it clockwise to LOCK. The lid stays put
+    # under the turn: its underside grips the bench better than the bottom's rim grips its flange.
+    c0 = np.array([*COVER_XY, TOP])
+    on_lid = lambda dz: _OnLid(lambda L: _cover_tcp(L + [0, 0, dz]))  # noqa: E731
     left = [Waypoint(3.0, LEFT_PARK, FINGER_OPEN, "wait")]
-    left.append(Waypoint(max(0.3, t_lift - 5.0 - _dur(left)), LEFT_PARK, FINGER_OPEN, "wait"))
+    left.append(Waypoint(max(0.3, t_placed - 8.0 - _dur(left)), LEFT_PARK, FINGER_OPEN, "wait"))
     left += [
-        Waypoint(2.5, press(0.03), FINGER_CLOSED, "fingers closed, above the case's flange", 0.0),
-        Waypoint(1.5, press(0.0), FINGER_CLOSED, "fingertips on the flange", 0.0),
-        Waypoint(1.0, press(-PRESS_IN), FINGER_CLOSED, "hold the case's lid down", 0.0),
+        Waypoint(2.5, _cover_tcp(c0 + [0, 0, 0.04]), COVER_WIDE, "above the domed bottom", 0.0),
+        Waypoint(1.5, _cover_tcp(c0), COVER_WIDE, "fingers either side of its skirt", 0.0),
+        Waypoint(0.8, _cover_tcp(c0), COVER_HOLD, "grip the skirt", 0.0),
+        Waypoint(1.2, _cover_tcp(c0 + [0, 0, 0.05]), COVER_HOLD, "lift it", 0.0),
     ]
-    left.append(Waypoint(max(0.3, t_turned + 0.6 - _dur(left)), press(-PRESS_IN), FINGER_CLOSED,
-                         "hold it while the bottom is set on and turned", 0.0))
+    left.append(Waypoint(max(0.3, t_placed - _dur(left)), _cover_tcp(c0 + [0, 0, 0.05]), COVER_HOLD,
+                         "wait for the wafer to be in the case", 0.0))
     left += [
-        Waypoint(1.0, press(0.04), FINGER_CLOSED, "up", 0.0),
+        Waypoint(3.0, on_lid(0.04), COVER_HOLD, "over the case's lid, its arrow at the OPEN mark", 0.0),
+        Waypoint(1.5, on_lid(0.04), COVER_HOLD, "line up over the lid", 0.0),
+    ]
+    _seen["freeze_t"] = _dur(left)  # from here the hand bears on the case: aim at where it was seen last
+    left += [
+        Waypoint(2.0, on_lid(BASE_T - 0.001), COVER_HOLD, "lower it over the wall onto the flange", 0.0),
+        Waypoint(0.5, on_lid(BASE_T - 0.001), COVER_HOLD, "seated", 0.0),
+    ]
+    for f in np.linspace(0.25, 1.0, 4):
+        left.append(Waypoint(0.8, on_lid(BASE_T - 0.001), COVER_HOLD, "turn it clockwise to the LOCK mark",
+                             float(LOCK * f)))
+    left += [
+        Waypoint(0.5, on_lid(BASE_T - 0.001), COVER_HOLD, "steady", float(LOCK)),
+        Waypoint(0.6, on_lid(BASE_T - 0.001), COVER_WIDE, "let go", float(LOCK)),
+        Waypoint(1.2, on_lid(0.05), COVER_WIDE, "up", float(LOCK)),
         Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "park"),
     ]
     t_end = max(_dur(left), _dur(right)) + 2.0
