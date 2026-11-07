@@ -124,7 +124,7 @@ HEAD_X = (-0.036, 0.026)
 HEAD_HW = 0.034
 POCKET_R = WAFER_R + 0.0002 + 0.0015  # post centres
 POST_R, POST_H = 0.0015, 0.0015
-NOTCH = ((-0.036, -0.0165), 0.007)  # the tweezer notch in the near rim, up to the V: x span, half width
+NOTCH = ((-0.036, -0.0165), 0.012)  # the tweezer notch in the near rim, up to the V: x span, half width
 # the riser and handle stand at the plate's right side (-y), so the near rim is clear for the tweezers
 RISER = (0.006, (-0.034, -0.0295), 0.032)  # x half width, y span, height
 HANDLE_A = (0.006, (-0.110, -0.0295), (0.026, 0.032))  # the aligner's handle: x half width, y span, z span
@@ -157,7 +157,7 @@ ALIGNER = part("aligner", pos=(*ALIGNER_XY, TOP), mass=0.030, friction=0.5, boxe
 # arms' lower ends. The arms are flat strips, their faces normal to x; the lower blade and arm (x < 0) and the joined
 # end are the body, the upper blade and arm (x > 0) slide together along x (sprung open). Held in a hand turned 45
 # degrees (arms rising back at 45 degrees), the blades lie flat, pointing forward.
-BLADE_L, BLADE_W, BLADE_T = 0.012, 0.010, 0.0012
+BLADE_L, BLADE_W, BLADE_T = 0.012, 0.020, 0.0012  # wide blades: the pinched wafer cannot swing about them
 OPEN_GAP = 0.005  # between the blades' faces, open
 ARM_L, ARM_W, ARM_T = 0.085, 0.008, 0.0025
 _c = _s = math.sqrt(0.5)
@@ -180,7 +180,7 @@ TWEEZER_JAW = Joint("jaw", kind="slide", axis="X", anchor=(_ax + SEP / 2, 0.0, _
 # The cup: a block on the bench; the tweezers stand in it on their blade tips, upright.
 TW_XY = (0.30, -0.28)  # off to the side, clear of the path to the wafer
 CUP_FLOOR, CUP_H = 0.020, 0.035  # the cup's floor above the table; its walls above the floor
-CUP_IN = ((-0.0150, 0.0065), 0.0065)  # inner x span, inner half width (y): a snug fit, so they stand upright
+CUP_IN = ((-0.0150, 0.0065), 0.0115)  # inner x span, inner half width (y): a snug fit, so they stand upright
 _cw = 0.003
 TSTAND = part("tweezer_cup", pos=(*TW_XY, TOP), fixed=True, friction=0.8,
               boxes=[((sum(CUP_IN[0]) / 2, 0.0, CUP_FLOOR / 2), (CUP_IN[0][1] - CUP_IN[0][0] + 2 * _cw,
@@ -303,7 +303,7 @@ TW_GRIP = TW_TILT @ TW_GRIP_F  # the grip point, from the blade tips, when held
 DOWN_X = Orient(_prev_grip(math.pi / 2))  # pointing down, fingers closing along x (across the arms' faces)
 TW_WIDE = -0.014  # pads 28 mm apart round the arms (11.3 mm over their outer faces)
 TW_HOLD = -0.0050  # just closed on the arms' outer faces: the blades stay open
-TW_PINCH = -0.0016  # squeezes the arms: the blades close on the wafer
+TW_PINCH = -0.0008  # squeezes the arms: the blades close on the wafer
 
 
 def _tw_tcp(origin):
@@ -463,7 +463,7 @@ def demo():
         Waypoint(1.5, _TwAt(WAFER_PICK), TW_HOLD, "line up: the lower blade just under the wafer", q),
         Waypoint(0.8, _TwAt(WAFER_PICK, track=False), TW_PINCH, "pinch the wafer by its edge", q),
         Waypoint(1.2, _TwAt(np.array(WAFER_PICK) + [0.0, 0.0, 0.03], track=False), TW_PINCH, "lift it off the stand", q),
-        Waypoint(3.0, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.03]), TW_PINCH, "over the aligner's pocket", q),
+        Waypoint(4.5, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.03]), TW_PINCH, "over the aligner's pocket", q),
         Waypoint(2.0, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.03]), TW_PINCH, "line up over the pocket", q),
         Waypoint(1.5, _TwAt(POCKET_PLACE, track=False), TW_PINCH, "lower it into the pocket, the lower blade in the notch", q),
         Waypoint(0.8, _TwAt(POCKET_PLACE, track=False), TW_HOLD, "let go: open the blades", q),
