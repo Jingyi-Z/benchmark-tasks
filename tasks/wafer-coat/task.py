@@ -174,7 +174,7 @@ def _half(sx):
 
 TOP_Z = _az + ARM_L  # the arms' upper ends
 TWEEZER_JAW = Joint("jaw", kind="slide", axis="X", anchor=(_ax + SEP / 2, 0.0, _az + ARM_L / 2),
-                    lower=-(SEP - BLADE_T / _s - 0.0002), upper=0.0, initial=0.0, target=0.0, stiffness=2000.0,
+                    lower=-(SEP - BLADE_T / _s - 0.0002), upper=0.0, initial=0.0, target=0.0, stiffness=600.0,
                     damping=5.0, mass=0.008, boxes=_half(SEP / 2))
 # The cup: a block on the bench; the tweezers stand in it on their blade tips, upright.
 TW_XY = (0.30, -0.28)  # off to the side, clear of the path to the wafer
@@ -302,7 +302,7 @@ TW_GRIP = TW_TILT @ TW_GRIP_F  # the grip point, from the blade tips, when held
 DOWN_X = Orient(_prev_grip(math.pi / 2))  # pointing down, fingers closing along x (across the arms' faces)
 TW_WIDE = -0.014  # pads 28 mm apart round the arms (11.3 mm over their outer faces)
 TW_HOLD = -0.0050  # just closed on the arms' outer faces: the blades stay open
-TW_PINCH = -0.0024  # squeezes the arms: the blades close on the wafer
+TW_PINCH = -0.0010  # squeezes the arms: the blades close on the wafer
 
 
 def _tw_tcp(origin):
