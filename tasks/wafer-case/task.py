@@ -229,11 +229,14 @@ HOT_TOUCH = 0.004  # a pad tip within 4 mm of the hotplate's top plate, over it:
 HANDS_FAR = 0.08  # both pad tips this far from the case's axis at the end
 
 _state = {"touched": False, "handled": False, "dropped": False, "hot": False, "armed": False}
+SETTLE_STEPS, SETTLE_TOL = 20, 0.001  # settled: the wafer and both case pieces moved under 1 mm in the last 1 s (20 Hz)
+_hist = []
 
 
 @on_reset
 def _reset_state(env):
-    _state.update(touched=False, handled=False, dropped=False, hot=False, armed=False, far=True)
+    _state.update(touched=False, handled=False, dropped=False, hot=False, armed=False, far=True, settled=False)
+    _hist.clear()
 
 
 def _tips(env):
@@ -303,6 +306,10 @@ def _watch(env):
     else:
         _state["armed"] = False
     _state["far"] = all(np.hypot(*(t[:2] - np.asarray(lid.pos[:2]))) >= HANDS_FAR for t in tips)
+    _hist.append(np.concatenate([p, np.asarray(lid.pos, float), np.asarray(cover.pos, float)]))
+    del _hist[:-(SETTLE_STEPS + 1)]
+    _state["settled"] = (len(_hist) > SETTLE_STEPS
+                         and float(np.max(np.abs(np.asarray(_hist) - _hist[-1]))) < SETTLE_TOL)
 
 
 def locked(lid, cover) -> bool:
@@ -316,8 +323,11 @@ def score(objects):
     seated on the lid and locked (set on at the OPEN mark, within 10 degrees, and turned 22 to 45 degrees
     counterclockwise while seated) with both hands 8 cm from the case's axis; 0.5 if the bottom is seated but not
     locked, or a hand is still at the case; 0.25 if the wafer is in the lid but the bottom is not seated. 0 if
-    the wafer is not in the lid."""
+    the wafer is not in the lid, or if the wafer and the case's two pieces have not all been still (under 1 mm of
+    movement) for the last second."""
     if _state["touched"] or _state["handled"] or _state["dropped"] or _state["hot"]:
+        return 0.0
+    if not _state.get("settled", False):
         return 0.0
     w, lid, cover = objects["wafer"], objects["case_lid"], objects["case_bottom"]
     if not in_pocket(lid, w):
