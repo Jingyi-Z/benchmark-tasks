@@ -30,7 +30,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import labkit  # noqa: E402
 from labkit import Joint, on_reset, on_step, part  # noqa: E402
 import yam_arena.demo as _demo  # noqa: E402
-from yam_arena.constants import FINGER_CLOSED, FINGER_OPEN  # noqa: E402
+from yam_arena.constants import FINGER_OPEN  # noqa: E402
 from yam_arena.demo import Waypoint  # noqa: E402
 from yam_arena.task_file import TABLE_TOP  # noqa: E402
 from yam_arena.urdf import axis_angle_matrix  # noqa: E402
@@ -315,7 +315,7 @@ TW_GRIP = TW_TILT @ TW_GRIP_F  # the grip point, from the blade tips, when held
 DOWN_X = Orient(_prev_grip(math.pi / 2))  # pointing down, fingers closing along x (across the arms' faces)
 TW_WIDE = -0.014  # pads 28 mm apart round the arms (11.3 mm over their outer faces)
 TW_HOLD = -0.0050  # just closed on the arms' outer faces: the blades stay open
-TW_PINCH = -0.0016  # squeezes the arms: the blades close on the wafer
+TW_PINCH = -0.0013  # squeezes the arms: the blades close on the wafer
 
 
 def _tw_tcp(origin):
@@ -474,8 +474,11 @@ def demo():
         Waypoint(2.0, _TwAt(WAFER_PICK), TW_HOLD, "slide the open blades round its edge", q),
         Waypoint(1.5, _TwAt(WAFER_PICK), TW_HOLD, "line up: the lower blade just under the wafer", q),
         Waypoint(0.8, _TwAt(WAFER_PICK, track=False), TW_PINCH, "pinch the wafer by its edge", q),
-        Waypoint(1.2, _TwAt(np.array(WAFER_PICK) + [0.0, 0.0, 0.03], track=False), TW_PINCH, "lift it off the stand", q),
-        Waypoint(4.5, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.03]), TW_PINCH, "over the aligner's pocket", q),
+        Waypoint(1.5, _TwAt(np.array(WAFER_PICK) + [0.0, 0.0, 0.06], track=False), TW_PINCH,
+                 "lift it off the stand, clear of the coater", q),
+        Waypoint(6.0, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.06], track=False), TW_PINCH,
+                 "carry it over the aligner's pocket, high and slow", q),
+        Waypoint(2.0, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.03]), TW_PINCH, "down towards the pocket", q),
         Waypoint(2.0, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.03]), TW_PINCH, "line up over the pocket", q),
         Waypoint(1.5, _TwAt(POCKET_PLACE, track=False), TW_PINCH, "lower it into the pocket, the lower blade in the notch", q),
         Waypoint(0.8, _TwAt(POCKET_PLACE, track=False), TW_HOLD, "let go: open the blades", q),
