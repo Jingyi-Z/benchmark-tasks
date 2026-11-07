@@ -53,34 +53,26 @@ MARK = (0.85, 0.20, 0.12)
 
 WAFER_R, WAFER_T = 0.0254, 0.0010  # 2-inch wafer, drawn 1 mm thick (real: 0.28 mm) for stable contact
 
-# -- the hotplate (fixed): a benchtop hotplate for 2-inch wafers. A light grey housing; on top, a 68 x 68 mm aluminium
-# heating plate, edged with a red warning band, with a tweezer slot milled into its front edge (towards the robots)
-# that runs in under the wafer's edge; a dark control strip along the front with a red temperature display and two
-# knobs at its ends. -------------------------------------------------------------------------------------------------
+# -- the hotplate (fixed): a benchtop hotplate. A light grey housing; on top, a 100 x 100 mm aluminium heating plate,
+# edged with a red warning band; a dark control strip along the front with a red temperature display and two knobs at
+# its ends. ------------------------------------------------------------------------------------------------------------
 HP_XY = (0.29, -0.10)  # the heating plate's centre, to the robots' right
-HP_HALF, HP_PLATE_T, HP_H = 0.034, 0.005, 0.040  # the plate's half width and thickness; its top above the table
+HP_HALF, HP_PLATE_T, HP_H = 0.050, 0.005, 0.040  # the plate's half width and thickness; its top above the table
 HP_TOP = TOP + HP_H
-SLOT_W, SLOT_D = 0.018, 0.003  # the tweezer slot: width, depth
-SLOT_END = -WAFER_R + 0.0085 + 0.003  # the slot runs from the plate's front edge to here (plate frame, x)
 _bh = HP_H - HP_PLATE_T - 0.002  # the housing's top, under the plate
-_bx = (-HP_HALF - 0.032, HP_HALF + 0.012)  # the housing's x span (plate frame): the control strip in front
-_by = HP_HALF + 0.022  # the housing's half width
+_bx = (-HP_HALF - 0.032, HP_HALF + 0.006)  # the housing's x span (plate frame): the control strip in front
+_by = HP_HALF + 0.004  # the housing's half width: the plate's sides overhang nothing but the red band
 _pz = HP_H - HP_PLATE_T / 2
-_sl = SLOT_END + HP_HALF  # the slot's length
 HOTPLATE = part(
     "hotplate", pos=(*HP_XY, TOP), fixed=True, friction=0.3,
     boxes=[
         ((sum(_bx) / 2, 0.0, _bh / 2), (_bx[1] - _bx[0], 2 * _by, _bh), HOUSING_C),
         ((0.0, 0.0, _bh + 0.001), (2 * HP_HALF + 0.006, 2 * HP_HALF + 0.006, 0.002), HOT_C),  # red band
-        # the heating plate, in three pieces round the slot, and the slot's floor
-        (((SLOT_END + HP_HALF) / 2, 0.0, _pz), (HP_HALF - SLOT_END, 2 * HP_HALF, HP_PLATE_T), ALU),
-        *[((SLOT_END - _sl / 2, e * (HP_HALF + SLOT_W / 2) / 2, _pz), (_sl, HP_HALF - SLOT_W / 2, HP_PLATE_T), ALU)
-          for e in (-1, 1)],
-        ((SLOT_END - _sl / 2, 0.0, (HP_H - HP_PLATE_T + HP_H - SLOT_D) / 2), (_sl, SLOT_W, HP_PLATE_T - SLOT_D), ALU),
+        ((0.0, 0.0, _pz), (2 * HP_HALF, 2 * HP_HALF, HP_PLATE_T), ALU),  # the heating plate
         ((_bx[0] + 0.015, 0.0, _bh + 0.0005), (0.026, 2 * _by - 0.008, 0.001), DARK),  # control strip
-        ((_bx[0] + 0.015, 0.024, _bh + 0.0012), (0.012, 0.020, 0.0008), HOT_C),  # temperature display
+        ((_bx[0] + 0.015, 0.012, _bh + 0.0012), (0.012, 0.020, 0.0008), HOT_C),  # temperature display
     ],
-    cylinders=[((_bx[0] + 0.015, e, _bh + 0.004), 0.0055, 0.007, BLACK) for e in (-0.044, 0.046)],  # the knobs
+    cylinders=[((_bx[0] + 0.015, e, _bh + 0.004), 0.0055, 0.007, BLACK) for e in (-0.034, 0.040)],  # the knobs
 )
 
 # -- the wafer (loose), just baked, in the middle of the hotplate ------------------------------------------------------
@@ -432,7 +424,13 @@ def _cup_tcp(origin, psi=0.0):
 PINCH_IN = 0.0085  # the blade tips this far inside the wafer's edge (the upper blade draws back ~3 mm as it closes)
 BLADE_Z = 0.0022  # the tips' midpoint this far above the wafer's underside: the held-open lower blade 0.3 mm under
 # it (only the upper blade moves as they close), the upper 3 mm over it
-WAFER_PICK = np.array([HP_XY[0] - WAFER_R + PINCH_IN, HP_XY[1], HP_TOP + BLADE_Z])  # the lower blade in the slot
+OVERHANG = 0.012  # slide the wafer this far out over the plate's right edge, so the blades can take it from that side
+SLIDE_Y = HP_XY[1] - HP_HALF + WAFER_R - OVERHANG  # the wafer's centre (y) once slid
+PUSH_Z = HP_TOP + 0.0040  # the tips' midpoint while pushing: the open lower blade just clear of the plate
+PUSH_X = HP_XY[0] + BLADE_L / 2  # the blades' middle level with the wafer's centre
+PUSH_Y0 = HP_XY[1] + WAFER_R + BLADE_W / 2 + 0.004  # start: the lower blade's right side 4 mm from the wafer's rim
+PUSH_Y1 = SLIDE_Y + WAFER_R + BLADE_W / 2 - 0.0005  # end: the wafer pushed to SLIDE_Y
+PICK_PSI = math.pi / 2  # take it by the overhang from the right: blades pointing +y
 CASE_PLACE = np.array([CASE_XY[0] - WAFER_R + PINCH_IN, CASE_XY[1], TOP + REST_Z + 0.0008 + BLADE_Z])  # from -x
 TW_HOME = np.array([TW_XY[0], TW_XY[1], TOP + CUP_FLOOR + 0.0012])
 DOWN_Y = Orient(_prev_grip(0.0))  # pointing down, fingers closing along y
@@ -450,10 +448,26 @@ def _see(env):
         _seen["held"] = _seen["lid"].copy()
 
 
+@on_step
+def _see_wafer(env):
+    if getattr(_demo, "_plan_clock", 0.0) < _seen.get("wafer_t", 1e9):
+        _seen["wafer"] = np.asarray(labkit._part_state(env, labkit._SPECS["wafer"]).pos, float)
+
+
 @on_reset
 def _reset_seen(env):
     _seen["lid"] = np.array([*CASE_XY, TOP])
     _seen["held"] = _seen["lid"].copy()
+    _seen["wafer"] = np.array([HP_XY[0], SLIDE_Y, HP_TOP])
+
+
+def _pick_at(dy=0.0, dz=0.0):
+    """Where the tips go to take the slid wafer from the right, seen where it came to rest (frozen once the hand is
+    under it): ``dy`` further out (-y) of the pinch point, ``dz`` above it."""
+    def f():
+        w = _seen["wafer"]
+        return np.array([w[0], w[1] - WAFER_R + PINCH_IN - dy, HP_TOP + BLADE_Z + dz])
+    return f
 
 
 class _OnLid:
@@ -499,14 +513,16 @@ class _TwAt:
     trimmed by the live correction; ``track`` False holds the correction (and, before they are held, it is zero)."""
 
     def __init__(self, origin, cup=False, track=True, psi=0.0):
-        self.origin = np.asarray(origin, float)
+        self.fn = origin if callable(origin) else None
+        self.origin = None if callable(origin) else np.asarray(origin, float)
         self.cup = cup
         self.track = track
         self.psi = psi
 
     def __array__(self, dtype=None, copy=None):
-        _tw["goal"] = self.origin if self.track else None
-        tcp = _cup_tcp(self.origin, self.psi) if self.cup else _tw_tcp(self.origin, self.psi)
+        o = self.fn() if self.fn is not None else self.origin
+        _tw["goal"] = o if self.track else None
+        tcp = _cup_tcp(o, self.psi) if self.cup else _tw_tcp(o, self.psi)
         return np.asarray(np.asarray(tcp) + _tw["corr"], dtype=dtype or float)
 
 
@@ -518,7 +534,7 @@ def demo():
     _tw.update(corr=np.zeros(3), goal=None, prev=None)
     _seen.pop("freeze_t", None)
     d, q0, q1 = DOWN_X, tw_rot(0.0), tw_rot(0.0)
-    P, K = WAFER_PICK, CASE_PLACE
+    K = CASE_PLACE
     H = 0.0  # heading into the case's lid: +x, through the gap in its wall
     right = [
         Waypoint(3.0, _TwAt(TW_HOME + [0.0, 0.0, 0.05], cup=True, track=False), TW_WIDE,
@@ -527,15 +543,30 @@ def demo():
         Waypoint(0.8, _TwAt(TW_HOME, cup=True, track=False), TW_HOLD, "hold the tweezers, blades open", d),
         Waypoint(1.5, _TwAt(TW_HOME + [0.0, 0.0, 0.06], cup=True, track=False), TW_HOLD, "lift them out of the cup", d),
     ]
+    a0, a1 = np.array([PUSH_X, PUSH_Y0, PUSH_Z]), np.array([PUSH_X, PUSH_Y1, PUSH_Z])
+    qp = tw_rot(PICK_PSI)
     right += [
-        Waypoint(3.0, _TwAt(P + [-0.03, 0.0, 0.03]), TW_HOLD, "tilt them, blades flat, in front of the plate", q0),
-        Waypoint(2.0, _TwAt(P + [-0.03, 0.0, 0.03]), TW_HOLD, "line the tips up with the slot", q0),
-        Waypoint(2.0, _TwAt(P + [-0.015, 0.0, 0.0]), TW_HOLD, "blades level with the wafer", q0),
-        Waypoint(1.5, _TwAt(P + [-0.015, 0.0, 0.0]), TW_HOLD, "line up, seen against the wafer", q0),
-        Waypoint(2.0, _TwAt(P), TW_HOLD, "slide the open blades round its edge, the lower one in the slot", q0),
-        Waypoint(1.5, _TwAt(P), TW_HOLD, "line up: the lower blade just under the wafer", q0),
-        Waypoint(0.8, _TwAt(P, track=False), TW_PINCH, "pinch the wafer by its edge", q0),
-        Waypoint(1.5, _TwAt(P + [-0.01, 0.0, 0.03], track=False), TW_PINCH, "lift it off the plate", q0),
+        Waypoint(3.0, _TwAt(a0 + [0.0, 0.0, 0.03]), TW_HOLD, "tilt them, blades flat, over the plate left of the wafer",
+                 q0),
+        Waypoint(2.0, _TwAt(a0 + [0.0, 0.0, 0.03]), TW_HOLD, "line the tips up", q0),
+        Waypoint(2.0, _TwAt(a0), TW_HOLD, "down: the lower blade just over the plate, beside the wafer's rim", q0),
+        Waypoint(1.5, _TwAt(a0), TW_HOLD, "line up", q0),
+        Waypoint(5.0, _TwAt(a1, track=False), TW_HOLD,
+                 "slide the wafer to the plate's right edge with the blade's side, until it overhangs", q0),
+        Waypoint(0.8, _TwAt(a1 + [0.0, 0.006, 0.0], track=False), TW_HOLD, "draw back off its rim", q0),
+        Waypoint(1.2, _TwAt(a1 + [0.0, 0.006, 0.03], track=False), TW_HOLD, "up", q0),
+    ]
+    _seen["wafer_t"] = _dur(right) + 0.5  # where the wafer came to rest, seen before the hand goes round it
+    right += [
+        Waypoint(3.5, _TwAt(_pick_at(0.03, 0.03), psi=PICK_PSI), TW_HOLD,
+                 "round to the right of the plate, blades pointing at the overhang", qp),
+        Waypoint(2.0, _TwAt(_pick_at(0.015, 0.0), psi=PICK_PSI), TW_HOLD, "blades level with the wafer", qp),
+        Waypoint(1.5, _TwAt(_pick_at(0.015, 0.0), psi=PICK_PSI), TW_HOLD, "line up, seen against the wafer", qp),
+        Waypoint(2.0, _TwAt(_pick_at(), psi=PICK_PSI), TW_HOLD, "slide the open blades round the overhanging edge",
+                 qp),
+        Waypoint(1.5, _TwAt(_pick_at(), psi=PICK_PSI), TW_HOLD, "line up: the lower blade just under the wafer", qp),
+        Waypoint(0.8, _TwAt(_pick_at(), track=False, psi=PICK_PSI), TW_PINCH, "pinch the wafer by its edge", qp),
+        Waypoint(1.5, _TwAt(_pick_at(0.01, 0.03), track=False, psi=PICK_PSI), TW_PINCH, "lift it off the plate", qp),
         Waypoint(4.0, _TwAt(K + [0.0, 0.0, 0.03], psi=H), TW_PINCH, "carry it over the case's lid", q1),
         Waypoint(2.0, _TwAt(K + [0.0, 0.0, 0.03], psi=H), TW_PINCH, "line up over the pocket", q1),
         Waypoint(1.5, _TwAt(K, track=False, psi=H), TW_PINCH, "lower it onto the ledge, the blades in the gap", q1),
