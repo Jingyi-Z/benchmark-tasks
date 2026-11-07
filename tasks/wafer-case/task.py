@@ -157,9 +157,9 @@ TWEEZERS = part(
 )
 
 # -- the case (loose): lid and domed bottom. Frames: origin on the axis, at the underside. ------------------------------
-CASE_XY = (0.15, 0.02)  # the lid, open side up, in front of the robots' middle
+CASE_XY = (0.15, 0.025)  # the lid, open side up, in front of the robots' middle
 COVER_XY = (0.30, -0.32)  # the domed bottom, dome up, to the right, in front of the coater
-BASE_R, BASE_T = 0.053, 0.002  # the lid's base: floor and a wide flange, to hold it down by
+BASE_R, BASE_T = 0.060, 0.002  # the lid's base: floor and a wide flange, to hold it down by
 PIN_R, PIN_RAD, PIN_H = 0.0235, 0.0012, 0.003  # the pins the wafer rests on
 WALL_R, WALL_T, WALL_H = 0.0285, 0.002, 0.007  # the low wall round the pocket
 GAP = math.radians(32.0)  # half the opening in the wall (and the pins) towards -x, for the tweezers' blades
@@ -411,7 +411,7 @@ TW_HOME = np.array([TW_XY[0], TW_XY[1], TOP + CUP_FLOOR + 0.0012])
 DOWN_Y = Orient(_prev_grip(0.0))  # pointing down, fingers closing along y
 COVER_WIDE, COVER_HOLD = -0.044, -0.0335  # pads round the 75 mm skirt; squeezing it
 COVER_GRIP_Z = 0.008  # pad tips this far above the skirt's lower edge
-PRESS_R = 0.048  # the left fingertips press the lid's flange here, at its back (+x), clear of the right's fingers
+PRESS_R = 0.055  # the left fingertips press the lid's flange here, at its back (+x), clear of the right hand
 PRESS_IN = 0.0025  # aim this far into the flange: a firm press
 
 # what the demo sees of the case's lid: its position, every step
@@ -561,6 +561,9 @@ def demo():
         Waypoint(1.5, _cover_tcp(c0), COVER_WIDE, "fingers either side of its skirt", Q),
         Waypoint(0.8, _cover_tcp(c0), COVER_HOLD, "grip the skirt", Q),
         Waypoint(1.5, _cover_tcp(c0 + [0, 0, 0.10]), COVER_HOLD, "lift it, clear of the coater", Q),
+    ]
+    t_lift = _dur(right)
+    right += [
         Waypoint(3.0, on_lid(0.10), COVER_HOLD, "over the case's lid, its arrow at the OPEN mark", Q),
         Waypoint(1.5, on_lid(0.03), COVER_HOLD, "down towards the lid", Q),
         Waypoint(1.5, on_lid(0.03), COVER_HOLD, "line up over the lid", Q),
@@ -583,14 +586,14 @@ def demo():
     # left: fingertips closed, hold the case's lid down by its flange while the bottom is turned
     press = lambda dz: _OnLid(lambda L: tuple(L + [PRESS_R, 0.0, BASE_T + TIP_ABOVE_TCP + dz]))  # noqa: E731
     left = [Waypoint(3.0, LEFT_PARK, FINGER_OPEN, "wait")]
-    left.append(Waypoint(max(0.3, t_seated - 2.5 - _dur(left)), LEFT_PARK, FINGER_OPEN, "wait"))
+    left.append(Waypoint(max(0.3, t_lift - 5.0 - _dur(left)), LEFT_PARK, FINGER_OPEN, "wait"))
     left += [
         Waypoint(2.5, press(0.03), FINGER_CLOSED, "fingers closed, above the case's flange", 0.0),
         Waypoint(1.5, press(0.0), FINGER_CLOSED, "fingertips on the flange", 0.0),
         Waypoint(1.0, press(-PRESS_IN), FINGER_CLOSED, "hold the case's lid down", 0.0),
     ]
     left.append(Waypoint(max(0.3, t_turned + 0.6 - _dur(left)), press(-PRESS_IN), FINGER_CLOSED,
-                         "hold it while the bottom is turned", 0.0))
+                         "hold it while the bottom is set on and turned", 0.0))
     left += [
         Waypoint(1.0, press(0.04), FINGER_CLOSED, "up", 0.0),
         Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "park"),
