@@ -284,7 +284,8 @@ FRONT_CLEAR = 0.003  # its front edge this far from the pedestal's side
 BACK_TILT = math.radians(-15.0)
 CARRY_TILT = math.radians(-6.0)  # carried tipped back a little, the wafer against the stop
 SET_TILT = math.radians(10.0)  # just past the wafer's slip angle on PTFE: it creeps, not slides
-SET_SHIFT = 0.0  # where the front edge touches down, from one wafer radius short of the ring's centre
+SET_SHIFT = 0.0347  # the front edge touches down this far on from one wafer radius short of the ring's centre: the
+# wafer creeps forward until its rim is on the plate, leaning on the edge, its centre 16 mm short of the edge
 
 
 def demo():

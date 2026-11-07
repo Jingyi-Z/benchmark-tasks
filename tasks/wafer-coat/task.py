@@ -190,7 +190,7 @@ TSTAND = part("tweezer_cup", pos=(*TW_XY, TOP), fixed=True, friction=0.8,
                         (CUP_IN[0][1] - CUP_IN[0][0], _cw, CUP_H), STAND_C) for e in (-1, 1)]])
 TWEEZERS = part(
     "tweezers", pos=(*TW_XY, TOP + CUP_FLOOR + 0.0012), mass=0.020, friction=0.9,
-    boxes=[*_half(-SEP / 2), ((_ax, 0.0, TOP_Z + 0.005), (SEP + ARM_T, ARM_W, 0.010), STEEL)],  # the joined end
+    boxes=_half(-SEP / 2),  # the two halves' joined end is the slide joint: nothing stands above the arms' tops
     joints=[TWEEZER_JAW],
 )
 
@@ -295,7 +295,8 @@ def _tcp(point, rot):
     return tuple(np.asarray(point, float) - a * (TIP_ABOVE_TCP - PAD_IN))
 
 
-TW_GRIP_F = np.array([_ax, 0.0, TOP_Z - 0.020])  # gripped 2 cm below the joined end (tweezer frame, upright)
+TW_GRIP_F = np.array([_ax, 0.0, TOP_Z - 0.014])  # gripped 14 mm below the arms' tops, the palm just clear
+# of them (tweezer frame, upright)
 TW_TILT = axis_angle_matrix(Y, math.radians(-45.0))  # upright -> held: arms rising back at 45 degrees, blades flat
 TW_GRIP = TW_TILT @ TW_GRIP_F  # the grip point, from the blade tips, when held
 DOWN_X = Orient(_prev_grip(math.pi / 2))  # pointing down, fingers closing along x (across the arms' faces)
