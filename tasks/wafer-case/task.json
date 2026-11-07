@@ -18,5 +18,5 @@
   "reset_notes": "Nothing is consumed. Open the case, put the wafer back in the middle of the hotplate (pattern up), the tweezers back in their cup and the case's two pieces back as in the screenshot.",
   "fidelity": "PhysX at 240 Hz. The wafer is rigid, drawn 1 mm thick (real 0.28 mm), and cannot chip. The hotplate is not heated: touching it is scored, not felt. The tweezers are two halves on a sprung slide, not a bending spring. The bayonet is not modelled: the bottom rests on the lid and locking is scored from its turn. The lid grips the bench (friction 1.0) better than the bottom grips the lid (0.25).",
   "scores": "Dream-1 run: 0.0; demo: 1.0",
-  "media": ""
+  "media": "M-84FP52"
 }
