@@ -1,11 +1,11 @@
 """On the station table: a 4-inch silicon wafer lying on a narrow pedestal, a PTFE wafer transfer paddle lying on the
-bench, and a hotplate with a ring of low locating pins on its top plate.
+bench, and a hotplate with a ring of white dots printed on its top plate.
 
 The wafer is 100 mm across and overhangs its pedestal, 30 mm across and 8 cm tall, by 35 mm all round. Its top is the
 patterned side and must never be touched. The paddle is a flat PTFE plate 11 x 11.5 cm with low lips along its two
-sides, a stop along its back edge and a handle running back from the stop; its front edge is open. The hotplate (shown
-at 115 C) is an aluminium block with a top plate 16 x 16 cm; a printed ring of white dots, 4 mm outside a wafer's rim,
-marks where the wafer goes in the middle of it.
+sides, a stop along its back edge and a handle running back from the stop, ending in a red grip tab; its front edge is
+open. The hotplate is an aluminium block with a top plate 16 x 16 cm; a printed ring of white dots, 4 mm outside a
+wafer's rim, marks where the wafer goes in the middle of it.
 
 The task: hold the paddle level, front edge under the wafer's overhang, and nudge the wafer by its rim off the pedestal
 onto it; carry it to the hotplate and set it down inside the ring off the paddle's front edge: tilt the paddle forward
@@ -74,8 +74,8 @@ PADDLE = part("paddle", pos=(*PADDLE0, TOP), mass=0.060, friction=0.10, boxes=PA
 # -- the hotplate (fixed): an aluminium block; a printed ring of white dots on its top plate marks the target --------
 HP_XY = (0.355, -0.02)  # within easy reach of the left hand, the paddle tilted
 HP_HALF, HP_H = 0.080, 0.040
-DOT_R, DOT_H, N_DOTS = 0.0012, 0.0002, 24
-RING_R = WAFER_R + 0.004 + DOT_R  # the dots' centres: 4 mm outside a centred wafer's rim
+DOT_R, DOT_H, N_DOTS = 0.002, 0.0002, 24
+RING_R = WAFER_R + 0.004 + DOT_R  # the dots' centres: their inner edges 4 mm outside a centred wafer's rim
 HOTPLATE = part(
     "hotplate", pos=(*HP_XY, TOP), fixed=True, friction=0.8,
     boxes=[((0.0, 0.0, HP_H / 2), (2 * HP_HALF, 2 * HP_HALF, HP_H), ALU),
@@ -97,12 +97,23 @@ HOT_TOUCH = 0.004  # a pad tip within 4 mm of the top plate, over it: a hand tou
 HANDS_FAR = 0.050
 SUCCESS_HOLD_S = 2.0
 
-_state = {"touched": False, "dropped": False, "hot": False, "loaded": False}
+_state = {"touched": False, "dropped": False, "hot": False, "loaded": False, "handled": False}
 
 
 @on_reset
 def _reset_state(env):
-    _state.update(touched=False, dropped=False, hot=False, loaded=False)
+    _state.update(touched=False, dropped=False, hot=False, loaded=False, handled=False)
+
+
+def _supported(env, w) -> tuple:
+    """Whether the wafer rests on (or is leaning off) the pedestal, the paddle or the hotplate; and on the paddle."""
+    p = np.asarray(w.pos, float)
+    on_ped = (np.hypot(*(p[:2] - np.asarray(PED_XY))) < WAFER_R and abs(p[2] - (TOP + PED_TOP)) < 0.008)
+    pd = labkit._part_state(env, labkit._SPECS["paddle"])
+    lc = pd.to_local(p)
+    on_pd = abs(lc[0]) < PW / 2 + 0.005 and abs(lc[1]) < PL / 2 + 0.005 and PT - 0.002 < lc[2] < PT + 0.012
+    on_hp = abs(p[0] - HP_XY[0]) < HP_HALF and abs(p[1] - HP_XY[1]) < HP_HALF and p[2] < HP_TOP + 0.015
+    return on_ped or on_pd or on_hp, on_pd
 
 
 def _tips(env):
@@ -115,8 +126,9 @@ def _tips(env):
 
 @on_step
 def _watch(env):
-    """Latch the violations: the wafer's top touched, the wafer dropped or flipped, a hand on the hotplate's top plate;
-    and whether the wafer has been carried off the pedestal on the paddle."""
+    """Latch the violations: the wafer's top touched, the wafer dropped or flipped, a hand on the hotplate's top plate,
+    the wafer held off the pedestal, the paddle and the hotplate (carried by hand, not on the paddle); and whether the
+    wafer has been carried off the pedestal on the paddle."""
     w = labkit._part_state(env, labkit._SPECS["wafer"])
     p = np.asarray(w.pos, float)
     top = p[2] + WAFER_T
@@ -128,7 +140,10 @@ def _watch(env):
         if (abs(tip[0] - HP_XY[0]) < HP_HALF and abs(tip[1] - HP_XY[1]) < HP_HALF
                 and tip[2] < HP_TOP + HOT_TOUCH):
             _state["hot"] = True
-    if np.hypot(*(p[:2] - np.asarray(PED_XY))) > 0.04 and p[2] > TOP + PED_TOP + 0.005:
+    supported, on_paddle = _supported(env, w)
+    if not supported and p[2] > TOP + 0.020:
+        _state["handled"] = True
+    if on_paddle and np.hypot(*(p[:2] - np.asarray(PED_XY))) > 0.04 and p[2] > TOP + PED_TOP + 0.005:
         _state["loaded"] = True
 
 
@@ -144,12 +159,13 @@ def on_hotplate(w) -> bool:
 
 def score(objects):
     """0 if the wafer's top was ever touched, the wafer was ever dropped or flipped (tilted past 40 degrees, or below 2
-    cm above the table), or a hand ever touched the hotplate's top plate. Otherwise: 1.0 if the wafer lies flat on the
+    cm above the table), a hand ever touched the hotplate's top plate, or the wafer was ever off the pedestal, the
+    paddle and the hotplate at once (held by a hand). Otherwise: 1.0 if the wafer lies flat on the
     top plate inside the ring (centre within 3 mm of the ring's centre) with both hands at least 5 cm from it; 0.5 if it
     rests on the hotplate but off the mark (or a hand is still near); 0.25 if it has been carried off the pedestal on
     the paddle; 0 otherwise."""
     w = objects["wafer"]
-    if _state["touched"] or _state["dropped"] or _state["hot"]:
+    if _state["touched"] or _state["dropped"] or _state["hot"] or _state["handled"]:
         return 0.0
     if on_target(w):
         return 1.0 if _state.get("far", True) else 0.5
@@ -284,7 +300,7 @@ FRONT_CLEAR = 0.003  # its front edge this far from the pedestal's side
 BACK_TILT = math.radians(-15.0)
 CARRY_TILT = math.radians(-6.0)  # carried tipped back a little, the wafer against the stop
 SET_TILT = math.radians(10.0)  # just past the wafer's slip angle on PTFE: it creeps, not slides
-SET_SHIFT = 0.0347  # the front edge touches down this far on from one wafer radius short of the ring's centre: the
+SET_SHIFT = 0.0318  # the front edge touches down this far on from one wafer radius short of the ring's centre: the
 # wafer creeps forward until its rim is on the plate, leaning on the edge, its centre 16 mm short of the edge
 
 
