@@ -1,0 +1,13 @@
+{
+  "title": "Swap the layer 1 chrome mask for layer 2 on a mask aligner's holder, chrome side down",
+  "category": "Impact on jobs",
+  "keywords": ["cleanroom", "photolithography", "chrome mask", "bimanual", "mirror text"],
+  "instruction": "Swap the mask on the holder for the LAYER 2 mask, chrome side down against the stops, and leave the mask vacuum on.",
+  "context": "TBD",
+  "setup": "TBD",
+  "scoring": "TBD",
+  "run_limit": "2,400 steps (2 minutes at 20 Hz)",
+  "fidelity": "TBD",
+  "scores": "TBD",
+  "media": ""
+}
