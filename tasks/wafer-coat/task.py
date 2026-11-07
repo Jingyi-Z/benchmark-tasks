@@ -131,7 +131,7 @@ WAFER = part("wafer", pos=(*STAND_XY, TOP + PAD_TOP), mass=0.004, friction=0.8,
 # -- the aligner (loose, PTFE). Frame: origin at the pocket's centre, on the plate's underside; the slot opens to +x. ---
 PT = 0.003  # plate thickness
 SLOT_HW = 0.0145  # the slot: 29 mm, 2.5 mm clear of the chuck either side
-HEAD_X = (-0.036, 0.026)
+HEAD_X = (-0.036, 0.014)  # the plate's x span: short beyond the pocket, so it slides out from under the wafer soon
 HEAD_HW = 0.034
 POCKET_R = WAFER_R + 0.0002 + 0.0015  # post centres
 POST_R, POST_H = 0.0015, 0.0015
@@ -156,7 +156,7 @@ ALIGNER_BOXES = [
     ((0.0, sum(HANDLE_A[1]) / 2, sum(HANDLE_A[2]) / 2),
      (2 * HANDLE_A[0], HANDLE_A[1][1] - HANDLE_A[1][0], HANDLE_A[2][1] - HANDLE_A[2][0]), PTFE),
 ]
-_post_angles = [a for a in range(45, 316, 15) if not 165 <= a <= 195]  # none over the slot, so the chuck slides out
+_post_angles = [a for a in range(60, 301, 15) if not 165 <= a <= 195]  # all on the plate, none over the slot
 _c45 = math.sqrt(0.5)
 ALIGNER_CYLS = [((POCKET_R * math.cos(math.radians(a)), POCKET_R * math.sin(math.radians(a)), PT + POST_H / 2),
                  POST_R, POST_H, PTFE) for a in _post_angles]
@@ -409,7 +409,7 @@ AL_WIDE, AL_HOLD = -0.012, -0.0032
 AL_GRIP_Z = HANDLE_A[2][1] - 0.010  # pad tips 10 mm down the 12 mm fin, so the pads hold it against turning
 DOCK_Z = CHUCK_TOP - 0.002  # the plate's underside: its top 1 mm over the chuck's, the wafer resting on it
 DROP = 0.0075  # the plate's chamfers end 3.6 mm above it: drop well clear before sliding back
-BACK = 0.050  # slide the aligner back this far after the drop: the slot clear of the chuck and the wafer, its far corners clear of the bowl
+BACK = 0.040  # slide the aligner back this far after the drop: the slot clear of the chuck and the wafer's edge
 DOCK_PRE = 0.004  # come down this far short of the V seating
 DOCK_PUSH = 0.0015  # aim this far past seating: a light push
 
