@@ -493,7 +493,7 @@ TW_HOLD = -0.0050
 TW_PINCH = -0.0022
 PINCH_IN = 0.012  # the tips 12 mm inside the edge: a 100 mm wafer needs a deep pinch not to twist out
 BLADE_Z = 0.0022  # the tips' midpoint above the wafer's underside, as taken in a carrier
-V0 = np.array([WAFER_R - PINCH_IN, 0.0, WAFER_T / 2 - (BLADE_Z - 0.0008)])  # the wafer's centre from the tips, held
+V0 = np.array([WAFER_R - PINCH_IN, 0.0, WAFER_T / 2 - (BLADE_Z - 0.0016)])  # lower blade ~1 mm under it  # the wafer's centre from the tips, held
 # blades flat along +x (tweezer heading 0)
 
 
