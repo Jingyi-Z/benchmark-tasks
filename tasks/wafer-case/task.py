@@ -2,8 +2,9 @@
 tweezers standing tips down in a cup, and a round polypropylene single-wafer case in two pieces: its flat lid lying
 open side up, and its clear domed bottom lying beside it, dome up.
 
-The hotplate: a white housing 12 x 12 cm with a 10 x 10 cm aluminium top plate, 4 cm above the table, the wafer lying
-flat in the middle of it. Nothing of the wafer overhangs the plate, so the tweezers cannot get a blade under it where
+The hotplate: a light grey housing with a 10 x 10 cm aluminium heating plate, edged in red, its top 4 cm above the
+table, and a dark control strip along its front with a red temperature display and two knobs; the wafer lies flat in
+the middle of the plate. Nothing of the wafer overhangs the plate, so the tweezers cannot get a blade under it where
 it lies: it is first slid by its rim, with the closed tips, until its edge overhangs the plate's front edge.
 
 The case: the lid is a shallow tray; the wafer rests by its edge on a ledge ring inside a low wall, both open on the side
@@ -50,21 +51,25 @@ PP_B = (0.80, 0.84, 0.86)  # the domed bottom: clear polypropylene
 labkit.GLASS_COLORS.update({PP_B})
 MARK = (0.85, 0.20, 0.12)
 
-# -- the hotplate (fixed): a small benchtop hotplate for wafers, a white housing with a square aluminium top plate ------
-HP_XY = (0.28, -0.10)  # to the robots' right
-HP_HALF, HP_PLATE_T, HP_H = 0.050, 0.005, 0.040  # the top plate's half width and thickness; its top above the table
-HP_BODY = 0.060  # the housing's half width
+# -- the hotplate (fixed): a benchtop hotplate for small wafers. A light grey housing; on top, a 10 x 10 cm aluminium
+# heating plate towards the back, edged with a red warning band, and a dark control strip along the front with a red
+# temperature display and two knobs at its ends (clear of the middle, where the tweezers come in). ------------------
+HP_XY = (0.29, -0.10)  # the heating plate's centre, to the robots' right
+HP_HALF, HP_PLATE_T, HP_H = 0.050, 0.005, 0.040  # the plate's half width and thickness; its top above the table
 HP_TOP = TOP + HP_H
-HP_FRONT = HP_XY[0] - HP_HALF  # the top plate's front edge (towards the robots), x
+HP_FRONT = HP_XY[0] - HP_HALF  # the plate's front edge (towards the robots), x
+_bh = HP_H - HP_PLATE_T - 0.002  # the housing's top, under the plate
+_bx = (-HP_HALF - 0.030, HP_HALF + 0.008)  # the housing's x span (plate frame): the control strip in front
 HOTPLATE = part(
-    "hotplate", pos=(*HP_XY, TOP), fixed=True, friction=0.3,
+    "hotplate", pos=(*HP_XY, TOP), fixed=True, friction=0.2,
     boxes=[
-        ((0.0, 0.0, (HP_H - HP_PLATE_T) / 2), (2 * HP_BODY, 2 * HP_BODY, HP_H - HP_PLATE_T), HOUSING_C),
+        ((sum(_bx) / 2, 0.0, _bh / 2), (_bx[1] - _bx[0], 2 * HP_HALF + 0.016, _bh), HOUSING_C),
+        ((0.0, 0.0, _bh + 0.001), (2 * HP_HALF + 0.004, 2 * HP_HALF + 0.004, 0.002), HOT_C),  # red band round the plate
         ((0.0, 0.0, HP_H - HP_PLATE_T / 2), (2 * HP_HALF, 2 * HP_HALF, HP_PLATE_T), ALU),
-        ((0.0, HP_BODY + 0.003, 0.016), (0.08, 0.006, 0.026), DARK),  # control panel, on the side away from the robots' right
-        ((0.025, HP_BODY + 0.0065, 0.022), (0.006, 0.001, 0.006), HOT_C),  # the "hot" lamp
+        ((_bx[0] + 0.014, 0.0, _bh + 0.0005), (0.024, 2 * HP_HALF + 0.012, 0.001), DARK),  # control strip
+        ((_bx[0] + 0.014, 0.022, _bh + 0.0012), (0.012, 0.020, 0.0008), HOT_C),  # temperature display
     ],
-    cylinders=[((-0.02, HP_BODY + 0.008, 0.014), 0.007, 0.006, BLACK, "Y")],  # the set-point knob
+    cylinders=[((_bx[0] + 0.014, e, _bh + 0.004), 0.0055, 0.007, BLACK) for e in (-0.042, 0.042)],  # the knobs
 )
 
 # -- the wafer (loose), just baked, in the middle of the hotplate ------------------------------------------------------
@@ -407,7 +412,7 @@ BLADE_Z = 0.0022  # the tips' midpoint this far above the wafer's underside: the
 # it (only the upper blade moves as they close), the upper 3 mm over it
 OVERHANG = 0.012  # the wafer is slid this far over the top plate's front edge, for the blades to go round it
 SLID_X = HP_FRONT + WAFER_R - OVERHANG  # the wafer's centre, slid
-PUSH_Z = HP_TOP + 0.0006  # the closed tips just above the top plate while they slide the wafer
+PUSH_Z = HP_TOP + 0.0008  # the closed tips just above the top plate while they slide the wafer
 WAFER_PICK = np.array([SLID_X - WAFER_R + PINCH_IN, HP_XY[1], HP_TOP + BLADE_Z])
 CASE_PLACE = np.array([CASE_XY[0] - WAFER_R + PINCH_IN, CASE_XY[1], TOP + REST_Z + 0.0008 + BLADE_Z])  # from -x
 TW_HOME = np.array([TW_XY[0], TW_XY[1], TOP + CUP_FLOOR + 0.0012])
@@ -511,8 +516,10 @@ def demo():
     end = np.array([SLID_X + WAFER_R, yb, PUSH_Z])
     right += [
         Waypoint(3.0, _TwAt(far + [0.0, 0.0, 0.04], cup=True, psi=B), TW_PINCH, "over the plate, tips closed", u),
-        Waypoint(1.5, _TwAt(far + [0.0, 0.0, 0.01], cup=True, psi=B), TW_PINCH, "line the tips up behind the wafer", u),
-        Waypoint(1.5, _TwAt(far, cup=True, psi=B, track=False), TW_PINCH, "tips down behind its far rim", u),
+        Waypoint(1.5, _TwAt(far + [0.0, 0.0, 0.01], cup=True, psi=B), TW_PINCH, "tips down behind the wafer", u),
+        Waypoint(3.0, _TwAt(far + [0.0, 0.0, 0.01], cup=True, psi=B), TW_PINCH, "line the tips up behind it", u),
+        Waypoint(1.5, _TwAt(far, cup=True, psi=B), TW_PINCH, "tips down behind its far rim", u),
+        Waypoint(1.5, _TwAt(far, cup=True, psi=B), TW_PINCH, "line up again", u),
         Waypoint(4.0, _TwAt(end, cup=True, psi=B, track=False), TW_PINCH,
                  "slide it by its rim over the plate's front edge", u),
         Waypoint(1.0, _TwAt(end + [0.003, 0.0, 0.0], cup=True, psi=B, track=False), TW_HOLD, "off the rim", u),
