@@ -411,7 +411,7 @@ TW_HOME = np.array([TW_XY[0], TW_XY[1], TOP + CUP_FLOOR + 0.0012])
 DOWN_Y = Orient(_prev_grip(0.0))  # pointing down, fingers closing along y
 COVER_WIDE, COVER_HOLD = -0.044, -0.0335  # pads round the 75 mm skirt; squeezing it
 COVER_GRIP_Z = 0.008  # pad tips this far above the skirt's lower edge
-PRESS_R = 0.049  # the left fingertips press the lid's flange here, on its left (+y), clear of the right's fingers
+PRESS_R = 0.048  # the left fingertips press the lid's flange here, at its back (+x), clear of the right's fingers
 PRESS_IN = 0.0025  # aim this far into the flange: a firm press
 
 # what the demo sees of the case's lid: its position, every step
@@ -552,9 +552,9 @@ def demo():
     ]
 
     # right, then: the domed bottom onto the case's lid, arrow at OPEN; with the lid held down, turn it to LOCK.
-    # Fingers closing along x, so the left hand can come in on the lid's left side.
+    # Fingers closing along y, so the left hand can come in at the lid's back.
     c0 = np.array([*COVER_XY, TOP])
-    Q = math.pi / 2  # the hand's yaw: fingers closing along x
+    Q = 0.0  # the hand's yaw: fingers closing along y
     on_lid = lambda dz: _OnLid(lambda L: _cover_tcp(L + [0, 0, dz]))  # noqa: E731
     right += [
         Waypoint(2.5, _cover_tcp(c0 + [0, 0, 0.04]), COVER_WIDE, "above the domed bottom", Q),
@@ -581,7 +581,7 @@ def demo():
     ]
 
     # left: fingertips closed, hold the case's lid down by its flange while the bottom is turned
-    press = lambda dz: _OnLid(lambda L: tuple(L + [0.0, PRESS_R, BASE_T + TIP_ABOVE_TCP + dz]))  # noqa: E731
+    press = lambda dz: _OnLid(lambda L: tuple(L + [PRESS_R, 0.0, BASE_T + TIP_ABOVE_TCP + dz]))  # noqa: E731
     left = [Waypoint(3.0, LEFT_PARK, FINGER_OPEN, "wait")]
     left.append(Waypoint(max(0.3, t_seated - 2.5 - _dur(left)), LEFT_PARK, FINGER_OPEN, "wait"))
     left += [
