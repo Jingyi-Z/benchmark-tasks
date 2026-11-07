@@ -457,10 +457,10 @@ def _see_wafer(env):
 
 
 def _push_at():
-    """Where the upright tweezers' tips go while sliding the wafer: 10 mm ahead of where its back rim is now, seen
+    """Where the upright tweezers' tips go while sliding the wafer: 25 mm ahead of where its back rim is now, seen
     live, but no further than where its rim will be once slid out to SLIDE_X (plus 3 mm)."""
     w = _seen.get("wafer_live", np.array([*HP_XY, HP_TOP]))
-    x = max(SLIDE_X - 0.003, w[0] - 0.010) + WAFER_R + BLADE_W / 2
+    x = max(SLIDE_X - 0.003, w[0] - 0.025) + WAFER_R + BLADE_W / 2
     return np.array([x, HP_XY[1], PUSH_Z])
 
 
