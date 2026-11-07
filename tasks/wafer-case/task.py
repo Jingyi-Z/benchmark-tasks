@@ -159,7 +159,7 @@ TWEEZERS = part(
 # -- the case (loose): lid and domed bottom. Frames: origin on the axis, at the underside. ------------------------------
 CASE_XY = (0.15, 0.02)  # the lid, open side up, in front of the robots' middle
 COVER_XY = (0.20, 0.17)  # the domed bottom, dome up, to its left
-BASE_R, BASE_T = 0.046, 0.002  # the lid's base: floor and a wide flange
+BASE_R, BASE_T = 0.053, 0.002  # the lid's base: floor and a wide flange, to hold it down by
 PIN_R, PIN_RAD, PIN_H = 0.0235, 0.0012, 0.003  # the pins the wafer rests on
 WALL_R, WALL_T, WALL_H = 0.0285, 0.002, 0.007  # the low wall round the pocket
 GAP = math.radians(32.0)  # half the opening in the wall (and the pins) towards -x, for the tweezers' blades
@@ -412,7 +412,7 @@ TW_HOME = np.array([TW_XY[0], TW_XY[1], TOP + CUP_FLOOR + 0.0012])
 DOWN_Y = Orient(_prev_grip(0.0))  # pointing down, fingers closing along y
 COVER_WIDE, COVER_HOLD = -0.044, -0.0335  # pads round the 75 mm skirt; squeezing it
 COVER_GRIP_Z = 0.008  # pad tips this far above the skirt's lower edge
-PRESS_R = 0.0425  # the right fingertips press the lid's flange here, on its -y side
+PRESS_R = 0.048  # the right fingertips press the lid's flange here, on its -y side
 PRESS_IN = 0.0025  # aim this far into the flange: a firm press
 
 # what the demo sees of the case's lid: its position, every step
@@ -422,25 +422,25 @@ _seen = {"lid": np.array([*CASE_XY, TOP])}
 @on_step
 def _see(env):
     _seen["lid"] = np.asarray(labkit._part_state(env, labkit._SPECS["case_lid"]).pos, float)
+    if getattr(_demo, "_plan_clock", 0.0) < _seen.get("freeze_t", 1e9):
+        _seen["held"] = _seen["lid"].copy()
 
 
 @on_reset
 def _reset_seen(env):
     _seen["lid"] = np.array([*CASE_XY, TOP])
-    _seen.pop("held", None)
+    _seen["held"] = _seen["lid"].copy()
 
 
 class _OnLid:
-    """A TCP given relative to the case lid's position: its live position while ``track``, else where it was last
-    seen while tracking (so a hand bearing on the lid does not chase it)."""
+    """A TCP given relative to the case lid's position as seen up to ``_seen["freeze_t"]`` (set by the demo to when the
+    hands start bearing on the case, so they do not chase it). ``track`` is kept for readability only."""
 
     def __init__(self, fn, track=True):
         self.fn = fn
         self.track = track
 
     def __array__(self, dtype=None, copy=None):
-        if self.track or "held" not in _seen:
-            _seen["held"] = _seen["lid"].copy()
         return np.asarray(self.fn(_seen["held"]), dtype=dtype or float)
 
 
@@ -520,6 +520,7 @@ def _dur(wps):
 
 def demo():
     _tw.update(corr=np.zeros(3), goal=None, prev=None)
+    _seen.pop("freeze_t", None)
     d, q0, q1 = DOWN_X, tw_rot(0.0), tw_rot(0.0)
     P, K = WAFER_PICK, CASE_PLACE
     H = 0.0  # heading into the case's lid: +x, through the gap in its wall
@@ -571,6 +572,7 @@ def demo():
         Waypoint(2.0, on_lid(BASE_T - 0.001), COVER_HOLD, "lower it over the wall onto the flange", 0.0),
     ]
     t_seated = _dur(left)
+    _seen["freeze_t"] = t_seated - 2.0  # from here the hands bear on the case: aim at where it was seen last
     left.append(Waypoint(max(0.3, _dur(right) + 5.3 - _dur(left)), on_lid(BASE_T - 0.001), COVER_HOLD,
                          "wait for the other hand on the flange", 0.0))
     for f in np.linspace(0.25, 1.0, 4):
