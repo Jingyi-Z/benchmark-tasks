@@ -412,7 +412,7 @@ BLADE_Z = 0.0022  # the tips' midpoint this far above the wafer's underside: the
 # it (only the upper blade moves as they close), the upper 3 mm over it
 OVERHANG = 0.012  # the wafer is slid this far over the top plate's front edge, for the blades to go round it
 SLID_X = HP_FRONT + WAFER_R - OVERHANG  # the wafer's centre, slid
-PUSH_Z = HP_TOP + 0.0008  # the closed tips just above the top plate while they slide the wafer
+PUSH_Z = HP_TOP + 0.0004  # the closed tips just above the top plate while they slide the wafer
 WAFER_PICK = np.array([SLID_X - WAFER_R + PINCH_IN, HP_XY[1], HP_TOP + BLADE_Z])
 CASE_PLACE = np.array([CASE_XY[0] - WAFER_R + PINCH_IN, CASE_XY[1], TOP + REST_Z + 0.0008 + BLADE_Z])  # from -x
 TW_HOME = np.array([TW_XY[0], TW_XY[1], TOP + CUP_FLOOR + 0.0012])
@@ -473,20 +473,25 @@ def _track_tw(env):
     err = _tw["goal"] - pos
     if np.linalg.norm(pos - prev) < 0.0002 and np.linalg.norm(err) < 0.04:
         _tw["corr"] = np.clip(_tw["corr"] + np.clip(0.3 * err, -0.0005, 0.0005), -0.03, 0.03)
+    elif _tw.get("zlive") and abs(err[2]) < 0.01:  # sliding along the plate: hold the tips' height while moving
+        _tw["corr"][2] = float(np.clip(_tw["corr"][2] + np.clip(0.3 * err[2], -0.0003, 0.0003), -0.03, 0.03))
 
 
 class _TwAt:
     """The right hand's TCP to put the held tweezers' tips at ``origin`` (blades flat, or upright when ``cup``),
-    trimmed by the live correction; ``track`` False holds the correction (and, before they are held, it is zero)."""
+    trimmed by the live correction; ``track`` False holds the correction (and, before they are held, it is zero);
+    ``zlive`` keeps correcting the tips' height even while they move (sliding along the plate)."""
 
-    def __init__(self, origin, cup=False, track=True, psi=0.0):
+    def __init__(self, origin, cup=False, track=True, psi=0.0, zlive=False):
         self.origin = np.asarray(origin, float)
         self.cup = cup
         self.track = track
         self.psi = psi
+        self.zlive = zlive
 
     def __array__(self, dtype=None, copy=None):
-        _tw["goal"] = self.origin if self.track else None
+        _tw["goal"] = self.origin if (self.track or self.zlive) else None
+        _tw["zlive"] = self.zlive
         tcp = _cup_tcp(self.origin, self.psi) if self.cup else _tw_tcp(self.origin, self.psi)
         return np.asarray(np.asarray(tcp) + _tw["corr"], dtype=dtype or float)
 
@@ -520,7 +525,7 @@ def demo():
         Waypoint(3.0, _TwAt(far + [0.0, 0.0, 0.01], cup=True, psi=B), TW_PINCH, "line the tips up behind it", u),
         Waypoint(1.5, _TwAt(far, cup=True, psi=B), TW_PINCH, "tips down behind its far rim", u),
         Waypoint(1.5, _TwAt(far, cup=True, psi=B), TW_PINCH, "line up again", u),
-        Waypoint(4.0, _TwAt(end, cup=True, psi=B, track=False), TW_PINCH,
+        Waypoint(4.0, _TwAt(end, cup=True, psi=B, track=False, zlive=True), TW_PINCH,
                  "slide it by its rim over the plate's front edge", u),
         Waypoint(1.0, _TwAt(end + [0.003, 0.0, 0.0], cup=True, psi=B, track=False), TW_HOLD, "off the rim", u),
         Waypoint(1.2, _TwAt(end + [0.003, 0.0, 0.05], cup=True, psi=B, track=False), TW_HOLD, "up", u),
