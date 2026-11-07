@@ -7,10 +7,10 @@ table, and a dark control strip along its front with a red temperature display a
 the middle of the plate. A tweezer slot, 18 mm wide and 3 mm deep, is milled into the plate's front edge and runs in
 under the wafer's edge, so the tweezers' lower blade can get under it.
 
-The case: the lid is a shallow tray; the wafer rests by its edge on a ledge ring inside a low wall, both open on the side
-towards the robots for the tweezers' blades, and a wide ribbed flange outside the wall takes the domed bottom. The
-bottom is a clear shell, a ribbed skirt under a shallow dome; a bayonet closes the case: the bottom is set on with its
-arrow at the lid's OPEN mark and turned 30 degrees clockwise to the LOCK mark.
+The case: the lid is a shallow tray; the wafer rests by its edge on a ledge ring inside a low wall, both open on the
+side towards the robots for the tweezers' blades, and a wide ribbed flange outside the wall takes the domed bottom.
+The bottom is a clear shell, a ribbed skirt under a shallow dome; a bayonet closes the case: the bottom is set on with
+its arrow at the lid's OPEN mark and turned 30 degrees clockwise to the LOCK mark.
 
 The task: with the tweezers, pinch the wafer by its edge over the slot and lay it, pattern side up, in the case's lid;
 set the domed bottom on and turn it to lock. The gripper never holds the wafer, never touches its top and never
@@ -123,7 +123,7 @@ TWEEZER_JAW = Joint("jaw", kind="slide", axis="X", anchor=(_ax + SEP / 2, 0.0, _
                     lower=-(SEP - BLADE_T / _s - 0.0002), upper=0.0, initial=0.0, target=0.0, stiffness=600.0,
                     damping=5.0, mass=0.008, boxes=_half(SEP / 2))
 # The cup: a block on the bench; the tweezers stand in it on their blade tips, upright.
-TW_XY = (0.17, -0.27)  # in front of the coater, to the right
+TW_XY = (0.17, -0.27)  # in front of the hotplate, to the right
 CUP_FLOOR, CUP_H = 0.020, 0.035  # the cup's floor above the table; its walls above the floor
 CUP_IN = ((-0.0150, 0.0065), 0.0085)  # inner x span, inner half width (y): a snug fit, so they stand upright
 _cw = 0.003
@@ -318,11 +318,12 @@ def locked(lid, cover) -> bool:
 
 def score(objects):
     """0 if the wafer's top was ever touched, the wafer was ever held by the gripper itself, it was dropped (tilted past
-    40 degrees, or on the table), or the gripper touched the hotplate's top. Otherwise, with the wafer lying flat in the
-    case's lid on its ledge, its centre within 2.5 mm of the case's axis: 1.0 if the domed bottom is seated on the lid and locked (set on at the OPEN mark,
-    within 10 degrees, and turned 22 to 45 degrees clockwise while seated) with both hands 8 cm from the case's axis; 0.5
-    if the bottom is seated but not locked, or a hand is still at the case; 0.25 if the wafer is in the lid but the
-    bottom is not seated. 0 if the wafer is not in the lid."""
+    40 degrees, or on the table), or the gripper touched the hotplate's top. Otherwise, with the wafer lying flat
+    in the case's lid on its ledge, its centre within 2.5 mm of the case's axis: 1.0 if the domed bottom is
+    seated on the lid and locked (set on at the OPEN mark, within 10 degrees, and turned 22 to 45 degrees
+    clockwise while seated) with both hands 8 cm from the case's axis; 0.5 if the bottom is seated but not
+    locked, or a hand is still at the case; 0.25 if the wafer is in the lid but the bottom is not seated. 0 if
+    the wafer is not in the lid."""
     if _state["touched"] or _state["handled"] or _state["dropped"] or _state["hot"]:
         return 0.0
     w, lid, cover = objects["wafer"], objects["case_lid"], objects["case_bottom"]
@@ -544,7 +545,8 @@ def demo():
         Waypoint(3.0, _TwAt(TW_HOME + [0.0, 0.0, 0.06], cup=True), TW_HOLD, "upright again, over the cup", d),
         Waypoint(2.0, _TwAt(TW_HOME + [0.0, 0.0, 0.06], cup=True), TW_HOLD, "line them up over the cup", d),
         Waypoint(1.5, _TwAt(TW_HOME + [0.0, 0.0, 0.002], cup=True, track=False), TW_HOLD, "lower them into the cup", d),
-        Waypoint(0.6, _TwAt(TW_HOME + [0.0, 0.0, 0.002], cup=True, track=False), TW_WIDE, "let go: they stand in it", d),
+        Waypoint(0.6, _TwAt(TW_HOME + [0.0, 0.0, 0.002], cup=True, track=False), TW_WIDE,
+                 "let go: they stand in it", d),
         Waypoint(1.2, _TwAt(TW_HOME + [0.0, 0.0, 0.05], cup=True, track=False), TW_WIDE, "up", d),
     ]
 
