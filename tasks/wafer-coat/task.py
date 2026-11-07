@@ -427,11 +427,11 @@ def _al_tcp(pocket):
     return tuple(tip - AL_ROT.rot[:, 2] * TIP_ABOVE_TCP)
 
 
-_live = {"corr": np.zeros(2), "on": False}
+_live = {"corr": np.zeros(3), "on": False, "goal": None, "prev": None}
 
 
 def _live_reset():
-    _live.update(corr=np.zeros(2), on=False)
+    _live.update(corr=np.zeros(3), on=False, goal=None, prev=None)
 
 
 @on_reset
@@ -441,13 +441,16 @@ def _reset(env):
 
 @on_step
 def _track(env):
-    """While ``on``, trim the aligner hand so the pocket's centre comes over the chuck's axis (part of the error per
-    step)."""
-    if not _live["on"]:
+    """While ``on``, trim the aligner hand so the pocket's centre (plate underside) comes to its goal, seen live: part
+    of the error per step, the height only while the aligner is still (it sits a little low in the hand)."""
+    a = np.asarray(labkit._part_state(env, labkit._SPECS["aligner"]).pos, float)
+    prev, _live["prev"] = _live["prev"], a
+    if not _live["on"] or _live["goal"] is None:
         return
-    a = labkit._part_state(env, labkit._SPECS["aligner"])
-    err = CHUCK_XY + np.array([-DOCK_PRE, 0.0]) - a.pos[:2]
-    _live["corr"] = np.clip(_live["corr"] + np.clip(0.15 * err, -0.0004, 0.0004), -0.004, 0.004)
+    err = _live["goal"] - a
+    if prev is None or np.linalg.norm(a - prev) > 0.0002 or abs(err[2]) > 0.008:
+        err[2] = 0.0
+    _live["corr"] = np.clip(_live["corr"] + np.clip(0.15 * err, -0.0004, 0.0004), -0.006, 0.006)
 
 
 class _AlLive:
@@ -459,8 +462,8 @@ class _AlLive:
 
     def __array__(self, dtype=None, copy=None):
         _live["on"] = self.track
-        c = _live["corr"]
-        return np.asarray(_al_tcp(self.pocket + np.array([c[0], c[1], 0.0])), dtype=dtype or float)
+        _live["goal"] = self.pocket
+        return np.asarray(_al_tcp(self.pocket + _live["corr"]), dtype=dtype or float)
 
 
 # what the demo sees of the tweezers once held: their origin (between the blade tips); the right hand's aim is trimmed
@@ -613,7 +616,7 @@ def demo():
         Waypoint(1.5, _al_tcp(dock_hi), AL_HOLD, "down into the bowl, the slot lined up with the chuck", AL_ROT),
         Waypoint(0.1, _AlLive(dock_hi), AL_HOLD, "line the slot up with the chuck", AL_ROT),
         Waypoint(2.0, _AlLive(dock_hi), AL_HOLD, "line the slot up with the chuck", AL_ROT),
-        Waypoint(2.0, _AlLive(dock), AL_HOLD, "lower it: the slot straddles the chuck", AL_ROT),
+        Waypoint(2.0, _AlLive(dock, track=False), AL_HOLD, "lower it: the slot straddles the chuck", AL_ROT),
         Waypoint(1.5, _AlLive(dock + [DOCK_PRE + DOCK_PUSH, 0, 0], track=False), AL_HOLD,
                  "push it on: the V seats against the chuck, the pocket centred on it", AL_ROT),
         Waypoint(0.5, _AlLive(dock + [DOCK_PRE + DOCK_PUSH, 0, 0], track=False), AL_HOLD, "steady", AL_ROT),
