@@ -1,5 +1,5 @@
 """On the station table: a benchtop spin coater for small wafers, a 2-inch silicon wafer on a pad stand to its right,
-a pair of angled wafer tweezers resting on a stand, and a PTFE wafer aligner lying on the bench in front.
+a pair of angled wafer tweezers standing tips down in a cup, and a PTFE wafer aligner lying on the bench in front.
 
 The coater: a white housing 22 x 22 cm with a round catch bowl and, in the middle of the bowl, a black vacuum chuck
 2.4 cm across. Its clear lid is hinged along the back edge and lifts at the front by a black handle bar; it falls shut
@@ -151,51 +151,46 @@ ALIGNER_XY = (0.125, -0.10)  # where it lies at the start: pocket centre, slot t
 ALIGNER = part("aligner", pos=(*ALIGNER_XY, TOP), mass=0.030, friction=0.5, boxes=ALIGNER_BOXES,
                cylinders=ALIGNER_CYLS)
 
-# -- the tweezers (loose): angled wafer tweezers. Frame: origin between the two flat blades' tips; the blades lie flat
-# along +x; the arms rise behind them at 45 degrees. The lower blade and arm are the body; the upper blade and arm
-# slide together along z (sprung open).
+# -- the tweezers (loose): angled wafer tweezers, standing upright in a cup, tips down. Frame: origin between the two
+# blades' tips, with the arms vertical (joined end up) and the blades bent 45 degrees forward (+x) and down from the
+# arms' lower ends. The arms are flat strips, their faces normal to x; the lower blade and arm (x < 0) and the joined
+# end are the body, the upper blade and arm (x > 0) slide together along x (sprung open). Held in a hand turned 45
+# degrees (arms rising back at 45 degrees), the blades lie flat, pointing forward.
 BLADE_L, BLADE_W, BLADE_T = 0.012, 0.010, 0.0012
-OPEN_GAP = 0.005  # between the blades, open
+OPEN_GAP = 0.005  # between the blades' faces, open
 ARM_L, ARM_W, ARM_T = 0.085, 0.008, 0.0025
-_c, _s = math.cos(math.radians(45.0)), math.sin(math.radians(45.0))
+_c = _s = math.sqrt(0.5)
+SEP = (OPEN_GAP + BLADE_T) / _s  # the two halves' offset along x (normal to the arms), open
+_ax = -_c * BLADE_L  # the arm stack's centre line, x
+_az = _s * BLADE_L  # the arms' lower ends, z
 
 
-def _arm(z_blade):
-    """An arm rising at 45 degrees from the blade's back end (x = -BLADE_L), its blade at height z_blade."""
-    mx = -BLADE_L - ARM_L / 2 * _c
-    mz = z_blade + ARM_L / 2 * _s
-    return ((mx, 0.0, mz), (ARM_L, ARM_W, ARM_T), STEEL, (0.0, math.radians(-45.0)))
+def _half(sx):
+    """One half's arm and blade, at x offset sx: the arm vertical, the blade bent forward-down 45 degrees."""
+    return [((_ax + sx, 0.0, _az + ARM_L / 2), (ARM_T, ARM_W, ARM_L), STEEL),
+            ((_ax + sx + _c * BLADE_L / 2, 0.0, _az - _s * BLADE_L / 2), (BLADE_L, BLADE_W, BLADE_T), STEEL,
+             (0.0, math.radians(45.0)))]
 
 
-_zl = -OPEN_GAP / 2 - BLADE_T / 2  # lower blade's centre
-_zu = OPEN_GAP / 2 + BLADE_T / 2
-_back = (-BLADE_L - ARM_L * _c, 0.0, (_zl + _zu) / 2 + ARM_L * _s)
-TWEEZER_JAW = Joint(
-    "jaw", kind="slide", axis="Z", anchor=(-BLADE_L / 2, 0.0, _zu), lower=-(OPEN_GAP - 0.0002), upper=0.0, initial=0.0,
-    target=0.0, stiffness=2000.0, damping=5.0, mass=0.008,
-    boxes=[((-BLADE_L / 2, 0.0, _zu), (BLADE_L, BLADE_W, BLADE_T), STEEL), _arm(_zu)],
-)
-# The tweezers' stand: a base with two posts holding them at their 45 degree pose, the blades in the air: a low post
-# under the lower blade and a tall one under the joined end, each with side lips.
-TW_XY = (0.30, -0.225)
-TW_Z = 0.040  # the tweezers' origin above the table
-_blade_bottom = TW_Z + _zl - BLADE_T / 2
-_end_bottom = TW_Z + _back[2] - (OPEN_GAP + 2 * ARM_T) / 2
-_px1, _px2 = -BLADE_L / 2, _back[0] - 0.004
-
-
-def _post(px, top):
-    return [((px, 0.0, (0.003 + top) / 2), (0.008, 0.008, top - 0.003), STAND_C),
-            *[((px, e * (BLADE_W / 2 + 0.002), top + 0.002), (0.008, 0.002, 0.004), STAND_C) for e in (-1, 1)]]
-
-
-TSTAND = part("tweezer_stand", pos=(*TW_XY, TOP), fixed=True, friction=0.8,
-              boxes=[((-0.035, 0.0, 0.0015), (0.090, 0.040, 0.003), STAND_C), *_post(_px1, _blade_bottom),
-                     *_post(_px2, _end_bottom)])
+TOP_Z = _az + ARM_L  # the arms' upper ends
+TWEEZER_JAW = Joint("jaw", kind="slide", axis="X", anchor=(_ax + SEP / 2, 0.0, _az + ARM_L / 2),
+                    lower=-(SEP - BLADE_T / _s - 0.0002), upper=0.0, initial=0.0, target=0.0, stiffness=2000.0,
+                    damping=5.0, mass=0.008, boxes=_half(SEP / 2))
+# The cup: a block on the bench; the tweezers stand in it on their blade tips, upright.
+TW_XY = (0.33, -0.21)
+CUP_FLOOR, CUP_H = 0.020, 0.035  # the cup's floor above the table; its walls above the floor
+CUP_IN = ((-0.0150, 0.0065), 0.0065)  # inner x span, inner half width (y): a snug fit, so they stand upright
+_cw = 0.003
+TSTAND = part("tweezer_cup", pos=(*TW_XY, TOP), fixed=True, friction=0.8,
+              boxes=[((sum(CUP_IN[0]) / 2, 0.0, CUP_FLOOR / 2), (CUP_IN[0][1] - CUP_IN[0][0] + 2 * _cw,
+                                                                  2 * CUP_IN[1] + 2 * _cw, CUP_FLOOR), STAND_C),
+                     *[((x, 0.0, CUP_FLOOR + CUP_H / 2), (_cw, 2 * CUP_IN[1] + 2 * _cw, CUP_H), STAND_C)
+                       for x in (CUP_IN[0][0] - _cw / 2, CUP_IN[0][1] + _cw / 2)],
+                     *[((sum(CUP_IN[0]) / 2, e * (CUP_IN[1] + _cw / 2), CUP_FLOOR + CUP_H / 2),
+                        (CUP_IN[0][1] - CUP_IN[0][0], _cw, CUP_H), STAND_C) for e in (-1, 1)]])
 TWEEZERS = part(
-    "tweezers", pos=(*TW_XY, TOP + TW_Z), mass=0.020, friction=0.9,
-    boxes=[((-BLADE_L / 2, 0.0, _zl), (BLADE_L, BLADE_W, BLADE_T), STEEL), _arm(_zl),
-           ((_back[0] - 0.004, 0.0, _back[2]), (0.010, ARM_W, OPEN_GAP + 2 * ARM_T), STEEL)],  # the joined end
+    "tweezers", pos=(*TW_XY, TOP + CUP_FLOOR + 0.0012), mass=0.020, friction=0.9,
+    boxes=[*_half(-SEP / 2), ((_ax, 0.0, TOP_Z + 0.005), (SEP + ARM_T, ARM_W, 0.010), STEEL)],  # the joined end
     joints=[TWEEZER_JAW],
 )
 
@@ -251,10 +246,10 @@ def distance(objects):
 
 
 # -- scripted demo ----------------------------------------------------------------------------------------------------
-# Right arm, with the tweezers: takes them off their stand, gripping their two arms half way up (gripper tilted 45
-# degrees to match), slides the open blades round the wafer's near edge on its stand, pinches it, carries it to the
+# Right arm, with the tweezers: lifts them out of their cup from above, gripping their two arms near the joined end,
+# tilts them 45 degrees so the blades lie flat, slides the open blades round the wafer's near edge on its stand, pinches it, carries it to the
 # aligner on the bench and lowers it into the pocket (the lower blade drops into the notch), lets go, backs the blades
-# out, and puts the tweezers back on their stand. Left arm: lifts the lid by its handle bar, the bar riding between its
+# out, and stands the tweezers back in their cup. Left arm: lifts the lid by its handle bar, the bar riding between its
 # part-open fingers along the lid's arc, to 70 degrees, and holds it there. Right arm: picks the aligner up by its
 # handle, carries it over the chuck, lowers it until its slot straddles the chuck (closed loop on the aligner's live
 # position), pushes it on until the V seats against the chuck, lowers it 4.5 mm (the wafer is left on the chuck), slides
@@ -300,24 +295,30 @@ def _tcp(point, rot):
     return tuple(np.asarray(point, float) - a * (TIP_ABOVE_TCP - PAD_IN))
 
 
-GRIP_D = 0.035  # the tweezers are gripped this far up their arms from the blades
-_mid = (_zl + _zu) / 2
-TW_GRIP = np.array([-BLADE_L - GRIP_D * _c, 0.0, _mid + GRIP_D * _s])  # tweezer frame
-TW_WIDE = -0.018  # pads 36 mm apart round the arms (10 mm thick together): room for the arm's error
-TW_HOLD = -0.0045  # just closed on the arms (6.9 mm over their outer faces): the blades stay open
-TW_PINCH = -0.0025  # squeezes the blades onto the wafer
+TW_GRIP_F = np.array([_ax, 0.0, TOP_Z - 0.020])  # gripped 2 cm below the joined end (tweezer frame, upright)
+TW_TILT = axis_angle_matrix(Y, math.radians(-45.0))  # upright -> held: arms rising back at 45 degrees, blades flat
+TW_GRIP = TW_TILT @ TW_GRIP_F  # the grip point, from the blade tips, when held
+DOWN_X = Orient(_prev_grip(math.pi / 2))  # pointing down, fingers closing along x (across the arms' faces)
+TW_WIDE = -0.014  # pads 28 mm apart round the arms (11.3 mm over their outer faces)
+TW_HOLD = -0.0050  # just closed on the arms' outer faces: the blades stay open
+TW_PINCH = -0.0024  # squeezes the arms: the blades close on the wafer
 
 
 def _tw_tcp(origin):
-    """TCP holding the tweezers with their origin (between the blade tips) at ``origin`` (world), blades flat."""
+    """TCP holding the tweezers (turned to blades flat) with their origin (between the blade tips) at ``origin``."""
     return _tcp(np.asarray(origin, float) + TW_GRIP, TW_ROT)
+
+
+def _cup_tcp(origin):
+    """TCP holding the tweezers upright (pointing down) with their origin at ``origin``."""
+    return _tcp(np.asarray(origin, float) + TW_GRIP_F, DOWN_X)
 
 
 PINCH_IN = 0.006  # the blade tips this far inside the wafer's edge
 _wb = TOP + PAD_TOP  # the wafer's underside on its stand
 WAFER_PICK = (STAND_XY[0] - WAFER_R + PINCH_IN, STAND_XY[1], _wb + 0.0002 + OPEN_GAP / 2 - 0.0005)
 POCKET_PLACE = (ALIGNER_XY[0] - WAFER_R + PINCH_IN, ALIGNER_XY[1], TOP + PT + 0.0008 + OPEN_GAP / 2 - 0.0005)
-TW_HOME = (TW_XY[0], TW_XY[1], TOP + TW_Z)
+TW_HOME = np.array([TW_XY[0], TW_XY[1], TOP + CUP_FLOOR + 0.0012])
 
 AL_HANDLE_X = -0.078  # gripped here along its handle (aligner frame)
 AL_WIDE, AL_HOLD = -0.012, -0.004
@@ -405,14 +406,14 @@ def _dur(wps):
 
 def demo():
     _live_reset()
-    q = TW_ROT
+    q, d = TW_ROT, DOWN_X
     right = [
-        Waypoint(3.0, _tw_tcp(np.array(TW_HOME) + [0.0, -0.060, 0.01]), TW_WIDE, "beside the tweezers on their stand", q),
-        Waypoint(1.0, _tw_tcp(np.array(TW_HOME) + [0.0, -0.060, 0.0]), TW_WIDE, "level with their arms", q),
-        Waypoint(1.5, _tw_tcp(TW_HOME), TW_WIDE, "slide in from the side: pads either side of the arms", q),
-        Waypoint(0.8, _tw_tcp(TW_HOME), TW_HOLD, "hold the tweezers, blades open", q),
-        Waypoint(1.2, _tw_tcp(np.array(TW_HOME) + [0.0, 0.0, 0.04]), TW_HOLD, "lift them off the stand", q),
-        Waypoint(2.5, _tw_tcp(np.array(WAFER_PICK) + [-0.012, 0.0, 0.02]), TW_HOLD, "towards the wafer's near edge", q),
+        Waypoint(3.0, _cup_tcp(TW_HOME + [0.0, 0.0, 0.05]), TW_WIDE, "above the tweezers standing in their cup", d),
+        Waypoint(1.5, _cup_tcp(TW_HOME), TW_WIDE, "down: pads either side of their arms", d),
+        Waypoint(0.8, _cup_tcp(TW_HOME), TW_HOLD, "hold the tweezers, blades open", d),
+        Waypoint(1.5, _cup_tcp(TW_HOME + [0.0, 0.0, 0.06]), TW_HOLD, "lift them out of the cup", d),
+        Waypoint(3.0, _tw_tcp(np.array(WAFER_PICK) + [-0.012, 0.0, 0.03]), TW_HOLD,
+                 "tilt them, blades flat, towards the wafer's near edge", q),
         Waypoint(1.2, _tw_tcp(np.array(WAFER_PICK) + [-0.012, 0.0, 0.0]), TW_HOLD, "blades level with the wafer", q),
         Waypoint(1.5, _tw_tcp(WAFER_PICK), TW_HOLD, "slide the open blades round its edge", q),
         Waypoint(0.8, _tw_tcp(WAFER_PICK), TW_PINCH, "pinch the wafer by its edge", q),
@@ -422,11 +423,10 @@ def demo():
         Waypoint(0.8, _tw_tcp(POCKET_PLACE), TW_HOLD, "let go: open the blades", q),
         Waypoint(1.2, _tw_tcp(np.array(POCKET_PLACE) + [-0.015, 0.0, 0.0]), TW_HOLD, "back the blades out", q),
         Waypoint(1.0, _tw_tcp(np.array(POCKET_PLACE) + [-0.015, 0.0, 0.03]), TW_HOLD, "up", q),
-        Waypoint(2.5, _tw_tcp(np.array(TW_HOME) + [0.0, 0.0, 0.04]), TW_HOLD, "back over the stand", q),
-        Waypoint(1.2, _tw_tcp(np.array(TW_HOME) + [0.0, 0.0, 0.002]), TW_HOLD, "set them back on the stand", q),
-        Waypoint(0.6, _tw_tcp(np.array(TW_HOME) + [0.0, 0.0, 0.002]), TW_WIDE, "let go", q),
-        Waypoint(1.2, _tw_tcp(np.array(TW_HOME) + [0.0, -0.045, 0.002]), TW_WIDE, "slide out to the side", q),
-        Waypoint(1.0, _tw_tcp(np.array(TW_HOME) + [0.0, -0.045, 0.04]), TW_WIDE, "up", q),
+        Waypoint(3.0, _cup_tcp(TW_HOME + [0.0, 0.0, 0.06]), TW_HOLD, "upright again, over the cup", d),
+        Waypoint(1.5, _cup_tcp(TW_HOME + [0.0, 0.0, 0.002]), TW_HOLD, "stand them back in the cup", d),
+        Waypoint(0.6, _cup_tcp(TW_HOME + [0.0, 0.0, 0.002]), TW_WIDE, "let go", d),
+        Waypoint(1.2, _cup_tcp(TW_HOME + [0.0, 0.0, 0.05]), TW_WIDE, "up", d),
     ]
     ax, ay = ALIGNER_XY
     al0 = np.array([ax, ay, TOP])
