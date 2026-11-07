@@ -114,7 +114,7 @@ WAFER_R, WAFER_T = 0.0254, 0.0010  # 2-inch wafer, drawn 1 mm thick (real: 0.28 
 STAND = part("stand", pos=(*STAND_XY, TOP), fixed=True, friction=0.6,
              boxes=[((0.0, 0.0, 0.002), (0.07, 0.07, 0.004), STAND_C)],
              cylinders=[((0.0, 0.0, (0.004 + PAD_TOP) / 2), PAD_R, PAD_TOP - 0.004, STAND_C)])
-WAFER = part("wafer", pos=(*STAND_XY, TOP + PAD_TOP), mass=0.004, friction=0.5,
+WAFER = part("wafer", pos=(*STAND_XY, TOP + PAD_TOP), mass=0.004, friction=0.8,
              cylinders=[((0.0, 0.0, WAFER_T / 2), WAFER_R, WAFER_T, SI)])
 
 # -- the aligner (loose, PTFE). Frame: origin at the pocket's centre, on the plate's underside; the slot opens to +x. ---
@@ -157,7 +157,7 @@ ALIGNER = part("aligner", pos=(*ALIGNER_XY, TOP), mass=0.030, friction=0.5, boxe
 # arms' lower ends. The arms are flat strips, their faces normal to x; the lower blade and arm (x < 0) and the joined
 # end are the body, the upper blade and arm (x > 0) slide together along x (sprung open). Held in a hand turned 45
 # degrees (arms rising back at 45 degrees), the blades lie flat, pointing forward.
-BLADE_L, BLADE_W, BLADE_T = 0.012, 0.020, 0.0012  # wide blades: the pinched wafer cannot swing about them
+BLADE_L, BLADE_W, BLADE_T = 0.012, 0.014, 0.0012
 OPEN_GAP = 0.005  # between the blades' faces, open
 ARM_L, ARM_W, ARM_T = 0.085, 0.008, 0.0025
 _c = _s = math.sqrt(0.5)
@@ -180,7 +180,7 @@ TWEEZER_JAW = Joint("jaw", kind="slide", axis="X", anchor=(_ax + SEP / 2, 0.0, _
 # The cup: a block on the bench; the tweezers stand in it on their blade tips, upright.
 TW_XY = (0.30, -0.28)  # off to the side, clear of the path to the wafer
 CUP_FLOOR, CUP_H = 0.020, 0.035  # the cup's floor above the table; its walls above the floor
-CUP_IN = ((-0.0150, 0.0065), 0.0115)  # inner x span, inner half width (y): a snug fit, so they stand upright
+CUP_IN = ((-0.0150, 0.0065), 0.0085)  # inner x span, inner half width (y): a snug fit, so they stand upright
 _cw = 0.003
 TSTAND = part("tweezer_cup", pos=(*TW_XY, TOP), fixed=True, friction=0.8,
               boxes=[((sum(CUP_IN[0]) / 2, 0.0, CUP_FLOOR / 2), (CUP_IN[0][1] - CUP_IN[0][0] + 2 * _cw,
@@ -191,7 +191,10 @@ TSTAND = part("tweezer_cup", pos=(*TW_XY, TOP), fixed=True, friction=0.8,
                         (CUP_IN[0][1] - CUP_IN[0][0], _cw, CUP_H), STAND_C) for e in (-1, 1)]])
 TWEEZERS = part(
     "tweezers", pos=(*TW_XY, TOP + CUP_FLOOR + 0.0012), mass=0.020, friction=0.9,
-    boxes=_half(-SEP / 2),  # the two halves' joined end is the slide joint: nothing stands above the arms' tops
+    boxes=[*_half(-SEP / 2),
+           # the joined end: a bridge between the arms' tops, inside their outline, so it never stops the gripper's
+           # pads (on the arms' outer faces) or palm. Self-collision is off: the sprung half closes through it.
+           ((_ax, 0.0, TOP_Z - 0.004), (SEP - ARM_T, ARM_W, 0.008), STEEL)],
     joints=[TWEEZER_JAW],
 )
 
@@ -303,7 +306,7 @@ TW_GRIP = TW_TILT @ TW_GRIP_F  # the grip point, from the blade tips, when held
 DOWN_X = Orient(_prev_grip(math.pi / 2))  # pointing down, fingers closing along x (across the arms' faces)
 TW_WIDE = -0.014  # pads 28 mm apart round the arms (11.3 mm over their outer faces)
 TW_HOLD = -0.0050  # just closed on the arms' outer faces: the blades stay open
-TW_PINCH = -0.0008  # squeezes the arms: the blades close on the wafer
+TW_PINCH = -0.0016  # squeezes the arms: the blades close on the wafer
 
 
 def _tw_tcp(origin):
