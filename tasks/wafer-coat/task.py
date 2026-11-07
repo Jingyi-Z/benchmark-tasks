@@ -316,8 +316,9 @@ def _cup_tcp(origin):
 
 PINCH_IN = 0.006  # the blade tips this far inside the wafer's edge
 _wb = TOP + PAD_TOP  # the wafer's underside on its stand
-WAFER_PICK = (STAND_XY[0] - WAFER_R + PINCH_IN, STAND_XY[1], _wb + 0.0002 + OPEN_GAP / 2 - 0.0005)
-POCKET_PLACE = (ALIGNER_XY[0] - WAFER_R + PINCH_IN, ALIGNER_XY[1], TOP + PT + 0.0008 + OPEN_GAP / 2 - 0.0005)
+BLADE_Z = 0.0010  # the tips' midpoint this far above the wafer's underside: the held-open blades 1.5 mm clear of it
+WAFER_PICK = (STAND_XY[0] - WAFER_R + PINCH_IN, STAND_XY[1], _wb + BLADE_Z)
+POCKET_PLACE = (ALIGNER_XY[0] - WAFER_R + PINCH_IN, ALIGNER_XY[1], TOP + PT + 0.0008 + BLADE_Z)
 TW_HOME = np.array([TW_XY[0], TW_XY[1], TOP + CUP_FLOOR + 0.0012])
 
 AL_HANDLE_X = -0.078  # gripped here along its handle (aligner frame)
@@ -372,6 +373,42 @@ class _AlLive:
         return np.asarray(_al_tcp(self.pocket + np.array([c[0], c[1], 0.0])), dtype=dtype or float)
 
 
+# what the demo sees of the tweezers once held: their origin (between the blade tips); the right hand's aim is trimmed
+# by the offset between where it means the tips to be and where they are, integrated only while they are still
+_tw = {"corr": np.zeros(3), "goal": None, "prev": None}
+
+
+@on_reset
+def _reset_tw(env):
+    _tw.update(corr=np.zeros(3), goal=None, prev=None)
+
+
+@on_step
+def _track_tw(env):
+    pos = np.asarray(labkit._part_state(env, labkit._SPECS["tweezers"]).pos, float)
+    prev, _tw["prev"] = _tw["prev"], pos
+    if _tw["goal"] is None or prev is None:
+        return
+    err = _tw["goal"] - pos
+    if np.linalg.norm(pos - prev) < 0.0002 and np.linalg.norm(err) < 0.04:
+        _tw["corr"] = np.clip(_tw["corr"] + np.clip(0.3 * err, -0.0005, 0.0005), -0.03, 0.03)
+
+
+class _TwAt:
+    """The right hand's TCP to put the held tweezers' tips at ``origin`` (blades flat, or upright when ``cup``),
+    trimmed by the live correction; ``track`` False holds the correction (and, before they are held, it is zero)."""
+
+    def __init__(self, origin, cup=False, track=True):
+        self.origin = np.asarray(origin, float)
+        self.cup = cup
+        self.track = track
+
+    def __array__(self, dtype=None, copy=None):
+        _tw["goal"] = self.origin if self.track else None
+        tcp = _cup_tcp(self.origin) if self.cup else _tw_tcp(self.origin)
+        return np.asarray(np.asarray(tcp) + _tw["corr"], dtype=dtype or float)
+
+
 def _bar_at(th: float):
     """World position of the lid's handle bar axis with the lid open th (rad)."""
     d = np.array([HANDLE_X - HINGE[0], 0.0, BAR_Z - HINGE[2]])
@@ -406,27 +443,32 @@ def _dur(wps):
 
 def demo():
     _live_reset()
+    _tw.update(corr=np.zeros(3), goal=None, prev=None)
     q, d = TW_ROT, DOWN_X
     right = [
-        Waypoint(3.0, _cup_tcp(TW_HOME + [0.0, 0.0, 0.05]), TW_WIDE, "above the tweezers standing in their cup", d),
-        Waypoint(1.5, _cup_tcp(TW_HOME), TW_WIDE, "down: pads either side of their arms", d),
-        Waypoint(0.8, _cup_tcp(TW_HOME), TW_HOLD, "hold the tweezers, blades open", d),
-        Waypoint(1.5, _cup_tcp(TW_HOME + [0.0, 0.0, 0.06]), TW_HOLD, "lift them out of the cup", d),
-        Waypoint(3.0, _tw_tcp(np.array(WAFER_PICK) + [-0.012, 0.0, 0.03]), TW_HOLD,
+        Waypoint(3.0, _TwAt(TW_HOME + [0.0, 0.0, 0.05], cup=True, track=False), TW_WIDE,
+                 "above the tweezers standing in their cup", d),
+        Waypoint(1.5, _TwAt(TW_HOME, cup=True, track=False), TW_WIDE, "down: pads either side of their arms", d),
+        Waypoint(0.8, _TwAt(TW_HOME, cup=True, track=False), TW_HOLD, "hold the tweezers, blades open", d),
+        Waypoint(1.5, _TwAt(TW_HOME + [0.0, 0.0, 0.06], cup=True, track=False), TW_HOLD, "lift them out of the cup", d),
+        Waypoint(3.0, _TwAt(np.array(WAFER_PICK) + [-0.015, 0.0, 0.02]), TW_HOLD,
                  "tilt them, blades flat, towards the wafer's near edge", q),
-        Waypoint(1.2, _tw_tcp(np.array(WAFER_PICK) + [-0.012, 0.0, 0.0]), TW_HOLD, "blades level with the wafer", q),
-        Waypoint(1.5, _tw_tcp(WAFER_PICK), TW_HOLD, "slide the open blades round its edge", q),
-        Waypoint(0.8, _tw_tcp(WAFER_PICK), TW_PINCH, "pinch the wafer by its edge", q),
-        Waypoint(1.2, _tw_tcp(np.array(WAFER_PICK) + [0.0, 0.0, 0.03]), TW_PINCH, "lift it off the stand", q),
-        Waypoint(3.0, _tw_tcp(np.array(POCKET_PLACE) + [0.0, 0.0, 0.03]), TW_PINCH, "over the aligner's pocket", q),
-        Waypoint(1.5, _tw_tcp(POCKET_PLACE), TW_PINCH, "lower it into the pocket, the lower blade in the notch", q),
-        Waypoint(0.8, _tw_tcp(POCKET_PLACE), TW_HOLD, "let go: open the blades", q),
-        Waypoint(1.2, _tw_tcp(np.array(POCKET_PLACE) + [-0.015, 0.0, 0.0]), TW_HOLD, "back the blades out", q),
-        Waypoint(1.0, _tw_tcp(np.array(POCKET_PLACE) + [-0.015, 0.0, 0.03]), TW_HOLD, "up", q),
-        Waypoint(3.0, _cup_tcp(TW_HOME + [0.0, 0.0, 0.06]), TW_HOLD, "upright again, over the cup", d),
-        Waypoint(1.5, _cup_tcp(TW_HOME + [0.0, 0.0, 0.002]), TW_HOLD, "stand them back in the cup", d),
-        Waypoint(0.6, _cup_tcp(TW_HOME + [0.0, 0.0, 0.002]), TW_WIDE, "let go", d),
-        Waypoint(1.2, _cup_tcp(TW_HOME + [0.0, 0.0, 0.05]), TW_WIDE, "up", d),
+        Waypoint(2.5, _TwAt(np.array(WAFER_PICK) + [-0.015, 0.0, 0.02]), TW_HOLD, "line the tips up, seen against the wafer", q),
+        Waypoint(1.5, _TwAt(np.array(WAFER_PICK) + [-0.015, 0.0, 0.0]), TW_HOLD, "blades level with the wafer", q),
+        Waypoint(1.5, _TwAt(np.array(WAFER_PICK) + [-0.015, 0.0, 0.0]), TW_HOLD, "line up again", q),
+        Waypoint(2.0, _TwAt(WAFER_PICK, track=False), TW_HOLD, "slide the open blades round its edge", q),
+        Waypoint(0.8, _TwAt(WAFER_PICK, track=False), TW_PINCH, "pinch the wafer by its edge", q),
+        Waypoint(1.2, _TwAt(np.array(WAFER_PICK) + [0.0, 0.0, 0.03], track=False), TW_PINCH, "lift it off the stand", q),
+        Waypoint(3.0, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.03]), TW_PINCH, "over the aligner's pocket", q),
+        Waypoint(2.0, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.03]), TW_PINCH, "line up over the pocket", q),
+        Waypoint(1.5, _TwAt(POCKET_PLACE, track=False), TW_PINCH, "lower it into the pocket, the lower blade in the notch", q),
+        Waypoint(0.8, _TwAt(POCKET_PLACE, track=False), TW_HOLD, "let go: open the blades", q),
+        Waypoint(1.2, _TwAt(np.array(POCKET_PLACE) + [-0.015, 0.0, 0.0], track=False), TW_HOLD, "back the blades out", q),
+        Waypoint(1.0, _TwAt(np.array(POCKET_PLACE) + [-0.015, 0.0, 0.03], track=False), TW_HOLD, "up", q),
+        Waypoint(3.0, _TwAt(TW_HOME + [0.0, 0.0, 0.06], cup=True), TW_HOLD, "upright again, over the cup", d),
+        Waypoint(1.5, _TwAt(TW_HOME + [0.0, 0.0, 0.002], cup=True, track=False), TW_HOLD, "stand them back in the cup", d),
+        Waypoint(0.6, _TwAt(TW_HOME + [0.0, 0.0, 0.002], cup=True, track=False), TW_WIDE, "let go", d),
+        Waypoint(1.2, _TwAt(TW_HOME + [0.0, 0.0, 0.05], cup=True, track=False), TW_WIDE, "up", d),
     ]
     ax, ay = ALIGNER_XY
     al0 = np.array([ax, ay, TOP])

@@ -77,7 +77,7 @@ HP_HALF, HP_H = 0.080, 0.040
 DOT_R, DOT_H, N_DOTS = 0.0012, 0.0002, 24
 RING_R = WAFER_R + 0.004 + DOT_R  # the dots' centres: 4 mm outside a centred wafer's rim
 HOTPLATE = part(
-    "hotplate", pos=(*HP_XY, TOP), fixed=True, friction=0.4,
+    "hotplate", pos=(*HP_XY, TOP), fixed=True, friction=0.8,
     boxes=[((0.0, 0.0, HP_H / 2), (2 * HP_HALF, 2 * HP_HALF, HP_H), ALU),
            ((-HP_HALF - 0.004, 0.0, 0.012), (0.008, 0.10, 0.016), DARK),  # front control panel
            ((-HP_HALF - 0.0085, 0.03, 0.012), (0.001, 0.02, 0.006), RED)],  # "hot" lamp
@@ -283,7 +283,7 @@ LOAD_GAP = 0.0015  # the paddle's top this far below the wafer's underside
 FRONT_CLEAR = 0.003  # its front edge this far from the pedestal's side
 BACK_TILT = math.radians(-15.0)
 CARRY_TILT = math.radians(-6.0)  # carried tipped back a little, the wafer against the stop
-SET_TILT = math.radians(15.0)
+SET_TILT = math.radians(10.0)  # just past the wafer's slip angle on PTFE: it creeps, not slides
 SET_SHIFT = 0.0  # where the front edge touches down, from one wafer radius short of the ring's centre
 
 
@@ -356,7 +356,7 @@ def demo():
     for f in np.linspace(0.25, 1.0, 4):
         phi = CARRY_TILT + f * (SET_TILT - CARRY_TILT)
         front = above + (touch - above) * f
-        left.append(Waypoint(1.0, _PaddleAt(at_front(front, phi), phi), H_HOLD,
+        left.append(Waypoint(1.5, _PaddleAt(at_front(front, phi), phi), H_HOLD,
                              "tilt it forward, front edge onto the plate: the wafer slides down onto the plate",
                              _hand_rot(phi)))
     left.append(Waypoint(1.5, _PaddleAt(at_front(touch, SET_TILT), SET_TILT), H_HOLD, "let it settle",
