@@ -99,6 +99,16 @@ def _half(sx):
 
 
 TOP_Z = _az + ARM_L  # the arms' upper ends
+
+
+def _box_mesh(c, size, colour):
+    """A box drawn only (no collision): the tweezers' joined end, a bridge between the arms' tops, inside their
+    outline; the sprung half closes through it, and it never stops the gripper's pads (on the arms' outer faces)."""
+    c, h = np.asarray(c, float), np.asarray(size, float) / 2
+    pts = np.array([c + h * [sx, sy, sz] for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)])
+    tris = np.array([(0, 1, 3), (0, 3, 2), (4, 6, 7), (4, 7, 5), (0, 4, 5), (0, 5, 1), (2, 3, 7), (2, 7, 6),
+                     (0, 2, 6), (0, 6, 4), (1, 5, 7), (1, 7, 3)])
+    return labkit.Mesh(points=pts, tris=tris, color=colour, collide="none")
 TWEEZER_JAW = Joint("jaw", kind="slide", axis="X", anchor=(_ax + SEP / 2, 0.0, _az + ARM_L / 2),
                     lower=-(SEP - BLADE_T / _s - 0.0002), upper=0.0, initial=0.0, target=0.0, stiffness=600.0,
                     damping=5.0, mass=0.008, boxes=_half(SEP / 2))
@@ -117,9 +127,8 @@ TSTAND = part("tweezer_cup", pos=(*TW_XY, TOP), fixed=True, friction=0.8,
 TWEEZERS = part(
     "tweezers", pos=(*TW_XY, TOP + CUP_FLOOR + 0.0012), mass=0.020, friction=0.9,
     boxes=[*_half(-SEP / 2),
-           # the joined end: a bridge between the arms' tops, inside their outline, so it never stops the gripper's
-           # pads (on the arms' outer faces) or palm. Self-collision is off: the sprung half closes through it.
-           ((_ax, 0.0, TOP_Z - 0.004), (SEP - ARM_T, ARM_W, 0.008), STEEL)],
+           ],
+    meshes=[_box_mesh((_ax, 0.0, TOP_Z - 0.004), (SEP - ARM_T, ARM_W, 0.008), STEEL)],
     joints=[TWEEZER_JAW],
 )
 
