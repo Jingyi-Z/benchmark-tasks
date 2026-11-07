@@ -11,9 +11,9 @@ side towards the robots for the tweezers' blades, and a wide ribbed flange outsi
 The bottom is a clear shell, a ribbed skirt under a shallow dome; a bayonet closes the case: the bottom is set on with
 its arrow at the lid's OPEN mark and turned 30 degrees clockwise to the LOCK mark.
 
-The task: with the tweezers, slide the wafer to the plate's edge until it overhangs, pinch it by that edge and lay it, pattern side up, in the case's lid;
-set the domed bottom on and turn it to lock. The gripper never holds the wafer, never touches its top and never
-touches the hotplate's top.
+The task: with the tweezers, slide the wafer to the plate's edge until it overhangs, pinch it by that edge and lay
+it, pattern side up, in the case's lid; set the domed bottom on and turn it to lock. The gripper never holds the
+wafer, never touches its top and never touches the hotplate's top.
 
 Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jitter=0 -E control_hz=20 \\
            --instruction "<see task.json>" --scorer task_score ...
@@ -620,15 +620,15 @@ def demo():
     ]
     _seen["freeze_t"] = _dur(left)  # from here the hand bears on the case: aim at where it was seen last
     left += [
-        Waypoint(2.0, on_lid(BASE_T - 0.001), COVER_HOLD, "lower it over the wall onto the flange", 0.0),
-        Waypoint(0.5, on_lid(BASE_T - 0.001), COVER_HOLD, "seated", 0.0),
+        Waypoint(2.0, on_lid(BASE_T + 0.0003), COVER_HOLD, "lower it over the wall onto the flange", 0.0),
+        Waypoint(0.5, on_lid(BASE_T + 0.0003), COVER_HOLD, "seated", 0.0),
     ]
     for f in np.linspace(0.25, 1.0, 4):
-        left.append(Waypoint(0.8, on_lid(BASE_T - 0.001), COVER_HOLD, "turn it clockwise to the LOCK mark",
+        left.append(Waypoint(0.8, on_lid(BASE_T + 0.0003), COVER_HOLD, "turn it clockwise to the LOCK mark",
                              float(LOCK * f)))
     left += [
-        Waypoint(0.5, on_lid(BASE_T - 0.001), COVER_HOLD, "steady", float(LOCK)),
-        Waypoint(0.6, on_lid(BASE_T - 0.001), COVER_WIDE, "let go", float(LOCK)),
+        Waypoint(0.5, on_lid(BASE_T + 0.0003), COVER_HOLD, "steady", float(LOCK)),
+        Waypoint(0.6, on_lid(BASE_T + 0.0003), COVER_WIDE, "let go", float(LOCK)),
         Waypoint(1.2, on_lid(0.05), COVER_WIDE, "up", float(LOCK)),
         Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "park"),
     ]
