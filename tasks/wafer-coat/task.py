@@ -156,7 +156,7 @@ ALIGNER_BOXES = [
     ((0.0, sum(HANDLE_A[1]) / 2, sum(HANDLE_A[2]) / 2),
      (2 * HANDLE_A[0], HANDLE_A[1][1] - HANDLE_A[1][0], HANDLE_A[2][1] - HANDLE_A[2][0]), PTFE),
 ]
-_post_angles = [a for a in range(30, 331, 15) if not 165 <= a <= 195]
+_post_angles = [a for a in range(45, 316, 15) if not 165 <= a <= 195]  # none over the slot, so the chuck slides out
 _c45 = math.sqrt(0.5)
 ALIGNER_CYLS = [((POCKET_R * math.cos(math.radians(a)), POCKET_R * math.sin(math.radians(a)), PT + POST_H / 2),
                  POST_R, POST_H, PTFE) for a in _post_angles]
