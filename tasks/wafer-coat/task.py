@@ -157,9 +157,17 @@ ALIGNER_BOXES = [
      (2 * HANDLE_A[0], HANDLE_A[1][1] - HANDLE_A[1][0], HANDLE_A[2][1] - HANDLE_A[2][0]), PTFE),
 ]
 _post_angles = [a for a in range(30, 331, 15) if not 165 <= a <= 195]
+_c45 = math.sqrt(0.5)
 ALIGNER_CYLS = [((POCKET_R * math.cos(math.radians(a)), POCKET_R * math.sin(math.radians(a)), PT + POST_H / 2),
                  POST_R, POST_H, PTFE) for a in _post_angles]
 ALIGNER_XY = (0.125, -0.10)  # where it lies at the start: pocket centre, slot towards the coater (+x)
+# a chamfer on each post: a small ramp, 45 degrees, from the post's inner edge at its top outwards and up, so a wafer
+# set down up to 2 mm off centre slides into the pocket
+RAMP_L, RAMP_W, RAMP_T = 0.003, 0.003, 0.001
+_r0, _z0 = POCKET_R - POST_R, PT + POST_H
+_rc, _zc = _r0 + RAMP_L / 2 * _c45 + RAMP_T / 2 * _c45, _z0 + RAMP_L / 2 * _c45 - RAMP_T / 2 * _c45
+ALIGNER_BOXES += [((_rc * math.cos(math.radians(a)), _rc * math.sin(math.radians(a)), _zc), (RAMP_L, RAMP_W, RAMP_T), PTFE,
+                   (math.radians(a), math.radians(-45.0))) for a in _post_angles]
 ALIGNER = part("aligner", pos=(*ALIGNER_XY, TOP), mass=0.030, friction=0.7, boxes=ALIGNER_BOXES,
                cylinders=ALIGNER_CYLS)
 
@@ -400,7 +408,7 @@ AL_HANDLE_Y = -0.052  # gripped here along its handle (aligner frame), fingers c
 AL_WIDE, AL_HOLD = -0.012, -0.0032
 AL_GRIP_Z = HANDLE_A[2][1] - 0.010  # pad tips 10 mm down the 12 mm fin, so the pads hold it against turning
 DOCK_Z = CHUCK_TOP - 0.002  # the plate's underside: its top 1 mm over the chuck's, the wafer resting on it
-DROP = 0.0045
+DROP = 0.0075  # the plate's chamfers end 3.6 mm above it: drop well clear before sliding back
 BACK = 0.055  # slide the aligner back this far after the drop, clear of the wafer
 DOCK_PRE = 0.004  # come down this far short of the V seating
 DOCK_PUSH = 0.0015  # aim this far past seating: a light push
