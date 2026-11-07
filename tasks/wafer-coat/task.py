@@ -409,7 +409,7 @@ AL_WIDE, AL_HOLD = -0.012, -0.0032
 AL_GRIP_Z = HANDLE_A[2][1] - 0.010  # pad tips 10 mm down the 12 mm fin, so the pads hold it against turning
 DOCK_Z = CHUCK_TOP - 0.002  # the plate's underside: its top 1 mm over the chuck's, the wafer resting on it
 DROP = 0.0075  # the plate's chamfers end 3.6 mm above it: drop well clear before sliding back
-BACK = 0.055  # slide the aligner back this far after the drop, clear of the wafer
+BACK = 0.045  # slide the aligner back this far after the drop: the chuck clear of the slot, its far corners clear of the bowl
 DOCK_PRE = 0.004  # come down this far short of the V seating
 DOCK_PUSH = 0.0015  # aim this far past seating: a light push
 
