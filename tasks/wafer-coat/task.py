@@ -130,7 +130,7 @@ WAFER = part("wafer", pos=(*STAND_XY, TOP + PAD_TOP), mass=0.004, friction=0.8,
 
 # -- the aligner (loose, PTFE). Frame: origin at the pocket's centre, on the plate's underside; the slot opens to +x. ---
 PT = 0.003  # plate thickness
-SLOT_HW = 0.0135
+SLOT_HW = 0.0145  # the slot: 29 mm, 2.5 mm clear of the chuck either side
 HEAD_X = (-0.036, 0.026)
 HEAD_HW = 0.034
 POCKET_R = WAFER_R + 0.0002 + 0.0015  # post centres
