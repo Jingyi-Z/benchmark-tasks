@@ -54,6 +54,7 @@ GREEN = (0.10, 0.55, 0.20)
 WAFER_R, WAFER_T = 0.0508, 0.0010
 PRI_L, SEC_L = 0.0325, 0.018
 EDGE_EXCL = 0.005  # the pattern stops 5 mm inside the rim (edge exclusion)
+COLLIDE_R = WAFER_R - 0.003
 
 
 def _chord_d(length):
@@ -116,8 +117,11 @@ def _pattern():
 
 
 def _wafer(name, sec_deg, xy, yaw_deg, z):
+    # It collides as a disc 3 mm inside its rim (inside the flats too), hidden in the drawn wafer: a thin convex mesh
+    # collider sinks slowly through thin supports in PhysX, a primitive disc does not.
     return part(name, pos=(*xy, z), yaw=math.radians(yaw_deg), mass=0.010, friction=0.8,
-                meshes=[_prism(_outline(sec_deg), -WAFER_T / 2, WAFER_T / 2, SI_BACK, "hull"), *_pattern()])
+                cylinders=[((0.0, 0.0, 0.0), COLLIDE_R, WAFER_T * 0.9, SI_BACK)],
+                meshes=[_prism(_outline(sec_deg), -WAFER_T / 2, WAFER_T / 2, SI_BACK, "none"), *_pattern()])
 
 
 # -- the carriers (fixed): open single-wafer carriers for 100 mm wafers, all turned so the opening in their ledge and
