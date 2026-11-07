@@ -51,7 +51,7 @@ STEEL = (0.72, 0.73, 0.75)
 STAND_C = (0.55, 0.56, 0.58)
 
 # -- the spin coater (fixed). Frame: origin on the table under the chuck's axis, axes along the world's. --------------
-CX, CY = 0.27, 0.03
+CX, CY = 0.28, -0.02
 HW = 0.110  # housing half width
 HOUSING_H = 0.040  # its top is the bowl's floor
 BOWL_IN, RIB_R = 0.095, 0.0035
@@ -61,7 +61,7 @@ CHUCK_R, CHUCK_TOP = 0.012, 0.052
 LID_T = 0.005
 HINGE = (HW, 0.0, RIM + 0.0035)  # the lid's hinge, along y at the housing's back top edge
 HOLE = 0.012  # the dispense hole, square, over the chuck
-HANDLE_Y, HANDLE_L, HANDLE_S, HANDLE_UP = 0.040, 0.060, 0.010, 0.020
+HANDLE_Y, HANDLE_L, HANDLE_S, HANDLE_UP = 0.080, 0.050, 0.010, 0.020
 HANDLE_X = -HW + 0.010
 LID_MAX = 1.30  # the lid's stop (rad, 74 degrees): short of upright, so it always falls shut
 _lz = RIM + 0.001 + LID_T / 2
@@ -108,7 +108,7 @@ COATER = part(
 )
 
 # -- the wafer stand (fixed) and the wafer (loose) on its pad -------------------------------------------------------
-STAND_XY = (0.29, -0.16)
+STAND_XY = (0.40, -0.20)
 PAD_R, PAD_TOP = 0.010, 0.025  # narrower than the wafer, so the tweezers' lower blade fits under its edge
 WAFER_R, WAFER_T = 0.0254, 0.0010  # 2-inch wafer, drawn 1 mm thick (real: 0.28 mm) for stable contact
 STAND = part("stand", pos=(*STAND_XY, TOP), fixed=True, friction=0.6,
@@ -147,7 +147,7 @@ ALIGNER_BOXES = [
 _post_angles = [a for a in range(30, 331, 15) if not 165 <= a <= 195]
 ALIGNER_CYLS = [((POCKET_R * math.cos(math.radians(a)), POCKET_R * math.sin(math.radians(a)), PT + POST_H / 2),
                  POST_R, POST_H, PTFE) for a in _post_angles]
-ALIGNER_XY = (0.118, -0.06)  # where it lies at the start: pocket centre, slot towards the coater (+x)
+ALIGNER_XY = (0.125, -0.10)  # where it lies at the start: pocket centre, slot towards the coater (+x)
 ALIGNER = part("aligner", pos=(*ALIGNER_XY, TOP), mass=0.030, friction=0.5, boxes=ALIGNER_BOXES,
                cylinders=ALIGNER_CYLS)
 
@@ -177,7 +177,7 @@ TWEEZER_JAW = Joint(
 )
 # The tweezers' stand: a base with two posts holding them at their 45 degree pose, the blades in the air: a low post
 # under the lower blade and a tall one under the joined end, each with side lips.
-TW_XY = (0.20, -0.215)
+TW_XY = (0.30, -0.225)
 TW_Z = 0.040  # the tweezers' origin above the table
 _blade_bottom = TW_Z + _zl - BLADE_T / 2
 _end_bottom = TW_Z + _back[2] - (OPEN_GAP + 2 * ARM_T) / 2
