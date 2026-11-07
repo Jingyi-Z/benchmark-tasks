@@ -28,7 +28,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import labkit  # noqa: E402
 from labkit import Joint, on_reset, on_step, part  # noqa: E402
 import yam_arena.demo as _demo  # noqa: E402
-from yam_arena.constants import FINGER_CLOSED, FINGER_OPEN  # noqa: E402
+from yam_arena.constants import FINGER_OPEN  # noqa: E402
 from yam_arena.demo import Waypoint  # noqa: E402
 from yam_arena.task_file import TABLE_TOP  # noqa: E402
 from yam_arena.urdf import axis_angle_matrix  # noqa: E402
@@ -198,11 +198,6 @@ CASE_COVER = part("case_bottom", pos=(*COVER_XY, TOP), mass=0.015, friction=0.25
                   cylinders=_dome_cyl)
 
 OBJECTS = [COATER, WAFER, TWEEZERS, TSTAND, CASE_LID, CASE_COVER]
-
-
-def C(x, y, z):
-    """Coater coordinates to world."""
-    return (CX + x, CY + y, TOP + z)
 
 
 # -- scoring ----------------------------------------------------------------------------------------------------------
@@ -480,34 +475,6 @@ class _TwAt:
         _tw["goal"] = self.origin if self.track else None
         tcp = _cup_tcp(self.origin) if self.cup else _tw_tcp(self.origin, self.psi)
         return np.asarray(np.asarray(tcp) + _tw["corr"], dtype=dtype or float)
-
-
-def _bar_at(th: float):
-    """World position of the lid's handle bar axis with the lid open th (rad)."""
-    d = np.array([HANDLE_X - HINGE[0], 0.0, BAR_Z - HINGE[2]])
-    x = d[0] * math.cos(th) + d[2] * math.sin(th)
-    z = -d[0] * math.sin(th) + d[2] * math.cos(th)
-    return np.array(C(HINGE[0] + x, HANDLE_Y, HINGE[2] + z))
-
-
-LID_OPEN = math.radians(70.0)
-BAR_WIDE = -0.008  # pads 16 mm apart round the 10 mm bar
-
-
-def _lid_rot(th):
-    """The holding hand's rotation: approach nearly level (+x), fingers closing nearly vertically, so the pads lie
-    above and below the round bar and it can turn between them as the lid swings."""
-    pitch = math.radians(-75.0 + 15.0 * th / LID_OPEN)  # 75 degrees from straight down, 60 when held open
-    return Orient(axis_angle_matrix(Y, pitch) @ _prev_grip(-math.pi / 2))
-
-
-def _lid_tcp(th, lift=0.0):
-    """TCP with the bar between the part-open pads, the lower pad bearing on it (``lift`` m below the bar's centre)."""
-    rot = _lid_rot(th)
-    n = rot.rot[:, 0]  # the fingers' closing direction (mostly vertical)
-    if n[2] < 0:
-        n = -n
-    return _tcp(_bar_at(th) - n * lift, rot)
 
 
 def _dur(wps):
