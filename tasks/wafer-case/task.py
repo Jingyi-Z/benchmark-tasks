@@ -341,7 +341,7 @@ def distance(objects):
 # -- scripted demo ----------------------------------------------------------------------------------------------------
 # Right arm, with the tweezers: lifts them out of their cup from above, gripping their two arms near the top, carries
 # them over the plate, still upright, sets their tips down beside the wafer and slides the wafer with the blades' sides
-# out over the plate's right edge until it overhangs; tilts them so the blades lie flat, goes round to the right, slides
+# out over the plate's front edge until it overhangs; tilts them so the blades lie flat in front of the plate, slides
 # the open blades round the overhanging edge (closed loop on the tweezers' live tips and the wafer's seen position),
 # pinches it, lifts it and lays it in the case's lid through the gap in its wall, lets go, backs the blades out, stands
 # the tweezers back in their cup and moves out of the way. Left arm: picks the domed bottom up by its skirt, sets it on
@@ -425,13 +425,12 @@ def _cup_tcp(origin, psi=0.0):
 PINCH_IN = 0.0085  # the blade tips this far inside the wafer's edge (the upper blade draws back ~3 mm as it closes)
 BLADE_Z = 0.0022  # the tips' midpoint this far above the wafer's underside: the held-open lower blade 0.3 mm under
 # it (only the upper blade moves as they close), the upper 3 mm over it
-OVERHANG = 0.012  # slide the wafer this far out over the plate's right edge, so the blades can take it from that side
-SLIDE_Y = HP_XY[1] - HP_HALF + WAFER_R - OVERHANG  # the wafer's centre (y) once slid
+OVERHANG = 0.012  # slide the wafer this far out over the plate's front edge, so the blades can take it from the front
+SLIDE_X = HP_XY[0] - HP_HALF + WAFER_R - OVERHANG  # the wafer's centre (x) once slid
 PUSH_Z = HP_TOP + 0.0006  # pushing, the tweezers upright: their tips just clear of the plate
-PUSH_X = HP_XY[0]  # the tips level with the wafer's centre: the blades' side edges meet its rim near the tips
-PUSH_Y0 = HP_XY[1] + WAFER_R + BLADE_W / 2 + 0.004  # start: the blades' right side 4 mm from the wafer's rim
-PUSH_Y1 = SLIDE_Y + WAFER_R + BLADE_W / 2 - 0.0005  # end: the wafer pushed to SLIDE_Y
-PICK_PSI = math.pi / 2  # take it by the overhang from the right: blades pointing +y
+PUSH_PSI = math.pi / 2  # upright, blades bent towards +y: their side edges face the wafer's back rim
+PUSH_X0 = HP_XY[0] + WAFER_R + BLADE_W / 2 + 0.004  # start: the blades' front side 4 mm behind the wafer's rim
+PUSH_X1 = SLIDE_X + WAFER_R + BLADE_W / 2 - 0.006  # end: past SLIDE_X by the hand's lag (seen: about 5 mm)
 CASE_PLACE = np.array([CASE_XY[0] - WAFER_R + PINCH_IN, CASE_XY[1], TOP + REST_Z + 0.0008 + BLADE_Z])  # from -x
 TW_HOME = np.array([TW_XY[0], TW_XY[1], TOP + CUP_FLOOR + 0.0012])
 DOWN_Y = Orient(_prev_grip(0.0))  # pointing down, fingers closing along y
@@ -459,15 +458,15 @@ def _see_wafer(env):
 def _reset_seen(env):
     _seen["lid"] = np.array([*CASE_XY, TOP])
     _seen["held"] = _seen["lid"].copy()
-    _seen["wafer"] = np.array([HP_XY[0], SLIDE_Y, HP_TOP])
+    _seen["wafer"] = np.array([SLIDE_X, HP_XY[1], HP_TOP])
 
 
-def _pick_at(dy=0.0, dz=0.0):
-    """Where the tips go to take the slid wafer from the right, seen where it came to rest (frozen once the hand is
-    under it): ``dy`` further out (-y) of the pinch point, ``dz`` above it."""
+def _pick_at(dx=0.0, dz=0.0):
+    """Where the tips go to take the slid wafer from the front, seen where it came to rest (frozen before the hand goes
+    under it): ``dx`` further out (-x) of the pinch point, ``dz`` above it."""
     def f():
         w = _seen["wafer"]
-        return np.array([w[0], w[1] - WAFER_R + PINCH_IN - dy, HP_TOP + BLADE_Z + dz])
+        return np.array([w[0] - WAFER_R + PINCH_IN - dx, w[1], HP_TOP + BLADE_Z + dz])
     return f
 
 
@@ -544,29 +543,32 @@ def demo():
         Waypoint(0.8, _TwAt(TW_HOME, cup=True, track=False), TW_HOLD, "hold the tweezers, blades open", d),
         Waypoint(1.5, _TwAt(TW_HOME + [0.0, 0.0, 0.06], cup=True, track=False), TW_HOLD, "lift them out of the cup", d),
     ]
-    a0, a1 = np.array([PUSH_X, PUSH_Y0, PUSH_Z]), np.array([PUSH_X, PUSH_Y1, PUSH_Z])
-    qp = tw_rot(PICK_PSI)
+    a0, a1 = np.array([PUSH_X0, HP_XY[1], PUSH_Z]), np.array([PUSH_X1, HP_XY[1], PUSH_Z])
+    du = up_rot(PUSH_PSI)
     right += [
-        Waypoint(3.0, _TwAt(a0 + [0.0, 0.0, 0.03], cup=True), TW_HOLD, "upright, over the plate left of the wafer", d),
-        Waypoint(1.5, _TwAt(a0 + [0.0, 0.0, 0.004], cup=True), TW_HOLD, "down, tips just over the plate", d),
-        Waypoint(1.5, _TwAt(a0 + [0.0, 0.0, 0.004], cup=True), TW_HOLD, "line the tips up beside the wafer's rim", d),
-        Waypoint(0.8, _TwAt(a0, cup=True, track=False), TW_HOLD, "tips down to the plate", d),
-        Waypoint(5.0, _TwAt(a1, cup=True, track=False), TW_HOLD,
-                 "slide the wafer with the blades' sides to the plate's right edge, until it overhangs", d),
-        Waypoint(0.8, _TwAt(a1 + [0.0, 0.006, 0.0], cup=True, track=False), TW_HOLD, "draw back off its rim", d),
-        Waypoint(1.2, _TwAt(a1 + [0.0, 0.006, 0.04], cup=True, track=False), TW_HOLD, "up", d),
+        Waypoint(3.0, _TwAt(a0 + [0.0, 0.0, 0.03], cup=True, psi=PUSH_PSI), TW_HOLD,
+                 "upright, over the plate behind the wafer", du),
+        Waypoint(1.5, _TwAt(a0 + [0.0, 0.0, 0.004], cup=True, psi=PUSH_PSI), TW_HOLD, "down, tips just over the plate",
+                 du),
+        Waypoint(1.5, _TwAt(a0 + [0.0, 0.0, 0.004], cup=True, psi=PUSH_PSI), TW_HOLD,
+                 "line the tips up behind the wafer's rim", du),
+        Waypoint(0.8, _TwAt(a0, cup=True, track=False, psi=PUSH_PSI), TW_HOLD, "tips down to the plate", du),
+        Waypoint(5.0, _TwAt(a1, cup=True, track=False, psi=PUSH_PSI), TW_HOLD,
+                 "slide the wafer with the blades' sides to the plate's front edge, until it overhangs", du),
+        Waypoint(0.8, _TwAt(a1 + [0.006, 0.0, 0.0], cup=True, track=False, psi=PUSH_PSI), TW_HOLD,
+                 "draw back off its rim", du),
+        Waypoint(1.2, _TwAt(a1 + [0.006, 0.0, 0.04], cup=True, track=False, psi=PUSH_PSI), TW_HOLD, "up", du),
     ]
     _seen["wafer_t"] = _dur(right) + 0.5  # where the wafer came to rest, seen before the hand goes round it
     right += [
-        Waypoint(3.5, _TwAt(_pick_at(0.03, 0.03), psi=PICK_PSI), TW_HOLD,
-                 "round to the right of the plate, blades pointing at the overhang", qp),
-        Waypoint(2.0, _TwAt(_pick_at(0.015, 0.0), psi=PICK_PSI), TW_HOLD, "blades level with the wafer", qp),
-        Waypoint(1.5, _TwAt(_pick_at(0.015, 0.0), psi=PICK_PSI), TW_HOLD, "line up, seen against the wafer", qp),
-        Waypoint(2.0, _TwAt(_pick_at(), psi=PICK_PSI), TW_HOLD, "slide the open blades round the overhanging edge",
-                 qp),
-        Waypoint(1.5, _TwAt(_pick_at(), psi=PICK_PSI), TW_HOLD, "line up: the lower blade just under the wafer", qp),
-        Waypoint(0.8, _TwAt(_pick_at(), track=False, psi=PICK_PSI), TW_PINCH, "pinch the wafer by its edge", qp),
-        Waypoint(1.5, _TwAt(_pick_at(0.01, 0.03), track=False, psi=PICK_PSI), TW_PINCH, "lift it off the plate", qp),
+        Waypoint(3.5, _TwAt(_pick_at(0.03, 0.03)), TW_HOLD, "tilt them, blades flat, in front of the plate", q0),
+        Waypoint(2.0, _TwAt(_pick_at(0.03, 0.03)), TW_HOLD, "line the tips up with the overhang", q0),
+        Waypoint(2.0, _TwAt(_pick_at(0.015, 0.0)), TW_HOLD, "blades level with the wafer", q0),
+        Waypoint(1.5, _TwAt(_pick_at(0.015, 0.0)), TW_HOLD, "line up, seen against the wafer", q0),
+        Waypoint(2.0, _TwAt(_pick_at()), TW_HOLD, "slide the open blades round the overhanging edge", q0),
+        Waypoint(1.5, _TwAt(_pick_at()), TW_HOLD, "line up: the lower blade just under the wafer", q0),
+        Waypoint(0.8, _TwAt(_pick_at(), track=False), TW_PINCH, "pinch the wafer by its edge", q0),
+        Waypoint(1.5, _TwAt(_pick_at(0.01, 0.03), track=False), TW_PINCH, "lift it off the plate", q0),
         Waypoint(4.0, _TwAt(K + [0.0, 0.0, 0.03], psi=H), TW_PINCH, "carry it over the case's lid", q1),
         Waypoint(2.0, _TwAt(K + [0.0, 0.0, 0.03], psi=H), TW_PINCH, "line up over the pocket", q1),
         Waypoint(1.5, _TwAt(K, track=False, psi=H), TW_PINCH, "lower it onto the ledge, the blades in the gap", q1),
