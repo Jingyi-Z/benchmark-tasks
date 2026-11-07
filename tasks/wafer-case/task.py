@@ -560,9 +560,10 @@ def demo():
         Waypoint(2.5, _cover_tcp(c0 + [0, 0, 0.04]), COVER_WIDE, "above the domed bottom", Q),
         Waypoint(1.5, _cover_tcp(c0), COVER_WIDE, "fingers either side of its skirt", Q),
         Waypoint(0.8, _cover_tcp(c0), COVER_HOLD, "grip the skirt", Q),
-        Waypoint(1.2, _cover_tcp(c0 + [0, 0, 0.05]), COVER_HOLD, "lift it", Q),
-        Waypoint(3.0, on_lid(0.04), COVER_HOLD, "over the case's lid, its arrow at the OPEN mark", Q),
-        Waypoint(1.5, on_lid(0.04), COVER_HOLD, "line up over the lid", Q),
+        Waypoint(1.5, _cover_tcp(c0 + [0, 0, 0.10]), COVER_HOLD, "lift it, clear of the coater", Q),
+        Waypoint(3.0, on_lid(0.10), COVER_HOLD, "over the case's lid, its arrow at the OPEN mark", Q),
+        Waypoint(1.5, on_lid(0.03), COVER_HOLD, "down towards the lid", Q),
+        Waypoint(1.5, on_lid(0.03), COVER_HOLD, "line up over the lid", Q),
     ]
     _seen["freeze_t"] = _dur(right)  # from here the hands bear on the case: aim at where it was seen last
     right += [Waypoint(2.0, on_lid(BASE_T - 0.001), COVER_HOLD, "lower it over the wall onto the flange", Q)]
