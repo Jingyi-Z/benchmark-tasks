@@ -333,7 +333,7 @@ def distance(objects):
 # out, and stands the tweezers back in their cup. Left arm: lifts the lid by its handle bar, the bar riding between its
 # part-open fingers along the lid's arc, to 70 degrees, and holds it there. Right arm: picks the aligner up by its
 # handle, carries it over the chuck, lowers it until its slot straddles the chuck (closed loop on the aligner's live
-# position), pushes it on until the V seats against the chuck, lowers it 4.5 mm (the wafer is left on the chuck), slides
+# position), pushes it on until the V seats against the chuck, lowers it 7.5 mm (the wafer is left on the chuck), slides
 # it back out from under the wafer, lifts it out of the bowl and sets it down. Left arm: lowers the lid shut.
 _prev_action7 = _demo.ArmPlan.action7
 if not getattr(_prev_action7, "_clock", False):

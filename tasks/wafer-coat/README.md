@@ -32,10 +32,10 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
         --instruction "$(python -c 'import json;print(json.load(open("task.json"))["instruction"])')" \
         --scorer task_score --max-steps 2400 --store-frames --log-dir logs
 
-Scripted demo: the same command with `--policy yam_scripted` (about DEMO_S s of motion; the trial ends 3 s after full
-score). The demo reads only what the cameras see: the tweezers' tips, to trim the hand's aim while it holds them, and
-the aligner's position, to line its slot up with the chuck. Run one trial per process: the trial's record is kept in
-the task module and cleared at each reset.
+Scripted demo: the same command with `--policy yam_scripted` (about 88 s of motion; the trial ends 3 s after full
+score). The demo reads only what the cameras see: the tweezers' tips and the wafer, to trim the hand's aim while it
+holds the tweezers, and the aligner's position, to line its slot up with the chuck. Run one trial per process: the
+trial's record is kept in the task module and cleared at each reset.
 
 The score is `task_score` in the log, computed by `score()` in `task.py`.
 
