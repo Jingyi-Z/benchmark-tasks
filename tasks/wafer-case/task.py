@@ -534,10 +534,10 @@ def demo():
     right += [
         Waypoint(3.0, _TwAt(far + [0.0, 0.0, 0.04], cup=True, psi=B), TW_PINCH, "over the plate, tips closed", u),
         Waypoint(1.5, _TwAt(far + [0.0, 0.0, 0.01], cup=True, psi=B), TW_PINCH, "tips down behind the wafer", u),
-        Waypoint(4.0, _TwAt(far + [0.0, 0.0, 0.01], cup=True, psi=B), TW_PINCH, "line the tips up behind it", u),
+        Waypoint(6.0, _TwAt(far + [0.0, 0.0, 0.01], cup=True, psi=B), TW_PINCH, "line the tips up behind it", u),
         Waypoint(1.5, _TwAt(far, cup=True, psi=B), TW_PINCH, "tips down behind its far rim", u),
-        Waypoint(1.5, _TwAt(far, cup=True, psi=B), TW_PINCH, "line up again", u),
-        Waypoint(4.0, _TwAt(end, cup=True, psi=B, track=False, zlive=True), TW_PINCH,
+        Waypoint(3.0, _TwAt(far, cup=True, psi=B), TW_PINCH, "line up again", u),
+        Waypoint(5.0, _TwAt(end, cup=True, psi=B, track=False), TW_PINCH,
                  "slide it by its rim over the plate's front edge", u),
         Waypoint(1.0, _TwAt(end + [0.003, 0.0, 0.0], cup=True, psi=B, track=False), TW_HOLD, "off the rim", u),
         Waypoint(1.2, _TwAt(end + [0.003, 0.0, 0.05], cup=True, psi=B, track=False), TW_HOLD, "up", u),
