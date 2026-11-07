@@ -317,8 +317,8 @@ def _cup_tcp(origin):
 
 PINCH_IN = 0.006  # the blade tips this far inside the wafer's edge
 _wb = TOP + PAD_TOP  # the wafer's underside on its stand
-BLADE_Z = 0.0020  # the tips' midpoint this far above the wafer's underside: the held-open lower blade 0.5 mm under
-# it, the upper 2.8 mm over it
+BLADE_Z = 0.0022  # the tips' midpoint this far above the wafer's underside: the held-open lower blade 0.3 mm under
+# it (only the upper blade moves as they close), the upper 3 mm over it
 WAFER_PICK = (STAND_XY[0] - WAFER_R + PINCH_IN, STAND_XY[1], _wb + BLADE_Z)
 POCKET_PLACE = (ALIGNER_XY[0] - WAFER_R + PINCH_IN, ALIGNER_XY[1], TOP + PT + 0.0008 + BLADE_Z)
 TW_HOME = np.array([TW_XY[0], TW_XY[1], TOP + CUP_FLOOR + 0.0012])
@@ -458,7 +458,8 @@ def demo():
         Waypoint(2.5, _TwAt(np.array(WAFER_PICK) + [-0.015, 0.0, 0.02]), TW_HOLD, "line the tips up, seen against the wafer", q),
         Waypoint(1.5, _TwAt(np.array(WAFER_PICK) + [-0.015, 0.0, 0.0]), TW_HOLD, "blades level with the wafer", q),
         Waypoint(1.5, _TwAt(np.array(WAFER_PICK) + [-0.015, 0.0, 0.0]), TW_HOLD, "line up again", q),
-        Waypoint(2.0, _TwAt(WAFER_PICK, track=False), TW_HOLD, "slide the open blades round its edge", q),
+        Waypoint(2.0, _TwAt(WAFER_PICK), TW_HOLD, "slide the open blades round its edge", q),
+        Waypoint(1.5, _TwAt(WAFER_PICK), TW_HOLD, "line up: the lower blade just under the wafer", q),
         Waypoint(0.8, _TwAt(WAFER_PICK, track=False), TW_PINCH, "pinch the wafer by its edge", q),
         Waypoint(1.2, _TwAt(np.array(WAFER_PICK) + [0.0, 0.0, 0.03], track=False), TW_PINCH, "lift it off the stand", q),
         Waypoint(3.0, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.03]), TW_PINCH, "over the aligner's pocket", q),
