@@ -442,15 +442,15 @@ def _reset(env):
 @on_step
 def _track(env):
     """While ``on``, trim the aligner hand so the pocket's centre (plate underside) comes to its goal, seen live: part
-    of the error per step, the height only while the aligner is still (it sits a little low in the hand)."""
+    of the error per step, only while the aligner is still (it sits a little low in the hand)."""
     a = np.asarray(labkit._part_state(env, labkit._SPECS["aligner"]).pos, float)
     prev, _live["prev"] = _live["prev"], a
     if not _live["on"] or _live["goal"] is None:
         return
     err = _live["goal"] - a
-    if prev is None or np.linalg.norm(a - prev) > 0.0002 or abs(err[2]) > 0.008:
-        err[2] = 0.0
-    _live["corr"] = np.clip(_live["corr"] + np.clip(0.15 * err, -0.0004, 0.0004), -0.006, 0.006)
+    if prev is None or np.linalg.norm(a - prev) > 0.0002 or np.linalg.norm(err) > 0.012:
+        return  # only while it is still, near its goal
+    _live["corr"] = np.clip(_live["corr"] + np.clip(0.2 * err, -0.0003, 0.0003), -0.006, 0.006)
 
 
 class _AlLive:
@@ -615,7 +615,7 @@ def demo():
         Waypoint(3.0, _al_tcp(over), AL_HOLD, "over the chuck, high", AL_ROT),
         Waypoint(1.5, _al_tcp(dock_hi), AL_HOLD, "down into the bowl, the slot lined up with the chuck", AL_ROT),
         Waypoint(0.1, _AlLive(dock_hi), AL_HOLD, "line the slot up with the chuck", AL_ROT),
-        Waypoint(2.0, _AlLive(dock_hi), AL_HOLD, "line the slot up with the chuck", AL_ROT),
+        Waypoint(3.0, _AlLive(dock_hi), AL_HOLD, "line the slot up with the chuck", AL_ROT),
         Waypoint(2.0, _AlLive(dock, track=False), AL_HOLD, "lower it: the slot straddles the chuck", AL_ROT),
         Waypoint(1.5, _AlLive(dock + [DOCK_PRE + DOCK_PUSH, 0, 0], track=False), AL_HOLD,
                  "push it on: the V seats against the chuck, the pocket centred on it", AL_ROT),
