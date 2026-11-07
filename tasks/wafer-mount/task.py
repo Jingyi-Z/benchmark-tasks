@@ -301,7 +301,7 @@ FLAT_DIR = math.pi + M_YAW  # the frame's flat side, seen from above: towards +y
 # tilted back (+x) is OFF, forward (-x, towards the green mark) is ON. Frame: origin on the housing's top. -------------
 VAC_XY = (0.205, 0.040)
 VAC = Joint("vacuum", kind="hinge", axis="Y", anchor=(0.0, 0.0, 0.006), lower=-0.45, upper=0.45, initial=0.42,
-            target=0.0, friction=0.04, damping=0.05, mass=0.005,
+            target=0.0, friction=0.012, damping=0.02, mass=0.005,
             boxes=[((0.0, 0.0, 0.006 + 0.012), (0.004, 0.004, 0.024), STEEL)],
             cylinders=[((0.0, 0.0, 0.006 + 0.025), 0.0035, 0.004, BLACK)])
 VAC_ON = -0.20  # the toggle counts as ON when tilted forward past this (rad)
@@ -748,15 +748,16 @@ def demo():
 
     # right: switch the wafer vacuum on, pushing the toggle's knob forward with closed fingers
     tg = np.array([VAC_XY[0], VAC_XY[1], CHUCK_TOP + 0.006])
-    knob_off = tg + [0.024 * math.sin(0.42), 0.0, 0.024 * math.cos(0.42)]
+    knob_off = tg + [0.014 * math.sin(0.42), 0.0, 0.014 * math.cos(0.42)]  # 14 mm up the lever: pushed mid-rod
+    knob_on = tg + [-0.014 * math.sin(0.42), 0.0, 0.014 * math.cos(0.42)]
     dn = Orient(_prev_grip(0.0))
     tcp = lambda p: tuple(np.asarray(p, float) + [0.0, 0.0, TIP_ABOVE_TCP])  # noqa: E731
     right.append(Waypoint(max(0.3, t_laid - _dur(right)), RIGHT_PARK, FINGER_OPEN, "wait for the wafer to be laid"))
     right += [
         Waypoint(2.5, tcp(knob_off + [0.012, 0.0, 0.03]), FINGER_CLOSED, "above, behind the vacuum toggle", dn),
         Waypoint(1.2, tcp(knob_off + [0.012, 0.0, -0.002]), FINGER_CLOSED, "fingertips down behind its knob", dn),
-        Waypoint(1.5, tcp(tg + [-0.020, 0.0, 0.020]), FINGER_CLOSED, "push it forward: WAFER VACUUM on", dn),
-        Waypoint(1.0, tcp(tg + [-0.030, 0.0, 0.05]), FINGER_CLOSED, "up", dn),
+        Waypoint(1.5, tcp(knob_on + [-0.006, 0.0, -0.004]), FINGER_CLOSED, "push it forward: WAFER VACUUM on", dn),
+        Waypoint(1.0, tcp(knob_on + [0.0, 0.0, 0.05]), FINGER_CLOSED, "up", dn),
         Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
     ]
     t_end = max(_dur(left), _dur(right)) + 2.0

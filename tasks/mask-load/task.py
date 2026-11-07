@@ -140,7 +140,7 @@ RACK_XY = (0.365, 0.0)
 R_TOP = 0.110
 R1_TOP = 0.210
 REST_L1_XY = REST_L2_XY = RACK_XY
-_post_x = 0.065
+_post_x = 0.078  # behind the shelved masks' back edges
 
 
 def _shelf(h):
@@ -162,7 +162,7 @@ CHROME_SIDE = {"mask_layer1": -1, "mask_layer2": +1}  # which local face carries
 V_XY = (0.12, -0.12)
 V_H = 0.030
 VAC = Joint("vacuum", kind="hinge", axis="Y", anchor=(0.0, 0.0, V_H), lower=-0.45, upper=0.45, initial=-0.42,
-            target=0.0, friction=0.04, damping=0.05, mass=0.005,
+            target=0.0, friction=0.012, damping=0.02, mass=0.005,
             boxes=[((0.0, 0.0, V_H + 0.012), (0.004, 0.004, 0.024), STEEL)],
             cylinders=[((0.0, 0.0, V_H + 0.025), 0.0035, 0.004, BLACK)])
 VAC_SWITCH = part("vacuum_switch", pos=(*V_XY, TOP), fixed=True, friction=0.6,
@@ -395,7 +395,8 @@ def demo():
 
     dn = Orient(_prev_grip(0.0))
     tcp = lambda p: tuple(np.asarray(p, float) + [0.0, 0.0, TIP_ABOVE_TCP])  # noqa: E731
-    knob = lambda a: np.array([V_XY[0] + 0.024 * math.sin(a), V_XY[1], TOP + V_H + 0.024 * math.cos(a)])  # noqa: E731
+    knob = lambda a: np.array([V_XY[0] + 0.014 * math.sin(a), V_XY[1], TOP + V_H + 0.014 * math.cos(a)])  # noqa: E731
+    # (a point 14 mm up the lever: pushed there, mid-rod, the fingertips do not ride over its knob)
     # right: vacuum OFF (push the lever back from in front of its knob)
     right += [
         Waypoint(2.5, tcp(knob(-0.42) + [-0.012, 0.0, 0.03]), FINGER_CLOSED, "above, in front of the vacuum toggle", dn),
