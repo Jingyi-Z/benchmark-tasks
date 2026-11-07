@@ -381,7 +381,7 @@ def _watch(env):
         w = labkit._part_state(env, S[n])
         p = np.asarray(w.pos, float)
         R = w.rotation()
-        if p[2] < TOP + 0.0045:  # below a carrier's ledge: fallen in, or on the table
+        if p[2] < REST_Z - 0.0015:  # below a carrier's ledge: fallen in, or on the table
             _state["dropped"] = True
         for tip in tips:
             q = R.T @ (np.asarray(tip, float) - p)
