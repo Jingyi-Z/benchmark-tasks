@@ -129,8 +129,8 @@ def _wafer(name, sec_deg, xy, yaw_deg, z):
 # the wall is open there, and a slot through the ledge lets the tweezers' lower blade go under the wafer's edge. -------------------------------------------------------
 N_SEG = 72
 C_BASE_R, C_BASE_T = 0.060, 0.002
-LEDGE_IN, LEDGE_OUT, LEDGE_H = 0.0430, 0.0520, 0.003
-C_WALL_R, C_WALL_T, C_WALL_H = 0.0535, 0.002, 0.007
+LEDGE_IN, LEDGE_OUT, LEDGE_H = 0.0430, 0.0520, 0.006  # the wafer 8 mm above the bench: room under it for the lower blade
+C_WALL_R, C_WALL_T, C_WALL_H = 0.0535, 0.002, 0.010
 GAP = math.radians(32.0)
 PICK_H = math.radians(20.0)  # the right hand's heading into the carriers (the blades point along it)
 GAP_DIR = PICK_H + math.pi
