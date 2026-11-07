@@ -57,7 +57,7 @@ PW, PL, PT = 0.110, 0.115, 0.003
 LIP_W, LIP_H, STOP_H = 0.003, 0.003, 0.005
 RISER = (0.024, 0.012, 0.022)  # x, y, height above the plate's top
 HANDLE = (0.012, 0.070, 0.010)  # x width, y length, z thickness; its top flush with the riser's
-TAB = (0.030, 0.010, 0.022)  # a grip tab across the handle's end: x, y (gripped across), z
+TAB = (0.030, 0.010, 0.030)  # a grip tab across the handle's end, rising 2 cm above it: x, y (gripped across), z
 HANDLE_Y0 = PL / 2 + 0.004  # the handle starts here, over the riser
 _hz = PT + RISER[2] - HANDLE[2] / 2  # handle's centre height
 PADDLE_BOXES = [
@@ -66,7 +66,7 @@ PADDLE_BOXES = [
     ((0.0, PL / 2 - LIP_W / 2, PT + STOP_H / 2), (PW, LIP_W, STOP_H), PTFE),
     ((0.0, PL / 2 + RISER[1] / 2 - LIP_W, PT + RISER[2] / 2), (RISER[0], RISER[1], RISER[2]), PTFE),
     ((0.0, HANDLE_Y0 + HANDLE[1] / 2, _hz), HANDLE, PTFE),
-    ((0.0, HANDLE_Y0 + HANDLE[1] + TAB[1] / 2, _hz + HANDLE[2] / 2 - TAB[2] / 2), TAB, RED),  # the grip tab
+    ((0.0, HANDLE_Y0 + HANDLE[1] + TAB[1] / 2, _hz - HANDLE[2] / 2 + TAB[2] / 2), TAB, RED),  # the grip tab
 ]
 PADDLE0 = (0.20, 0.07)  # where it lies at the start: plate centre, flat on the bench
 PADDLE = part("paddle", pos=(*PADDLE0, TOP), mass=0.060, friction=0.10, boxes=PADDLE_BOXES)
@@ -213,7 +213,8 @@ LEFT_PARK = (0.15, 0.25, TOP + 0.16)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.16)
 X = np.array([1.0, 0.0, 0.0])
 DOWN_X = _prev_grip(0.0)  # pointing down, fingers closing along y: across the grip tab, which holds the paddle's pitch
-GRIP_LOCAL = np.array([0.0, HANDLE_Y0 + HANDLE[1] + TAB[1] / 2, _hz + HANDLE[2] / 2 - 0.008])  # the tab, 8 mm down
+GRIP_LOCAL = np.array([0.0, HANDLE_Y0 + HANDLE[1] + TAB[1] / 2, _hz + HANDLE[2] / 2 + 0.013])  # the tab, the
+# pad tips 7 mm above the handle (the inner finger must clear it)
 H_WIDE, H_HOLD = -0.012, FINGER_CLOSED
 
 
