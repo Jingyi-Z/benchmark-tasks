@@ -490,7 +490,7 @@ TW_GRIP = TW_TILT @ TW_GRIP_F
 DOWN_X = Orient(_prev_grip(math.pi / 2))
 TW_WIDE = -0.014
 TW_HOLD = -0.0050
-TW_PINCH = -0.0022
+TW_PINCH = -0.0010  # squeezed hard: the pinch must hold the wafer on edge against its weight's twist
 PINCH_IN = 0.012  # the tips 12 mm inside the edge: a 100 mm wafer needs a deep pinch not to twist out
 BLADE_Z = 0.0022  # the tips' midpoint above the wafer's underside, as taken in a carrier
 V0 = np.array([WAFER_R - PINCH_IN, 0.0, WAFER_T / 2 - (BLADE_Z - 0.0016)])  # lower blade ~1 mm under it  # the wafer's centre from the tips, held
@@ -681,15 +681,16 @@ def demo():
         _wp(0.8, "l", _const(L_HOME, 0.0), TW_HOLD, "hold them, blades open", False, True),
         _wp(1.5, "l", _const(L_HOME + [0, 0, 0.06], 0.0), TW_HOLD, "lift them out", False, True),
     ]
-    _seen["w_t"] = t_offer + 0.3  # the wafer, seen on edge and steady
+    _seen["w_t"] = t_offer + 2.6  # the wafer, seen on edge and steady
     seen = lambda: _seen.get("w", (C_EDGE, None))[0]  # noqa: E731
     at_top = lambda back: (lambda: (seen() - C_EDGE + O_L - L_R0 @ X * back, L_R0))  # noqa: E731
     stage = C_EDGE + [0.0, 0.12, 0.02]
     left += [
         _wp(3.0, "l", _const(stage, Rz(-math.pi / 2)), TW_HOLD, "tilt them, blades flat, beside the wafer"),
-        _wp(max(0.5, t_offer - 4.5 - _dur(left)), "l", at_top(0.04), TW_HOLD,
-            "turn them, blades pointing down, above the wafer's top edge"),
-        _wp(1.0, "l", at_top(0.04), TW_HOLD, "wait for it to stand still"),
+        _wp(max(0.5, t_offer - _dur(left)), "l", _const(stage, Rz(-math.pi / 2)), TW_HOLD,
+            "wait, clear of the wafer, while it is stood on edge"),
+        _wp(2.0, "l", at_top(0.04), TW_HOLD, "turn them, blades pointing down, above the wafer's top edge"),
+        _wp(0.8, "l", at_top(0.04), TW_HOLD, "wait for it to stand still"),
         _wp(1.5, "l", at_top(0.015), TW_HOLD, "down to its top edge"),
         _wp(1.2, "l", at_top(0.015), TW_HOLD, "line up, seen against the wafer"),
         _wp(1.5, "l", at_top(0.0), TW_HOLD, "slide the open blades round the top edge"),
