@@ -119,7 +119,7 @@ def _pattern():
 def _wafer(name, sec_deg, xy, yaw_deg, z):
     # It collides as a disc 3 mm inside its rim (inside the flats too), hidden in the drawn wafer: a thin convex mesh
     # collider sinks slowly through thin supports in PhysX, a primitive disc does not.
-    return part(name, pos=(*xy, z), yaw=math.radians(yaw_deg), mass=0.010, friction=0.8,
+    return part(name, pos=(*xy, z), yaw=math.radians(yaw_deg), mass=0.010, friction=1.1,
                 cylinders=[((0.0, 0.0, 0.0), COLLIDE_R, WAFER_T * 0.9, SI_BACK)],
                 meshes=[_prism(_outline(sec_deg), -WAFER_T / 2, WAFER_T / 2, SI_BACK, "none"), *_pattern()])
 
@@ -219,7 +219,7 @@ def _tweezers(name, xy):
     jaw = Joint("jaw", kind="slide", axis="X", anchor=(_ax + SEP / 2, 0.0, _az + ARM_L / 2),
                 lower=-(SEP - BLADE_T / _s - 0.0002), upper=0.0, initial=0.0, target=0.0, stiffness=600.0,
                 damping=5.0, mass=0.008, boxes=_half(SEP / 2))
-    return part(name, pos=(*xy, TOP + CUP_FLOOR + 0.0012), mass=0.020, friction=0.9, boxes=_half(-SEP / 2),
+    return part(name, pos=(*xy, TOP + CUP_FLOOR + 0.0012), mass=0.020, friction=1.1, boxes=_half(-SEP / 2),
                 meshes=[_box_mesh((_ax, 0.0, TOP_Z - 0.004), (SEP - ARM_T, ARM_W, 0.008), STEEL)], joints=[jaw])
 
 
@@ -490,8 +490,8 @@ TW_GRIP = TW_TILT @ TW_GRIP_F
 DOWN_X = Orient(_prev_grip(math.pi / 2))
 TW_WIDE = -0.014
 TW_HOLD = -0.0050
-TW_PINCH = -0.0016
-PINCH_IN = 0.0085
+TW_PINCH = -0.0022
+PINCH_IN = 0.012  # the tips 12 mm inside the edge: a 100 mm wafer needs a deep pinch not to twist out
 BLADE_Z = 0.0022  # the tips' midpoint above the wafer's underside, as taken in a carrier
 V0 = np.array([WAFER_R - PINCH_IN, 0.0, WAFER_T / 2 - (BLADE_Z - 0.0008)])  # the wafer's centre from the tips, held
 # blades flat along +x (tweezer heading 0)
@@ -663,8 +663,8 @@ def demo():
         _wp(2.0, "r", pick(0.0, 0.0), TW_HOLD, "slide the open blades round the edge in the opening"),
         _wp(1.2, "r", pick(0.0, 0.0), TW_HOLD, "line up: the lower blade just under the wafer"),
         _wp(0.8, "r", pick(0.0, 0.0), TW_PINCH, "pinch the wafer by its edge", False),
-        _wp(1.5, "r", pick(0.0, 0.03), TW_PINCH, "lift it out of the carrier", False),
-        _wp(3.0, "r", _const(O_R, Rz(PICK_H)), TW_PINCH, "carry it up, clear of everything", False),
+        _wp(2.0, "r", pick(0.0, 0.03), TW_PINCH, "lift it out of the carrier", False),
+        _wp(4.5, "r", _const(O_R, Rz(PICK_H)), TW_PINCH, "carry it up, clear of everything", False),
     ]
     for k in range(1, ROLL_STEPS + 1):
         right.append(_wp(0.8, "r", (lambda k=k: _r_roll(k)), TW_PINCH,
