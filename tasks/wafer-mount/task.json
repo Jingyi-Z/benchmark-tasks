@@ -1,0 +1,14 @@
+{
+  "title": "Mount the n-type (100) wafer face down on a dicing-tape mounter, told apart from look-alikes by its flats",
+  "category": "Impact on jobs",
+  "keywords": ["cleanroom", "wafer flats", "tweezers", "bimanual", "hand-over", "dicing"],
+  "instruction": "Using the tweezers, mount the n-type (100) wafer on the tape mounter's chuck for dicing, centred with its primary flat towards the frame's flat side, and turn the wafer vacuum on.",
+  "context": "Unlabelled wafers are told apart only by their flats (SEMI convention), and a wafer is taped on its back, so it must be flipped face down; tweezers can only lay down a wafer they hold from above.",
+  "setup": "TBD",
+  "scoring": "TBD",
+  "run_limit": "2,400 steps (2 minutes at 20 Hz)",
+  "reset_notes": "One fixed layout; nothing is consumed (the tape is not simulated).",
+  "fidelity": "TBD",
+  "scores": "TBD",
+  "media": ""
+}
