@@ -122,7 +122,7 @@ def _wafer(name, sec_deg, xy, yaw_deg, z):
 
 # -- the carriers (fixed): open single-wafer carriers for 100 mm wafers, all turned so the opening in their ledge and
 # wall faces the right-hand robot (towards 200 degrees). The wafer rests by its rim on a ledge ring inside a low wall;
-# in the opening the tweezers' lower blade goes under its edge. -------------------------------------------------------
+# the wall is open there, and a slot through the ledge lets the tweezers' lower blade go under the wafer's edge. -------------------------------------------------------
 N_SEG = 72
 C_BASE_R, C_BASE_T = 0.060, 0.002
 LEDGE_IN, LEDGE_OUT, LEDGE_H = 0.0430, 0.0520, 0.003
@@ -149,9 +149,16 @@ def _in_gap(a):
     return abs(math.atan2(math.sin(a - GAP_DIR), math.cos(a - GAP_DIR))) <= GAP
 
 
+SLOT_HW = 0.011  # half the width of the tweezer slot cut through the ledge, in the opening
+
+
+def _in_slot(a):
+    return abs(math.atan2(math.sin(a - GAP_DIR), math.cos(a - GAP_DIR))) <= SLOT_HW / LEDGE_IN + math.radians(2.5)
+
+
 def _carrier(name, xy):
     return part(name, pos=(*xy, TOP), fixed=True, friction=0.8,
-                boxes=[*_ring(LEDGE_IN, LEDGE_OUT, C_BASE_T, LEDGE_H, PP, skip=_in_gap),
+                boxes=[*_ring(LEDGE_IN, LEDGE_OUT, C_BASE_T, LEDGE_H, PP, skip=_in_slot),
                        *_ring(C_WALL_R - C_WALL_T / 2, C_WALL_R + C_WALL_T / 2, C_BASE_T, C_WALL_H, PP, skip=_in_gap)],
                 cylinders=[((0.0, 0.0, C_BASE_T / 2), C_BASE_R, C_BASE_T, PP)])
 
@@ -213,7 +220,7 @@ def _tweezers(name, xy):
 
 
 R_CUP_XY = (0.11, -0.215)
-L_CUP_XY = (0.11, 0.215)
+L_CUP_XY = (0.12, 0.25)
 R_CUP, L_CUP = _cup("tweezer_cup_r", R_CUP_XY), _cup("tweezer_cup_l", L_CUP_XY)
 R_TW, L_TW = _tweezers("tweezers_r", R_CUP_XY), _tweezers("tweezers_l", L_CUP_XY)
 
@@ -516,6 +523,7 @@ def _reset_demo(env):
     for d in _tw.values():
         d.update(corr=np.zeros(3), goal=None, prev=None)
     _seen.pop("w", None)
+    _seen.pop("wp", None)
     _seen.pop("w_live", None)
 
 
@@ -533,8 +541,11 @@ def _track(env):
             d["corr"] = np.clip(d["corr"] + np.clip(0.2 * err, -0.0003, 0.0003), -0.03, 0.03)
     w = labkit._part_state(env, S[TARGET])
     _seen["w_live"] = (np.asarray(w.pos, float), w.rotation())
-    if getattr(_demo, "_plan_clock", 0.0) < _seen.get("w_t", 1e9):
+    t = getattr(_demo, "_plan_clock", 0.0)
+    if t < _seen.get("w_t", 1e9):
         _seen["w"] = _seen["w_live"]
+    if t < _seen.get("wp_t", 1e9):
+        _seen["wp"] = _seen["w_live"]
 
 
 class _At:
@@ -619,6 +630,7 @@ def demo():
     for d in _tw.values():
         d.update(corr=np.zeros(3), goal=None, prev=None)
     _seen.pop("w", None)
+    _seen.pop("wp", None)
     right, left = [], []
     # right: tweezers out of their cup
     right += [
@@ -628,12 +640,22 @@ def demo():
         _wp(1.5, "r", _const(R_HOME + [0, 0, 0.06], 0.0), TW_HOLD, "lift them out", False, True),
     ]
     # right: into the front-left carrier's opening, under the wafer's edge
-    pick = lambda back, up: _const(W0 - Rz(PICK_H) @ V0 - U * back + Z * up, Rz(PICK_H))  # noqa: E731
+    def pick(back, up):  # aimed at the wafer as seen before the blades go round its edge, at its edge's height
+        def f():
+            c, Rw = _seen.get("wp", (W0, np.eye(3)))
+            v = Rw.T @ (-U)
+            v = np.array([v[0], v[1], 0.0]) / math.hypot(v[0], v[1])
+            dz = float((Rw @ v)[2]) * WAFER_R  # the edge there above (or below) the centre, if the wafer tilts
+            return c - Rz(PICK_H) @ V0 + Z * dz - U * back + Z * up, Rz(PICK_H)
+        return f
     right += [
         _wp(3.5, "r", pick(0.03, 0.03), TW_HOLD, "tilt them, blades flat, in front of the carrier's opening"),
         _wp(2.0, "r", pick(0.03, 0.03), TW_HOLD, "line the tips up with the wafer's edge"),
         _wp(1.5, "r", pick(0.015, 0.0), TW_HOLD, "blades level with the wafer"),
         _wp(1.5, "r", pick(0.015, 0.0), TW_HOLD, "line up"),
+    ]
+    _seen["wp_t"] = _dur(right)  # the wafer, seen before the blades go round its edge
+    right += [
         _wp(2.0, "r", pick(0.0, 0.0), TW_HOLD, "slide the open blades round the edge in the opening"),
         _wp(1.2, "r", pick(0.0, 0.0), TW_HOLD, "line up: the lower blade just under the wafer"),
         _wp(0.8, "r", pick(0.0, 0.0), TW_PINCH, "pinch the wafer by its edge", False),
@@ -658,7 +680,9 @@ def demo():
     _seen["w_t"] = t_offer + 0.3  # the wafer, seen on edge and steady
     seen = lambda: _seen.get("w", (C_EDGE, None))[0]  # noqa: E731
     at_top = lambda back: (lambda: (seen() - C_EDGE + O_L - L_R0 @ X * back, L_R0))  # noqa: E731
+    stage = C_EDGE + [0.0, 0.12, 0.02]
     left += [
+        _wp(3.0, "l", _const(stage, Rz(-math.pi / 2)), TW_HOLD, "tilt them, blades flat, beside the wafer"),
         _wp(max(0.5, t_offer - 4.5 - _dur(left)), "l", at_top(0.04), TW_HOLD,
             "turn them, blades pointing down, above the wafer's top edge"),
         _wp(1.0, "l", at_top(0.04), TW_HOLD, "wait for it to stand still"),
@@ -675,10 +699,10 @@ def demo():
     right += [
         _wp(0.8, "r", rb(0.0), TW_HOLD, "let go: open the blades", False),
         _wp(1.2, "r", rb(0.025), TW_HOLD, "back the blades out along the edge", False),
-        _wp(1.2, "r", rb(0.06, -0.04), TW_HOLD, "away from the wafer", False),
+        _wp(1.2, "r", rb(0.06), TW_HOLD, "away from the wafer", False),
     ]
     for k in range(ROLL_STEPS - 1, -1, -1):
-        right.append(_wp(0.6, "r", (lambda k=k: (O_R - U * 0.06 + [0.0, -0.04, 0.0], _r_roll(k)[1])), TW_HOLD,
+        right.append(_wp(0.6, "r", (lambda k=k: (O_R - U * 0.06, _r_roll(k)[1])), TW_HOLD,
                          "roll them back, blades flat", False))
     right += [
         _wp(3.0, "r", _const(R_HOME + [0, 0, 0.06], 0.0), TW_HOLD, "upright again, over the cup", True, True),
