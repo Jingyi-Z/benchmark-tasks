@@ -178,7 +178,7 @@ _pins = [((PIN_R * math.cos(a), PIN_R * math.sin(a), BASE_T + PIN_H / 2), PIN_RA
          for a in (2 * math.pi * (i + 0.5) / N_PIN for i in range(N_PIN)) if _off_gap(a)]
 LOCK = math.radians(-30.0)  # the bayonet's turn, clockwise seen from above
 _marks = [((0.0415 * math.cos(a), 0.0415 * math.sin(a), BASE_T + 0.0002), (0.007, 0.0015, 0.0004), MARK, a)
-          for a in (0.0, LOCK)]
+          for a in (math.pi, math.pi + LOCK)]  # OPEN and LOCK, at the front
 CASE_LID = part("case_lid", pos=(*CASE_XY, TOP), mass=0.020, friction=0.7,
                 boxes=[*_wall, *_marks],
                 cylinders=[((0.0, 0.0, BASE_T / 2), BASE_R, BASE_T, PP), *_pins])
@@ -195,7 +195,7 @@ COVER_TOP = _dz
 CASE_COVER = part("case_bottom", pos=(*COVER_XY, TOP), mass=0.015, friction=0.6,
                   boxes=[*[((SKIRT_R * math.cos(a), SKIRT_R * math.sin(a), SKIRT_H / 2), (SKIRT_T, _sseg, SKIRT_H), PP_B,
                             a) for a in (2 * math.pi * (i + 0.5) / N_SKIRT for i in range(N_SKIRT))],
-                         ((SKIRT_R + SKIRT_T / 2 + 0.0004, 0.0, SKIRT_H / 2), (0.0008, 0.003, 0.010), MARK)],  # arrow
+                         ((-(SKIRT_R + SKIRT_T / 2 + 0.0004), 0.0, SKIRT_H / 2), (0.0008, 0.003, 0.010), MARK)],  # arrow
                   cylinders=_dome_cyl)
 
 OBJECTS = [COATER, WAFER, TWEEZERS, TSTAND, CASE_LID, CASE_COVER]
@@ -214,7 +214,7 @@ SEAT_TOL = 0.0025
 LOCK_WIN = (math.radians(-45.0), math.radians(-22.0))  # turned into the lock: 22 to 45 degrees clockwise
 OPEN_WIN = math.radians(10.0)  # set on within 10 degrees of the OPEN mark
 TOP_TOUCH = 0.006  # a pad tip within 6 mm above the wafer's top, more than 3 mm inside its rim: the top was touched
-HANDLED = 0.006  # a pad tip within 6 mm outside the wafer's rim and 8 mm of its height: held by the gripper
+HANDLED = 0.002  # a pad tip within 2 mm outside the wafer's rim and 8 mm of its height: held by the gripper
 HANDS_FAR = 0.08  # both pad tips this far from the case's axis at the end
 
 _state = {"touched": False, "handled": False, "dropped": False, "armed": False}
@@ -412,7 +412,7 @@ TW_HOME = np.array([TW_XY[0], TW_XY[1], TOP + CUP_FLOOR + 0.0012])
 DOWN_Y = Orient(_prev_grip(0.0))  # pointing down, fingers closing along y
 COVER_WIDE, COVER_HOLD = -0.044, -0.0335  # pads round the 75 mm skirt; squeezing it
 COVER_GRIP_Z = 0.008  # pad tips this far above the skirt's lower edge
-PRESS_R = 0.048  # the right fingertips press the lid's flange here, on its -y side
+PRESS_R = 0.048  # the right fingertips press the lid's flange here, at its back (+x), clear of the left's fingers
 PRESS_IN = 0.0025  # aim this far into the flange: a firm press
 
 # what the demo sees of the case's lid: its position, every step
@@ -587,7 +587,7 @@ def demo():
     ]
 
     # right, after the tweezers: fingertips closed, hold the case's lid down by its flange while the bottom is turned
-    press = lambda dz: _OnLid(lambda L: tuple(L + [0.0, -PRESS_R, BASE_T + TIP_ABOVE_TCP + dz]), False)  # noqa: E731
+    press = lambda dz: _OnLid(lambda L: tuple(L + [PRESS_R, 0.0, BASE_T + TIP_ABOVE_TCP + dz]), False)  # noqa: E731
     right += [
         Waypoint(2.5, press(0.03), FINGER_CLOSED, "fingers closed, above the case's flange", 0.0),
         Waypoint(1.5, press(0.0), FINGER_CLOSED, "fingertips on the flange", 0.0),
