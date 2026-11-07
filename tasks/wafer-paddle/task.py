@@ -240,17 +240,19 @@ _live = {"corr": np.zeros(3), "goal": None}
 
 @on_reset
 def _reset_live(env):
-    _live.update(corr=np.zeros(3), goal=None)
+    _live.update(corr=np.zeros(3), goal=None, prev=None)
 
 
 @on_step
 def _track(env):
-    if _live["goal"] is None:
+    pad = np.asarray(labkit._part_state(env, labkit._SPECS["paddle"]).pos, float)
+    prev, _live["prev"] = _live.get("prev"), pad
+    if _live["goal"] is None or prev is None:
         return
-    pad = labkit._part_state(env, labkit._SPECS["paddle"])
-    err = np.asarray(_live["goal"], float) - np.asarray(pad.pos, float)
-    if np.linalg.norm(err) < 0.03:  # only near the mark: not while moving between marks
-        _live["corr"] = np.clip(_live["corr"] + np.clip(0.08 * err, -0.0005, 0.0005), -0.03, 0.03)
+    err = np.asarray(_live["goal"], float) - pad
+    still = np.linalg.norm(pad - prev) < 0.0002  # the paddle has (nearly) stopped: the hand has reached its aim
+    if still and np.linalg.norm(err) < 0.03:
+        _live["corr"] = np.clip(_live["corr"] + np.clip(0.3 * err, -0.0005, 0.0005), -0.03, 0.03)
 
 
 class _PaddleAt:
@@ -283,7 +285,7 @@ SET_SHIFT = 0.0  # where the front edge touches down, from one wafer radius shor
 
 
 def demo():
-    _live.update(corr=np.zeros(3), goal=None)
+    _live.update(corr=np.zeros(3), goal=None, prev=None)
     px, py = PED_XY
     wz = TOP + PED_TOP  # the wafer's underside
     # the paddle at the pedestal: front edge under the overhang, top LOAD_GAP below the wafer
