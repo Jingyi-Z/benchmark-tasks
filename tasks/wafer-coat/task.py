@@ -302,7 +302,7 @@ TW_GRIP = TW_TILT @ TW_GRIP_F  # the grip point, from the blade tips, when held
 DOWN_X = Orient(_prev_grip(math.pi / 2))  # pointing down, fingers closing along x (across the arms' faces)
 TW_WIDE = -0.014  # pads 28 mm apart round the arms (11.3 mm over their outer faces)
 TW_HOLD = -0.0050  # just closed on the arms' outer faces: the blades stay open
-TW_PINCH = -0.0010  # squeezes the arms: the blades close on the wafer
+TW_PINCH = -0.0016  # squeezes the arms: the blades close on the wafer
 
 
 def _tw_tcp(origin):
@@ -317,7 +317,8 @@ def _cup_tcp(origin):
 
 PINCH_IN = 0.006  # the blade tips this far inside the wafer's edge
 _wb = TOP + PAD_TOP  # the wafer's underside on its stand
-BLADE_Z = 0.0010  # the tips' midpoint this far above the wafer's underside: the held-open blades 1.5 mm clear of it
+BLADE_Z = 0.0020  # the tips' midpoint this far above the wafer's underside: the held-open lower blade 0.5 mm under
+# it, the upper 2.8 mm over it
 WAFER_PICK = (STAND_XY[0] - WAFER_R + PINCH_IN, STAND_XY[1], _wb + BLADE_Z)
 POCKET_PLACE = (ALIGNER_XY[0] - WAFER_R + PINCH_IN, ALIGNER_XY[1], TOP + PT + 0.0008 + BLADE_Z)
 TW_HOME = np.array([TW_XY[0], TW_XY[1], TOP + CUP_FLOOR + 0.0012])
@@ -467,8 +468,9 @@ def demo():
         Waypoint(1.2, _TwAt(np.array(POCKET_PLACE) + [-0.015, 0.0, 0.0], track=False), TW_HOLD, "back the blades out", q),
         Waypoint(1.0, _TwAt(np.array(POCKET_PLACE) + [-0.015, 0.0, 0.03], track=False), TW_HOLD, "up", q),
         Waypoint(3.0, _TwAt(TW_HOME + [0.0, 0.0, 0.06], cup=True), TW_HOLD, "upright again, over the cup", d),
-        Waypoint(1.5, _TwAt(TW_HOME + [0.0, 0.0, 0.002], cup=True, track=False), TW_HOLD, "stand them back in the cup", d),
-        Waypoint(0.6, _TwAt(TW_HOME + [0.0, 0.0, 0.002], cup=True, track=False), TW_WIDE, "let go", d),
+        Waypoint(2.0, _TwAt(TW_HOME + [0.0, 0.0, 0.06], cup=True), TW_HOLD, "line them up over the cup", d),
+        Waypoint(1.5, _TwAt(TW_HOME + [0.0, 0.0, 0.004], cup=True, track=False), TW_HOLD, "lower them into the cup", d),
+        Waypoint(0.6, _TwAt(TW_HOME + [0.0, 0.0, 0.004], cup=True, track=False), TW_WIDE, "let go: they stand in it", d),
         Waypoint(1.2, _TwAt(TW_HOME + [0.0, 0.0, 0.05], cup=True, track=False), TW_WIDE, "up", d),
     ]
     ax, ay = ALIGNER_XY
