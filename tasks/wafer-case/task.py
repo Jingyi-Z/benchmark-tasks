@@ -2,17 +2,16 @@
 tweezers standing tips down in a cup, and a round polypropylene single-wafer case in two pieces: its flat lid lying
 open side up, and its clear domed bottom lying beside it, dome up.
 
-The hotplate: a light grey housing with a 68 x 68 mm aluminium heating plate, edged in red, its top 4 cm above the
+The hotplate: a light grey housing with a 100 x 100 mm aluminium heating plate, edged in red, its top 4 cm above the
 table, and a dark control strip along its front with a red temperature display and two knobs; the wafer lies flat in
-the middle of the plate. A tweezer slot, 18 mm wide and 3 mm deep, is milled into the plate's front edge and runs in
-under the wafer's edge, so the tweezers' lower blade can get under it.
+the middle of the plate, so the tweezers cannot get under its edge until it is slid out over the plate's edge.
 
 The case: the lid is a shallow tray; the wafer rests by its edge on a ledge ring inside a low wall, both open on the
 side towards the robots for the tweezers' blades, and a wide ribbed flange outside the wall takes the domed bottom.
 The bottom is a clear shell, a ribbed skirt under a shallow dome; a bayonet closes the case: the bottom is set on with
 its arrow at the lid's OPEN mark and turned 30 degrees clockwise to the LOCK mark.
 
-The task: with the tweezers, pinch the wafer by its edge over the slot and lay it, pattern side up, in the case's lid;
+The task: with the tweezers, slide the wafer to the plate's edge until it overhangs, pinch it by that edge and lay it, pattern side up, in the case's lid;
 set the domed bottom on and turn it to lock. The gripper never holds the wafer, never touches its top and never
 touches the hotplate's top.
 
@@ -341,8 +340,10 @@ def distance(objects):
 
 # -- scripted demo ----------------------------------------------------------------------------------------------------
 # Right arm, with the tweezers: lifts them out of their cup from above, gripping their two arms near the top, tilts
-# them 45 degrees so the blades lie flat, slides the open blades round the wafer's edge over the hotplate's slot, the
-# lower blade in the slot (closed loop on the tweezers' live tips), pinches it, lifts it and lays it in the case's lid
+# them 45 degrees so the blades lie flat, sets the lower blade down beside the wafer and slides the wafer with the
+# blade's side out over the plate's right edge until it overhangs; goes round to the right, slides the open blades round
+# the overhanging edge (closed loop on the tweezers' live tips and the wafer's seen position), pinches it, lifts it and
+# lays it in the case's lid
 # through the gap in its wall, lets go, backs the blades out, stands the tweezers back in their cup and moves out of
 # the way. Left arm: picks the domed bottom up by its skirt, sets it on the case's lid with its arrow at the OPEN mark
 # (closed loop on the lid's live position) and turns it 30 degrees clockwise to the LOCK mark; lets go.
@@ -426,7 +427,7 @@ BLADE_Z = 0.0022  # the tips' midpoint this far above the wafer's underside: the
 # it (only the upper blade moves as they close), the upper 3 mm over it
 OVERHANG = 0.012  # slide the wafer this far out over the plate's right edge, so the blades can take it from that side
 SLIDE_Y = HP_XY[1] - HP_HALF + WAFER_R - OVERHANG  # the wafer's centre (y) once slid
-PUSH_Z = HP_TOP + 0.0040  # the tips' midpoint while pushing: the open lower blade just clear of the plate
+PUSH_Z = HP_TOP + 0.0050  # the tips' midpoint while pushing: the open lower blade just clear of the plate (seen: it rests on the plate at 4.7 mm)
 PUSH_X = HP_XY[0] + BLADE_L / 2  # the blades' middle level with the wafer's centre
 PUSH_Y0 = HP_XY[1] + WAFER_R + BLADE_W / 2 + 0.004  # start: the lower blade's right side 4 mm from the wafer's rim
 PUSH_Y1 = SLIDE_Y + WAFER_R + BLADE_W / 2 - 0.0005  # end: the wafer pushed to SLIDE_Y
