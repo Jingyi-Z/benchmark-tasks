@@ -176,7 +176,7 @@ def _strips():
 CH_R, CH_T = 0.075, 0.003
 CLIP_P, CLIP_L, CLIP_W, CLIP_T = 0.0595, 0.012, 0.004, 0.0010
 TAB_Z = CH_T + W_T + 0.0003 + CLIP_T / 2  # the tabs' mid-plane: 0.3 mm over the wafer
-KNOB_AT, KNOB_R, KNOB_H = 0.007, 0.0015, 0.005
+KNOB_AT, KNOB_R, KNOB_H = 0.007, 0.0020, 0.008
 CLIP_DEG = (0, 60, 120, 180, 240, 300)
 FLAT_AT = 60.0  # the wafer's flat faces the 60 degree clip
 TAPED_AT, BLOCK_AT, ON_R = 150.0, 210.0, 0.067
@@ -529,10 +529,13 @@ def demo():
         clock[0] += dur
 
     top = TOP + STAND_H + CH_T  # the chuck's sample face
-    knob_z = top + (TAB_Z - CH_T) + CLIP_T / 2 + 0.0028
+    knob_z = top + (TAB_Z - CH_T) + CLIP_T / 2 + 0.0008  # the fingertips just over the tab, low on the knob
 
-    def knob(k, th, back=0.007):
-        """A point ``back`` behind clip k's knob (against its swing) at swing angle th."""
+    def knob(k, th, back=None):
+        """The fingertips' point behind clip k's knob (against its swing) at swing angle th: the closed fingertips are 16
+        mm wide across and 8 mm thick along their closing axis, which lies along the clip's parked direction."""
+        if back is None:
+            back = KNOB_R + 0.0015 + 0.0078 * abs(math.cos(th)) + 0.004 * abs(math.sin(th))
         P, t, n = clip_frame(k)
         kp = P + KNOB_AT * (math.cos(th) * t + math.sin(th) * n)
         d = -math.sin(th) * t + math.cos(th) * n
@@ -627,9 +630,12 @@ def _dbg_eb(env):
     S = labkit._SPECS
     c, w, b = (labkit._part_state(env, S[n]) for n in ("chuck", "wafer", "chip_block"))
     q = wafer_in_chuck(c, w)
+    tp = _tips(env)
+    tl = np.round((0.5 * (tp[0] + tp[1]) - [0, 0, TOP]) * 1000, 0).tolist()
+    tr_ = np.round((0.5 * (tp[2] + tp[3]) - [0, 0, TOP]) * 1000, 0).tolist()
     cl = [round(math.degrees(float(c.joints.get(f"clip{k}", 0.0)))) for k in range(6)]
     fl = "".join(k[0].upper() if _state.get(k) else "." for k in ("dropped", "block_fell", "touched", "block_out", "on_fork", "far", "settled"))
     open("/home/ubuntu/dbg_eb.txt", "a").write(
         f"{_dbgr['n']} t={getattr(_demo, '_plan_clock', 0.0):.1f} ch={np.round((np.asarray(c.pos) - [0, 0, TOP]) * 1000, 1).tolist()} "
         f"cdn={tilt_deg(c.rotation(), True):.1f} wq={np.round(q * 1000, 1).tolist()} blk={np.round((np.asarray(b.pos) - [0, 0, TOP]) * 1000, 1).tolist()} "
-        f"bt={tilt_deg(b.rotation()):.0f} clips={cl} hold={holding_clips(c, w)} gap={_state.get('gap')} tr={np.round(_ct['trim'] * 1000, 1).tolist()} {fl} s={score(None)}\n")
+        f"bt={tilt_deg(b.rotation()):.0f} L={tl} R={tr_} clips={cl} hold={holding_clips(c, w)} gap={_state.get('gap')} tr={np.round(_ct['trim'] * 1000, 1).tolist()} {fl} s={score(None)}\n")
