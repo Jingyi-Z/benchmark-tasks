@@ -9,6 +9,6 @@
   "run_limit": "2,400 steps (2 minutes at 20 Hz)",
   "reset_notes": "One fixed layout; nothing is consumed.",
   "fidelity": "Masks are rigid glass boxes with the chrome and labels drawn on one face (see-through glass material). The holder's vacuum is not simulated: it is a toggle state, and lifting a mask while it is ON is scored as pulling it off. The aligner itself is not modelled, only its pulled-out mask holder.",
-  "scores": "TBD",
-  "media": ""
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": "M-AQPBJJ"
 }
