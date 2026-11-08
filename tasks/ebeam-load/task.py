@@ -200,7 +200,7 @@ def _clip_joint(k):
     c = P + t * CLIP_L / 2
     kb = P + t * KNOB_AT
     return Joint(f"clip{k}", kind="hinge", axis="Z", anchor=(P[0], P[1], TAB_Z), lower=0.0, upper=math.pi / 2,
-                 initial=0.0, friction=0.004, damping=0.002, mass=0.002,
+                 initial=0.0, friction=0.0015, damping=0.001, mass=0.002,
                  boxes=[((c[0], c[1], TAB_Z), (CLIP_L + 0.002, CLIP_W, CLIP_T), STEEL, yaw)],
                  cylinders=[((kb[0], kb[1], TAB_Z + CLIP_T / 2 + KNOB_H / 2), KNOB_R, KNOB_H, DARK)])
 
@@ -214,10 +214,11 @@ _tp = _on(TAPED_AT)
 _tape = [((_tp[0] + sx * 0.0055, _tp[1] + sy * 0.0055, CH_T + 0.00055), (0.004, 0.004, 0.0001), math.radians(45))
          for sx in (-1, 1) for sy in (-1, 1)]
 STAND_XY, STAND_H = (0.20, 0.0), 0.130
+BOSS_R, BOSS_H = 0.020, 0.003  # a locating boss under the chuck's centre, which sits in the stand's socket
 CHUCK_START = np.array([*STAND_XY, TOP + STAND_H])
 CHUCK = part(
     "chuck", pos=tuple(CHUCK_START), mass=0.14, friction=0.9,
-    cylinders=[((0.0, 0.0, CH_T / 2), CH_R, CH_T, ALU),
+    cylinders=[((0.0, 0.0, CH_T / 2), CH_R, CH_T, ALU), ((0.0, 0.0, -BOSS_H / 2), BOSS_R, BOSS_H, ALU),
                *[((*clip_frame(k)[0], (CH_T + TAB_Z) / 2), 0.0022, TAB_Z - CH_T, STEEL) for k in range(6)],
                *[((*clip_frame(k)[0], TAB_Z + CLIP_T / 2 + 0.0006), 0.0025, 0.0012, STEEL) for k in range(6)]],
     boxes=[((*_tp, CH_T + 0.00025), (0.010, 0.010, 0.0005), SI_BACK, math.radians(TAPED_AT))],
@@ -234,8 +235,11 @@ BLOCK = part("chip_block", pos=(CHUCK_START[0] + _bp[0], CHUCK_START[1] + _bp[1]
              boxes=[((0.0, 0.0, BLOCK_H / 2), (0.010, 0.010, BLOCK_H), GLASS),
                     ((0.0, 0.0, BLOCK_H + 0.00025), (0.010, 0.010, 0.0005), SI_BACK)])
 STAND = part("loading_stand", pos=(*STAND_XY, TOP), fixed=True, friction=0.9,
-             boxes=[((0.0, 0.0, (STAND_H - 0.006) / 2), (0.050, 0.050, STAND_H - 0.006), STAND_C),
-                    ((0.0, 0.0, STAND_H - 0.003), (0.120, 0.100, 0.006), STAND_C)])
+             boxes=[((0.0, 0.0, (STAND_H - 0.009) / 2), (0.050, 0.050, STAND_H - 0.009), STAND_C),
+                    ((0.0, 0.0, STAND_H - BOSS_H - 0.003), (0.120, 0.100, 0.006), STAND_C),
+                    # four socket blocks round the chuck's boss: the chuck's back face rests on them
+                    *[((0.0285 * math.cos(a), 0.0285 * math.sin(a), STAND_H - BOSS_H / 2), (0.016, 0.016, BOSS_H),
+                       STAND_C, a) for a in (math.pi / 4, 3 * math.pi / 4, 5 * math.pi / 4, 7 * math.pi / 4)]])
 
 # -- the tray (fixed): a PTFE tray for samples that are not going in, front right. --------------------------------------
 TRAY_XY = (0.13, -0.17)
@@ -265,7 +269,7 @@ OBJECTS = [STAND, CHUCK, WAFER, BLOCK, TRAY, LOADLOCK, LABEL]
 PLANCHECK_BOXES = [
     ("load_lock_wall", (LL_XY[0] + 0.125, 0.0, TOP + 0.100), (0.040, 0.260, 0.200)),
     *[(f"rail{e}", (LL_XY[0] + e * RAIL_X, 0.0, TOP + RAIL_TOP / 2), (0.009, 0.080, RAIL_TOP)) for e in (-1, 1)],
-    ("stand_plate", (*STAND_XY, TOP + STAND_H - 0.003), (0.120, 0.100, 0.006)),
+    ("stand_plate", (*STAND_XY, TOP + STAND_H - BOSS_H - 0.003), (0.120, 0.100, 0.006)),
 ]
 
 # -- scoring ----------------------------------------------------------------------------------------------------------
