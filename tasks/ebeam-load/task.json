@@ -16,6 +16,6 @@
   "run_limit": "2,400 steps (2 minutes at 20 Hz)",
   "reset_notes": "One fixed layout; nothing is consumed. Clips start parked open.",
   "fidelity": "The clip screws are not simulated: a clip holds wherever it is swung, by joint friction, and does not press the wafer, so six pins keep it from sliding. Kapton tape is drawn; the taped chip is part of the chuck. The wafer collides as 16 strips 1 mm inside its outline. The load lock is reduced to its transfer fork and back wall; the lid, pumping and transfer are not part of the task.",
-  "scores": "Dream-1 run: TBD; demo: 1.0",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
   "media": ""
 }
