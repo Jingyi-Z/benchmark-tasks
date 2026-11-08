@@ -538,8 +538,8 @@ def demo():
     def knob(k, th, back=None):
         """The fingertips' point behind clip k's knob (against its swing) at swing angle th: the closed fingertips are 16
         mm wide across and 8 mm thick along their closing axis, which lies along the clip's parked direction."""
-        if back is None:
-            back = KNOB_R + 0.0015 + 0.0078 * abs(math.cos(th)) + 0.004 * abs(math.sin(th))
+        if back is None:  # pressing: the fingertips' face 1 mm into the knob
+            back = KNOB_R - 0.001 + 0.0078 * abs(math.cos(th)) + 0.004 * abs(math.sin(th))
         P, t, n = clip_frame(k)
         kp = P + KNOB_AT * (math.cos(th) * t + math.sin(th) * n)
         d = -math.sin(th) * t + math.cos(th) * n
@@ -550,18 +550,20 @@ def demo():
         yaw = math.atan2(math.sin(yaw), math.cos(yaw))
         if abs(yaw) > math.pi / 2:
             yaw -= math.copysign(math.pi, yaw)
-        s = [_down(knob(k, 0.0) + [0, 0, 0.03], yaw), _down(knob(k, 0.0), yaw)]
-        s += [_down(knob(k, math.radians(a)), yaw) for a in (35.0, 70.0)]
+        clear = KNOB_R + 0.0015 + 0.0078  # lowered beside the knob, 1.5 mm clear of it
+        s = [_down(knob(k, 0.0, clear) + [0, 0, 0.03], yaw), _down(knob(k, 0.0, clear), yaw)]
+        s += [_down(knob(k, math.radians(a)), yaw) for a in (25.0, 50.0, 75.0)]
         # last, past the clip's stop: the fingertips' leading face 1.5 mm into where the knob stands at 90 degrees
         P, t, n = clip_frame(k)
         k90 = P + KNOB_AT * n
         s.append(_down(np.array([*_w(k90 + t * (KNOB_R + 0.004 - 0.0015)), knob_z]), yaw))
         return [(1.5, (s[0][0], FINGER_CLOSED, f"above the {side_label} clip, outside its knob", s[0][1])),
                 (1.0, (s[1][0], FINGER_CLOSED, "fingertips down beside the knob", s[1][1])),
-                (1.0, (s[2][0], FINGER_CLOSED, "swing the clip in", s[2][1])),
-                (1.0, (s[3][0], FINGER_CLOSED, "swing the clip in", s[3][1])),
-                (1.0, (s[4][0], FINGER_CLOSED, "against its stop: the tip over the wafer's edge", s[4][1])),
-                (0.8, (tuple(np.asarray(s[4][0]) + [0, 0, 0.03]), FINGER_CLOSED, "up", s[4][1]))]
+                (0.8, (s[2][0], FINGER_CLOSED, "swing the clip in", s[2][1])),
+                (0.8, (s[3][0], FINGER_CLOSED, "swing the clip in", s[3][1])),
+                (0.8, (s[4][0], FINGER_CLOSED, "swing the clip in", s[4][1])),
+                (1.0, (s[5][0], FINGER_CLOSED, "against its stop: the tip over the wafer's edge", s[5][1])),
+                (0.8, (tuple(np.asarray(s[5][0]) + [0, 0, 0.03]), FINGER_CLOSED, "up", s[5][1]))]
 
     # the block: right hand, fingers closing across it along the rim (tangential)
     bp = np.array([*_w(_bp), top + BLOCK_H / 2])
