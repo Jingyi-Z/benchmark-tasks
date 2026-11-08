@@ -1,8 +1,8 @@
 """Loading an e-beam evaporator's load lock. On a loading stand lies the evaporator's aluminium sample chuck, face up,
 with a patterned 100 mm wafer on it (pattern up) and six swing clips round it, all parked open. The wafer's primary flat
 faces one of the clips. Also on the chuck: a 10 mm chip taped down by its corners (Kapton), and a 10 mm chip mounted on
-a 3 mm glass block. Beside the stand, the load lock's transfer fork waits with its lid open, and a label card reads LOAD
-LOCK / MAX 1.5 MM: nothing on the chuck may stand more than 1.5 mm proud, or it jams during the transfer.
+a 3 mm glass block. Beside the stand waits the load lock's transfer fork, and a label card beside it reads MAX 1.5 MM:
+nothing on the chuck may stand more than 1.5 mm proud, or it jams during the transfer.
 
 The task, as in a Lesker PVD load-lock SOP: take off the chip on the glass block (too tall), clip the wafer by its edge
 (the clips must bite on the round edge, not on the flat, and enough of them to hold it face down), then turn the chuck
@@ -263,10 +263,10 @@ LOADLOCK = part(
              for e in (-1, 1)],
            ((0.125, 0.0, 0.100), (0.040, 0.260, 0.200), STEEL)],
 )
-CARD_XY, CARD_SIZE, CARD_PIX = (0.37, -0.20), (0.075, 0.150, 0.002), 0.0026
+CARD_XY, CARD_SIZE, CARD_PIX = (0.37, 0.20), (0.068, 0.140, 0.002), 0.0036  # 25 mm letters, readable from above
 LABEL = part("height_label", pos=(*CARD_XY, TOP), fixed=True,
              boxes=[((0.0, 0.0, CARD_SIZE[2] / 2), CARD_SIZE, CARD)],
-             meshes=[_boxes_mesh(_card_text(("LOAD LOCK", "MAX 1.5 MM"), CARD_PIX, CARD_SIZE[2] + 0.0003), INK)])
+             meshes=[_boxes_mesh(_card_text(("MAX", "1.5 MM"), CARD_PIX, CARD_SIZE[2] + 0.0003), INK)])
 MAX_PROUD = 0.0015
 
 OBJECTS = [STAND, CHUCK, WAFER, BLOCK, TRAY, LOADLOCK, LABEL]

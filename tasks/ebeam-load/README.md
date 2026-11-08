@@ -11,7 +11,7 @@ On a loading stand lies the evaporator's aluminium chuck, face up. On it are:
 - a 10 mm chip taped down by its corners with Kapton;
 - a 10 mm chip mounted on a 3 mm glass block.
 
-Beside the stand is the load lock's transfer fork, and a card on the bench reads LOAD LOCK / MAX 1.5 MM.
+Beside the stand is the load lock's transfer fork, and a card on the bench beside it reads MAX 1.5 MM.
 
 The task follows a Lesker PVD load-lock SOP:
 
