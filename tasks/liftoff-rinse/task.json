@@ -17,5 +17,5 @@
   "reset_notes": "One fixed layout. Liquids are not simulated, so nothing is consumed; in a real trial refill and swap the solvents and empty the dish.",
   "fidelity": "Liquids are drawn, not simulated: baths, drips and pouring are scored from the cassette's and dish's poses (in a beaker, over a mouth, over the dish, dish tipped over the funnel). Lift-off itself is not simulated; the wafers are drawn on the cassette. Soak times are shortened to fit the 2 minute run. Beaker walls collide as thin boxes.",
   "scores": "Dream-1 run: 0.0; demo: 1.0",
-  "media": ""
+  "media": "M-AUUETB"
 }
