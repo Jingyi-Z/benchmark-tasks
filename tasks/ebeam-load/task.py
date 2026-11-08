@@ -180,6 +180,7 @@ KNOB_AT, KNOB_R, KNOB_H = 0.007, 0.0020, 0.008
 CLIP_DEG = (0, 60, 120, 180, 240, 300)
 FLAT_AT = 60.0  # the wafer's flat faces the 60 degree clip
 TAPED_AT, BLOCK_AT, ON_R = 150.0, 210.0, 0.067
+PIN_DEG, PIN_R = (30, 90, 150, 210, 270, 330), W_R + 0.0003 + 0.0010
 
 
 def clip_frame(k):
@@ -220,7 +221,9 @@ CHUCK = part(
     "chuck", pos=tuple(CHUCK_START), mass=0.14, friction=0.9,
     cylinders=[((0.0, 0.0, CH_T / 2), CH_R, CH_T, ALU), ((0.0, 0.0, -BOSS_H / 2), BOSS_R, BOSS_H, ALU),
                *[((*clip_frame(k)[0], (CH_T + TAB_Z) / 2), 0.0022, TAB_Z - CH_T, STEEL) for k in range(6)],
-               *[((*clip_frame(k)[0], TAB_Z + CLIP_T / 2 + 0.0006), 0.0025, 0.0012, STEEL) for k in range(6)]],
+               *[((*clip_frame(k)[0], TAB_Z + CLIP_T / 2 + 0.0006), 0.0025, 0.0012, STEEL) for k in range(6)],
+               # six locating pins between the clips, just outside the wafer's round edge (0.3 mm clear)
+               *[((*_on(a, PIN_R), CH_T + 0.00075), 0.0010, 0.0015, STEEL) for a in PIN_DEG]],
     boxes=[((*_tp, CH_T + 0.00025), (0.010, 0.010, 0.0005), SI_BACK, math.radians(TAPED_AT))],
     meshes=[_boxes_mesh(_tape, KAPTON)],
     joints=[_clip_joint(k) for k in range(6)],
