@@ -9,6 +9,6 @@
   "run_limit": "2,400 steps (2 minutes at 20 Hz)",
   "reset_notes": "One fixed layout; nothing is consumed. The tape itself is not part of the task.",
   "fidelity": "Wafers drawn 1 mm thick with real masses; they collide as 16 thin strips just inside the rim, so the flats are visual only. Tweezers are two rigid halves on a sprung slide. The vacuum and tape are not simulated: vacuum is a toggle state, scored only.",
-  "scores": "TBD",
-  "media": ""
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": "M-PD3GRX"
 }
