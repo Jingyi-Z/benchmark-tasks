@@ -1,0 +1,21 @@
+{
+  "title": "Gold lift-off on a wet bench: dedicated beaker, solvent rinse order, and catching every drip",
+  "category": "Impact on jobs",
+  "keywords": [
+    "cleanroom",
+    "lift-off",
+    "wet bench",
+    "solvent rinse",
+    "bimanual",
+    "contamination"
+  ],
+  "instruction": "Lift off the gold on the wafers in the cassette and rinse them, leaving them in the last rinse and any waste in the waste bottle.",
+  "context": "After metal evaporation, lift-off is done in a beaker kept only for it, so flakes never reach the general acetone; the wafers must not dry between acetone and IPA, and solvent drips are caught and go to the waste bottle.",
+  "setup": "Wet bench (station table). Four 800 ml borosilicate beakers (100 mm across, 135 mm tall, 60 mm of liquid) in a row at x 0.33 m: ACE (acetone) at y -0.275, LIFT-OFF (acetone) at -0.17, IPA at -0.065, DI WATER at 0.04; each has a side label and a white 90 x 70 mm label card on the bench in front of it (ACE, LIFT OFF, IPA, DI; 25 mm letters). A PFA cassette (54 mm square, 40 mm frame, 8 mm round handle bar 106 mm up, along y, 150 g) holds two 2 inch silicon wafers flat, gold-over-resist side down, on a PTFE tray (80 x 90 x 4 mm) at (0.15, -0.20). A PTFE drip dish (100 mm across, 15 mm deep, 45 x 24 x 8 mm tab towards the robots, 60 g) rests on a PTFE stand (60 mm across, 130 mm tall) at (0.33, 0.15). A 4 L HDPE waste bottle (170 mm across, 170 mm body, WASTE label) with a polypropylene funnel (120 mm mouth, rim 235 mm up) at (0.42, 0.29). Beakers, cards, tray, stand and bottle are fixed.",
+  "scoring": "Measured at the end, once the cassette and dish have been still (under 1 mm) for 1 s; 0 if not. The cassette counts as in a beaker with its centre within 30 mm of the axis and its feet within 30 mm of the floor, and is wet from its first bath on. 0 if the wet cassette was ever in the ACE beaker or within 40 mm of its axis; out of the liquid, not within 40 mm of a beaker's axis and not within 35 mm of the level drip dish's centre above its rim; tipped over 30 degrees; a fingertip came within 4 mm of a wafer; or the dish, holding drips, tipped past 30 degrees not over the funnel. Otherwise: 0.25 for a first bath of at least 12 s in LIFT-OFF; 0.5 if the next bath, started within 15 s of leaving LIFT-OFF, is at least 5 s in IPA; 0.75 if the next is at least 5 s in DI WATER, with no other bath, and the cassette is in it at the end; 1.0 if also the dish was tipped past 60 degrees with its centre within 50 mm of the funnel's axis after its last catch, is back on its stand (within 15 mm and 10 degrees), and all fingertips are 8 cm from the handle bar and the dish's tab.",
+  "run_limit": "2,400 steps (2 minutes at 20 Hz)",
+  "reset_notes": "One fixed layout. Liquids are not simulated, so nothing is consumed; in a real trial refill and swap the solvents and empty the dish.",
+  "fidelity": "Liquids are drawn, not simulated: baths, drips and pouring are scored from the cassette's and dish's poses (in a beaker, over a mouth, over the dish, dish tipped over the funnel). Lift-off itself is not simulated; the wafers are drawn on the cassette. Soak times are shortened to fit the 2 minute run. Beaker walls collide as thin boxes.",
+  "scores": "Dream-1 run: TBD; demo: TBD",
+  "media": ""
+}
