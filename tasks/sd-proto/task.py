@@ -28,7 +28,7 @@ ALU = (0.74, 0.75, 0.77)
 
 # the screw: head 7 mm across, 2.5 mm tall, two ridges 1.5 mm tall either side of a 1.2 mm slot (along y at joint 0)
 S_XY, S_TOP = (0.22, -0.10), 0.060
-HEAD_R, HEAD_H, SLOT, RIDGE = 0.0035, 0.0025, 0.0012, (0.0012, 0.007, 0.0015)
+HEAD_R, HEAD_H, SLOT, RIDGE = 0.0045, 0.0025, 0.0012, (0.0012, 0.009, 0.0015)
 SCREW = part(
     "screw_block", pos=(*S_XY, TOP), fixed=True, friction=0.6,
     boxes=[((0.0, 0.0, S_TOP / 2), (0.040, 0.040, S_TOP), ALU)],
@@ -115,6 +115,37 @@ def _tcp(tip_xy, tip_z):
     return (tip_xy[0], tip_xy[1], tip_z + GRIP_UP + TIP_ABOVE_TCP)
 
 
+# what the demo sees of the screwdriver: while held still over the screw, the hand's aim is trimmed by how far the blade
+# tip is from the screw's axis
+_ct = {"trim": np.zeros(3), "wins": [], "last": None}
+
+
+@on_reset
+def _reset_ct(env):
+    _ct["trim"] = np.zeros(3)
+    _ct["last"] = None
+
+
+@on_step
+def _ctrack(env):
+    t = getattr(_demo, "_plan_clock", 0.0)
+    win = next((w for w in _ct["wins"] if w[0] <= t < w[1]), None)
+    p = np.asarray(labkit._part_state(env, labkit._SPECS["screwdriver"]).pos, float)
+    last, _ct["last"] = _ct["last"], p
+    if win is None or last is None or np.max(np.abs(p - last)) > 0.0005:
+        return
+    e = np.array([S_XY[0] - p[0], S_XY[1] - p[1], 0.0])
+    _ct["trim"] = np.clip(_ct["trim"] + np.clip(0.2 * e, -0.0003, 0.0003), -0.01, 0.01)
+
+
+class _Dyn:
+    def __init__(self, tcp):
+        self.tcp = np.asarray(tcp, float)
+
+    def __array__(self, dtype=None, copy=None):
+        return np.asarray(self.tcp + _ct["trim"], dtype=dtype or float)
+
+
 def demo():
     r = []
     z0 = SD_START[2]
@@ -126,15 +157,19 @@ def demo():
         Waypoint(0.8, _tcp(SD_XY, z0), HOLD, "hold", a0),
         Waypoint(1.5, _tcp(SD_XY, z0 + 0.08), HOLD, "lift it out of its holder", a0),
         Waypoint(2.5, _tcp(S_XY, TOP + hz + 0.02), HOLD, "over the screw, blade along the slot", a0),
-        Waypoint(1.2, _tcp(S_XY, TOP + hz), HOLD, "blade into the slot", a0),
+        Waypoint(2.0, _Dyn(_tcp(S_XY, TOP + hz + 0.006)), HOLD, "hold still, blade seen over the slot", a0),
+        Waypoint(1.0, _Dyn(_tcp(S_XY, TOP + hz)), HOLD, "blade into the slot", a0),
     ]
+    _ct["trim"] = np.zeros(3)
+    t0 = sum(w.duration for w in r[:-2])
+    _ct["wins"] = [(t0 + 0.8, t0 + 2.0)]
     for stroke in range(2):
         for k in range(1, 7):
-            r.append(Waypoint(0.6, _tcp(S_XY, TOP + hz - 0.0004), HOLD, "turn", a0 + math.pi * k / 6))
-        r.append(Waypoint(0.6, _tcp(S_XY, TOP + hz + 0.006), HOLD, "lift the blade out", a0 + math.pi))
+            r.append(Waypoint(0.6, _Dyn(_tcp(S_XY, TOP + hz - 0.0004)), HOLD, "turn", a0 + math.pi * k / 6))
+        r.append(Waypoint(0.6, _Dyn(_tcp(S_XY, TOP + hz + 0.006)), HOLD, "lift the blade out", a0 + math.pi))
         for k in (4, 2, 0):
-            r.append(Waypoint(0.8, _tcp(S_XY, TOP + hz + 0.006), HOLD, "turn back", a0 + math.pi * k / 6))
-        r.append(Waypoint(0.8, _tcp(S_XY, TOP + hz), HOLD, "blade back in the slot", a0))
+            r.append(Waypoint(0.8, _Dyn(_tcp(S_XY, TOP + hz + 0.006)), HOLD, "turn back", a0 + math.pi * k / 6))
+        r.append(Waypoint(0.8, _Dyn(_tcp(S_XY, TOP + hz)), HOLD, "blade back in the slot", a0))
     r.append(Waypoint(1.5, _tcp(S_XY, TOP + hz + 0.02), HOLD, "up", a0))
     r.append(Waypoint(2.0, _tcp(S_XY, TOP + hz + 0.02), HOLD, "rest", a0))
     left = [Waypoint(sum(w.duration for w in r), (0.15, 0.25, TOP + 0.16), FINGER_OPEN, "stay clear")]
@@ -158,5 +193,5 @@ def _dbg_sd(env):
     R = sd.rotation()
     yaw = math.degrees(math.atan2(R[1, 1], R[0, 1]))
     open("/home/ubuntu/dbg_sd.txt", "a").write(
-        f"{_dbgr['n']} t={getattr(_demo, '_plan_clock', 0.0):.1f} screw={math.degrees(_state.get('angle', 0.0)):.0f} "
+        f"{_dbgr['n']} tr={np.round(_ct['trim'] * 1000, 1).tolist()} t={getattr(_demo, '_plan_clock', 0.0):.1f} screw={math.degrees(_state.get('angle', 0.0)):.0f} "
         f"sd={np.round((np.asarray(sd.pos) - [0, 0, TOP]) * 1000, 1).tolist()} tilt={math.degrees(math.acos(max(-1, min(1, R[2, 2])))):.1f} yaw={yaw:.0f}\n")
