@@ -33,9 +33,11 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
 
 Scripted demo: the same command with `--policy yam_scripted`. The right tweezers take the wafer out of its carrier and
 stand it on edge; the left tweezers take its top edge from behind and turn it over, so it hangs pattern side down from
-blades that are above it, and lay it on the chuck through the recess. The right hand then switches the vacuum on. A
-wafer cannot be turned face down in one pair of tweezers and still be laid down by them, so the hand-over is needed.
-The demo reads only what the cameras see: the wafer's pose and the tweezers' tips. Run one trial per process.
+blades that are above it, trim their aim by the wafer's seen position over the chuck and lay it on the chuck through
+the recess. The left hand stands its tweezers back in their cup and switches the vacuum on; the right hand keeps its
+tweezers, out of the way. A wafer cannot be turned face down in one pair of tweezers and still be laid down by them, so
+the hand-over is needed (found with an IK search: one arm cannot turn the held wafer over on its own). The demo reads
+only what the cameras see: the wafer's pose and the tweezers' tips. Run one trial per process.
 
 The score is `task_score` in the log, computed by `score()` in `task.py`.
 
