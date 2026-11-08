@@ -196,7 +196,7 @@ CARDS = [part(f"card_{n.split('_')[1]}", pos=(CARD_X, xy[1], TOP), fixed=True,
 C_XY, C_H = 0.054, 0.040  # its square footprint (corners 9 mm inside a beaker) and its frame height
 W_R, W_T = 0.0254, 0.0006
 SLOT_Z = (0.012, 0.026)  # the wafers' mid-planes above the feet
-HANDLE_H = 0.040  # the handle bar's top above the frame's top
+HANDLE_H = 0.070  # the handle bar's top above the frame's top
 BAR_R, BAR_L = 0.004, 0.050
 SI = (0.55, 0.56, 0.60)
 _pc = C_XY / 2 - 0.004  # the posts' centres from the middle
@@ -497,7 +497,7 @@ RIGHT_PARK = (0.15, -0.25, TOP + 0.16)
 OPEN_W = -0.016
 HOLD = -0.0025  # a hand holding: the right squeezes the 8 mm bar, the left the 8 mm tab, firmly
 R_HOLD, L_HOLD = -0.0015, -0.0012
-R_ROT = axis_angle_matrix(Y, math.radians(-35.0)) @ _prev_grip(math.pi / 2)  # down, tilted 35 deg back, across y
+R_ROT = axis_angle_matrix(Y, math.radians(-40.0)) @ _prev_grip(math.pi / 2)  # down, tilted 40 deg back, across y
 _la = X
 L_ROT = np.column_stack([Z, np.cross(_la, Z), _la])  # pointing +x, fingers closing vertically on the tab
 CARRY = B_H + 0.045  # the cassette's feet this far above the bench while carried (the dish passes 20 mm under it)
@@ -611,16 +611,15 @@ def demo():
     ph(1.3, (_rtcp(_cas(di, rim)), HOLD, "down to just over the rim", rr))
     ph(1.0, None, None, see=_cas(di, rim))
     ph(2.0, (_rtcp(_cas(di, seat)), HOLD, "down into DI", rr))
-    ph(1.5, (_rtcp(_cas(di, seat - 0.001)), HOLD, "rinse", rr),
-       (_ltcp(dish((ROW_X, 0.21), 0.22)), HOLD, "up and away from the right hand", lr))
+    ph(0.8, (_rtcp(_cas(di, seat - 0.001)), OPEN_W, "let go: it stands in the DI water", rr))
+    ph(1.5, (tuple(np.array(_rtcp(_cas(di, seat))) + [0, 0, 0.10]), OPEN_W, "straight up", rr))
+    ph(1.5, (RIGHT_PARK, FINGER_OPEN, "park", 0.0),
+       (_ltcp(dish((ROW_X, 0.21), 0.29)), HOLD, "up and away from the beakers", lr))
     ph(2.0, None, (tuple(pour_tcp), HOLD, "over the funnel", lr))
     ph(2.0, None, (tuple(pour_tcp), HOLD, "pour", Orient(axis_angle_matrix(X, POUR_ROLL) @ L_ROT)))
     ph(1.5)
     ph(2.0, None, (tuple(pour_tcp), HOLD, "level again", lr))
-    ph(2.0, (_rtcp(_cas(di, seat - 0.001)), OPEN_W, "let go: it stands in the DI water", rr),
-       (_ltcp(dish((ROW_X, 0.21), 0.22)), HOLD, "wait aside", lr))
-    ph(1.5, (tuple(np.array(_rtcp(_cas(di, seat))) + [0, 0, 0.08]), OPEN_W, "straight up", rr))
-    ph(1.5, (RIGHT_PARK, FINGER_OPEN, "park", 0.0))
+    ph(1.5, None, (_ltcp(dish((ROW_X, 0.21), 0.29)), HOLD, "back from the funnel", lr))
     ph(1.5, None, (_ltcp(dish(STAND_XY, STAND_H + 0.03)), HOLD, "over its stand", lr))
     ph(1.2, None, (_ltcp(dish(STAND_XY, STAND_H + 0.001)), HOLD, "on its stand", lr))
     ph(0.8, None, (_ltcp(dish(STAND_XY, STAND_H)), OPEN_W, "let go", lr))
