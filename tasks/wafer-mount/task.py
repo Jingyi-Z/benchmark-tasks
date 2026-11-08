@@ -314,7 +314,7 @@ OBJECTS = [*CARRIERS, *WAFERS, R_CUP, L_CUP, R_TW, L_TW, MOUNTER, VAC_SWITCH]
 WAFER_NAMES = [w.name for w in WAFERS]
 
 # -- scoring ----------------------------------------------------------------------------------------------------------
-CENTRE_TOL = 0.0015  # the wafer's centre within 1.5 mm of the chuck's centre
+CENTRE_TOL = 0.002  # the wafer's centre within 2 mm of the chuck's centre (centred by eye on the grooves)
 SEAT_TOL = 0.0012  # its mid-plane within 1.2 mm of where it lies on the chuck
 FACE_TILT = 3.0  # its pattern side facing straight down, within 3 degrees
 FLAT_TOL = math.radians(2.0)  # its primary flat within 2 degrees of facing the frame's flat side
@@ -410,7 +410,7 @@ def score(objects):
     """0 if a wafer's pattern was ever touched by the gripper, a wafer was ever held by the gripper itself or dropped,
     another wafer is on the mounter, or the wafers have not all been still (under 1 mm of movement) for the last
     second. Otherwise, with the n-type (100) wafer on the chuck pattern side down (within 3 degrees), its centre
-    within 1.5 mm of the chuck's centre: 1.0 if its primary flat faces the frame's flat side within 2 degrees, the
+    within 2 mm of the chuck's centre: 1.0 if its primary flat faces the frame's flat side within 2 degrees, the
     wafer vacuum is ON and both hands and both tweezers are 8 cm from the chuck's centre; 0.75 if all that but a
     hand or tweezers still at the chuck; 0.5 if the flat is right but the vacuum is OFF; 0.25 if the flat is off. 0
     if it is not on the chuck that way."""
@@ -559,7 +559,8 @@ def _track(env):
     prev, _seen["w_prev"] = _seen.get("w_prev"), p
     if win and win[0] <= t < win[1] and prev is not None and np.linalg.norm(p - prev) < 0.0002:
         tr = _seen.setdefault("wtrim", np.zeros(3))
-        tr[:2] = np.clip(tr[:2] + np.clip(0.2 * (PLACE_C[:2] - p[:2]), -0.0003, 0.0003), -0.02, 0.02)
+        aim = PLACE_C[:2] - [0.0, SETTLE_Y]
+        tr[:2] = np.clip(tr[:2] + np.clip(0.2 * (aim - p[:2]), -0.0003, 0.0003), -0.02, 0.02)
 
 
 class _At:
@@ -629,6 +630,7 @@ TURN_AX, TURN_ANG = _turn_axis()
 TURN_STEPS = 8
 L_H1 = -math.pi / 2  # the left tweezers' heading laying the wafer down
 PLACE_C = CHUCK_C + [0.0, 0.0, WAFER_T / 2 + 0.0006]
+SETTLE_Y = 0.0015  # the wafer settles this far towards the recess (+y) as the blades let go: aimed short of it
 
 
 def _r_roll(k):
@@ -739,9 +741,9 @@ def demo():
     t0 = _dur(left)
     left += [
         _wp(2.0, "l", lay(0.02), TW_PINCH, "down over the chuck"),
-        _wp(2.5, "l", lay(0.02), TW_PINCH, "line it up over the chuck, seen against the chuck"),
+        _wp(3.5, "l", lay(0.02), TW_PINCH, "line it up over the chuck, seen against the chuck"),
     ]
-    _seen["trim_win"] = (t0 + 1.0, _dur(left))
+    _seen["trim_win"] = (t0 + 0.8, _dur(left))
     left += [
         _wp(1.5, "l", lay(0.0), TW_PINCH, "lay it on the chuck, the lower blade in the recess", False),
         _wp(0.8, "l", lay(0.0), TW_HOLD, "let go: open the blades", False),
