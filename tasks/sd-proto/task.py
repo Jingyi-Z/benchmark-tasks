@@ -44,7 +44,7 @@ SCREW = part(
 H_R, H_L, SH_R, SH_L = 0.007, 0.050, 0.0025, 0.060
 BLADE = (0.0008, 0.005, 0.004)  # thickness along x, width along y, height
 SD_XY = (0.15, -0.20)
-COLLAR_Z = 0.045  # the collar's top above the bench: the handle's bottom rests on it
+COLLAR_Z = 0.070  # the collar's top above the bench: the handle's bottom rests on it, the tip 10 mm up
 SD_START = np.array([*SD_XY, TOP + COLLAR_Z - SH_L])
 SCREWDRIVER = part(
     "screwdriver", pos=tuple(SD_START), mass=0.04, friction=1.0,
@@ -96,6 +96,15 @@ def distance(objects):
 
 
 # -- demo -------------------------------------------------------------------------------------------------------------
+_prev_action7 = _demo.ArmPlan.action7
+if not getattr(_prev_action7, "_clock", False):
+    def _action7(self, t, _prev=_prev_action7):
+        _demo._plan_clock = float(t)
+        return _prev(self, t)
+
+    _action7._clock = True
+    _demo.ArmPlan.action7 = _action7
+
 TIP_ABOVE_TCP = 0.013
 OPEN_W, HOLD = -0.018, -0.0055  # round the 14 mm handle
 GRIP_UP = SH_L + 0.030  # the fingertips this far above the blade's tip (on the handle's lower part)
@@ -133,6 +142,12 @@ def demo():
 
 
 # --- debug (not for submission) ---
+def _rtip(env):
+    from yam_arena import runtime as _rt
+    b = env.unwrapped
+    o = b.scene.env_origins[0].cpu().numpy()
+    return np.round((_rt.pad_tips_world(b.scene["right_robot"]) - o - [0, 0, TOP]) * 1000, 0).tolist()
+
 _dbgr = {"n": 0}
 @on_step
 def _dbg_sd(env):
