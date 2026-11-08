@@ -27,7 +27,7 @@ RED = (0.75, 0.15, 0.12)
 ALU = (0.74, 0.75, 0.77)
 
 # the screw: head 7 mm across, 2.5 mm tall, two ridges 1.5 mm tall either side of a 1.2 mm slot (along y at joint 0)
-S_XY, S_TOP = (0.22, -0.10), 0.100
+S_XY, S_TOP = (0.22, -0.10), 0.060
 HEAD_R, HEAD_H, SLOT, RIDGE = 0.0035, 0.0025, 0.0012, (0.0012, 0.007, 0.0015)
 SCREW = part(
     "screw_block", pos=(*S_XY, TOP), fixed=True, friction=0.6,
