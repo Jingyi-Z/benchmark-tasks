@@ -1,13 +1,14 @@
 {
   "title": "Swap the layer 1 chrome mask for layer 2 on a mask aligner's holder, chrome side down",
   "category": "Impact on jobs",
-  "keywords": ["cleanroom", "photolithography", "chrome mask", "bimanual", "mirror text"],
+  "keywords": ["cleanroom", "photolithography", "chrome mask", "mirror text", "bimanual", "vacuum"],
   "instruction": "Swap the mask on the holder for the LAYER 2 mask, chrome side down against the stops, and leave the mask vacuum on.",
-  "context": "TBD",
-  "setup": "TBD",
-  "scoring": "TBD",
+  "context": "Chrome masks look the same from both sides: only the chrome label, which reads correctly from the chrome side and mirrored through the glass, shows which side faces the wafer; a mask held by vacuum cannot be lifted.",
+  "setup": "Station table. Mask holder (fixed): aluminium plate 160 x 100 x 6 mm with a 104 x 60 mm window, top 110 mm above the bench, centred at (0.22, 0), on a 60 x 50 mm column; two 6 mm steel stop pins at its back edge (x +63.5 mm, y +-35 mm). On it, the LAYER 1 mask: 127 x 127 x 2.3 mm soda-lime glass (93 g) with a 9 x 9 chrome die array and a chrome 'LAYER 1' label on its underside (chrome side down), against the pins. Mask rack (fixed) behind it at (0.365, 0): padded 100 x 90 mm shelves 110 mm (LAYER 2 mask, chrome side up, label readable) and 210 mm (empty, LAYER 1's) above the bench, on a back post. MASK VACUUM toggle on a 30 x 24 x 30 mm box at (0.12, -0.12), tilted forward (ON).",
+  "scoring": "Measured at the end, once both masks and the toggle have been still (under 1 mm) for 1 s; 0 if not. 0 if a fingertip ever came within 4 mm of either face of a mask over its central 100 mm patterned square, a mask fell below its supports, or the LAYER 1 mask moved over 1 mm off the holder while the vacuum toggle was not OFF (tilted back past 11 degrees). 0 if LAYER 1 is not lying flat on the upper shelf (centre within 15 mm). Otherwise 0.25; 0.5 if LAYER 2 lies on the holder chrome side down (within 2 degrees); 0.75 if it is also square to the holder (1.5 degrees), centred across it (1.5 mm) and its back edge within 1 mm of both pins; 1.0 if the mask vacuum is also ON (tilted forward past 11 degrees) and both hands' fingertips are 8 cm from the holder's centre.",
   "run_limit": "2,400 steps (2 minutes at 20 Hz)",
-  "fidelity": "TBD",
+  "reset_notes": "One fixed layout; nothing is consumed.",
+  "fidelity": "Masks are rigid glass boxes with the chrome and labels drawn on one face (see-through glass material). The holder's vacuum is not simulated: it is a toggle state, and lifting a mask while it is ON is scored as pulling it off. The aligner itself is not modelled, only its pulled-out mask holder.",
   "scores": "TBD",
   "media": ""
 }
