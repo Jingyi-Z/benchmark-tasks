@@ -495,13 +495,47 @@ TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.15, 0.25, TOP + 0.16)
 RIGHT_PARK = (0.15, -0.25, TOP + 0.16)
 OPEN_W = -0.016
-HOLD = -0.0025  # on the 8 mm bar or the 8 mm tab
+HOLD = -0.0025  # a hand holding: the right squeezes the 8 mm bar, the left the 8 mm tab, firmly
+R_HOLD, L_HOLD = -0.0015, -0.0012
 R_ROT = axis_angle_matrix(Y, math.radians(-30.0)) @ _prev_grip(math.pi / 2)  # down, tilted 30 deg back, across y
 _la = X
 L_ROT = np.column_stack([Z, np.cross(_la, Z), _la])  # pointing +x, fingers closing vertically on the tab
-CARRY = B_H + 0.035  # the cassette's feet this far above the bench while carried (the dish passes 20 mm under it)
-DISH_Z = B_H + 0.008  # the dish's underside this far up while it works over the beakers (3 mm over its stand)
+CARRY = B_H + 0.050  # the cassette's feet this far above the bench while carried (the dish passes 20 mm under it)
+DISH_Z = B_H + 0.015  # the dish's underside this far up while it works over the beakers (10 mm over its stand)
 POUR_ROLL = math.radians(100.0)
+
+
+# what the demo sees of the cassette: while the right hand holds it still over a beaker, its aim is trimmed by how far
+# the cassette hangs from where it should (grip offset and the arm's sag under load), so it goes down the beaker's middle
+_ct = {"trim": np.zeros(3), "wins": [], "last": None}
+
+
+@on_reset
+def _reset_ct(env):
+    _ct["trim"] = np.zeros(3)
+    _ct["last"] = None
+
+
+@on_step
+def _ctrack(env):
+    t = getattr(_demo, "_plan_clock", 0.0)
+    win = next((w for w in _ct["wins"] if w[0] <= t < w[1]), None)
+    p = np.asarray(labkit._part_state(env, labkit._SPECS["cassette"]).pos, float)
+    last, _ct["last"] = _ct["last"], p
+    if win is None or last is None or np.max(np.abs(p - last)) > 0.0005:
+        return
+    e = np.asarray(win[2], float) - p
+    _ct["trim"] = np.clip(_ct["trim"] + np.clip(0.2 * e, -0.0003, 0.0003), -0.025, 0.025)
+
+
+class _Dyn:
+    """A TCP plus the live cassette trim."""
+
+    def __init__(self, tcp):
+        self.tcp = np.asarray(tcp, float)
+
+    def __array__(self, dtype=None, copy=None):
+        return np.asarray(self.tcp + _ct["trim"], dtype=dtype or float)
 
 
 def _rtcp(cas_origin, back=0.0):
@@ -523,15 +557,27 @@ def demo():
     lift, ipa, di = (BEAKERS[n][0] for n in ORDER)
     seat = B_FLOOR + 0.002
     R, L = [], []
+    _ct["trim"], _ct["wins"] = np.zeros(3), []
+    clock = [0.0]
 
-    def ph(dur, r=None, l=None):
-        """One step of the shared timeline: each hand moves to its new target or holds where it is."""
-        for plan, w in ((R, r), (L, l)):
-            plan.append(Waypoint(dur, *w) if w else Waypoint(dur, plan[-1].pos, plan[-1].finger, "hold", plan[-1].yaw))
+    def ph(dur, r=None, l=None, see=None):
+        """One step of the shared timeline: each hand moves to its new target or holds where it is. With ``see`` (the
+        cassette's origin as it should be), the right hand's aim is trimmed by the cassette's seen position meanwhile."""
+        for plan, w, hold in ((R, r, R_HOLD), (L, l, L_HOLD)):
+            if w:
+                pos, finger = w[0], (hold if w[1] == HOLD else w[1])
+                if plan is R and finger == R_HOLD and len(R) > 3:
+                    pos = _Dyn(pos)
+                plan.append(Waypoint(dur, pos, finger, *w[2:]))
+            else:
+                plan.append(Waypoint(dur, plan[-1].pos, plan[-1].finger, "hold", plan[-1].yaw))
+        if see is not None:
+            _ct["wins"].append((clock[0], clock[0] + dur, np.asarray(see, float)))
+        clock[0] += dur
 
     d0 = np.array([*STAND_XY, TOP + STAND_H])
     dish = lambda xy, z=DISH_Z: np.array([xy[0], xy[1], TOP + z])  # noqa: E731
-    pre_g1, g1, over_di, g2, out = (ROW_X, -0.08), (ROW_X, -0.1225), (ROW_X, 0.02), (ROW_X, -0.0275), (ROW_X, 0.15)
+    pre_g1, g1, over_di, g2, out = (ROW_X, -0.08), (ROW_X, -0.1225), (ROW_X, 0.15), (ROW_X, -0.0275), (ROW_X, 0.15)
     pour_tcp = np.array([JUG_XY[0] + TAB_TIPS[0] - TIP_ABOVE_TCP, JUG_XY[1], TOP + 0.30])
     s = CASSETTE_START
     up = np.array([0.0, 0.0, 0.07])
@@ -544,18 +590,19 @@ def demo():
        (_ltcp(dish(STAND_XY)), HOLD, "lift the dish off its stand", lr))
     ph(3.0, (_rtcp(_cas(lift, CARRY)), HOLD, "over the LIFT-OFF beaker", rr),
        (_ltcp(dish(pre_g1)), HOLD, "wait beside the LIFT-OFF beaker's mouth", lr))
+    ph(2.5, None, None, see=_cas(lift, CARRY))
     ph(2.0, (_rtcp(_cas(lift, seat)), HOLD, "down into LIFT-OFF", rr))
     ph(SOAK["beaker_liftoff"] + 1.0, (_rtcp(_cas(lift, seat - 0.001)), HOLD, "soak", rr))
     ph(2.0, (_rtcp(_cas(lift, CARRY)), HOLD, "lift it out over the mouth", rr))
     ph(1.2, None, (_ltcp(dish(g1)), HOLD, "dish under the gap to IPA", lr))
     ph(2.0, (_rtcp(_cas(ipa, CARRY)), HOLD, "across to IPA over the dish", rr))
-    ph(1.2, None, (_ltcp(dish(over_di)), HOLD, "dish on along, out of the way", lr))
+    ph(1.5, None, (_ltcp(dish(over_di)), HOLD, "dish on along, out of the way", lr), see=_cas(ipa, CARRY))
     ph(1.8, (_rtcp(_cas(ipa, seat)), HOLD, "down into IPA", rr))
     ph(SOAK["beaker_ipa"] + 1.0, (_rtcp(_cas(ipa, seat - 0.001)), HOLD, "soak", rr))
     ph(2.0, (_rtcp(_cas(ipa, CARRY)), HOLD, "lift it out", rr))
     ph(1.2, None, (_ltcp(dish(g2)), HOLD, "dish under the gap to DI", lr))
     ph(2.0, (_rtcp(_cas(di, CARRY)), HOLD, "across to DI over the dish", rr))
-    ph(1.5, None, (_ltcp(dish(out)), HOLD, "dish on along, over its stand", lr))
+    ph(1.5, None, (_ltcp(dish(out)), HOLD, "dish on along, over its stand", lr), see=_cas(di, CARRY))
     ph(2.0, (_rtcp(_cas(di, seat)), HOLD, "down into DI", rr))
     ph(1.5, (_rtcp(_cas(di, seat - 0.001)), HOLD, "rinse", rr),
        (_ltcp(dish((ROW_X, 0.19), 0.22)), HOLD, "up and away from the right hand", lr))
@@ -591,4 +638,4 @@ def _dbg_lo(env):
     open("/home/ubuntu/dbg_lo.txt", "a").write(
         f"{_dbgr['n']} t={_state['t']:.1f} cas={np.round((np.asarray(c.pos) - [0, 0, TOP]) * 1000, 1).tolist()} "
         f"ct={tilt_deg(c.rotation()):.1f} dish={np.round((np.asarray(d.pos) - [0, 0, TOP]) * 1000, 1).tolist()} "
-        f"dt={tilt_deg(d.rotation()):.1f} cur={_state['cur']} {fl} k={progress()} s={score(None)}\n")
+        f"dt={tilt_deg(d.rotation()):.1f} tr={np.round(_ct['trim']*1000,1).tolist()} cur={_state['cur']} {fl} k={progress()} s={score(None)}\n")
