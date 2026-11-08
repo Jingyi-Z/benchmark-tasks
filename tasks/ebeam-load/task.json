@@ -1,0 +1,21 @@
+{
+  "title": "Load an e-beam evaporator's chuck into its load lock: clip the wafer where clips can hold it, and nothing too tall",
+  "category": "Impact on jobs",
+  "keywords": [
+    "cleanroom",
+    "e-beam evaporation",
+    "load lock",
+    "wafer clips",
+    "bimanual",
+    "flip"
+  ],
+  "instruction": "Load the chuck into the e-beam evaporator's load lock, ready for deposition.",
+  "context": "Sample chucks hang face down over the sources, so a wafer must be clipped by its round edge with enough clips to hold it, and anything taller than the load lock's limit jams the transfer.",
+  "setup": "Station table. Loading stand at (0.20, 0) m, its plate 130 mm high. On it an aluminium chuck (150 mm across, 3 mm, 140 g), face up, with six steel swing clips every 60 degrees (12 mm tabs on posts 59.5 mm out, parked along the rim, swing in 90 degrees to a stop), all open, and six steel locating pins between them, 0.3 mm outside the wafer's round edge; a locating boss under the chuck sits in the stand's socket. On the chuck: a patterned 100 mm silicon wafer, pattern up, centred, its primary flat facing the 60 degree clip; a 10 mm silicon chip held by Kapton tape at its corners (150 degrees); a 10 mm chip on a 3 mm glass block, loose (210 degrees). A PTFE tray (80 x 80 mm) at (0.13, -0.17). Load lock bay at (0.37, 0): base plate, a transfer fork of two steel rails 141 mm apart with tops 130 mm high, chamber wall behind; a white card on the bench at (0.37, -0.20) reads LOAD LOCK / MAX 1.5 MM. Stand, tray, load lock and card are fixed.",
+  "scoring": "Measured at the end, once the chuck, wafer and glass block have been still (under 1 mm) for 1 s; 0 if not. 0 if the wafer ever left its seat on the chuck (centre over 6 mm off, or lifted over 4 mm), the glass block ever tipped past 45 degrees, or a fingertip came within 4 mm of the wafer's pattern (inside its 5 mm edge exclusion). 0 unless the chip on the glass block is off the chuck and out of the load lock bay, lying flat on the bench or tray. Otherwise 0.25; 0.5 if the clips holding the wafer (swung in past 80 degrees, their tips at least 1.5 mm inside its outline) leave no gap over 150 degrees round it; 0.75 if also the chuck lies face down on the transfer fork (within 5 degrees, centre within 4 mm); 1.0 if also every fingertip is 8 cm from the chuck's centre.",
+  "run_limit": "2,400 steps (2 minutes at 20 Hz)",
+  "reset_notes": "One fixed layout; nothing is consumed. Clips start parked open.",
+  "fidelity": "The clip screws are not simulated: a clip holds wherever it is swung, by joint friction, and does not press the wafer, so six pins keep it from sliding. Kapton tape is drawn; the taped chip is part of the chuck. The wafer collides as 16 strips 1 mm inside its outline. The load lock is reduced to its transfer fork and back wall; the lid, pumping and transfer are not part of the task.",
+  "scores": "Dream-1 run: TBD; demo: 1.0",
+  "media": ""
+}
