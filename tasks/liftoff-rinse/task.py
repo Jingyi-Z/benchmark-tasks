@@ -149,9 +149,9 @@ def _wrap_band(width, height, r, z):
     return out
 
 
-# -- the beakers (fixed): 600 ml borosilicate glass, 90 mm across, 125 mm tall, filled to 60 mm (about 350 ml); each
+# -- the beakers (fixed): 800 ml borosilicate glass, 100 mm across, 135 mm tall, filled to 60 mm (about 420 ml); each
 # with a white label round its front (towards the robots). Frame: origin on the table under the beaker's centre. ------
-B_OUT, B_WALL, B_H, FILL = 0.045, 0.0025, 0.125, 0.060
+B_OUT, B_WALL, B_H, FILL = 0.050, 0.0025, 0.135, 0.060
 B_FLOOR = 0.003
 N_SEG = 36
 ROW_X = 0.33
@@ -172,10 +172,10 @@ def _beaker(name, xy, tag):
 
 
 BEAKERS = {  # name: (xy, side label, card lines)
-    "beaker_acetone": ((ROW_X, -0.265), "ACETONE", ("ACE",)),
+    "beaker_acetone": ((ROW_X, -0.275), "ACETONE", ("ACE",)),
     "beaker_liftoff": ((ROW_X, -0.17), "LIFT-OFF", ("LIFT", "OFF")),
-    "beaker_ipa": ((ROW_X, -0.075), "IPA", ("IPA",)),
-    "beaker_di": ((ROW_X, 0.02), "DI WATER", ("DI",)),
+    "beaker_ipa": ((ROW_X, -0.065), "IPA", ("IPA",)),
+    "beaker_di": ((ROW_X, 0.04), "DI WATER", ("DI",)),
 }
 BEAKER_PARTS = [_beaker(n, xy, t) for n, (xy, t, _) in BEAKERS.items()]
 ORDER = ("beaker_liftoff", "beaker_ipa", "beaker_di")
@@ -193,7 +193,7 @@ CARDS = [part(f"card_{n.split('_')[1]}", pos=(CARD_X, xy[1], TOP), fixed=True,
 # -- the cassette (loose): a small PFA lift-off cassette for 2 inch wafers: four corner posts with slot tabs holding two
 # wafers flat, PATTERN SIDE DOWN (gold over resist underneath, so what lifts off falls away from the pattern; the bare
 # silicon backs face up), and a round handle bar on top (along y). Frame: origin on the bottom of its feet. ------------
-C_XY, C_H = 0.054, 0.040  # its square footprint (corners 4 mm inside a beaker) and its frame height
+C_XY, C_H = 0.054, 0.040  # its square footprint (corners 9 mm inside a beaker) and its frame height
 W_R, W_T = 0.0254, 0.0006
 SLOT_Z = (0.012, 0.026)  # the wafers' mid-planes above the feet
 HANDLE_H = 0.040  # the handle bar's top above the frame's top
@@ -245,7 +245,7 @@ TRAY = part("tray", pos=(*TRAY_XY, TOP), fixed=True, friction=0.8,
 D_R, D_H, D_WALL = 0.050, 0.015, 0.003
 TAB = ((-(D_R - 0.0025) - 0.0225, 0.0, 0.011), (0.045, 0.024, 0.008))
 TAB_TIPS = np.array([-0.072, 0.0, 0.011])  # where the fingertips sit on the tab, 20 mm in from its end
-STAND_XY, STAND_H = (ROW_X, 0.13), 0.130
+STAND_XY, STAND_H = (ROW_X, 0.15), 0.130
 _dn = 24
 DISH = part(
     "drip_dish", pos=(*STAND_XY, TOP + STAND_H), mass=0.06, friction=0.9,
@@ -285,7 +285,7 @@ PLANCHECK_BOXES = [  # for the offline plan check only: world-frame, axis-aligne
 
 # -- scoring ----------------------------------------------------------------------------------------------------------
 SOAK = {"beaker_liftoff": 12.0, "beaker_ipa": 5.0, "beaker_di": 5.0}  # minimum soaks, s (shortened for the 2 min run)
-DRY_LIMIT = 10.0  # s: out of liquid between LIFT-OFF and IPA, or the acetone dries on the wafers
+DRY_LIMIT = 15.0  # s: out of liquid between LIFT-OFF and IPA, or the acetone dries on the wafers
 IN_XY = 0.030  # the cassette counts as in a beaker with its centre within 30 mm of the beaker's axis
 IN_Z = 0.030  # and its feet within 30 mm of the beaker's floor (the wafers then under the liquid)
 MOUTH = 0.040  # out of the liquid, the cassette drips into a beaker while its centre is within 40 mm of its axis
@@ -429,7 +429,7 @@ def score(objects):
     not over a beaker's mouth and not over the drip dish), the wet dish was tipped past 30 degrees anywhere but over the
     funnel, the cassette tipped over 30 degrees, a wafer was touched by the gripper, or the cassette and dish have not
     been still (under 1 mm) for the last second. Otherwise by how far the baths went right, in order: 0.25 for a first
-    soak of at least 12 s in LIFT-OFF; 0.5 if it then went into IPA within 10 s of leaving LIFT-OFF and soaked at least
+    soak of at least 12 s in LIFT-OFF; 0.5 if it then went into IPA within 15 s of leaving LIFT-OFF and soaked at least
     5 s; 0.75 if it then went into DI WATER, soaked at least 5 s and stands in it at the end, with no other bath visited;
     1.0 if, in addition, the dish was emptied into the funnel (tipped past 60 degrees over it) after its last catch, is
     back on its stand, and both hands' fingertips are 8 cm from the cassette's handle bar and the dish's tab."""
@@ -497,10 +497,10 @@ RIGHT_PARK = (0.15, -0.25, TOP + 0.16)
 OPEN_W = -0.016
 HOLD = -0.0025  # a hand holding: the right squeezes the 8 mm bar, the left the 8 mm tab, firmly
 R_HOLD, L_HOLD = -0.0015, -0.0012
-R_ROT = axis_angle_matrix(Y, math.radians(-30.0)) @ _prev_grip(math.pi / 2)  # down, tilted 30 deg back, across y
+R_ROT = axis_angle_matrix(Y, math.radians(-35.0)) @ _prev_grip(math.pi / 2)  # down, tilted 35 deg back, across y
 _la = X
 L_ROT = np.column_stack([Z, np.cross(_la, Z), _la])  # pointing +x, fingers closing vertically on the tab
-CARRY = B_H + 0.050  # the cassette's feet this far above the bench while carried (the dish passes 20 mm under it)
+CARRY = B_H + 0.045  # the cassette's feet this far above the bench while carried (the dish passes 20 mm under it)
 DISH_Z = B_H + 0.015  # the dish's underside this far up while it works over the beakers (10 mm over its stand)
 POUR_ROLL = math.radians(100.0)
 
@@ -577,7 +577,8 @@ def demo():
 
     d0 = np.array([*STAND_XY, TOP + STAND_H])
     dish = lambda xy, z=DISH_Z: np.array([xy[0], xy[1], TOP + z])  # noqa: E731
-    pre_g1, g1, over_di, g2, out = (ROW_X, -0.08), (ROW_X, -0.1225), (ROW_X, 0.15), (ROW_X, -0.0275), (ROW_X, 0.15)
+    pre_g1, g1, over_di, g2, out = (ROW_X, -0.03), (ROW_X, -0.1175), STAND_XY, (ROW_X, -0.0125), STAND_XY
+    rim = B_H + 0.008
     pour_tcp = np.array([JUG_XY[0] + TAB_TIPS[0] - TIP_ABOVE_TCP, JUG_XY[1], TOP + 0.30])
     s = CASSETTE_START
     up = np.array([0.0, 0.0, 0.07])
@@ -590,28 +591,34 @@ def demo():
        (_ltcp(dish(STAND_XY)), HOLD, "lift the dish off its stand", lr))
     ph(3.0, (_rtcp(_cas(lift, CARRY)), HOLD, "over the LIFT-OFF beaker", rr),
        (_ltcp(dish(pre_g1)), HOLD, "wait beside the LIFT-OFF beaker's mouth", lr))
-    ph(2.5, None, None, see=_cas(lift, CARRY))
+    ph(2.0, None, None, see=_cas(lift, CARRY))
+    ph(1.5, (_rtcp(_cas(lift, rim)), HOLD, "down to just over the rim", rr))
+    ph(1.2, None, None, see=_cas(lift, rim))
     ph(2.0, (_rtcp(_cas(lift, seat)), HOLD, "down into LIFT-OFF", rr))
     ph(SOAK["beaker_liftoff"] + 1.0, (_rtcp(_cas(lift, seat - 0.001)), HOLD, "soak", rr))
     ph(2.0, (_rtcp(_cas(lift, CARRY)), HOLD, "lift it out over the mouth", rr))
     ph(1.2, None, (_ltcp(dish(g1)), HOLD, "dish under the gap to IPA", lr))
     ph(2.0, (_rtcp(_cas(ipa, CARRY)), HOLD, "across to IPA over the dish", rr))
-    ph(1.5, None, (_ltcp(dish(over_di)), HOLD, "dish on along, out of the way", lr), see=_cas(ipa, CARRY))
+    ph(1.2, None, (_ltcp(dish(over_di)), HOLD, "dish on along, out of the way", lr), see=_cas(ipa, CARRY))
+    ph(1.3, (_rtcp(_cas(ipa, rim)), HOLD, "down to just over the rim", rr))
+    ph(1.0, None, None, see=_cas(ipa, rim))
     ph(1.8, (_rtcp(_cas(ipa, seat)), HOLD, "down into IPA", rr))
     ph(SOAK["beaker_ipa"] + 1.0, (_rtcp(_cas(ipa, seat - 0.001)), HOLD, "soak", rr))
     ph(2.0, (_rtcp(_cas(ipa, CARRY)), HOLD, "lift it out", rr))
     ph(1.2, None, (_ltcp(dish(g2)), HOLD, "dish under the gap to DI", lr))
     ph(2.0, (_rtcp(_cas(di, CARRY)), HOLD, "across to DI over the dish", rr))
     ph(1.5, None, (_ltcp(dish(out)), HOLD, "dish on along, over its stand", lr), see=_cas(di, CARRY))
+    ph(1.3, (_rtcp(_cas(di, rim)), HOLD, "down to just over the rim", rr))
+    ph(1.0, None, None, see=_cas(di, rim))
     ph(2.0, (_rtcp(_cas(di, seat)), HOLD, "down into DI", rr))
     ph(1.5, (_rtcp(_cas(di, seat - 0.001)), HOLD, "rinse", rr),
-       (_ltcp(dish((ROW_X, 0.19), 0.22)), HOLD, "up and away from the right hand", lr))
+       (_ltcp(dish((ROW_X, 0.21), 0.22)), HOLD, "up and away from the right hand", lr))
     ph(2.0, None, (tuple(pour_tcp), HOLD, "over the funnel", lr))
     ph(2.0, None, (tuple(pour_tcp), HOLD, "pour", Orient(axis_angle_matrix(X, POUR_ROLL) @ L_ROT)))
     ph(1.5)
     ph(2.0, None, (tuple(pour_tcp), HOLD, "level again", lr))
     ph(2.0, (_rtcp(_cas(di, seat - 0.001)), OPEN_W, "let go: it stands in the DI water", rr),
-       (_ltcp(dish((ROW_X, 0.19), 0.22)), HOLD, "wait aside", lr))
+       (_ltcp(dish((ROW_X, 0.21), 0.22)), HOLD, "wait aside", lr))
     ph(1.5, (tuple(np.array(_rtcp(_cas(di, seat))) + [0, 0, 0.08]), OPEN_W, "straight up", rr))
     ph(1.5, (RIGHT_PARK, FINGER_OPEN, "park", 0.0))
     ph(1.5, None, (_ltcp(dish(STAND_XY, STAND_H + 0.03)), HOLD, "over its stand", lr))
