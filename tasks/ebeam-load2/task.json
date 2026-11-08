@@ -1,0 +1,23 @@
+{
+  "title": "Load a 4 inch wafer into an e-beam evaporator's load lock",
+  "category": "Impact on jobs",
+  "keywords": [
+    "cleanroom",
+    "e-beam evaporation",
+    "load lock",
+    "vacuum",
+    "screwdriver",
+    "wafer clips",
+    "bimanual",
+    "flip"
+  ],
+  "instruction": "Load the wafer into the e-beam evaporator's load lock, ready for deposition, and pump it down.",
+  "context": "Samples hang face down over the sources, so the wafer must be centred and clipped by its round edge with screws tightened, a too-long screw left out, and the load lock vented before opening and held shut while it pumps.",
+  "setup": "",
+  "scoring": "",
+  "run_limit": "4,000 steps (200 s at 20 Hz)",
+  "reset_notes": "One fixed layout; nothing is consumed. Clips start parked open with loose screws; the load lock starts under vacuum with its door shut.",
+  "fidelity": "",
+  "scores": "Dream-1 run: TBD; demo: TBD",
+  "media": ""
+}
