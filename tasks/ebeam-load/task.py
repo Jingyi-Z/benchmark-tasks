@@ -551,7 +551,11 @@ def demo():
         if abs(yaw) > math.pi / 2:
             yaw -= math.copysign(math.pi, yaw)
         s = [_down(knob(k, 0.0) + [0, 0, 0.03], yaw), _down(knob(k, 0.0), yaw)]
-        s += [_down(knob(k, math.radians(a)), yaw) for a in (35.0, 70.0, 100.0)]
+        s += [_down(knob(k, math.radians(a)), yaw) for a in (35.0, 70.0)]
+        # last, past the clip's stop: the fingertips' leading face 1.5 mm into where the knob stands at 90 degrees
+        P, t, n = clip_frame(k)
+        k90 = P + KNOB_AT * n
+        s.append(_down(np.array([*_w(k90 + t * (KNOB_R + 0.004 - 0.0015)), knob_z]), yaw))
         return [(1.5, (s[0][0], FINGER_CLOSED, f"above the {side_label} clip, outside its knob", s[0][1])),
                 (1.0, (s[1][0], FINGER_CLOSED, "fingertips down beside the knob", s[1][1])),
                 (1.0, (s[2][0], FINGER_CLOSED, "swing the clip in", s[2][1])),
