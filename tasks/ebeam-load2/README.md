@@ -42,7 +42,7 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
     inspect-robots run --embodiment yam_arena --policy dream \
         -E task=$PWD/task.py -E object_jitter=0 -E control_hz=20 \
         --instruction "$(python -c 'import json;print(json.load(open("task.json"))["instruction"])')" \
-        --scorer task_score --max-steps 6000 --store-frames --log-dir logs
+        --scorer task_score --max-steps 6600 --store-frames --log-dir logs
 
 Scripted demo: the same command with `--policy yam_scripted`. The demo reads only what a camera sees: the wafer's,
 plate's, ring's, door handle's and screwdriver tip's positions and the screw slots' directions. Run one trial per
@@ -50,5 +50,5 @@ process. The score is `task_score` in the log, computed by `score()` in `task.py
 
 ## Runtime and seeds
 
-- 6,000 control steps (300 s of simulated time) per trial. The scripted demo finishes in about 275 s.
+- 6,600 control steps (330 s of simulated time) per trial. The scripted demo finishes in about 310 s.
 - One fixed starting layout: run with `-E object_jitter=0`. No other randomness.
