@@ -1003,8 +1003,9 @@ def demo():
         """Right takes the twist lock's T-bar from the front and turns it from r0 to r1 (degrees)."""
         t0, o0 = front(kp, math.radians(r0))
         t1, o1 = front(kp, math.radians(r1))
-        return [(2.5, tuple(np.asarray(t0) - [0.05, 0, 0]), BAR_OPEN, "in front of the door's twist lock, hand turned",
-                 o0),
+        return [(2.5, tuple(np.asarray(t0) + [-0.06, 0, 0.12]), BAR_OPEN, "high in front of the door's twist lock, "
+                 "hand turned", o0),  # high: the wrist turns well clear of the plate
+                (1.2, tuple(np.asarray(t0) - [0.05, 0, 0]), BAR_OPEN, "in front of the twist lock", o0),
                 (1.2, t0, BAR_OPEN, "fingers round its bar", o0),
                 (0.5, t0, BAR_HOLD, "hold it", o0),
                 (2.0, t1, BAR_HOLD, what, o1),
