@@ -324,7 +324,8 @@ LOADLOCK = part("load_lock", pos=(_cx, 0.0, TOP), fixed=True, friction=0.8,
 DOOR_X, DOOR_Z0, DOOR_Z1 = LL_X0 - 0.005, 0.095, 0.305
 HANDLE_X, HANDLE_Z, HANDLE_W = DOOR_X - 0.025, 0.200, 0.012
 DOOR_UP = 0.215  # fully open
-DOOR_M = 0.25  # kg, counterbalanced: it stays where it is left
+DOOR_M = 0.25  # kg
+COUNTER, LOCK_K = 1.06, 4000.0  # its counterweight (times its weight); the vacuum's hold (N/m)
 DOOR = part(
     "door", pos=(DOOR_X, 0.0, TOP), fixed=True, friction=1.0,
     boxes=[((0.0, 0.0, 0.003), (0.004, 0.004, 0.006), DARK)],
@@ -409,21 +410,34 @@ _hist = []
 def _reset_state(env):
     _state.clear()
     _state.update(step=0, pstate="vac", vent_step=None, seal_step=None, seal_ok=False, sealed=False, viol=set(),
-                  pressed={"vent": False, "pump": False}, tight={}, settled=False, far=True, gap=360.0,
+                  pressed={"vent": False, "pump": False}, tight={}, locked=None, settled=False, far=True, gap=360.0,
                   centred=False, stack=False, door=0.0, sd_in=False)
     _hist.clear()
     _counterbalance(env)
 
 
 def _counterbalance(env):
-    """The door hangs on a counterweight, like a sash window: an upward force equal to its weight."""
+    """The door hangs on a counterweight a little heavier than itself (a sash window): left alone, it rises to its top
+    stop. The load lock's vacuum holds it shut: locked at reset."""
     import torch
 
     door = env.unwrapped.scene["door"]
     ids = door.find_bodies("door")[0]
     f = torch.zeros((1, len(ids), 3), device=door.device)
-    f[..., 2] = DOOR_M * 9.81
+    f[..., 2] = DOOR_M * 9.81 * COUNTER
     door.set_external_force_and_torque(f, torch.zeros_like(f), body_ids=ids, is_global=True)
+    _lock(env, True)
+
+
+def _lock(env, on):
+    """Vacuum in the load lock pulls the door onto its seat (a stiff spring to closed); at air it is free."""
+    import torch
+
+    if _state.get("locked") == on:
+        return
+    door = env.unwrapped.scene["door"]
+    door.write_joint_stiffness_to_sim(torch.full((1, 1), LOCK_K if on else 0.0, device=door.device))
+    _state["locked"] = on
 
 
 def _tips(env):
@@ -529,9 +543,11 @@ def _watch(env):
                     st["viol"].add("pumped with the door open")
                 else:
                     st["pstate"], st["seal_step"], st["seal_ok"], st["sealed"] = "vac", n, True, False
+                    _lock(env, True)
         st["pressed"][b] = down
     if st["pstate"] == "venting" and (n - st["vent_step"]) * DT >= VENT_S:
         st["pstate"] = "air"
+        _lock(env, False)
     if door > DOOR_SHUT and st["pstate"] != "air":
         st["viol"].add("door opened before the load lock reached air")
     if st["seal_step"] is not None and not st["sealed"]:
@@ -738,7 +754,7 @@ LEFT_PARK = (0.20, 0.22, TOP + 0.22)
 RIGHT_PARK = (0.20, -0.22, TOP + 0.22)
 OPEN_W = -0.014
 PINCH = -0.0020  # squeezing 5.5 mm: plate and ring, or the ring's rim and skirt
-SD_OPEN, SD_HOLD = -0.012, -0.0012  # round the 5 mm shaft
+SD_OPEN, SD_HOLD = -0.030, -0.0012  # round the 5 mm shaft (wide open past the 12 mm handle)
 BAR_OPEN, BAR_HOLD = -0.016, -0.0045  # round the 12 mm handle bar
 SD_GRIP = 0.018  # the fingertips' ends this far above the blade's tip
 CLIPS_USED = {"left": (0, 3), "right": (6,)}  # 0, 135 and 270 degrees
@@ -889,7 +905,8 @@ def demo():
     pl.window(pl.t - 3.0, pl.t, "push", lambda env: np.array([*seen_off(env)[:2], 0.0]), "wafer")
     back = tuple(np.asarray(p_near[0]) - [*(u * 0.010), 0] + [0, 0, 0.0])
     pl.phase(right=[(0.8, _Dyn(back, "push"), FINGER_CLOSED, "back off the wafer's edge", p_start[1]),
-                    (1.0, _Dyn(tuple(np.asarray(back) + [0, 0, 0.04]), "push"), FINGER_CLOSED, "up", p_start[1])])
+                    (1.0, _Dyn(tuple(np.asarray(back) + [0, 0, 0.04]), "push"), FINGER_CLOSED, "up", p_start[1]),
+                    (1.5, (back[0], back[1], TOP + 0.30), FINGER_CLOSED, "up high, clear of the plate", p_start[1])])
     vent_at = t0 + 4.3  # VENT pressed (end of its press)
 
     # -- 1. right lifts the door, once the load lock has had 10 s to vent ---------------------------------------------------
@@ -961,7 +978,7 @@ def demo():
         s += [_down(knob(k, math.radians(a)), yaw) for a in (25.0, 50.0, 75.0)]
         P, t, n = clip_frame(k)
         k90 = P + KNOB_AT * n
-        s.append(_down(_pw((*(k90 + t * (KNOB_R + 0.004 - 0.0015)), knob_z - face)), yaw))
+        s.append(_down(_pw((*(k90 + t * (KNOB_R + 0.004 - 0.003)), knob_z - face)), yaw))
         return [(1.5, s[0][0], FINGER_CLOSED, f"above the {label} clip, outside its knob", s[0][1]),
                 (1.0, s[1][0], FINGER_CLOSED, "fingertips down beside the knob", s[1][1]),
                 (0.8, s[2][0], FINGER_CLOSED, "swing the clip in", s[2][1]),
