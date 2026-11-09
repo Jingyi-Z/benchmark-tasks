@@ -245,7 +245,7 @@ def _clip_joints(k):
     cyl = [((P[0], P[1], hz), HEAD_R, HEAD_H, STEEL)]
     if up:
         cyl.append(((P[0], P[1], TAB_TOP + up / 2), 0.0019, up, STEEL))
-    screw = Joint(f"screw{k}", kind="hinge", axis="Z", anchor=(P[0], P[1], TAB_Z), lower=-7.0, upper=0.05,
+    screw = Joint(f"screw{k}", kind="hinge", axis="Z", anchor=(P[0], P[1], TAB_Z), lower=-10.0, upper=0.05,
                   initial=0.0, friction=0.001, damping=0.0005, mass=0.002, parent=f"clip{k}", cylinders=cyl,
                   boxes=[((P[0] + e * (SLOT / 2 + RIDGE[0] / 2) * nrm[0], P[1] + e * (SLOT / 2 + RIDGE[0] / 2) * nrm[1], rz),
                           RIDGE, STEEL, s - math.pi / 2) for e in (-1, 1)])
@@ -323,7 +323,7 @@ DOOR_X, DOOR_Z0, DOOR_Z1 = LL_X0 - 0.005, 0.095, 0.325
 HANDLE_X, HANDLE_Z, HANDLE_W = DOOR_X - 0.025, 0.200, 0.012
 DOOR_UP = 0.250  # fully open: its bottom edge 25 mm over the opening
 DOOR_M = 0.25  # kg
-COUNTER, CATCH_K = 2.0, 4000.0  # its counterweight (times its weight); the catch's hold when shut (N/m)
+COUNTER, CATCH_K = 1.3, 4000.0  # its counterweight (times its weight); the catch's hold when shut (N/m)
 DOOR = part(
     "door", pos=(DOOR_X, 0.0, TOP), fixed=True, friction=1.0,
     boxes=[((0.0, 0.0, 0.003), (0.004, 0.004, 0.006), DARK)],
@@ -369,6 +369,7 @@ PLANCHECK_BOXES = [
 
 # -- scoring ----------------------------------------------------------------------------------------------------------
 DOOR_SHUT = 0.003  # the door counts as shut within 3 mm of its seat
+DOOR_CATCH = 0.012  # its catch takes it within 12 mm of its seat and pulls it shut
 CLIP_IN = math.radians(80.0)
 BITE = 0.0020  # a clip's tip at least 2 mm inside the wafer's outline holds it
 GAP_MAX = 150.0
@@ -502,7 +503,7 @@ def _watch(env):
                      ("sample_plate", "wafer", "ring_holder", "door", "screwdriver"))
     door = float(d.joints.get("door", 0.0))
     st["door"] = door
-    if door <= DOOR_SHUT:
+    if door <= DOOR_CATCH:
         _lock(env, True)
     tips = _tips(env)
     hp = handle_pos(door)
@@ -575,7 +576,7 @@ def distance(objects):
 # -- scripted demo ----------------------------------------------------------------------------------------------------
 # Right: pushes the wafer to the plate's centre by its edge. Both: take the ring holder off the load lock's holder and set
 # it on the plate. Left swings in the 0 and 135 degree clips, right the 270 degree one (the 90 degree one faces the flat;
-# the 225 degree one has the long screw). Right takes the screwdriver and tightens the three screws, two strokes each,
+# the 225 degree one has the long screw). Right takes the screwdriver and tightens the three screws, three strokes each,
 # then puts it back. Both pinch the plate and ring by their side edges, lift them, roll them over together, carry them
 # into the load lock and set them on its holder. Right pulls the door down onto its catch; both move away. Aims are
 # trimmed only by what a camera sees: the wafer's, plate's, ring's and screwdriver tip's positions, and the screw's slot
@@ -707,7 +708,7 @@ SD_OPEN, SD_HOLD = -0.030, -0.0012  # round the 5 mm shaft (wide open past the 1
 BAR_OPEN, BAR_HOLD = -0.016, -0.0045  # round the 12 mm handle bar
 SD_GRIP = 0.018  # the fingertips' ends this far above the blade's tip
 CLIPS_USED = {"left": (0, 3), "right": (6,)}  # 0, 135 and 270 degrees
-STROKE_TOP, STROKE = 145.0, 190.0  # hand yaw at the start of each tightening stroke, and how far it turns
+STROKE_TOP, STROKE, STROKES = 145.0, 190.0, 3  # hand yaw at the start of each tightening stroke, and how far it turns
 FLIP = {"right": True, "left": False}
 ROLL_SIGN = -1.0
 LIFT_Z = 0.27  # the stack's centre this high (above the bench) while it is rolled over
@@ -735,7 +736,7 @@ def _look_at_slot(env):
     """Between strokes, with the blade lifted just over the screw, look at the slot and at the blade (both visible from
     above) and note how far the blade must turn to line up with the slot again (degrees, -90 to 90)."""
     t = getattr(_demo, "_plan_clock", 0.0)
-    for t0, t1, k in _ct["looks"]:
+    for t0, t1, k, n in _ct["looks"]:
         if t0 <= t < t1:
             p = labkit._part_state(env, labkit._SPECS["sample_plate"])
             Rp = p.rotation()
@@ -743,14 +744,14 @@ def _look_at_slot(env):
                     + math.degrees(float(p.joints.get(f"clip{k}", 0.0)) + float(p.joints.get(f"screw{k}", 0.0))))
             Rs = labkit._part_state(env, labkit._SPECS["screwdriver"]).rotation()
             blade = math.degrees(math.atan2(Rs[1, 1], Rs[0, 1]))
-            _ct["turn"][k] = _wrap180(slot - blade)
+            _ct["turn"][(k, n)] = _wrap180(slot - blade)
 
 
 class _SlotYaw(float):
     """A Waypoint ``yaw`` for the second stroke: the planned hand yaw shifted so that the blade lines up with the slot as
     last seen (by a multiple of 180 degrees, kept near the stroke's planned start)."""
 
-    def __new__(cls, k, yaw, start, end):
+    def __new__(cls, k, yaw, start, end):  # k: (clip, look)
         obj = float.__new__(cls, 0.0)
         obj.k, obj.yaw, obj.start, obj.end = k, yaw, start, end
         return obj
@@ -989,21 +990,21 @@ def demo():
         tw0 = pl.t + 2.5
         seq += [(2.0, _Dyn(sd_tcp(xy, head + 0.005), key), SD_HOLD, "hold still, the blade's tip seen over the slot",
                  yaws[0]),
-                (1.0, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade into the slot", yaws[0])]
+                (1.5, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade into the slot", yaws[0])]
         y_end = y0 - math.radians(STROKE)
-        dyn = [_SlotYaw(k, y0 - math.radians(STROKE) * i / 6, y0, y_end) for i in range(7)]
-        for stroke in range(2):
-            ys = yaws if stroke == 0 else dyn
+        ys = yaws
+        for stroke in range(STROKES):
             seq += [(0.6, _Dyn(sd_tcp(xy, head - 0.0010), key), SD_HOLD, "turn it clockwise", ys[i])
                     for i in range(1, 7)]
             seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "lift the blade out", ys[6]))
-            if stroke == 0:
+            if stroke < STROKES - 1:
                 t_look = pl.t + sum(w[0] for w in seq)
-                _ct["looks"].append((t_look, t_look + 0.6, k))
-                seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "look at the slot", yaws[6]))
-                seq += [(0.8, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "turn back", dyn[i]) for i in (4, 2, 0)]
-                seq.append((0.8, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade back in the slot", dyn[0]))
-        seq.append((1.2, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "up", yaws[6]))
+                _ct["looks"].append((t_look, t_look + 0.6, k, stroke))
+                seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "look at the slot", ys[6]))
+                ys = [_SlotYaw((k, stroke), y0 - math.radians(STROKE) * i / 6, y0, y_end) for i in range(7)]
+                seq += [(0.8, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "turn back", ys[i]) for i in (4, 2, 0)]
+                seq.append((1.0, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade back in the slot", ys[0]))
+        seq.append((1.2, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "up", ys[6]))
         pl.phase(right=seq)
         pl.window(tw0 + 0.6, pl.t - 1.2, key, lambda env, P=P: np.array([*(_pw((*P, 0.0))[:2]
                                                                             - _seen(env, "screwdriver")[:2]), 0.0]),
@@ -1055,8 +1056,8 @@ def demo():
                     (2.0, b3, BAR_OPEN, "in front of the raised door's handle", bo),
                     (1.2, b2, BAR_OPEN, "round the handle", bo),
                     (0.5, b2, BAR_HOLD, "hold it", bo),
-                    (3.0, _bar(HANDLE_Z - 0.002)[0], BAR_HOLD, "pull the door down onto its catch", bo),
-                    (0.6, _bar(HANDLE_Z - 0.001)[0], BAR_OPEN, "let go: the catch holds it shut", bo),
+                    (3.0, _bar(HANDLE_Z - 0.010)[0], BAR_HOLD, "pull the door down onto its catch", bo),
+                    (0.6, _bar(HANDLE_Z - 0.006)[0], BAR_OPEN, "let go: the catch holds it shut", bo),
                     (1.2, _bar(HANDLE_Z, back=0.07)[0], BAR_OPEN, "back off", bo),
                     (2.0, RIGHT_PARK, FINGER_CLOSED, "away", 0.0)],
              left=[(1.5, _pinch("left", seat + [-0.245, 0.0, 0.08], Rf, STACK_IN, 0.0)[0], OPEN_W, "up and out",
