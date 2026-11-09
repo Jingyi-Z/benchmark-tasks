@@ -189,17 +189,18 @@ def _strips():
 # -- the sample plate (loose): stainless, 200 mm across, 1.5 mm thick, face up on the loading stand, with rings of tapped
 # holes for 2, 3, 4 and 6 inch wafers. In the 4 inch ring (59.5 mm out) stand eight swing clips every 45 degrees. Each is
 # a 13 mm steel tab on its screw: parked along the rim (joint 0) it clears the wafer; swung in 90 degrees clockwise to its
-# stop, its tip lies 3.3 mm over a round edge, and a lip under it, 8.2 mm from the screw, stops the wafer's edge 0.5 mm
-# outside a centred wafer. Each clip's screw (7 mm cheese head, its slot 1.6 mm wide, 2.5 mm deep) turns on the clip: clockwise tightens it. A boss under
+# stop, its tip lies 4.3 mm over a round edge (1.6 mm over the flat), and a lip under it, 9.2 mm from the screw, reaches
+# 0.5 mm inside the wafer's edge, so a clipped wafer cannot slide out. Each clip's screw (7 mm cheese head, its slot 2.2
+# mm wide, 2.5 mm deep) turns on the clip: clockwise tightens it. A boss under
 # the plate sits in the stand's socket. Frame: origin at the centre of the plate's back face, +z out of its sample face.
 PL_R, PL_T = 0.100, 0.0015
 CLIP_P, CLIP_L, CLIP_W, CLIP_T = 0.0595, 0.013, 0.004, 0.0010
 TAB_BOT = PL_T + W_T + 0.0003  # the tabs' underside: 0.3 mm over the wafer
 TAB_Z = TAB_BOT + CLIP_T / 2
 TAB_TOP = TAB_BOT + CLIP_T
-LIP_D0, LIP_D1 = 0.0024, CLIP_P - (W_R + 0.0005)  # the lip under each tab, from the screw out along the tab
-KNOB_AT, KNOB_R, KNOB_H = 0.007, 0.0020, 0.008
-HEAD_R, HEAD_H, SLOT, RIDGE = 0.0035, 0.0025, 0.0016, (0.0012, 0.0060, 0.0025)
+LIP_D0, LIP_D1 = 0.0024, CLIP_P - (W_R - 0.0005)  # the lip under each tab, from the screw out along the tab
+KNOB_AT, KNOB_R, KNOB_H = 0.007, 0.0020, 0.005
+HEAD_R, HEAD_H, SLOT, RIDGE = 0.0035, 0.0025, 0.0022, (0.0012, 0.0060, 0.0025)
 CLIP_DEG = (0, 45, 90, 135, 180, 225, 270, 315)
 FLAT_AT = 90.0  # the wafer's flat faces the 90 degree clip
 LONG_AT = 225  # the clip whose screw is too long
@@ -358,7 +359,7 @@ CONTROLS = part(
 # -- the screwdriver (loose) in its holder (fixed): a stubby one, a 0.8 x 5 mm blade on a 5 mm square shaft 52 mm long
 # under a 12 mm square handle 14 mm long. Frame: origin at the blade's tip, +z up the shaft, the blade's width along y. It stands
 # blade down in its holder, a block with a 9 mm square socket 10 mm deep, the tip 50 mm above the bench. ---------------
-BLADE = (0.0010, 0.0050, 0.0040)
+BLADE = (0.0008, 0.0050, 0.0040)
 SH_W, SH_L, H_W, H_L = 0.0050, 0.052, 0.012, 0.014
 SD_XY = (0.120, -0.170)
 SOCK_Z, SOCK_D, SOCK_W = 0.060, 0.010, 0.009  # the holder's top above the bench, the socket's depth and width
@@ -753,7 +754,7 @@ TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.20, 0.22, TOP + 0.22)
 RIGHT_PARK = (0.20, -0.22, TOP + 0.22)
 OPEN_W = -0.014
-PINCH = -0.0020  # squeezing 5.5 mm: plate and ring, or the ring's rim and skirt
+PINCH = -0.0012  # squeezing 5.5 mm: plate and ring, or the ring's rim and skirt
 SD_OPEN, SD_HOLD = -0.030, -0.0012  # round the 5 mm shaft (wide open past the 12 mm handle)
 BAR_OPEN, BAR_HOLD = -0.016, -0.0045  # round the 12 mm handle bar
 SD_GRIP = 0.018  # the fingertips' ends this far above the blade's tip
@@ -920,7 +921,8 @@ def demo():
                  (0.5, b1, BAR_HOLD, "hold it (10 s after VENT: the load lock is at air)", bo),
                  (3.0, b2, BAR_HOLD, "lift the door", bo),
                  (0.5, b2, BAR_OPEN, "let go: it stays up", bo),
-                 (1.0, b3, BAR_OPEN, "back off", bo)]
+                 (1.0, b3, BAR_OPEN, "back off", bo),
+                 (2.0, (0.20, -0.20, TOP + 0.23), FINGER_CLOSED, "aside, hand turned down", 0.0)]
     pl.phase(right=door_open, left=[(2.0, LEFT_PARK, FINGER_CLOSED, "wait, up and clear", 0.0)])
 
     # -- 2. both take the ring holder out and set it on the plate -------------------------------------------------------
@@ -1060,7 +1062,7 @@ def demo():
            r_tip=STACK_IN)
     Rf = axis_angle_matrix(Y, ROLL_SIGN * math.pi)
     seat = np.array([*HOLD_XY, TOP + HOLD_Z + (PL_T + RG_T) / 2])
-    above = seat + [0, 0, 0.012]
+    above = seat + [0, 0, 0.022]  # the clips' knobs and the long screw hang below the ring: clear of its fences
     ph(2.0, np.array([*ST_XY, above[2]]) + [0.06, 0, 0], PINCH, "down to the door's opening", Rf, r_tip=STACK_IN)
     ph(3.0, above, PINCH, "into the load lock, over its holder", Rf, r_tip=STACK_IN)
     tw = pl.t
