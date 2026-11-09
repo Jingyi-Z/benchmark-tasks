@@ -389,20 +389,19 @@ TOWER = part("light_tower", pos=(*TOWER_XY, TOP + LL_Z), fixed=True, friction=0.
                         ((0.0, 0.0, _seg_z["red"] + SEG_H / 2 + 0.004), SEG_R, 0.008, DARK)],
              joints=[_lens("blue", LAMP_BLUE, True), _lens("green", LAMP_GREEN, False)])
 
-# -- the door's twist lock (fixed base, a hinge): a black lever on the load lock's top, 15 mm behind its front, right of
-# centre. Locked (0 degrees) its 50 mm lever lies front to back, its front end over the door's top edge, so the door
-# cannot rise; a quarter turn anticlockwise (seen from above) to 90 degrees lays it across and frees the door. With the
-# door up, the lever cannot be turned back: the raised door is in its way. -------------------------------------------
-LOCK_XY = (LL_X0 + 0.015, -0.15)
-LOCK_Z = 0.022  # the lever's centre above the load lock's top
+# -- the door's twist lock (fixed base, a hinge): a black T-lever on a boss on the load lock's front, above the door's
+# right side, 338 mm up. Locked (0 degrees) its 50 mm bar stands upright, its lower half across the door's top edge;
+# a quarter turn clockwise (seen from the robot) lays it level and frees the door. -------------------------------------
+LOCK_XY = (LL_X0 - 0.015, -0.20)  # the bar's centre (x: 15 mm in front of the load lock's face)
+LOCK_H = 0.338  # its pivot's height above the bench
 LOCK_FREE = math.radians(80.0)  # turned past this, the door is free
 LOCK_SHUT = math.radians(10.0)  # turned back within this, it is locked
-LOCK = part("door_lock", pos=(*LOCK_XY, TOP + LL_Z), fixed=True, friction=0.8,
-            boxes=[((0.0, 0.0, 0.003), (0.030, 0.030, 0.006), DARK)],
-            joints=[Joint("lock", kind="hinge", axis="Z", anchor=(0.0, 0.0, 0.010), lower=0.0, upper=math.pi / 2,
+LOCK = part("door_lock", pos=(LL_X0, LOCK_XY[1], TOP + LOCK_H), fixed=True, friction=0.8,
+            cylinders=[((-0.005, 0.0, 0.0), 0.010, 0.010, DARK, "X")],
+            joints=[Joint("lock", kind="hinge", axis="X", anchor=(-0.010, 0.0, 0.0), lower=0.0, upper=math.pi / 2,
                           initial=0.0, friction=0.02, damping=0.002, mass=0.02,
-                          cylinders=[((0.0, 0.0, 0.013), 0.007, 0.014, DARK)],
-                          boxes=[((0.0, 0.0, LOCK_Z), (0.050, 0.012, 0.008), DARK)])])
+                          cylinders=[((-0.013, 0.0, 0.0), 0.007, 0.006, DARK, "X")],
+                          boxes=[((-0.015, 0.0, 0.0), (0.008, 0.012, 0.050), DARK)])])
 
 OBJECTS = [STAND, PLATE, WAFER, RING, LOADLOCK, DOOR, SCREWDRIVER, HOLDER, TOWER, LOCK]
 PLANCHECK_BOXES = [
@@ -603,7 +602,7 @@ def _watch(env):
     st["gap"] = largest_gap(holding_clips(p, w))
     st["stack"] = stack_loaded(p, r)
     st["sd_in"] = sd_inside(s)
-    kp = np.array([*LOCK_XY, TOP + LL_Z + LOCK_Z])
+    kp = np.array([*LOCK_XY, TOP + LOCK_H])
     st["far"] = all(min(np.linalg.norm(np.asarray(t) - hp), np.linalg.norm(np.asarray(t) - kp)) >= HANDS_FAR
                     for t in tips)
     _hist.append(np.concatenate([np.asarray(p.pos, float), pw, np.asarray(r.pos, float), [door]]))
@@ -994,18 +993,25 @@ def demo():
 
     d2, _ = _bar(HANDLE_Z + 0.001)
     top = _bar(HANDLE_Z + DOOR_UP + 0.008)[0]  # against its top stop
-    kp = np.array([*LOCK_XY, TOP + LL_Z + LOCK_Z])  # the twist lock's lever, seen from above
+    kp = np.array([*LOCK_XY, TOP + LOCK_H])  # the twist lock's T-bar, seen by the cameras
 
-    def lock_turn(y0, y1, what):
-        """Right takes the twist lock's lever from above and turns it from yaw y0 to y1 (degrees)."""
-        t0, o0 = _down(kp, math.radians(y0))
-        t1, o1 = _down(kp, math.radians(y1))
-        return [(2.5, tuple(np.asarray(t0) + [0, 0, 0.05]), BAR_OPEN, "above the door's twist lock, hand turned", o0),
-                (1.2, t0, BAR_OPEN, "fingers round its lever", o0),
+    def front(p, roll):
+        """TCP and rotation for the right hand reaching straight forward (+x), fingertips at p, its fingers closing
+        across an upright bar, turned clockwise (seen from behind) by ``roll``."""
+        R = axis_angle_matrix(X, roll) @ axis_angle_matrix(Y, -math.pi / 2) @ _prev_grip(0.0)
+        return tuple(np.asarray(p, float) - R[:, 2] * TIP_ABOVE_TCP), Orient(R)
+
+    def lock_turn(r0, r1, what):
+        """Right takes the twist lock's T-bar from the front and turns it from r0 to r1 (degrees)."""
+        t0, o0 = front(kp, math.radians(r0))
+        t1, o1 = front(kp, math.radians(r1))
+        return [(2.5, tuple(np.asarray(t0) - [0.05, 0, 0]), BAR_OPEN, "in front of the door's twist lock, hand turned",
+                 o0),
+                (1.2, t0, BAR_OPEN, "fingers round its bar", o0),
                 (0.5, t0, BAR_HOLD, "hold it", o0),
                 (2.0, t1, BAR_HOLD, what, o1),
                 (0.5, t1, BAR_OPEN, "let go", o1),
-                (1.0, tuple(np.asarray(t1) + [0, 0, 0.05]), BAR_OPEN, "up", o1)]
+                (1.0, tuple(np.asarray(t1) - [0.05, 0, 0]), BAR_OPEN, "back off", o1)]
 
     def door_open(t0):
         """Right lifts the door until it latches; it starts at t0 and lifts no sooner than 1 s after the light turns
@@ -1032,7 +1038,7 @@ def demo():
                  (2.0, RIGHT_PARK, FINGER_CLOSED, "away", 0.0)]
 
     # -- 1. right turns the twist lock open, then lifts the door until it latches open; left waits ---------------------
-    unlock = lock_turn(0.0, 90.0, "turn it a quarter turn anticlockwise: unlocked")
+    unlock = lock_turn(0.0, 90.0, "turn it a quarter turn clockwise: unlocked")
     do = unlock + door_open(pl.t + sum(w[0] for w in unlock))
     pl.phase(right=do, left=[(sum(w[0] for w in do), LEFT_PARK, FINGER_CLOSED, "wait", 0.0)])
 
