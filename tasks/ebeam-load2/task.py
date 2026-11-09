@@ -1030,7 +1030,7 @@ def demo():
                 seq.append((0.8, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade back in the slot", yaws[0]))
         seq.append((1.2, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "up", yaws[6]))
         pl.phase(right=seq)
-        pl.window(tw0 + 0.8, tw0 + 2.0, key, lambda env, P=P: np.array([*(_pw((*P, 0.0))[:2]
+        pl.window(tw0 + 0.6, pl.t - 1.2, key, lambda env, P=P: np.array([*(_pw((*P, 0.0))[:2]
                                                                             - _seen(env, "screwdriver")[:2]), 0.0]),
                   "screwdriver")
     pl.phase(right=[(1.5, sd_tcp((0.17, -0.10), head + 0.03), SD_HOLD, "up, off the plate", yo),
@@ -1075,7 +1075,9 @@ def demo():
 
     # -- 6. right closes the door and holds it; left presses PUMP; both let go -------------------------------------------
     pt, po = _down((*BTN["pump"], TOP + BOX_H + BTN_H - BTN_TRAVEL - 0.0015), 0.0)
-    pl.phase(right=[(3.0, _bar(HANDLE_Z + DOOR_UP - 0.003, back=0.10)[0], BAR_OPEN, "back from the raised door, hand turned", bo),
+    pl.phase(right=[(1.5, _pinch("right", seat + [-0.245, 0.0, 0.08], Rf, STACK_IN, 0.0)[0], OPEN_W, "up and out",
+                     _pinch("right", seat, Rf, STACK_IN)[1]),
+                    (3.0, _bar(HANDLE_Z + DOOR_UP - 0.003, back=0.10)[0], BAR_OPEN, "back from the raised door, hand turned", bo),
                     (2.0, b3, BAR_OPEN, "in front of the raised door's handle", bo),
                     (1.2, b2, BAR_OPEN, "round the handle", bo),
                     (0.5, b2, BAR_HOLD, "hold it", bo),
