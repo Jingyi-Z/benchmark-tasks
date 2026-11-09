@@ -805,7 +805,8 @@ RING_IN = 0.104  # and when pinching the ring alone (its rim and skirt)
 PUSH_DIR = -W_OFF / np.linalg.norm(W_OFF)
 
 # trims: each a 3-vector added to the TCPs of _Dyn waypoints with its key; integrated in windows from seen positions
-_ct = {"trim": {}, "wins": [], "last": {}, "looks": [], "turn": {}, "ang": {}, "freeze": []}
+_ct = {"trim": {}, "wins": [], "last": {}, "looks": [], "turn": {}, "ang": {}, "freeze": [], "vis": {},
+       "strokes": [], "engaged": {}}
 
 
 @on_reset
@@ -834,7 +835,29 @@ def _look_at_slot(env):
             Rs = labkit._part_state(env, labkit._SPECS["screwdriver"]).rotation()
             blade = math.degrees(math.atan2(Rs[1, 1], Rs[0, 1]))
             _ct["turn"][(k, n)] = _wrap180(slot - blade)
-            _ct["ang"][(k, n)] = -math.degrees(float(p.joints.get(f"screw{k}", 0.0)))  # its slot's turns, counted
+            # Count the screw's turns from what is seen: the slot is a line, so only its direction modulo 180 degrees
+            # shows (``slot`` above is that line, worked out from the plate's pose and the hinges). The turn since the last look is the change in that line, taking the multiple of 180 degrees
+            # nearest what the stroke should have done: none if the blade's tip never dropped into the slot (seen
+            # high), else the hand's turn less the blade's play in the slot.
+            vis = slot % 180.0
+            seen0 = (math.degrees(math.atan2(Rp[1, 0], Rp[0, 0])) + SLOT_DEG[CLIP_DEG[k]]
+                     + math.degrees(float(p.joints.get(f"clip{k}", 0.0)))) % 180.0  # the slot before any stroke
+            prev_vis = _ct["vis"].get((k, n - 1), seen0)
+            prev_ang = _ct["ang"].get((k, n - 1), 0.0)
+            hand = STROKE if n == 0 else _hand_turn(prev_ang)
+            expect = max(0.0, hand - STROKE_PLAY) if _ct["engaged"].get((k, n)) else 0.0
+            d0 = (prev_vis - vis) % 180.0
+            d = min([c for c in (d0 - 180.0, d0, d0 + 180.0) if -20.0 <= c <= hand + 10.0] or [d0],
+                    key=lambda c: abs(c - expect))  # never more than the hand turned
+            _ct["vis"][(k, n)], _ct["ang"][(k, n)] = vis, prev_ang + d
+
+
+def _hand_turn(a):
+    """How far a stroke turns the hand (degrees) on a screw counted at ``a`` degrees: none once it is tight, else
+    enough to bring it near SCREW_AIM."""
+    if a >= math.degrees(SCREW_TIGHT):
+        return 0.0
+    return max(0.0, min(STROKE, SCREW_AIM - a + STROKE_PLAY))
 
 
 class _SlotYaw(float):
@@ -852,9 +875,7 @@ class _SlotYaw(float):
         a = _ct["ang"].get(self.k)
         if a is None:
             return math.radians(STROKE)
-        if a >= math.degrees(SCREW_TIGHT):  # tight already: no more turning
-            return 0.0
-        return math.radians(max(0.0, min(STROKE, SCREW_AIM - a + STROKE_PLAY)))
+        return math.radians(_hand_turn(a))
 
     def prev_end(self):
         if self.prev is None:
@@ -881,6 +902,9 @@ def _seen(env, name):
 @on_step
 def _ctrack(env):
     t = getattr(_demo, "_plan_clock", 0.0)
+    for t0, t1, kn in _ct["strokes"]:  # during a stroke: did the blade's tip drop into the slot (seen low)?
+        if t0 <= t < t1 and _seen(env, "screwdriver")[2] < PLATE_START[2] + TAB_TOP + HEAD_H + 0.0015:
+            _ct["engaged"][kn] = True
     if any(f0 <= t < f1 for f0, f1 in _ct["freeze"]):  # the hand is feeling for a slot: hold the trims
         return
     for t0, t1, key, fn, watch in _ct["wins"]:
@@ -978,6 +1002,7 @@ class _Plan:
 
 def demo():
     _ct["trim"], _ct["wins"], _ct["looks"], _ct["freeze"] = {}, [], [], []
+    _ct["vis"], _ct["strokes"], _ct["engaged"] = {}, [], {}
     pl = _Plan()
     face = PL_T  # the plate's face, plate frame
 
@@ -1173,8 +1198,10 @@ def demo():
         y_end = y0 - math.radians(STROKE)
         ys = yaws
         for stroke in range(n_strokes):
+            ts = now(seq) - 1.4  # from the press before the stroke
             seq += [(0.6, _Dyn(sd_tcp(xy, head - 0.0010), key), SD_HOLD, "turn it clockwise", ys[i])
                     for i in range(1, 7)]
+            _ct["strokes"].append((ts, now(seq), (k, stroke)))
             seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "lift the blade out", ys[6]))
             _ct["freeze"].append((f0, now(seq)))
             if stroke < n_strokes - 1:
