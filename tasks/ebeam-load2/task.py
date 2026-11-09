@@ -235,7 +235,7 @@ def _clip_joints(k):
     lc = P + t * (LIP_D0 + LIP_D1) / 2
     kb = P + t * KNOB_AT
     clip = Joint(f"clip{k}", kind="hinge", axis="Z", anchor=(P[0], P[1], TAB_Z), lower=-math.pi / 2, upper=0.0,
-                 initial=0.0, friction=0.008, damping=0.001, mass=0.002,
+                 initial=0.0, friction=0.002, damping=0.001, mass=0.002,
                  boxes=[((c[0], c[1], TAB_Z), (CLIP_L + 0.002, CLIP_W, CLIP_T), STEEL, yaw),
                         ((lc[0], lc[1], (PL_T + 0.0001 + TAB_BOT) / 2), (LIP_D1 - LIP_D0, CLIP_W, TAB_BOT - PL_T - 0.0001),
                          STEEL, yaw)],
@@ -249,7 +249,7 @@ def _clip_joints(k):
     if up:
         cyl.append(((P[0], P[1], TAB_TOP + up / 2), 0.0019, up, STEEL))
     screw = Joint(f"screw{k}", kind="hinge", axis="Z", anchor=(P[0], P[1], TAB_Z), lower=-7.0, upper=0.05,
-                  initial=0.0, friction=0.004, damping=0.0005, mass=0.002, parent=f"clip{k}", cylinders=cyl,
+                  initial=0.0, friction=0.001, damping=0.0005, mass=0.002, parent=f"clip{k}", cylinders=cyl,
                   boxes=[((P[0] + e * (SLOT / 2 + RIDGE[0] / 2) * nrm[0], P[1] + e * (SLOT / 2 + RIDGE[0] / 2) * nrm[1], rz),
                           RIDGE, STEEL, s - math.pi / 2) for e in (-1, 1)])
     return [clip, screw]
@@ -288,9 +288,9 @@ RING_BOXES = (_arc_boxes(RG_IN, RG_OUT, 0.0, RG_T, _segs, 0.0200, ALU)
 # -- the load lock (fixed): a closed chamber, 0.76 m wide, its front at x = 0.36 m, with a viewport on top. Its front
 # opening (0.75 x 0.20 m, 100 to 300 mm above the bench) is closed by a door that slides up. Inside, on a centre shaft,
 # its holder: two arcs (front and back) that carry the ring holder 170 mm above the bench, between low fences. ----------
-LL_X0, LL_X1, LL_Y, LL_Z = 0.360, 0.630, 0.380, 0.336
+LL_X0, LL_X1, LL_Y, LL_Z = 0.360, 0.640, 0.380, 0.336
 OPEN_Z0, OPEN_Z1 = 0.100, 0.300
-HOLD_XY, HOLD_Z = (0.475, 0.0), 0.170
+HOLD_XY, HOLD_Z = (0.485, 0.0), 0.170
 WALL = 0.006
 RING_START = np.array([*HOLD_XY, TOP + HOLD_Z])
 RING = part("ring_holder", pos=tuple(RING_START), mass=0.14, friction=0.9, boxes=RING_BOXES)
@@ -354,11 +354,11 @@ CONTROLS = part(
             for n, (x, y) in BTN.items()],
 )
 
-# -- the screwdriver (loose) in its holder (fixed): a stubby one, a 0.8 x 5 mm blade on a 5 mm square shaft 40 mm long
-# under a 12 mm square handle 22 mm long. Frame: origin at the blade's tip, +z up the shaft, the blade's width along y. It stands
+# -- the screwdriver (loose) in its holder (fixed): a stubby one, a 0.8 x 5 mm blade on a 5 mm square shaft 52 mm long
+# under a 12 mm square handle 14 mm long. Frame: origin at the blade's tip, +z up the shaft, the blade's width along y. It stands
 # blade down in its holder, a block with a 7 mm square socket 10 mm deep, the tip 50 mm above the bench. ---------------
 BLADE = (0.0008, 0.0050, 0.0040)
-SH_W, SH_L, H_W, H_L = 0.0050, 0.040, 0.012, 0.022
+SH_W, SH_L, H_W, H_L = 0.0050, 0.052, 0.012, 0.014
 SD_XY = (0.120, -0.170)
 SOCK_Z, SOCK_D, SOCK_W = 0.060, 0.010, 0.007  # the holder's top above the bench, the socket's depth and width
 SD_START = np.array([*SD_XY, TOP + SOCK_Z - SOCK_D])
@@ -623,15 +623,20 @@ def _ik_err(pe, re):
     return pe * 1000.0 + math.degrees(re)
 
 
+FREE_MOVES = ("wrist turned", "hand turned", "up and clear")
+
+
 def _endpoints(plan):
     """Joint angles for every waypoint's end, chained: warm-started from the previous one, and, where that solve misses,
     the closest of several seeded solves that reach it (so the wrist turns the way the waypoints mean)."""
     rng = np.random.default_rng(7)
     seeds = [np.array(_READY, float)] + [np.array(_READY, float) + rng.normal(0.0, 0.8, 6) for _ in range(10)]
-    q_prev, out, switch = plan.q.copy(), [], set()
+    q_prev, out, switch, forced = plan.q.copy(), [], set(), set()
     for i, w in enumerate(plan.waypoints):
         pos, quat = np.asarray(w.pos, float), _ik.matrix_to_quat_xyzw(_demo.grip_rotation(w.yaw))
         q, pe, re = _ik.solve(pos, quat, q_prev, base_pos=plan.base_pos, iters=300)
+        if any(m in w.label for m in FREE_MOVES):
+            forced.add(i)  # a free-space move: always a joint-space blend
         if _ik_err(pe, re) > 1.5:
             switch.add(i)
             best = (_ik_err(pe, re), 0.0, q)
@@ -649,7 +654,7 @@ def _endpoints(plan):
     # then backwards: where the arm changes its wrist's branch between two waypoints, move the change earlier if the
     # earlier waypoint can be reached in the later branch (so it happens in free space, before an approach)
     for i in range(len(out) - 1, 0, -1):
-        if i not in switch:
+        if i not in switch or i in forced:
             continue
         w = plan.waypoints[i - 1]
         pos, quat = np.asarray(w.pos, float), _ik.matrix_to_quat_xyzw(_demo.grip_rotation(w.yaw))
@@ -659,7 +664,7 @@ def _endpoints(plan):
             out[i - 1] = q
             switch.discard(i)
             switch.add(i - 1)
-    return out, switch
+    return out, switch | forced
 
 
 def _seg(plan, t):
