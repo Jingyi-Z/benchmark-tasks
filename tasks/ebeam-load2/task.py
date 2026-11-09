@@ -512,7 +512,7 @@ def wafer_seated(p, w):
 
 
 def holding_clips(p, w):
-    """Plate-frame angles of the clips that hold the wafer: swung in past 80 degrees, screw tightened after it was
+    """Plate-frame angles of the clips that hold the wafer: swung in past 70 degrees, screw tightened after it was
     swung in (and not swung since), tip at least 2 mm inside the wafer's outline."""
     Rp, Rw = p.rotation(), w.rotation()
     out = []
@@ -630,7 +630,7 @@ def score(objects):
     120 s in all, the wafer off its seat on the plate, the plate or ring dropped, a fingertip within 4 mm of the wafer's
     pattern), if the screwdriver is in the load lock, or unless the
     plate, wafer, ring and door have been still (under 1 mm) for the last second. Otherwise: 0.25 if the wafer is centred
-    on the plate (within 2 mm) and held by clips (swung in past 80 degrees, then their screws tightened 300 degrees, tips
+    on the plate (within 2 mm) and held by clips (swung in past 70 degrees, then their screws tightened 300 degrees, tips
     at least 2 mm inside the wafer's outline) that leave no gap over 150 degrees round it; 0.5 if also the ring holder
     lies face down on the load lock's holder (within 5 degrees and 4 mm) carrying the plate face down (centred on it
     within 3 mm); 0.75 if also the door is shut (within 3 mm of its seat) and locked (its twist lock turned back within 10
