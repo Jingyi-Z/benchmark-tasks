@@ -1,17 +1,19 @@
 """Mounting a wafer for e-beam evaporation and loading it into the evaporator's load lock (after a Lesker PVD SOP).
 
 An e-beam evaporator deposits from sources below the samples, so a wafer travels face down, clipped to a sample plate
-that a ring holder carries. The load lock has been vented and its door, which slides up, is open. Inside, on its holder,
+that a ring holder carries. The load lock has been vented; its door, which slides up, is shut. Inside, on its holder,
 lies the ring holder. On a loading stand beside it lies the sample plate (stainless, 200 mm across, for wafers up to 6
 inch), face up, with a 100 mm wafer on it, pattern up and about 5 mm off centre. Round the wafer, in the plate's 4 inch
 ring of tapped holes, stand eight swing clips, all parked open with their screws loose. The wafer's primary flat faces
 one of them, and one clip has a screw too long for its hole: its head stands 8 mm proud, and tightened, its tip would
 stick out of the plate's back and jam the transfer. A screwdriver stands in a holder.
 
-The job: take the ring holder out and set it on the plate; centre the wafer; swing in clips that can hold its round
-edge, enough of them and not the one with the long screw, and tighten their screws; put the screwdriver back; turn the
-plate and ring over together (samples face down, the ring now carrying the plate) and set them on the load lock's
-holder; pull the door down onto its catch.
+The job: lift the door until it latches open, take the ring holder out and set it on the plate; centre the wafer; swing
+in clips that can hold its round edge, enough of them and not the one with the long screw, and tighten their screws
+(300 to 420 degrees: tighter cracks the wafer); put the screwdriver back; turn the plate and ring over together
+(samples face down, the ring now carrying the plate) and set them on the load lock's holder; pull the door down shut.
+The door may be open 2 minutes in all: an open load lock takes on air and water that slow its pump-down and load the
+main chamber.
 
 Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jitter=0 -E control_hz=20 \\
            --instruction "<see task.json>" --scorer task_score ...
@@ -205,6 +207,7 @@ LONG_UP = 0.008  # its head stands this far proud
 SLOT_DEG = {0: 145.0, 45: 20.0, 90: 160.0, 135: 145.0, 180: 75.0, 225: 60.0, 270: 145.0, 315: 110.0}
 W_OFF = 0.005 * np.array([math.cos(math.radians(202.5)), math.sin(math.radians(202.5))])  # the wafer starts off centre
 SCREW_TIGHT = math.radians(300.0)  # tightened: turned at least 300 degrees clockwise
+SCREW_MAX = math.radians(420.0)  # past this, a clip over the wafer cracks it
 LONG_TURN = math.radians(90.0)
 
 
@@ -317,18 +320,19 @@ LOADLOCK = part("load_lock", pos=(_cx, 0.0, TOP), fixed=True, friction=0.8,
                        ((0.0, 0.0, LL_Z - WALL / 2), (_ll_w - 2 * WALL, 2 * LL_Y - 2 * WALL, WALL), VIEWPORT)])
 
 # the door (fixed frame, a slide joint up): an aluminium plate 6 mm thick in front of the opening, with a 12 mm round
-# handle bar 25 mm in front of it. It starts open (the load lock has been vented). A counterweight a little heavier than
-# the door holds it up; pulled down onto its seat, its catch holds it shut.
+# handle bar 25 mm in front of it. It starts shut, the load lock already vented. Lifted to the top, a latch holds it
+# open; pulled down off the latch, it slides down onto its seat under its own weight.
 DOOR_X, DOOR_Z0, DOOR_Z1 = LL_X0 - 0.005, 0.095, 0.325
 HANDLE_X, HANDLE_Z, HANDLE_W = DOOR_X - 0.025, 0.200, 0.012
 DOOR_UP = 0.250  # fully open: its bottom edge 25 mm over the opening
 DOOR_M = 0.25  # kg
-COUNTER, CATCH_K = 1.3, 4000.0  # its counterweight (times its weight); the catch's hold when shut (N/m)
+LATCH_K = 800.0  # the top latch's hold (N/m): a pull of about 6 N takes the door off it
+LATCH_ON, LATCH_OFF = 0.003, 0.010  # it latches within 3 mm of the top, and lets go once pulled 10 mm down
 DOOR = part(
     "door", pos=(DOOR_X, 0.0, TOP), fixed=True, friction=1.0,
     boxes=[((0.0, 0.0, 0.003), (0.004, 0.004, 0.006), DARK)],
     joints=[Joint("door", kind="slide", axis="Z", anchor=(0.0, 0.0, DOOR_Z0), lower=0.0, upper=DOOR_UP + 0.005,
-                  initial=DOOR_UP, damping=6.0, mass=DOOR_M,
+                  initial=0.0, damping=6.0, mass=DOOR_M,
                   boxes=[((0.0, 0.0, (DOOR_Z0 + DOOR_Z1) / 2), (0.006, 2 * LL_Y, DOOR_Z1 - DOOR_Z0), ALU),
                          *[((-0.0145, e * 0.064, HANDLE_Z), (0.023, 0.010, HANDLE_W), DARK) for e in (-1, 1)]],
                   cylinders=[((HANDLE_X - DOOR_X, 0.0, HANDLE_Z), HANDLE_W / 2, 0.140, DARK, "Y")])],
@@ -369,7 +373,6 @@ PLANCHECK_BOXES = [
 
 # -- scoring ----------------------------------------------------------------------------------------------------------
 DOOR_SHUT = 0.003  # the door counts as shut within 3 mm of its seat
-DOOR_CATCH = 0.012  # its catch takes it within 12 mm of its seat and pulls it shut
 CLIP_IN = math.radians(80.0)
 BITE = 0.0020  # a clip's tip at least 2 mm inside the wafer's outline holds it
 GAP_MAX = 150.0
@@ -377,6 +380,7 @@ CENTRED = 0.002
 SEAT_XY, SEAT_Z, SEAT_DEG, PLATE_ON = 0.004, 0.003, 5.0, 0.003
 TOUCH = 0.004
 HANDS_FAR = 0.05
+OPEN_MAX = 120.0  # the load lock's door may be open (over 3 mm off its seat) this long in all (s)
 SETTLE_STEPS, SETTLE_TOL = 20, 0.001
 _state = {}
 _hist = []
@@ -386,32 +390,21 @@ _hist = []
 def _reset_state(env):
     _state.clear()
     _state.update(step=0, viol=set(), tight={}, locked=None, settled=False, far=True, gap=360.0, centred=False,
-                  stack=False, door=DOOR_UP, sd_in=False)
+                  stack=False, door=0.0, sd_in=False, opened=False, open_s=0.0)
     _hist.clear()
-    _counterbalance(env)
+    _latch(env, False)
 
 
-def _counterbalance(env):
-    """The door hangs on a counterweight a little heavier than itself (a sash window): left alone, it rises to its top
-    stop. Its catch is free at reset."""
-    import torch
-
-    door = env.unwrapped.scene["door"]
-    ids = door.find_bodies("door")[0]
-    f = torch.zeros((1, len(ids), 3), device=door.device)
-    f[..., 2] = DOOR_M * 9.81 * COUNTER
-    door.set_external_force_and_torque(f, torch.zeros_like(f), body_ids=ids, is_global=True)
-    _lock(env, False)
-
-
-def _lock(env, on):
-    """The door's catch: once the door is pulled onto its seat it holds it there (a stiff spring to shut)."""
+def _latch(env, on):
+    """The door's top latch: once the door is lifted to the top it holds it there (a spring to the top); pulled down
+    off it, the door is free and slides down under its own weight."""
     import torch
 
     if _state.get("locked") == on:
         return
     door = env.unwrapped.scene["door"]
-    door.write_joint_stiffness_to_sim(torch.full((1, 1), CATCH_K if on else 0.0, device=door.device))
+    door.set_joint_position_target(torch.full((1, 1), DOOR_UP if on else 0.0, device=door.device))
+    door.write_joint_stiffness_to_sim(torch.full((1, 1), LATCH_K if on else 0.0, device=door.device))
     _state["locked"] = on
 
 
@@ -495,7 +488,7 @@ def sd_inside(s):
 @on_step
 def _watch(env):
     """Latch the violations (the long screw tightened, the wafer off its seat on the plate, the plate or ring dropped, a
-    fingertip at the wafer's pattern), work the door's catch, and follow the clips' screws and the end state."""
+    fingertip at the wafer's pattern, a screw too tight, the door open too long), work the door's latch, and follow the clips' screws and the end state."""
     S = labkit._SPECS
     st = _state
     st["step"] += 1
@@ -503,8 +496,15 @@ def _watch(env):
                      ("sample_plate", "wafer", "ring_holder", "door", "screwdriver"))
     door = float(d.joints.get("door", 0.0))
     st["door"] = door
-    if door <= DOOR_CATCH:
-        _lock(env, True)
+    if door > DOOR_SHUT:
+        st["open_s"] += DT
+        if st["open_s"] > OPEN_MAX:
+            st["viol"].add("the load lock left open too long")
+    if door >= DOOR_UP - LATCH_ON:
+        _latch(env, True)
+        st["opened"] = True
+    elif door < DOOR_UP - LATCH_OFF:
+        _latch(env, False)
     tips = _tips(env)
     hp = handle_pos(door)
     # screws
@@ -514,10 +514,11 @@ def _watch(env):
             if sa >= LONG_TURN:
                 st["viol"].add("the long screw tightened")
             continue
-        if sa >= SCREW_TIGHT and k not in st["tight"]:
-            th = -float(p.joints.get(f"clip{k}", 0.0))
-            if th >= CLIP_IN:
-                st["tight"][k] = th
+        th = -float(p.joints.get(f"clip{k}", 0.0))
+        if sa >= SCREW_TIGHT and k not in st["tight"] and th >= CLIP_IN:
+            st["tight"][k] = th
+        if sa > SCREW_MAX and th >= CLIP_IN:
+            st["viol"].add("a screw too tight: the wafer cracked")
     # the wafer, the plate and the ring
     if not wafer_seated(p, w):
         st["viol"].add("wafer off its seat on the plate")
@@ -541,8 +542,9 @@ def _watch(env):
 
 
 def score(objects):
-    """0 after any violation (the long screw turned over 90 degrees, the wafer off its seat on the plate, the plate or
-    ring dropped, a fingertip within 4 mm of the wafer's pattern), if the screwdriver is in the load lock, or unless the
+    """0 after any violation (the long screw turned over 90 degrees, a clip's screw over 420 degrees, the door open over
+    120 s in all, the wafer off its seat on the plate, the plate or ring dropped, a fingertip within 4 mm of the wafer's
+    pattern), if the screwdriver is in the load lock, or unless the
     plate, wafer, ring and door have been still (under 1 mm) for the last second. Otherwise: 0.25 if the wafer is centred
     on the plate (within 2 mm) and held by clips (swung in past 80 degrees, then their screws tightened 300 degrees, tips
     at least 2 mm inside the wafer's outline) that leave no gap over 150 degrees round it; 0.5 if also the ring holder
@@ -574,13 +576,14 @@ def distance(objects):
 
 
 # -- scripted demo ----------------------------------------------------------------------------------------------------
-# Right: pushes the wafer to the plate's centre by its edge. Both: take the ring holder off the load lock's holder and set
-# it on the plate. Left swings in the 0 and 135 degree clips, right the 270 degree one (the 90 degree one faces the flat;
-# the 225 degree one has the long screw). Right takes the screwdriver and tightens the three screws, three strokes each,
-# then puts it back. Both pinch the plate and ring by their side edges, lift them, roll them over together, carry them
-# into the load lock and set them on its holder. Right pulls the door down onto its catch; both move away. Aims are
-# trimmed only by what a camera sees: the wafer's, plate's, ring's and screwdriver tip's positions, and the screw's slot
-# and the blade between strokes.
+# Right: pushes the wafer to the plate's centre by its edge, then lifts the load lock's door until it latches. Both: take
+# the ring holder off the load lock's holder and set it on the plate; right shuts the door again. Left swings in the 0 and
+# 135 degree clips, right the 270 degree one (the 90 degree one faces the flat; the 225 degree one has the long screw).
+# Right takes the screwdriver and tightens the three screws, stroke by stroke, stopping once a screw has turned about
+# 300 to 360 degrees (counted from its slot), then puts it back. Right opens the door; both pinch the plate and ring by
+# their side edges, lift them, roll them over together, carry them into the load lock and set them on its holder. Right
+# pulls the door down off its latch; both move away. Aims are trimmed only by what a camera sees: the wafer's, plate's,
+# ring's and screwdriver tip's positions, and the screw's slot and the blade between strokes.
 from yam_arena import ik as _ik  # noqa: E402
 from yam_arena.constants import READY as _READY  # noqa: E402
 
@@ -709,6 +712,7 @@ BAR_OPEN, BAR_HOLD = -0.016, -0.0045  # round the 12 mm handle bar
 SD_GRIP = 0.018  # the fingertips' ends this far above the blade's tip
 CLIPS_USED = {"left": (0, 3), "right": (6,)}  # 0, 135 and 270 degrees
 STROKE_TOP, STROKE, STROKES = 145.0, 190.0, 3  # hand yaw at the start of each tightening stroke, and how far it turns
+SCREW_AIM, STROKE_PLAY = 355.0, 28.0  # aim each screw at 355 degrees; a stroke turns the screw ~28 degrees less than the hand
 FLIP = {"right": True, "left": False}
 ROLL_SIGN = -1.0
 LIFT_Z = 0.27  # the stack's centre this high (above the bench) while it is rolled over
@@ -717,7 +721,7 @@ RING_IN = 0.104  # and when pinching the ring alone (its rim and skirt)
 PUSH_DIR = -W_OFF / np.linalg.norm(W_OFF)
 
 # trims: each a 3-vector added to the TCPs of _Dyn waypoints with its key; integrated in windows from seen positions
-_ct = {"trim": {}, "wins": [], "last": {}, "looks": [], "turn": {}, "freeze": []}
+_ct = {"trim": {}, "wins": [], "last": {}, "looks": [], "turn": {}, "ang": {}, "freeze": []}
 
 
 @on_reset
@@ -725,6 +729,7 @@ def _reset_ct(env):
     _ct["trim"] = {}
     _ct["last"] = {}
     _ct["turn"] = {}
+    _ct["ang"] = {}
 
 
 def _wrap180(d):
@@ -745,29 +750,44 @@ def _look_at_slot(env):
             Rs = labkit._part_state(env, labkit._SPECS["screwdriver"]).rotation()
             blade = math.degrees(math.atan2(Rs[1, 1], Rs[0, 1]))
             _ct["turn"][(k, n)] = _wrap180(slot - blade)
+            _ct["ang"][(k, n)] = -math.degrees(float(p.joints.get(f"screw{k}", 0.0)))  # its slot's turns, counted
 
 
 class _SlotYaw(float):
-    """A Waypoint ``yaw`` for the second stroke: the planned hand yaw shifted so that the blade lines up with the slot as
-    last seen (by a multiple of 180 degrees, kept near the stroke's planned start)."""
+    """A Waypoint ``yaw`` for a later stroke: the planned hand yaw shifted so that the blade lines up with the slot as
+    last seen (by a multiple of 180 degrees, kept near the stroke's planned start), and the stroke shortened so that the
+    screw ends near SCREW_AIM (none at all once it is tight)."""
 
-    def __new__(cls, k, yaw, start, end, prev=None):  # k: (clip, look); prev: the last stroke's shifted yaw
+    def __new__(cls, k, frac, start, end, prev=None):  # k: (clip, look); frac: how far through the stroke
         obj = float.__new__(cls, 0.0)
-        obj.k, obj.yaw, obj.start, obj.end, obj.prev = k, yaw, start, end, prev
+        obj.k, obj.frac, obj.start, obj.end, obj.prev = k, frac, start, end, prev
         return obj
+
+    def turn(self):
+        """How far this stroke turns the hand (radians)."""
+        a = _ct["ang"].get(self.k)
+        if a is None:
+            return math.radians(STROKE)
+        if a >= SCREW_AIM - 50.0:
+            return 0.0
+        return math.radians(max(0.0, min(STROKE, SCREW_AIM - a + STROKE_PLAY)))
+
+    def prev_end(self):
+        if self.prev is None:
+            return self.end
+        return self.prev.start + self.prev.off() - self.prev.turn()
 
     def off(self):
         d = _ct["turn"].get(self.k)
         if d is None:
             return 0.0
-        end = self.end + (self.prev.off() if self.prev is not None else 0.0)  # where the last stroke ended
-        s0 = end + math.radians(d)  # the hand's yaw now, turned to line the blade up
+        s0 = self.prev_end() + math.radians(d)  # the hand's yaw now, turned to line the blade up
         s0 += math.pi * round((self.start - s0) / math.pi)
         return s0 - self.start
 
     @property
     def rot(self):
-        return _prev_grip(self.yaw + self.off())
+        return _prev_grip(self.start + self.off() - self.frac * self.turn())
 
 
 def _seen(env, name):
@@ -901,6 +921,28 @@ def demo():
     b2, bo = _bar(HANDLE_Z + DOOR_UP - 0.003)
     b3, _ = _bar(HANDLE_Z + DOOR_UP - 0.003, back=0.06)
 
+    d2, _ = _bar(HANDLE_Z + 0.001)
+    top = _bar(HANDLE_Z + DOOR_UP + 0.003)[0]
+    door_open = [(2.5, _bar(HANDLE_Z, back=0.10)[0], BAR_OPEN, "back from the shut door's handle, hand turned", bo),
+                 (2.0, _bar(HANDLE_Z, back=0.06)[0], BAR_OPEN, "in front of the handle", bo),
+                 (1.2, d2, BAR_OPEN, "round the handle", bo),
+                 (0.5, d2, BAR_HOLD, "hold it", bo),
+                 (2.0, top, BAR_HOLD, "lift the door until it latches open", bo),
+                 (0.5, top, BAR_OPEN, "let go: the latch holds it up", bo),
+                 (1.0, _bar(HANDLE_Z + DOOR_UP, back=0.07)[0], BAR_OPEN, "back off", bo)]
+    door_shut = [(2.5, _bar(HANDLE_Z + DOOR_UP - 0.003, back=0.10)[0], BAR_OPEN, "back from the raised door, hand turned",
+                  bo),
+                 (1.5, b3, BAR_OPEN, "in front of the raised door's handle", bo),
+                 (1.2, b2, BAR_OPEN, "round the handle", bo),
+                 (0.5, b2, BAR_HOLD, "hold it", bo),
+                 (2.5, _bar(HANDLE_Z - 0.010)[0], BAR_HOLD, "pull the door down off its latch, onto its seat", bo),
+                 (0.6, _bar(HANDLE_Z - 0.006)[0], BAR_OPEN, "let go: it rests shut", bo),
+                 (1.0, _bar(HANDLE_Z, back=0.07)[0], BAR_OPEN, "back off", bo),
+                 (2.0, RIGHT_PARK, FINGER_CLOSED, "away", 0.0)]
+
+    # -- 1. right lifts the load lock's door until it latches open; left waits ---------------------------------------
+    pl.phase(right=door_open, left=[(sum(w[0] for w in door_open), LEFT_PARK, FINGER_CLOSED, "wait", 0.0)])
+
     # -- 2. both take the ring holder out and set it on the plate -------------------------------------------------------
     rc = RING_START + [0, 0, (RG_T - PL_T) / 2]  # its grip line: between the rim's top and the skirt's underside
     over = np.array([*ST_XY, PLATE_START[2] + PL_T + (RG_T - PL_T) / 2])  # the same, the ring resting on the plate
@@ -934,6 +976,8 @@ def demo():
     ph(0.6, over + [0, 0, 0.0005], OPEN_W, "let go", key="ring")
     ph(1.2, over, OPEN_W, "back out sideways", out=0.012, key="ring")
     ph(1.2, over + [0, 0, hi - over[2]], OPEN_W, "up", out=0.012, key="ring")
+    # right shuts the door again while the plate is worked on (the load lock stays open as little as possible)
+    pl.phase(right=door_shut, left=[(2.0, LEFT_PARK, FINGER_CLOSED, "up and clear", 0.0)])
 
     # -- 3. clips: left 0 and 135 degrees, right 270 ------------------------------------------------------------------
     knob_z = face + (TAB_TOP - PL_T) + 0.0008  # the fingertips just over the tab, low on the knob
@@ -1022,7 +1066,7 @@ def demo():
                 _ct["looks"].append((t_look, t_look + 0.6, k, stroke))
                 seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "look at the slot", ys[6]))
                 prev = ys[0] if isinstance(ys[0], _SlotYaw) else None
-                ys = [_SlotYaw((k, stroke), y0 - math.radians(STROKE) * i / 6, y0, y_end, prev) for i in range(7)]
+                ys = [_SlotYaw((k, stroke), i / 6, y0, y_end, prev) for i in range(7)]
                 seq += [(0.8, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "turn back", ys[i]) for i in (4, 2, 0)]
                 seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "hold still over the slot", ys[0]))
                 seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade back in the slot", ys[0]))
@@ -1047,7 +1091,9 @@ def demo():
     pl.window(tw + 0.8, tw + 2.0, "sdh", lambda env: np.array([*(np.asarray(SD_XY) - _seen(env, "screwdriver")[:2]), 0.0]),
               "screwdriver")
 
-    # -- 5. both: roll the plate and ring over together and set them on the load lock's holder ---------------------------
+    # -- 5. right opens the door again; both roll the plate and ring over together and set them on the load lock's holder
+    pl.phase(right=door_open, left=[(sum(w[0] for w in door_open), (0.20, 0.20, TOP + 0.23), FINGER_CLOSED, "wait",
+                                     0.0)])
     c0 = np.array([*ST_XY, PLATE_START[2] + (PL_T + RG_T) / 2])
     lift = np.array([*ST_XY, TOP + LIFT_Z])
     ph(3.0, c0 + [0, 0, 0.12], OPEN_W, "high beside the plate and ring, wrist turned", r_tip=STACK_IN, out=0.03)
@@ -1073,17 +1119,10 @@ def demo():
     ph(1.2, seat, OPEN_W, "back out sideways", Rf, r_tip=STACK_IN, out=0.03, key="stack")
     ph(2.5, seat + [-0.17, 0, 0.0], OPEN_W, "out of the load lock", Rf, r_tip=STACK_IN, out=0.03)
 
-    # -- 6. right pulls the door down onto its catch; both away ---------------------------------------------------------
+    # -- 6. right pulls the door down off its latch onto its seat; both away ---------------------------------------------------------
     pl.phase(right=[(1.5, _pinch("right", seat + [-0.245, 0.0, 0.08], Rf, STACK_IN, 0.0)[0], OPEN_W, "up and out",
                      _pinch("right", seat, Rf, STACK_IN)[1]),
-                    (3.0, _bar(HANDLE_Z + DOOR_UP - 0.003, back=0.10)[0], BAR_OPEN, "back from the raised door, hand turned", bo),
-                    (2.0, b3, BAR_OPEN, "in front of the raised door's handle", bo),
-                    (1.2, b2, BAR_OPEN, "round the handle", bo),
-                    (0.5, b2, BAR_HOLD, "hold it", bo),
-                    (3.0, _bar(HANDLE_Z - 0.010)[0], BAR_HOLD, "pull the door down onto its catch", bo),
-                    (0.6, _bar(HANDLE_Z - 0.006)[0], BAR_OPEN, "let go: the catch holds it shut", bo),
-                    (1.2, _bar(HANDLE_Z, back=0.07)[0], BAR_OPEN, "back off", bo),
-                    (2.0, RIGHT_PARK, FINGER_CLOSED, "away", 0.0)],
+                    *door_shut],
              left=[(1.5, _pinch("left", seat + [-0.245, 0.0, 0.08], Rf, STACK_IN, 0.0)[0], OPEN_W, "up and out",
                     _pinch("left", seat, Rf, STACK_IN)[1]),
                    (3.0, LEFT_PARK, FINGER_CLOSED, "up and clear", 0.0)])
