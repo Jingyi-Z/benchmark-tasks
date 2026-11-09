@@ -190,7 +190,7 @@ def _strips():
 # holes for 2, 3, 4 and 6 inch wafers. In the 4 inch ring (59.5 mm out) stand eight swing clips every 45 degrees. Each is
 # a 13 mm steel tab on its screw: parked along the rim (joint 0) it clears the wafer; swung in 90 degrees clockwise to its
 # stop, its tip lies 3.3 mm over a round edge, and a lip under it, 8.2 mm from the screw, stops the wafer's edge 0.5 mm
-# outside a centred wafer. Each clip's screw (slotted head, 7 mm) turns on the clip: clockwise tightens it. A boss under
+# outside a centred wafer. Each clip's screw (7 mm cheese head, its slot 1.6 mm wide, 2.5 mm deep) turns on the clip: clockwise tightens it. A boss under
 # the plate sits in the stand's socket. Frame: origin at the centre of the plate's back face, +z out of its sample face.
 PL_R, PL_T = 0.100, 0.0015
 CLIP_P, CLIP_L, CLIP_W, CLIP_T = 0.0595, 0.013, 0.004, 0.0010
@@ -199,7 +199,7 @@ TAB_Z = TAB_BOT + CLIP_T / 2
 TAB_TOP = TAB_BOT + CLIP_T
 LIP_D0, LIP_D1 = 0.0024, CLIP_P - (W_R + 0.0005)  # the lip under each tab, from the screw out along the tab
 KNOB_AT, KNOB_R, KNOB_H = 0.007, 0.0020, 0.008
-HEAD_R, HEAD_H, SLOT, RIDGE = 0.0035, 0.0025, 0.0018, (0.0011, 0.0060, 0.0015)
+HEAD_R, HEAD_H, SLOT, RIDGE = 0.0035, 0.0025, 0.0016, (0.0012, 0.0060, 0.0025)
 CLIP_DEG = (0, 45, 90, 135, 180, 225, 270, 315)
 FLAT_AT = 90.0  # the wafer's flat faces the 90 degree clip
 LONG_AT = 225  # the clip whose screw is too long
@@ -357,11 +357,11 @@ CONTROLS = part(
 
 # -- the screwdriver (loose) in its holder (fixed): a stubby one, a 0.8 x 5 mm blade on a 5 mm square shaft 52 mm long
 # under a 12 mm square handle 14 mm long. Frame: origin at the blade's tip, +z up the shaft, the blade's width along y. It stands
-# blade down in its holder, a block with a 7 mm square socket 10 mm deep, the tip 50 mm above the bench. ---------------
-BLADE = (0.0008, 0.0050, 0.0040)
+# blade down in its holder, a block with a 9 mm square socket 10 mm deep, the tip 50 mm above the bench. ---------------
+BLADE = (0.0010, 0.0050, 0.0040)
 SH_W, SH_L, H_W, H_L = 0.0050, 0.052, 0.012, 0.014
 SD_XY = (0.120, -0.170)
-SOCK_Z, SOCK_D, SOCK_W = 0.060, 0.010, 0.007  # the holder's top above the bench, the socket's depth and width
+SOCK_Z, SOCK_D, SOCK_W = 0.060, 0.010, 0.009  # the holder's top above the bench, the socket's depth and width
 SD_START = np.array([*SD_XY, TOP + SOCK_Z - SOCK_D])
 SCREWDRIVER = part(
     "screwdriver", pos=tuple(SD_START), mass=0.035, friction=1.0,
@@ -1016,15 +1016,15 @@ def demo():
         seq = [(1.5, sd_tcp(xy, head + 0.008), SD_HOLD, f"over the {CLIP_DEG[k]} degree clip's screw", mid),
                (1.0, sd_tcp(xy, head + 0.008), SD_HOLD, "turn the blade to the slot", yaws[0])]
         tw0 = pl.t + 2.5
-        seq += [(2.0, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "hold still, the blade's tip seen over the slot",
+        seq += [(2.0, _Dyn(sd_tcp(xy, head + 0.005), key), SD_HOLD, "hold still, the blade's tip seen over the slot",
                  yaws[0]),
                 (1.0, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade into the slot", yaws[0])]
         for stroke in range(2):
-            seq += [(0.6, _Dyn(sd_tcp(xy, head - 0.0004), key), SD_HOLD, "turn it clockwise", yaws[i])
+            seq += [(0.6, _Dyn(sd_tcp(xy, head - 0.0010), key), SD_HOLD, "turn it clockwise", yaws[i])
                     for i in range(1, 7)]
-            seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.003), key), SD_HOLD, "lift the blade out", yaws[6]))
+            seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "lift the blade out", yaws[6]))
             if stroke == 0:
-                seq += [(0.8, _Dyn(sd_tcp(xy, head + 0.003), key), SD_HOLD, "turn back", yaws[i]) for i in (4, 2, 0)]
+                seq += [(0.8, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "turn back", yaws[i]) for i in (4, 2, 0)]
                 seq.append((0.8, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade back in the slot", yaws[0]))
         seq.append((1.2, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "up", yaws[6]))
         pl.phase(right=seq)
@@ -1033,10 +1033,17 @@ def demo():
                   "screwdriver")
     pl.phase(right=[(1.5, sd_tcp((0.17, -0.10), head + 0.03), SD_HOLD, "up, off the plate", yo),
                     (2.0, sd_tcp(SD_XY, TOP + 0.17), SD_HOLD, "high over its holder", yo),
-                    (1.5, sd_tcp(SD_XY, up), SD_HOLD, "down over its holder", yo),
-                    (1.8, sd_tcp(SD_XY, z0 + 0.001), SD_HOLD, "into its holder", yo),
-                    (0.6, sd_tcp(SD_XY, z0 + 0.001), SD_OPEN, "let go", yo),
-                    (1.2, sd_tcp(SD_XY, z0 + 0.06), SD_OPEN, "up", yo)])
+                    (1.5, sd_tcp(SD_XY, up), SD_HOLD, "down over its holder", yo)])
+    tw = pl.t
+    pl.phase(right=[(2.0, _Dyn(sd_tcp(SD_XY, up), "sdh"), SD_HOLD, "hold still, its tip seen over the socket", yo),
+                    (1.8, _Dyn(sd_tcp(SD_XY, z0 + 0.001), "sdh"), SD_HOLD, "into its holder", yo),
+                    (0.6, _Dyn(sd_tcp(SD_XY, z0 + 0.001), "sdh"), SD_OPEN, "let go", yo),
+                    (1.2, _Dyn(sd_tcp(SD_XY, z0 + 0.06), "sdh"), SD_OPEN, "up", yo),
+                    (1.5, (0.20, -0.20, TOP + 0.23), FINGER_CLOSED, "high, beside the stand", yo)],
+             left=[(5.6, LEFT_PARK, FINGER_CLOSED, "wait", 0.0),
+                   (1.5, (0.20, 0.20, TOP + 0.23), FINGER_CLOSED, "high, beside the stand", 0.0)])
+    pl.window(tw + 0.8, tw + 2.0, "sdh", lambda env: np.array([*(np.asarray(SD_XY) - _seen(env, "screwdriver")[:2]), 0.0]),
+              "screwdriver")
 
     # -- 5. both: roll the plate and ring over together and set them on the load lock's holder ---------------------------
     c0 = np.array([*ST_XY, PLATE_START[2] + (PL_T + RG_T) / 2])
