@@ -332,6 +332,12 @@ DOOR_UP = 0.250  # fully open: its bottom edge 25 mm over the opening
 DOOR_M = 0.25  # kg
 LATCH_K = 400.0  # the top latch's hold (N/m): a pull of about 8 N takes the door off it
 LATCH_ON, LATCH_OFF = 0.015, 0.025  # it latches within 15 mm of the top, and lets go once pulled 25 mm down
+# the door's twist lock: a black T-lever on a boss on the door's front, right of the handle, 150 mm up when the door is
+# shut. Upright (0 degrees) it is locked: its catch holds the door on its seat. A quarter turn clockwise (seen from the
+# robot) lays it level and frees the door. It rides up and down with the door.
+LOCK_Y, LOCK_H, LOCK_DX = -0.20, 0.150, -0.019  # its bar's centre: across, height (door shut), in front of the door
+LOCK_FREE = math.radians(80.0)  # turned past this, the door is free
+LOCK_SHUT = math.radians(10.0)  # turned back within this, it is locked
 DOOR = part(
     "door", pos=(DOOR_X, 0.0, TOP), fixed=True, friction=1.0,
     boxes=[((0.0, 0.0, 0.003), (0.004, 0.004, 0.006), DARK)],
@@ -339,7 +345,12 @@ DOOR = part(
                   initial=0.0, damping=6.0, mass=DOOR_M,
                   boxes=[((0.0, 0.0, (DOOR_Z0 + DOOR_Z1) / 2), (0.006, 2 * LL_Y, DOOR_Z1 - DOOR_Z0), ALU),
                          *[((-0.0145, e * 0.064, HANDLE_Z), (0.023, 0.010, HANDLE_W), DARK) for e in (-1, 1)]],
-                  cylinders=[((HANDLE_X - DOOR_X, 0.0, HANDLE_Z), HANDLE_W / 2, 0.140, DARK, "Y")])],
+                  cylinders=[((HANDLE_X - DOOR_X, 0.0, HANDLE_Z), HANDLE_W / 2, 0.140, DARK, "Y"),
+                             ((-0.009, LOCK_Y, LOCK_H), 0.010, 0.012, DARK, "X")]),
+            Joint("lock", kind="hinge", axis="X", anchor=(-0.015, LOCK_Y, LOCK_H), lower=0.0, upper=math.pi / 2,
+                  initial=0.0, friction=0.02, damping=0.002, mass=0.02, parent="door",
+                  cylinders=[((-0.016, LOCK_Y, LOCK_H), 0.007, 0.004, DARK, "X")],
+                  boxes=[((LOCK_DX, LOCK_Y, LOCK_H), (0.008, 0.012, 0.050), DARK)])],
 )
 
 # -- the screwdriver (loose) in its holder (fixed): a stubby one, a 0.8 x 5 mm blade on a 5 mm square shaft 52 mm long
@@ -389,21 +400,7 @@ TOWER = part("light_tower", pos=(*TOWER_XY, TOP + LL_Z), fixed=True, friction=0.
                         ((0.0, 0.0, _seg_z["red"] + SEG_H / 2 + 0.004), SEG_R, 0.008, DARK)],
              joints=[_lens("blue", LAMP_BLUE, True), _lens("green", LAMP_GREEN, False)])
 
-# -- the door's twist lock (fixed base, a hinge): a black T-lever on a boss on the load lock's front, above the door's
-# right side, 338 mm up. Locked (0 degrees) its 50 mm bar stands upright, its lower half across the door's top edge;
-# a quarter turn clockwise (seen from the robot) lays it level and frees the door. -------------------------------------
-LOCK_XY = (LL_X0 - 0.015, -0.20)  # the bar's centre (x: 15 mm in front of the load lock's face)
-LOCK_H = 0.338  # its pivot's height above the bench
-LOCK_FREE = math.radians(80.0)  # turned past this, the door is free
-LOCK_SHUT = math.radians(10.0)  # turned back within this, it is locked
-LOCK = part("door_lock", pos=(LL_X0, LOCK_XY[1], TOP + LOCK_H), fixed=True, friction=0.8,
-            cylinders=[((-0.005, 0.0, 0.0), 0.010, 0.010, DARK, "X")],
-            joints=[Joint("lock", kind="hinge", axis="X", anchor=(-0.010, 0.0, 0.0), lower=0.0, upper=math.pi / 2,
-                          initial=0.0, friction=0.02, damping=0.002, mass=0.02,
-                          cylinders=[((-0.013, 0.0, 0.0), 0.007, 0.006, DARK, "X")],
-                          boxes=[((-0.015, 0.0, 0.0), (0.008, 0.012, 0.050), DARK)])])
-
-OBJECTS = [STAND, PLATE, WAFER, RING, LOADLOCK, DOOR, SCREWDRIVER, HOLDER, TOWER, LOCK]
+OBJECTS = [STAND, PLATE, WAFER, RING, LOADLOCK, DOOR, SCREWDRIVER, HOLDER, TOWER]
 PLANCHECK_BOXES = [
     *[(f"ll{i}", (_cx + c[0], c[1], TOP + c[2]), s) for i, (c, s, _) in enumerate(LL_BOXES)],
     ("viewport", (_cx, 0.0, TOP + LL_Z - WALL / 2), (_ll_w, 2 * LL_Y, WALL)),
@@ -461,9 +458,10 @@ def _door_drive(env, mode):
     if _state.get("mode") == mode:
         return
     door = env.unwrapped.scene["door"]
+    ids = door.find_joints("door_joint")[0]  # the slide (the twist lock is the door's other joint)
     target, k = {"locked": (0.0, LOCK_K), "latched": (DOOR_UP, LATCH_K), "free": (0.0, 0.0)}[mode]
-    door.set_joint_position_target(torch.full((1, 1), target, device=door.device))
-    door.write_joint_stiffness_to_sim(torch.full((1, 1), k, device=door.device))
+    door.set_joint_position_target(torch.full((1, 1), target, device=door.device), joint_ids=ids)
+    door.write_joint_stiffness_to_sim(torch.full((1, 1), k, device=door.device), joint_ids=ids)
     _state["mode"] = mode
 
 
@@ -552,10 +550,10 @@ def _watch(env):
     S = labkit._SPECS
     st = _state
     st["step"] += 1
-    p, w, r, d, s, lk = (labkit._part_state(env, S[k]) for k in
-                         ("sample_plate", "wafer", "ring_holder", "door", "screwdriver", "door_lock"))
+    p, w, r, d, s = (labkit._part_state(env, S[k]) for k in
+                     ("sample_plate", "wafer", "ring_holder", "door", "screwdriver"))
     door = float(d.joints.get("door", 0.0))
-    lock = float(lk.joints.get("lock", 0.0))
+    lock = float(d.joints.get("lock", 0.0))
     st["door"], st["lock"] = door, lock
     if not st["green"] and st["step"] * DT >= VENT_S:
         st["green"] = True
@@ -602,7 +600,7 @@ def _watch(env):
     st["gap"] = largest_gap(holding_clips(p, w))
     st["stack"] = stack_loaded(p, r)
     st["sd_in"] = sd_inside(s)
-    kp = np.array([*LOCK_XY, TOP + LOCK_H])
+    kp = np.array([DOOR_X + LOCK_DX, LOCK_Y, TOP + LOCK_H + door])
     st["far"] = all(min(np.linalg.norm(np.asarray(t) - hp), np.linalg.norm(np.asarray(t) - kp)) >= HANDS_FAR
                     for t in tips)
     _hist.append(np.concatenate([np.asarray(p.pos, float), pw, np.asarray(r.pos, float), [door]]))
@@ -993,7 +991,7 @@ def demo():
 
     d2, _ = _bar(HANDLE_Z + 0.001)
     top = _bar(HANDLE_Z + DOOR_UP + 0.008)[0]  # against its top stop
-    kp = np.array([*LOCK_XY, TOP + LOCK_H])  # the twist lock's T-bar, seen by the cameras
+    kp = np.array([DOOR_X + LOCK_DX, LOCK_Y, TOP + LOCK_H])  # the twist lock's T-bar (door shut), seen by the cameras
 
     def front(p, roll):
         """TCP and rotation for the right hand reaching straight forward (+x), fingertips at p, its fingers closing
