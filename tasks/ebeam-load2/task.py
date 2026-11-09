@@ -239,7 +239,7 @@ def _clip_joints(k):
     lc = P + t * (LIP_D0 + LIP_D1) / 2
     kb = P + t * KNOB_AT
     clip = Joint(f"clip{k}", kind="hinge", axis="Z", anchor=(P[0], P[1], TAB_Z), lower=-math.pi / 2, upper=0.0,
-                 initial=0.0, friction=0.002, damping=0.001, mass=0.002,
+                 initial=0.0, friction=0.010, damping=0.001, mass=0.002,
                  boxes=[((c[0], c[1], TAB_Z), (CLIP_L + 0.002, CLIP_W, CLIP_T), STEEL, yaw),
                         ((lc[0], lc[1], (PL_T + 0.0001 + TAB_BOT) / 2), (LIP_D1 - LIP_D0, CLIP_W, TAB_BOT - PL_T - 0.0001),
                          STEEL, yaw)],
@@ -875,6 +875,8 @@ def _ctrack(env):
         _ct["last"][key] = p
         if last is None or np.max(np.abs(p - last)) > 0.0005:
             continue
+        if key == "sd" and p[2] < PLATE_START[2] + TAB_TOP + HEAD_H + 0.0015:
+            continue  # the blade's tip has dropped into a slot (seen low): leave the hand where it is
         e = np.asarray(fn(env), float)
         e[2] = 0.0
         tr = _ct["trim"].get(key, np.zeros(3))
