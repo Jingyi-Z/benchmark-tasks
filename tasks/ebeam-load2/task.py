@@ -239,7 +239,7 @@ def _clip_joints(k):
     lc = P + t * (LIP_D0 + LIP_D1) / 2
     kb = P + t * KNOB_AT
     clip = Joint(f"clip{k}", kind="hinge", axis="Z", anchor=(P[0], P[1], TAB_Z), lower=-math.pi / 2, upper=0.0,
-                 initial=0.0, friction=0.010, damping=0.001, mass=0.002,
+                 initial=0.0, friction=0.002, damping=0.001, mass=0.002,
                  boxes=[((c[0], c[1], TAB_Z), (CLIP_L + 0.002, CLIP_W, CLIP_T), STEEL, yaw),
                         ((lc[0], lc[1], (PL_T + 0.0001 + TAB_BOT) / 2), (LIP_D1 - LIP_D0, CLIP_W, TAB_BOT - PL_T - 0.0001),
                          STEEL, yaw)],
@@ -413,7 +413,7 @@ PLANCHECK_BOXES = [
 
 # -- scoring ----------------------------------------------------------------------------------------------------------
 DOOR_SHUT = 0.003  # the door counts as shut within 3 mm of its seat
-CLIP_IN = math.radians(80.0)
+CLIP_IN = math.radians(70.0)
 BITE = 0.0020  # a clip's tip at least 2 mm inside the wafer's outline holds it
 GAP_MAX = 150.0
 CENTRED = 0.002
@@ -434,6 +434,11 @@ def _reset_state(env):
     _hist.clear()
     _door_drive(env, "locked")
     _light(env, False)
+    import torch
+
+    plate = env.unwrapped.scene["sample_plate"]
+    ids = plate.find_joints("clip.*_joint")[0]
+    plate.write_joint_stiffness_to_sim(torch.zeros((1, len(ids)), device=plate.device), joint_ids=ids)
 
 
 def _light(env, green):
@@ -448,6 +453,16 @@ def _light(env, green):
 
 
 LOCK_K = 20000.0  # the twist lock's hold on the shut door (N/m)
+
+
+def _clamp_clip(env, k, th):
+    """A tightened screw clamps its clip: from then on the clip holds its angle (a stiff spring)."""
+    import torch
+
+    plate = env.unwrapped.scene["sample_plate"]
+    ids = plate.find_joints(f"clip{k}_joint")[0]
+    plate.set_joint_position_target(torch.full((1, 1), -th, device=plate.device), joint_ids=ids)
+    plate.write_joint_stiffness_to_sim(torch.full((1, 1), 50.0, device=plate.device), joint_ids=ids)
 
 
 def _door_drive(env, mode):
@@ -583,6 +598,7 @@ def _watch(env):
         th = -float(p.joints.get(f"clip{k}", 0.0))
         if sa >= SCREW_TIGHT and k not in st["tight"] and th >= CLIP_IN:
             st["tight"][k] = th
+            _clamp_clip(env, k, th)
         if sa > SCREW_MAX and th >= CLIP_IN:
             st["viol"].add("a screw too tight: the wafer cracked")
     # the wafer, the plate and the ring
