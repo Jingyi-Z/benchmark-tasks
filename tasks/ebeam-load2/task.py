@@ -852,7 +852,7 @@ class _SlotYaw(float):
         a = _ct["ang"].get(self.k)
         if a is None:
             return math.radians(STROKE)
-        if a >= SCREW_AIM - 50.0:
+        if a >= math.degrees(SCREW_TIGHT):  # tight already: no more turning
             return 0.0
         return math.radians(max(0.0, min(STROKE, SCREW_AIM - a + STROKE_PLAY)))
 
