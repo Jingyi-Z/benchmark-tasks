@@ -446,7 +446,7 @@ def _light(env, green):
 
     tw = env.unwrapped.scene["light_tower"]
     for c, up in (("blue", not green), ("green", green)):
-        ids = tw.find_joints(f"lens_{c}")[0]
+        ids = tw.find_joints(f"lens_{c}_joint")[0]  # the sim names each joint <name>_joint
         tw.set_joint_position_target(torch.full((1, len(ids)), 0.0 if up else LENS_IN, device=tw.device),
                                      joint_ids=ids)
 
