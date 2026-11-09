@@ -717,7 +717,7 @@ RING_IN = 0.104  # and when pinching the ring alone (its rim and skirt)
 PUSH_DIR = -W_OFF / np.linalg.norm(W_OFF)
 
 # trims: each a 3-vector added to the TCPs of _Dyn waypoints with its key; integrated in windows from seen positions
-_ct = {"trim": {}, "wins": [], "last": {}, "looks": [], "turn": {}}
+_ct = {"trim": {}, "wins": [], "last": {}, "looks": [], "turn": {}, "freeze": []}
 
 
 @on_reset
@@ -774,6 +774,8 @@ def _seen(env, name):
 @on_step
 def _ctrack(env):
     t = getattr(_demo, "_plan_clock", 0.0)
+    if any(f0 <= t < f1 for f0, f1 in _ct["freeze"]):  # the hand is feeling for a slot: hold the trims
+        return
     for t0, t1, key, fn, watch in _ct["wins"]:
         if not t0 <= t < t1:
             continue
@@ -865,7 +867,7 @@ class _Plan:
 
 
 def demo():
-    _ct["trim"], _ct["wins"], _ct["looks"] = {}, [], []
+    _ct["trim"], _ct["wins"], _ct["looks"], _ct["freeze"] = {}, [], [], []
     pl = _Plan()
     face = PL_T  # the plate's face, plate frame
 
@@ -978,6 +980,18 @@ def demo():
                     (1.8, sd_tcp(SD_XY, up), SD_HOLD, "lift it out of its holder", yo),
                     (1.5, sd_tcp(SD_XY, TOP + 0.17), SD_HOLD, "up, its tip well over the plate and ring", yo)])
     head = PLATE_START[2] + TAB_TOP + HEAD_H  # a screw head's top (world z)
+    FEEL_R, FEEL_N, FEEL_DT = 0.0006, 6, 0.2
+
+    def feel(seq, xy, key, yaw):
+        """Pressing down, move the blade round a 0.6 mm circle so that it drops into the slot (trims held)."""
+        t = pl.t + sum(w[0] for w in seq)
+        _ct["freeze"].append((t, t + FEEL_DT * (FEEL_N + 1)))
+        c = np.asarray(sd_tcp(xy, head - 0.0005), float)
+        for i in range(FEEL_N):
+            a = 2 * math.pi * i / FEEL_N
+            seq.append((FEEL_DT, _Dyn(c + [FEEL_R * math.cos(a), FEEL_R * math.sin(a), 0.0], key), SD_HOLD,
+                        "feel for the slot", yaw))
+        seq.append((FEEL_DT, _Dyn(c, key), SD_HOLD, "feel for the slot", yaw))
     for k in (6, 0, 3):  # 270, 0, 135 degrees
         P = clip_frame(k)[0]
         xy = _pw((*P, 0.0))[:2]
@@ -990,11 +1004,12 @@ def demo():
         tw0 = pl.t + 2.5
         seq += [(2.0, _Dyn(sd_tcp(xy, head + 0.005), key), SD_HOLD, "hold still, the blade's tip seen over the slot",
                  yaws[0]),
-                (1.5, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade into the slot", yaws[0])]
+                (1.0, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade into the slot", yaws[0])]
+        feel(seq, xy, key, yaws[0])
         y_end = y0 - math.radians(STROKE)
         ys = yaws
         for stroke in range(STROKES):
-            seq += [(0.6, _Dyn(sd_tcp(xy, head - 0.0010), key), SD_HOLD, "turn it clockwise", ys[i])
+            seq += [(0.6, _Dyn(sd_tcp(xy, head - 0.0005), key), SD_HOLD, "turn it clockwise", ys[i])
                     for i in range(1, 7)]
             seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "lift the blade out", ys[6]))
             if stroke < STROKES - 1:
@@ -1003,7 +1018,9 @@ def demo():
                 seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "look at the slot", ys[6]))
                 ys = [_SlotYaw((k, stroke), y0 - math.radians(STROKE) * i / 6, y0, y_end) for i in range(7)]
                 seq += [(0.8, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "turn back", ys[i]) for i in (4, 2, 0)]
-                seq.append((1.0, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade back in the slot", ys[0]))
+                seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "hold still over the slot", ys[0]))
+                seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade back in the slot", ys[0]))
+                feel(seq, xy, key, ys[0])
         seq.append((1.2, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "up", ys[6]))
         pl.phase(right=seq)
         pl.window(tw0 + 0.6, pl.t - 1.2, key, lambda env, P=P: np.array([*(_pw((*P, 0.0))[:2]
