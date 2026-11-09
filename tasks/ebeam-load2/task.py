@@ -326,8 +326,8 @@ DOOR_X, DOOR_Z0, DOOR_Z1 = LL_X0 - 0.005, 0.095, 0.325
 HANDLE_X, HANDLE_Z, HANDLE_W = DOOR_X - 0.025, 0.200, 0.012
 DOOR_UP = 0.250  # fully open: its bottom edge 25 mm over the opening
 DOOR_M = 0.25  # kg
-LATCH_K = 800.0  # the top latch's hold (N/m): a pull of about 6 N takes the door off it
-LATCH_ON, LATCH_OFF = 0.003, 0.010  # it latches within 3 mm of the top, and lets go once pulled 10 mm down
+LATCH_K = 400.0  # the top latch's hold (N/m): a pull of about 8 N takes the door off it
+LATCH_ON, LATCH_OFF = 0.015, 0.025  # it latches within 15 mm of the top, and lets go once pulled 25 mm down
 DOOR = part(
     "door", pos=(DOOR_X, 0.0, TOP), fixed=True, friction=1.0,
     boxes=[((0.0, 0.0, 0.003), (0.004, 0.004, 0.006), DARK)],
@@ -918,19 +918,20 @@ def demo():
     pl.phase(right=[(0.8, _Dyn(back, "push"), FINGER_CLOSED, "back off the wafer's edge", p_start[1]),
                     (1.0, _Dyn(tuple(np.asarray(back) + [0, 0, 0.04]), "push"), FINGER_CLOSED, "up", p_start[1]),
                     (1.5, (back[0], back[1], TOP + 0.25), FINGER_CLOSED, "up high, clear of the plate", p_start[1])])
-    b2, bo = _bar(HANDLE_Z + DOOR_UP - 0.003)
-    b3, _ = _bar(HANDLE_Z + DOOR_UP - 0.003, back=0.06)
+    b2, bo = _bar(HANDLE_Z + DOOR_UP - 0.006)  # the latched door sags about 6 mm
+    b3, _ = _bar(HANDLE_Z + DOOR_UP - 0.006, back=0.06)
 
     d2, _ = _bar(HANDLE_Z + 0.001)
-    top = _bar(HANDLE_Z + DOOR_UP + 0.003)[0]
+    top = _bar(HANDLE_Z + DOOR_UP + 0.008)[0]  # against its top stop
     door_open = [(2.5, _bar(HANDLE_Z, back=0.10)[0], BAR_OPEN, "back from the shut door's handle, hand turned", bo),
                  (2.0, _bar(HANDLE_Z, back=0.06)[0], BAR_OPEN, "in front of the handle", bo),
                  (1.2, d2, BAR_OPEN, "round the handle", bo),
                  (0.5, d2, BAR_HOLD, "hold it", bo),
-                 (2.0, top, BAR_HOLD, "lift the door until it latches open", bo),
+                 (3.0, top, BAR_HOLD, "lift the door until it latches open", bo),
+                 (0.6, top, BAR_HOLD, "hold it against its top stop", bo),
                  (0.5, top, BAR_OPEN, "let go: the latch holds it up", bo),
                  (1.0, _bar(HANDLE_Z + DOOR_UP, back=0.07)[0], BAR_OPEN, "back off", bo)]
-    door_shut = [(2.5, _bar(HANDLE_Z + DOOR_UP - 0.003, back=0.10)[0], BAR_OPEN, "back from the raised door, hand turned",
+    door_shut = [(2.5, _bar(HANDLE_Z + DOOR_UP - 0.006, back=0.10)[0], BAR_OPEN, "back from the raised door, hand turned",
                   bo),
                  (1.5, b3, BAR_OPEN, "in front of the raised door's handle", bo),
                  (1.2, b2, BAR_OPEN, "round the handle", bo),
