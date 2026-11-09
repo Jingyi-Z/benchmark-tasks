@@ -999,7 +999,8 @@ def demo():
     for k in (6, 0, 3):  # 270, 0, 135 degrees
         P = clip_frame(k)[0]
         xy = _pw((*P, 0.0))[:2]
-        key = f"sd{k}"
+        key = "sd"  # one trim for all three screws: it follows how the screwdriver sits in the hand
+        n_strokes = STROKES + (1 if k == 6 else 0)  # the first screw gets one more stroke: its first try may miss
         y0 = math.radians(STROKE_TOP)
         yaws = [Orient(_prev_grip(y0 - math.radians(STROKE) * i / 6)) for i in range(7)]
         mid = Orient(_prev_grip(math.radians(STROKE_TOP - STROKE / 2)))
@@ -1013,12 +1014,12 @@ def demo():
         feel(seq, xy, key, yaws[0])
         y_end = y0 - math.radians(STROKE)
         ys = yaws
-        for stroke in range(STROKES):
+        for stroke in range(n_strokes):
             seq += [(0.6, _Dyn(sd_tcp(xy, head - 0.0010), key), SD_HOLD, "turn it clockwise", ys[i])
                     for i in range(1, 7)]
             seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "lift the blade out", ys[6]))
             _ct["freeze"].append((f0, now(seq)))
-            if stroke < STROKES - 1:
+            if stroke < n_strokes - 1:
                 t_look = pl.t + sum(w[0] for w in seq)
                 _ct["looks"].append((t_look, t_look + 0.6, k, stroke))
                 seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "look at the slot", ys[6]))
