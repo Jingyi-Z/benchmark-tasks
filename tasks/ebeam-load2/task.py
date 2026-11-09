@@ -322,7 +322,7 @@ LOADLOCK = part("load_lock", pos=(_cx, 0.0, TOP), fixed=True, friction=0.8,
 # the door (fixed frame, a slide joint up): an aluminium plate 6 mm thick in front of the opening, with a 12 mm handle bar
 # 25 mm in front of it. Friction holds it where it is left.
 DOOR_X, DOOR_Z0, DOOR_Z1 = LL_X0 - 0.005, 0.095, 0.305
-HANDLE_X, HANDLE_Z, HANDLE_W = DOOR_X - 0.025, 0.130, 0.012
+HANDLE_X, HANDLE_Z, HANDLE_W = DOOR_X - 0.025, 0.200, 0.012
 DOOR_UP = 0.215  # fully open
 DOOR_M = 0.25  # kg, counterbalanced: it stays where it is left
 DOOR = part(
@@ -331,8 +331,8 @@ DOOR = part(
     joints=[Joint("door", kind="slide", axis="Z", anchor=(0.0, 0.0, DOOR_Z0), lower=0.0, upper=DOOR_UP + 0.005,
                   initial=0.0, damping=6.0, mass=DOOR_M,
                   boxes=[((0.0, 0.0, (DOOR_Z0 + DOOR_Z1) / 2), (0.006, 2 * LL_Y, DOOR_Z1 - DOOR_Z0), ALU),
-                         ((HANDLE_X - DOOR_X, 0.0, HANDLE_Z), (HANDLE_W, 0.140, HANDLE_W), DARK),
-                         *[((-0.0145, e * 0.064, HANDLE_Z), (0.023, 0.010, HANDLE_W), DARK) for e in (-1, 1)]])],
+                         *[((-0.0145, e * 0.064, HANDLE_Z), (0.023, 0.010, HANDLE_W), DARK) for e in (-1, 1)]],
+                  cylinders=[((HANDLE_X - DOOR_X, 0.0, HANDLE_Z), HANDLE_W / 2, 0.140, DARK, "Y")])],
 )
 
 # -- the control box (fixed): two push buttons, VENT and PUMP, with their names printed in 21 mm letters below them. ----
@@ -354,11 +354,11 @@ CONTROLS = part(
             for n, (x, y) in BTN.items()],
 )
 
-# -- the screwdriver (loose) in its holder (fixed): a 0.8 x 5 mm blade on a 5 mm square shaft 60 mm long under a 12 mm
-# square handle 35 mm long. Frame: origin at the blade's tip, +z up the shaft, the blade's width along y. It stands
+# -- the screwdriver (loose) in its holder (fixed): a stubby one, a 0.8 x 5 mm blade on a 5 mm square shaft 40 mm long
+# under a 12 mm square handle 22 mm long. Frame: origin at the blade's tip, +z up the shaft, the blade's width along y. It stands
 # blade down in its holder, a block with a 7 mm square socket 10 mm deep, the tip 50 mm above the bench. ---------------
 BLADE = (0.0008, 0.0050, 0.0040)
-SH_W, SH_L, H_W, H_L = 0.0050, 0.060, 0.012, 0.035
+SH_W, SH_L, H_W, H_L = 0.0050, 0.040, 0.012, 0.022
 SD_XY = (0.120, -0.170)
 SOCK_Z, SOCK_D, SOCK_W = 0.060, 0.010, 0.007  # the holder's top above the bench, the socket's depth and width
 SD_START = np.array([*SD_XY, TOP + SOCK_Z - SOCK_D])
@@ -383,6 +383,7 @@ PLANCHECK_BOXES = [
     ("door", (DOOR_X, 0.0, TOP + (DOOR_Z0 + DOOR_Z1) / 2), (0.006, 2 * LL_Y, DOOR_Z1 - DOOR_Z0)),
     ("holder_back", (HOLD_XY[0] + 0.093, 0.0, TOP + HOLD_Z / 2), (0.014, 0.060, HOLD_Z)),
     ("stand_plate", (*ST_XY, TOP + ST_H - BOSS_H - 0.003), (0.120, 0.120, 0.006)),
+    ("plate_ring_on_stand", (*ST_XY, TOP + ST_H + 0.004), (0.150, 0.150, 0.008)),  # until the stack is lifted
     ("controls", (*BOX_XY, TOP + BOX_H / 2 + 0.006), (0.120, 0.160, BOX_H + 0.012)),
     ("sd_holder", (*SD_XY, TOP + SOCK_Z / 2), (0.030, 0.030, SOCK_Z)),
     ("door_up", (DOOR_X, 0.0, TOP + (DOOR_Z0 + DOOR_Z1) / 2 + DOOR_UP), (0.006, 2 * LL_Y, DOOR_Z1 - DOOR_Z0)),
@@ -805,7 +806,7 @@ def _pinch(side, c, R, r_tip, out=0.0):
     return tuple(tip - a * TIP_ABOVE_TCP), Orient(Rh)
 
 
-def _bar(z, pitch=60.0, back=0.0):
+def _bar(z, pitch=80.0, back=0.0):
     """TCP and rotation for the right hand round the door's handle bar at height z (above the bench), pitched down
     towards the door; ``back`` backs it off along its approach."""
     R = axis_angle_matrix(Y, math.radians(-pitch)) @ _prev_grip(math.pi / 2)
