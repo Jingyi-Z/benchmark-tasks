@@ -325,7 +325,7 @@ DOOR_X, DOOR_Z0, DOOR_Z1 = LL_X0 - 0.005, 0.095, 0.325
 HANDLE_X, HANDLE_Z, HANDLE_W = DOOR_X - 0.025, 0.200, 0.012
 DOOR_UP = 0.250  # fully open: its bottom edge 25 mm over the opening
 DOOR_M = 0.25  # kg
-COUNTER, LOCK_K = 1.06, 4000.0  # its counterweight (times its weight); the vacuum's hold (N/m)
+COUNTER, LOCK_K = 2.0, 4000.0  # its counterweight (times its weight); the vacuum's hold (N/m)
 DOOR = part(
     "door", pos=(DOOR_X, 0.0, TOP), fixed=True, friction=1.0,
     boxes=[((0.0, 0.0, 0.003), (0.004, 0.004, 0.006), DARK)],
@@ -892,7 +892,7 @@ def demo():
     w1 = -u * (W_R - STRIP_IN + 0.004)  # and where it is when the wafer is centred
     p_start = _down(_pw((*(w0 - u * 0.012), tipz)), pyaw)
     p_touch = _down(_pw((*(w0 - u * 0.001), tipz)), pyaw)
-    p_near = _down(_pw((*(w1 - u * 0.002), tipz)), pyaw)  # 2 mm short: the trim pushes the rest
+    p_near = _down(_pw((*(w1 - u * 0.006), tipz)), pyaw)  # 6 mm short: the trim pushes the rest
     push = [(2.5, tuple(np.asarray(p_start[0]) + [0, 0, 0.03]), FINGER_CLOSED, "above the plate, beside the wafer's "
              "edge", p_start[1]),
             (1.2, p_start[0], FINGER_CLOSED, "fingertips down on the plate, outside the wafer", p_start[1]),
@@ -906,7 +906,7 @@ def demo():
     back = tuple(np.asarray(p_near[0]) - [*(u * 0.010), 0] + [0, 0, 0.0])
     pl.phase(right=[(0.8, _Dyn(back, "push"), FINGER_CLOSED, "back off the wafer's edge", p_start[1]),
                     (1.0, _Dyn(tuple(np.asarray(back) + [0, 0, 0.04]), "push"), FINGER_CLOSED, "up", p_start[1]),
-                    (1.5, (back[0], back[1], TOP + 0.30), FINGER_CLOSED, "up high, clear of the plate", p_start[1])])
+                    (1.5, (back[0], back[1], TOP + 0.25), FINGER_CLOSED, "up high, clear of the plate", p_start[1])])
     vent_at = t0 + 4.3  # VENT pressed (end of its press)
 
     # -- 1. right lifts the door, once the load lock has had 10 s to vent ---------------------------------------------------
@@ -939,7 +939,8 @@ def demo():
         r, l_ = both(*a, **k)
         return pl.phase(right=r, left=l_)
 
-    ph(3.0, rc + [-0.225, 0, 0.02], OPEN_W, "in front of the open door, wrist turned", out=0.02)
+    ph(3.0, np.array([0.24, 0.0, TOP + 0.25]), OPEN_W, "high over the stand, wrist turned", out=0.0)
+    ph(2.0, rc + [-0.225, 0, 0.02], OPEN_W, "in front of the open door", out=0.02)
     ph(2.5, rc + [-0.03, 0, 0.0], OPEN_W, "into the load lock, beside the ring holder", out=0.02)
     ph(2.0, rc, OPEN_W, "level with its rim", out=0.02)
     ph(1.5, rc, OPEN_W, "fingers over its rim and under its skirt")
@@ -1003,7 +1004,7 @@ def demo():
                     (1.2, sd_tcp(SD_XY, z0), SD_OPEN, "fingers round its shaft", yo),
                     (0.8, sd_tcp(SD_XY, z0), SD_HOLD, "hold it", yo),
                     (1.8, sd_tcp(SD_XY, up), SD_HOLD, "lift it out of its holder", yo),
-                    (1.5, sd_tcp(SD_XY, TOP + 0.20), SD_HOLD, "up, its tip well over the plate and ring", yo)])
+                    (1.5, sd_tcp(SD_XY, TOP + 0.17), SD_HOLD, "up, its tip well over the plate and ring", yo)])
     head = PLATE_START[2] + TAB_TOP + HEAD_H  # a screw head's top (world z)
     for k in (6, 0, 3):  # 270, 0, 135 degrees
         P = clip_frame(k)[0]
@@ -1031,7 +1032,7 @@ def demo():
                                                                             - _seen(env, "screwdriver")[:2]), 0.0]),
                   "screwdriver")
     pl.phase(right=[(1.5, sd_tcp((0.17, -0.10), head + 0.03), SD_HOLD, "up, off the plate", yo),
-                    (2.0, sd_tcp(SD_XY, TOP + 0.20), SD_HOLD, "high over its holder", yo),
+                    (2.0, sd_tcp(SD_XY, TOP + 0.17), SD_HOLD, "high over its holder", yo),
                     (1.5, sd_tcp(SD_XY, up), SD_HOLD, "down over its holder", yo),
                     (1.8, sd_tcp(SD_XY, z0 + 0.001), SD_HOLD, "into its holder", yo),
                     (0.6, sd_tcp(SD_XY, z0 + 0.001), SD_OPEN, "let go", yo),
@@ -1070,7 +1071,7 @@ def demo():
                     (1.2, b2, BAR_OPEN, "round the handle", bo),
                     (0.5, b2, BAR_HOLD, "hold it", bo),
                     (3.0, _bar(HANDLE_Z - 0.002)[0], BAR_HOLD, "pull the door down onto its seat", bo)],
-             left=[(1.5, _pinch("left", seat + [-0.20, 0.0, 0.03], Rf, STACK_IN, 0.03)[0], OPEN_W, "up and out",
+             left=[(1.5, _pinch("left", seat + [-0.245, 0.0, 0.08], Rf, STACK_IN, 0.0)[0], OPEN_W, "up and out",
                     _pinch("left", seat, Rf, STACK_IN)[1]),
                    (3.0, LEFT_PARK, FINGER_CLOSED, "up and clear", 0.0),
                    (2.5, tuple(np.asarray(pt) + [0, 0, 0.04]), FINGER_CLOSED, "above PUMP", po)])
