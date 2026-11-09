@@ -986,13 +986,10 @@ def demo():
     FEEL_R, FEEL_N, FEEL_DT = 0.0006, 6, 0.2
 
     def feel(seq, xy, key, yaw):
-        """Pressing down, move the blade round a 0.6 mm circle so that it drops into the slot."""
-        c = np.asarray(sd_tcp(xy, head - 0.0005), float)
-        for i in range(FEEL_N):
-            a = 2 * math.pi * i / FEEL_N
-            seq.append((FEEL_DT, _Dyn(c + [FEEL_R * math.cos(a), FEEL_R * math.sin(a), 0.0], key), SD_HOLD,
-                        "feel for the slot", yaw))
-        seq.append((FEEL_DT, _Dyn(c, key), SD_HOLD, "feel for the slot", yaw))
+        """Pressing lightly, keep the blade's tip (seen) centred on the screw, so that a tip resting on the slot's
+        edges slides over until it drops in."""
+        seq.append((FEEL_DT * (FEEL_N + 1), _Dyn(sd_tcp(xy, head - 0.0005), key), SD_HOLD,
+                    "press, the tip centred on the screw", yaw))
     def now(seq):
         return pl.t + sum(w[0] for w in seq)
 
@@ -1009,9 +1006,9 @@ def demo():
         tw0 = pl.t + 2.5
         seq += [(2.0, _Dyn(sd_tcp(xy, head + 0.005), key), SD_HOLD, "hold still, the blade's tip seen over the slot",
                  yaws[0])]
-        f0 = now(seq)  # from here until the blade is lifted out, the tip is held by the screw: hold the trim
         seq.append((1.0, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade into the slot", yaws[0]))
         feel(seq, xy, key, yaws[0])
+        f0 = now(seq)  # from here until the blade is lifted out, the tip is held by the screw: hold the trim
         y_end = y0 - math.radians(STROKE)
         ys = yaws
         for stroke in range(n_strokes):
@@ -1027,9 +1024,9 @@ def demo():
                 ys = [_SlotYaw((k, stroke), y0 - math.radians(STROKE) * i / 6, y0, y_end, prev) for i in range(7)]
                 seq += [(0.8, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "turn back", ys[i]) for i in (4, 2, 0)]
                 seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "hold still over the slot", ys[0]))
-                f0 = now(seq)
                 seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade back in the slot", ys[0]))
                 feel(seq, xy, key, ys[0])
+                f0 = now(seq)
         seq.append((1.2, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "up", ys[6]))
         pl.phase(right=seq)
         pl.window(tw0 + 0.6, pl.t - 1.2, key, lambda env, P=P: np.array([*(_pw((*P, 0.0))[:2]
