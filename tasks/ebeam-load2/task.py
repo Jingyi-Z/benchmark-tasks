@@ -285,12 +285,12 @@ _segs = [5.0 + 10.0 * i for i in range(36)]
 RING_BOXES = (_arc_boxes(RG_IN, RG_OUT, 0.0, RG_T, _segs, 0.0200, ALU)
               + _arc_boxes(SK_IN, RG_OUT, -PL_T, 0.0, _segs, 0.0205, ALU))
 
-# -- the load lock (fixed): a closed chamber, 0.72 m wide, its front at x = 0.36 m, with a viewport on top. Its front
-# opening (0.69 x 0.16 m, 140 to 300 mm above the bench) is closed by a door that slides up. Inside, on a centre shaft,
-# its holder: two arcs (front and back) that carry the ring holder 200 mm above the bench, between low fences. ----------
-LL_X0, LL_X1, LL_Y, LL_Z = 0.360, 0.630, 0.360, 0.336
-OPEN_Y, OPEN_Z0, OPEN_Z1 = 0.345, 0.140, 0.300
-HOLD_XY, HOLD_Z = (0.475, 0.0), 0.200
+# -- the load lock (fixed): a closed chamber, 0.76 m wide, its front at x = 0.36 m, with a viewport on top. Its front
+# opening (0.75 x 0.20 m, 100 to 300 mm above the bench) is closed by a door that slides up. Inside, on a centre shaft,
+# its holder: two arcs (front and back) that carry the ring holder 170 mm above the bench, between low fences. ----------
+LL_X0, LL_X1, LL_Y, LL_Z = 0.360, 0.630, 0.380, 0.336
+OPEN_Z0, OPEN_Z1 = 0.100, 0.300
+HOLD_XY, HOLD_Z = (0.475, 0.0), 0.170
 WALL = 0.006
 RING_START = np.array([*HOLD_XY, TOP + HOLD_Z])
 RING = part("ring_holder", pos=tuple(RING_START), mass=0.14, friction=0.9, boxes=RING_BOXES)
@@ -312,8 +312,6 @@ _ll_w = LL_X1 - LL_X0
 LL_BOXES = [
     ((-_ll_w / 2 + WALL / 2, 0.0, OPEN_Z0 / 2), (WALL, 2 * LL_Y, OPEN_Z0), CHAMBER),  # front, under the opening
     ((-_ll_w / 2 + WALL / 2, 0.0, (OPEN_Z1 + LL_Z) / 2), (WALL, 2 * LL_Y, LL_Z - OPEN_Z1), CHAMBER),  # over it
-    *[((-_ll_w / 2 + WALL / 2, e * (OPEN_Y + LL_Y) / 2, (OPEN_Z0 + OPEN_Z1) / 2),
-       (WALL, LL_Y - OPEN_Y, OPEN_Z1 - OPEN_Z0), CHAMBER) for e in (-1, 1)],  # either side of it
     *[((WALL / 2, e * (LL_Y - WALL / 2), LL_Z / 2), (_ll_w, WALL, LL_Z), CHAMBER) for e in (-1, 1)],  # sides
     ((_ll_w / 2 - WALL / 2, 0.0, LL_Z / 2), (WALL, 2 * LL_Y, LL_Z), CHAMBER),  # back
 ]
@@ -323,14 +321,15 @@ LOADLOCK = part("load_lock", pos=(_cx, 0.0, TOP), fixed=True, friction=0.8,
 
 # the door (fixed frame, a slide joint up): an aluminium plate 6 mm thick in front of the opening, with a 12 mm handle bar
 # 25 mm in front of it. Friction holds it where it is left.
-DOOR_X, DOOR_Z0, DOOR_Z1 = LL_X0 - 0.005, 0.135, 0.305
-HANDLE_X, HANDLE_Z, HANDLE_W = DOOR_X - 0.025, 0.170, 0.012
-DOOR_UP = 0.175  # fully open
+DOOR_X, DOOR_Z0, DOOR_Z1 = LL_X0 - 0.005, 0.095, 0.305
+HANDLE_X, HANDLE_Z, HANDLE_W = DOOR_X - 0.025, 0.130, 0.012
+DOOR_UP = 0.215  # fully open
+DOOR_M = 0.25  # kg, counterbalanced: it stays where it is left
 DOOR = part(
     "door", pos=(DOOR_X, 0.0, TOP), fixed=True, friction=1.0,
     boxes=[((0.0, 0.0, 0.003), (0.004, 0.004, 0.006), DARK)],
     joints=[Joint("door", kind="slide", axis="Z", anchor=(0.0, 0.0, DOOR_Z0), lower=0.0, upper=DOOR_UP + 0.005,
-                  initial=0.0, friction=4.0, damping=3.0, mass=0.25,
+                  initial=0.0, damping=6.0, mass=DOOR_M,
                   boxes=[((0.0, 0.0, (DOOR_Z0 + DOOR_Z1) / 2), (0.006, 2 * LL_Y, DOOR_Z1 - DOOR_Z0), ALU),
                          ((HANDLE_X - DOOR_X, 0.0, HANDLE_Z), (HANDLE_W, 0.140, HANDLE_W), DARK),
                          *[((-0.0145, e * 0.064, HANDLE_Z), (0.023, 0.010, HANDLE_W), DARK) for e in (-1, 1)]])],
@@ -412,6 +411,18 @@ def _reset_state(env):
                   pressed={"vent": False, "pump": False}, tight={}, settled=False, far=True, gap=360.0,
                   centred=False, stack=False, door=0.0, sd_in=False)
     _hist.clear()
+    _counterbalance(env)
+
+
+def _counterbalance(env):
+    """The door hangs on a counterweight, like a sash window: an upward force equal to its weight."""
+    import torch
+
+    door = env.unwrapped.scene["door"]
+    ids = door.find_bodies("door")[0]
+    f = torch.zeros((1, len(ids), 3), device=door.device)
+    f[..., 2] = DOOR_M * 9.81
+    door.set_external_force_and_torque(f, torch.zeros_like(f), body_ids=ids, is_global=True)
 
 
 def _tips(env):
@@ -629,7 +640,8 @@ def _endpoints(plan):
                 if (e < 1.0 and (best[0] >= 1.0 or d < best[1])) or (best[0] >= 1.0 and e < best[0]):
                     best = (e, d, qs)
             q = best[2]
-        elif float(np.max(np.abs(q[3:5] - q_prev[3:5]))) > math.radians(70.0):
+        elif (float(np.max(np.abs(q[3:5] - q_prev[3:5]))) > math.radians(70.0)
+              or float(np.max(np.abs(q - q_prev))) > math.radians(100.0)):
             switch.add(i)  # reached, but by turning the wrist over
         out.append(q)
         q_prev = q
@@ -846,14 +858,14 @@ def demo():
 
     # -- 0. start: both up and clear; left presses VENT; right pushes the wafer to the centre ---------------------------
     vx, vy = BTN["vent"]
-    vt, vo = _down((vx, vy, TOP + BOX_H + BTN_H - BTN_TRAVEL + 0.0005), 0.0)
+    vt, vo = _down((vx, vy, TOP + BOX_H + BTN_H - BTN_TRAVEL - 0.0015), 0.0)  # pressed to the bottom
     vent = [(2.5, tuple(np.asarray(vt) + [0, 0, 0.04]), FINGER_CLOSED, "above VENT", vo),
             (1.0, tuple(np.asarray(vt) + [0, 0, 0.004]), FINGER_CLOSED, "fingertips on VENT", vo),
             (0.8, vt, FINGER_CLOSED, "press VENT", vo),
             (0.8, tuple(np.asarray(vt) + [0, 0, 0.04]), FINGER_CLOSED, "up: the load lock vents", vo)]
     u = PUSH_DIR
     pyaw = _wrap(math.atan2(u[1], u[0]) + math.pi / 2)  # fingers closing along the push: its 16 mm face leads
-    tipz = 0.0004  # fingertips 0.4 mm over the plate's face
+    tipz = -0.0002  # fingertips aimed 0.2 mm into the plate's face: they ride about 0.4 mm over it
     w0 = W_OFF - u * (W_R - STRIP_IN + 0.004)  # the fingertips' centre touching the wafer's edge
     w1 = -u * (W_R - STRIP_IN + 0.004)  # and where it is when the wafer is centred
     p_start = _down(_pw((*(w0 - u * 0.012), tipz)), pyaw)
@@ -904,7 +916,7 @@ def demo():
         r, l_ = both(*a, **k)
         return pl.phase(right=r, left=l_)
 
-    ph(2.5, rc + [-0.17, 0, 0.02], OPEN_W, "in front of the open door, wrist turned", out=0.02)
+    ph(3.0, rc + [-0.225, 0, 0.02], OPEN_W, "in front of the open door, wrist turned", out=0.02)
     ph(2.5, rc + [-0.03, 0, 0.0], OPEN_W, "into the load lock, beside the ring holder", out=0.02)
     ph(2.0, rc, OPEN_W, "level with its rim", out=0.02)
     ph(1.5, rc, OPEN_W, "fingers over its rim and under its skirt")
@@ -1027,12 +1039,13 @@ def demo():
     ph(2.5, seat + [-0.17, 0, 0.0], OPEN_W, "out of the load lock", Rf, r_tip=STACK_IN, out=0.03)
 
     # -- 6. right closes the door and holds it; left presses PUMP; both let go -------------------------------------------
-    pt, po = _down((*BTN["pump"], TOP + BOX_H + BTN_H - BTN_TRAVEL + 0.0005), 0.0)
-    pl.phase(right=[(2.0, b3, BAR_OPEN, "in front of the raised door's handle", bo),
+    pt, po = _down((*BTN["pump"], TOP + BOX_H + BTN_H - BTN_TRAVEL - 0.0015), 0.0)
+    pl.phase(right=[(3.0, _bar(HANDLE_Z + DOOR_UP - 0.003, back=0.10)[0], BAR_OPEN, "back from the raised door, hand turned", bo),
+                    (2.0, b3, BAR_OPEN, "in front of the raised door's handle", bo),
                     (1.2, b2, BAR_OPEN, "round the handle", bo),
                     (0.5, b2, BAR_HOLD, "hold it", bo),
                     (3.0, _bar(HANDLE_Z - 0.002)[0], BAR_HOLD, "pull the door down onto its seat", bo)],
-             left=[(1.5, _pinch("left", seat + [-0.15, 0.0, 0.05], Rf, STACK_IN, 0.03)[0], OPEN_W, "up and out",
+             left=[(1.5, _pinch("left", seat + [-0.20, 0.0, 0.03], Rf, STACK_IN, 0.03)[0], OPEN_W, "up and out",
                     _pinch("left", seat, Rf, STACK_IN)[1]),
                    (3.0, LEFT_PARK, FINGER_CLOSED, "up and clear", 0.0),
                    (2.5, tuple(np.asarray(pt) + [0, 0, 0.04]), FINGER_CLOSED, "above PUMP", po)])
