@@ -286,10 +286,10 @@ RING_BOXES = (_arc_boxes(RG_IN, RG_OUT, 0.0, RG_T, _segs, 0.0200, ALU)
               + _arc_boxes(SK_IN, RG_OUT, -PL_T, 0.0, _segs, 0.0205, ALU))
 
 # -- the load lock (fixed): a closed chamber, 0.76 m wide, its front at x = 0.36 m, with a viewport on top. Its front
-# opening (0.75 x 0.20 m, 100 to 300 mm above the bench) is closed by a door that slides up. Inside, on a centre shaft,
+# opening (0.75 x 0.22 m, 100 to 320 mm above the bench) is closed by a door that slides up. Inside, on a centre shaft,
 # its holder: two arcs (front and back) that carry the ring holder 170 mm above the bench, between low fences. ----------
-LL_X0, LL_X1, LL_Y, LL_Z = 0.360, 0.640, 0.380, 0.336
-OPEN_Z0, OPEN_Z1 = 0.100, 0.300
+LL_X0, LL_X1, LL_Y, LL_Z = 0.360, 0.640, 0.380, 0.350
+OPEN_Z0, OPEN_Z1 = 0.100, 0.320
 HOLD_XY, HOLD_Z = (0.485, 0.0), 0.170
 WALL = 0.006
 RING_START = np.array([*HOLD_XY, TOP + HOLD_Z])
@@ -321,9 +321,9 @@ LOADLOCK = part("load_lock", pos=(_cx, 0.0, TOP), fixed=True, friction=0.8,
 
 # the door (fixed frame, a slide joint up): an aluminium plate 6 mm thick in front of the opening, with a 12 mm handle bar
 # 25 mm in front of it. Friction holds it where it is left.
-DOOR_X, DOOR_Z0, DOOR_Z1 = LL_X0 - 0.005, 0.095, 0.305
+DOOR_X, DOOR_Z0, DOOR_Z1 = LL_X0 - 0.005, 0.095, 0.325
 HANDLE_X, HANDLE_Z, HANDLE_W = DOOR_X - 0.025, 0.200, 0.012
-DOOR_UP = 0.215  # fully open
+DOOR_UP = 0.250  # fully open: its bottom edge 25 mm over the opening
 DOOR_M = 0.25  # kg
 COUNTER, LOCK_K = 1.06, 4000.0  # its counterweight (times its weight); the vacuum's hold (N/m)
 DOOR = part(
@@ -892,7 +892,7 @@ def demo():
     w1 = -u * (W_R - STRIP_IN + 0.004)  # and where it is when the wafer is centred
     p_start = _down(_pw((*(w0 - u * 0.012), tipz)), pyaw)
     p_touch = _down(_pw((*(w0 - u * 0.001), tipz)), pyaw)
-    p_near = _down(_pw((*(w1 - u * 0.0008), tipz)), pyaw)
+    p_near = _down(_pw((*(w1 - u * 0.002), tipz)), pyaw)  # 2 mm short: the trim pushes the rest
     push = [(2.5, tuple(np.asarray(p_start[0]) + [0, 0, 0.03]), FINGER_CLOSED, "above the plate, beside the wafer's "
              "edge", p_start[1]),
             (1.2, p_start[0], FINGER_CLOSED, "fingertips down on the plate, outside the wafer", p_start[1]),
@@ -1002,7 +1002,8 @@ def demo():
     pl.phase(right=[(2.5, sd_tcp(SD_XY, z0 + 0.04), SD_OPEN, "above the screwdriver's shaft", yo),
                     (1.2, sd_tcp(SD_XY, z0), SD_OPEN, "fingers round its shaft", yo),
                     (0.8, sd_tcp(SD_XY, z0), SD_HOLD, "hold it", yo),
-                    (1.8, sd_tcp(SD_XY, up), SD_HOLD, "lift it out of its holder", yo)])
+                    (1.8, sd_tcp(SD_XY, up), SD_HOLD, "lift it out of its holder", yo),
+                    (1.5, sd_tcp(SD_XY, TOP + 0.20), SD_HOLD, "up, its tip well over the plate and ring", yo)])
     head = PLATE_START[2] + TAB_TOP + HEAD_H  # a screw head's top (world z)
     for k in (6, 0, 3):  # 270, 0, 135 degrees
         P = clip_frame(k)[0]
@@ -1030,7 +1031,8 @@ def demo():
                                                                             - _seen(env, "screwdriver")[:2]), 0.0]),
                   "screwdriver")
     pl.phase(right=[(1.5, sd_tcp((0.17, -0.10), head + 0.03), SD_HOLD, "up, off the plate", yo),
-                    (2.0, sd_tcp(SD_XY, up), SD_HOLD, "back over its holder", yo),
+                    (2.0, sd_tcp(SD_XY, TOP + 0.20), SD_HOLD, "high over its holder", yo),
+                    (1.5, sd_tcp(SD_XY, up), SD_HOLD, "down over its holder", yo),
                     (1.8, sd_tcp(SD_XY, z0 + 0.001), SD_HOLD, "into its holder", yo),
                     (0.6, sd_tcp(SD_XY, z0 + 0.001), SD_OPEN, "let go", yo),
                     (1.2, sd_tcp(SD_XY, z0 + 0.06), SD_OPEN, "up", yo)])
