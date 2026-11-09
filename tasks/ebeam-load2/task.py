@@ -751,20 +751,23 @@ class _SlotYaw(float):
     """A Waypoint ``yaw`` for the second stroke: the planned hand yaw shifted so that the blade lines up with the slot as
     last seen (by a multiple of 180 degrees, kept near the stroke's planned start)."""
 
-    def __new__(cls, k, yaw, start, end):  # k: (clip, look)
+    def __new__(cls, k, yaw, start, end, prev=None):  # k: (clip, look); prev: the last stroke's shifted yaw
         obj = float.__new__(cls, 0.0)
-        obj.k, obj.yaw, obj.start, obj.end = k, yaw, start, end
+        obj.k, obj.yaw, obj.start, obj.end, obj.prev = k, yaw, start, end, prev
         return obj
+
+    def off(self):
+        d = _ct["turn"].get(self.k)
+        if d is None:
+            return 0.0
+        end = self.end + (self.prev.off() if self.prev is not None else 0.0)  # where the last stroke ended
+        s0 = end + math.radians(d)  # the hand's yaw now, turned to line the blade up
+        s0 += math.pi * round((self.start - s0) / math.pi)
+        return s0 - self.start
 
     @property
     def rot(self):
-        d = _ct["turn"].get(self.k)
-        off = 0.0
-        if d is not None:
-            s0 = self.end + math.radians(d)  # the hand's yaw now, turned to line the blade up
-            s0 += math.pi * round((self.start - s0) / math.pi)
-            off = s0 - self.start
-        return _prev_grip(self.yaw + off)
+        return _prev_grip(self.yaw + self.off())
 
 
 def _seen(env, name):
@@ -983,15 +986,16 @@ def demo():
     FEEL_R, FEEL_N, FEEL_DT = 0.0006, 6, 0.2
 
     def feel(seq, xy, key, yaw):
-        """Pressing down, move the blade round a 0.6 mm circle so that it drops into the slot (trims held)."""
-        t = pl.t + sum(w[0] for w in seq)
-        _ct["freeze"].append((t, t + FEEL_DT * (FEEL_N + 1)))
+        """Pressing down, move the blade round a 0.6 mm circle so that it drops into the slot."""
         c = np.asarray(sd_tcp(xy, head - 0.0005), float)
         for i in range(FEEL_N):
             a = 2 * math.pi * i / FEEL_N
             seq.append((FEEL_DT, _Dyn(c + [FEEL_R * math.cos(a), FEEL_R * math.sin(a), 0.0], key), SD_HOLD,
                         "feel for the slot", yaw))
         seq.append((FEEL_DT, _Dyn(c, key), SD_HOLD, "feel for the slot", yaw))
+    def now(seq):
+        return pl.t + sum(w[0] for w in seq)
+
     for k in (6, 0, 3):  # 270, 0, 135 degrees
         P = clip_frame(k)[0]
         xy = _pw((*P, 0.0))[:2]
@@ -1003,22 +1007,26 @@ def demo():
                (1.0, sd_tcp(xy, head + 0.008), SD_HOLD, "turn the blade to the slot", yaws[0])]
         tw0 = pl.t + 2.5
         seq += [(2.0, _Dyn(sd_tcp(xy, head + 0.005), key), SD_HOLD, "hold still, the blade's tip seen over the slot",
-                 yaws[0]),
-                (1.0, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade into the slot", yaws[0])]
+                 yaws[0])]
+        f0 = now(seq)  # from here until the blade is lifted out, the tip is held by the screw: hold the trim
+        seq.append((1.0, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade into the slot", yaws[0]))
         feel(seq, xy, key, yaws[0])
         y_end = y0 - math.radians(STROKE)
         ys = yaws
         for stroke in range(STROKES):
-            seq += [(0.6, _Dyn(sd_tcp(xy, head - 0.0005), key), SD_HOLD, "turn it clockwise", ys[i])
+            seq += [(0.6, _Dyn(sd_tcp(xy, head - 0.0010), key), SD_HOLD, "turn it clockwise", ys[i])
                     for i in range(1, 7)]
             seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "lift the blade out", ys[6]))
+            _ct["freeze"].append((f0, now(seq)))
             if stroke < STROKES - 1:
                 t_look = pl.t + sum(w[0] for w in seq)
                 _ct["looks"].append((t_look, t_look + 0.6, k, stroke))
                 seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "look at the slot", ys[6]))
-                ys = [_SlotYaw((k, stroke), y0 - math.radians(STROKE) * i / 6, y0, y_end) for i in range(7)]
+                prev = ys[0] if isinstance(ys[0], _SlotYaw) else None
+                ys = [_SlotYaw((k, stroke), y0 - math.radians(STROKE) * i / 6, y0, y_end, prev) for i in range(7)]
                 seq += [(0.8, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "turn back", ys[i]) for i in (4, 2, 0)]
                 seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "hold still over the slot", ys[0]))
+                f0 = now(seq)
                 seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade back in the slot", ys[0]))
                 feel(seq, xy, key, ys[0])
         seq.append((1.2, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "up", ys[6]))
