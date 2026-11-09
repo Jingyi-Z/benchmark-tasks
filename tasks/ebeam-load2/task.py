@@ -790,7 +790,8 @@ def _ctrack(env):
         e = np.asarray(fn(env), float)
         e[2] = 0.0
         tr = _ct["trim"].get(key, np.zeros(3))
-        _ct["trim"][key] = np.clip(tr + np.clip(0.2 * e, -0.0003, 0.0003), -0.012, 0.012)
+        g, step = (0.05, 0.0001) if key == "sd" else (0.2, 0.0003)  # the held screwdriver lags: a gentler gain
+        _ct["trim"][key] = np.clip(tr + np.clip(g * e, -step, step), -0.012, 0.012)
 
 
 class _Dyn:
