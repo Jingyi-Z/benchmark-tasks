@@ -169,14 +169,16 @@ HOT_X = 0.570  # the hot zone's centre, at the thermocouple
 FLOOR = AXZ - 0.0195  # the tube's floor under the boat: the 46 mm bore 12 mm either side of the bottom
 _L = TUBE_X1 - MOUTH_X
 _mid = (TUBE_X1 + MOUTH_X) / 2
+_Lw, _midw = TUBE_X1 - MOUTH_X - END_L, (TUBE_X1 + MOUTH_X + END_L) / 2  # the walls: behind the cap's reach (their
+# corners stand out past the tube's outside; at the end, the tube's own ring is the wall)
 _hole = TUBE_R + 0.002
 FURNACE_BOXES = [
     # inside the tube: its floor and the walls either side, in steps that follow the round bore
     ((_mid, 0.0, FLOOR - 0.002), (_L, 0.024, 0.004), QUARTZ),
-    *[((_mid, e * 0.0145, AXZ - 0.0165 - 0.002), (_L, 0.005, 0.004), QUARTZ) for e in (-1, 1)],
-    *[((_mid, e * 0.0195, AXZ - 0.010 - 0.004), (_L, 0.004, 0.008), QUARTZ) for e in (-1, 1)],
-    *[((_mid, e * 0.0215, AXZ), (_L, 0.003, 0.014), QUARTZ) for e in (-1, 1)],
-    ((_mid, 0.0, AXZ + 0.0215), (_L, 0.030, 0.003), QUARTZ),
+    *[((_midw, e * 0.0145, AXZ - 0.0165 - 0.002), (_Lw, 0.005, 0.004), QUARTZ) for e in (-1, 1)],
+    *[((_midw, e * 0.0195, AXZ - 0.010 - 0.004), (_Lw, 0.004, 0.008), QUARTZ) for e in (-1, 1)],
+    *[((_midw, e * 0.0215, AXZ), (_Lw, 0.003, 0.014), QUARTZ) for e in (-1, 1)],
+    ((_midw, 0.0, AXZ + 0.0215), (_Lw, 0.030, 0.003), QUARTZ),
     # the tube's stand, just behind its open end
     ((0.375, 0.0, (AXZ - TUBE_R) / 2), (0.030, 0.050, AXZ - TUBE_R), DARK),
     # the furnace body round the tube (a square hole for it), on its feet
