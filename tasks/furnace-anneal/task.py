@@ -203,7 +203,7 @@ ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.115, friction=0.7,
                   ((-0.0055, 0.0, -(AXZ - FLOOR) / 2), (0.003, 0.005, AXZ - FLOOR - 0.002), STEEL),
                   ((-0.0095, 0.0, -(AXZ - FLOOR) + 0.001), (0.015, 0.012, 0.002), STEEL)])
 
-# -- the rod's cradles (fixed): two posts in line with the tube, each with an 11 mm slot the rod lies in. --------------------
+# -- the rod's rest (fixed): two posts in line with the tube under one trough with an 11 mm slot the rod lies in. ------------
 REST_X = (-0.040, 0.075)  # its back end stays on the front one even with the boat in the hot zone
 _FLARE = math.radians(30.0)
 REST_Z = AXZ - HANDLE_W / 2 - 0.0015  # the cradles' tops, 1.5 mm under the rod's grip: its ends must not catch on them
@@ -212,9 +212,11 @@ REST = part("rod_cradles", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
                        REST_Z + 0.004), (0.018, 0.004, 0.008), DARK, e * _FLARE) for e in (-1, 1)],
                    *[((REST_X[1] + 0.007 + 0.009 * math.cos(_FLARE), e * (0.0095 + 0.009 * math.sin(_FLARE)),
                        (REST_Z) / 2), (0.018, 0.004, REST_Z), DARK, e * _FLARE) for e in (-1, 1)],
-                   *[b for x in REST_X for b in (
-                ((x, 0.0, (REST_Z) / 2), (0.014, 0.020, REST_Z), DARK),
-                *[((x, e * 0.0075, REST_Z + 0.004), (0.014, 0.004, 0.008), DARK) for e in (-1, 1)])]])
+                   # two posts carry one continuous trough, so the rod's back end never leaves it and comes back
+                   *[((x, 0.0, (REST_Z - 0.004) / 2), (0.014, 0.020, REST_Z - 0.004), DARK) for x in REST_X],
+                   ((sum(REST_X) / 2, 0.0, REST_Z - 0.002), (REST_X[1] - REST_X[0] + 0.014, 0.020, 0.004), DARK),
+                   *[((sum(REST_X) / 2, e * 0.0075, REST_Z + 0.004), (REST_X[1] - REST_X[0] + 0.014, 0.004, 0.008),
+                      DARK) for e in (-1, 1)]])
 
 OBJECTS = [FURNACE, BOAT, *CHIPS, ROD, REST]
 PLANCHECK_BOXES = [
