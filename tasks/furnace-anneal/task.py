@@ -899,8 +899,8 @@ def _rod_at(y, z=AXZ):
 
 
 def _on_rod(p):
-    """TCP for the fingers pinching the rod across its axis at p (not past it: the pinch would pull the rod aside)."""
-    return _tcp(p, past=0.0)
+    """TCP for the fingers round the rod at p, their tips 6 mm past its axis (so the pads, not the tips, hold it)."""
+    return _tcp(p, past=0.006)
 
 
 def demo():
