@@ -206,14 +206,15 @@ ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.115, friction=0.7,
 # -- the rod's cradles (fixed): two posts in line with the tube, each with a 9 mm slot the rod lies in. --------------------
 REST_X = (-0.040, 0.075)  # its back end stays on the front one even with the boat in the hot zone
 _FLARE = math.radians(30.0)
+REST_Z = AXZ - HANDLE_W / 2 - 0.0015  # the cradles' tops, 1.5 mm under the rod's grip: its ends must not catch on them
 REST = part("rod_cradles", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
             boxes=[*[((REST_X[1] + 0.007 + 0.009 * math.cos(_FLARE), e * (0.0085 + 0.009 * math.sin(_FLARE)),
-                       AXZ - HANDLE_W / 2 + 0.004), (0.018, 0.004, 0.008), DARK, e * _FLARE) for e in (-1, 1)],
+                       REST_Z + 0.004), (0.018, 0.004, 0.008), DARK, e * _FLARE) for e in (-1, 1)],
                    *[((REST_X[1] + 0.007 + 0.009 * math.cos(_FLARE), e * (0.0085 + 0.009 * math.sin(_FLARE)),
-                       (AXZ - HANDLE_W / 2) / 2), (0.018, 0.004, AXZ - HANDLE_W / 2), DARK, e * _FLARE) for e in (-1, 1)],
+                       (REST_Z) / 2), (0.018, 0.004, REST_Z), DARK, e * _FLARE) for e in (-1, 1)],
                    *[b for x in REST_X for b in (
-                ((x, 0.0, (AXZ - HANDLE_W / 2) / 2), (0.014, 0.020, AXZ - HANDLE_W / 2), DARK),
-                *[((x, e * 0.0065, AXZ - HANDLE_W / 2 + 0.004), (0.014, 0.004, 0.008), DARK) for e in (-1, 1)])]])
+                ((x, 0.0, (REST_Z) / 2), (0.014, 0.020, REST_Z), DARK),
+                *[((x, e * 0.0065, REST_Z + 0.004), (0.014, 0.004, 0.008), DARK) for e in (-1, 1)])]])
 
 OBJECTS = [FURNACE, BOAT, *CHIPS, ROD, REST]
 PLANCHECK_BOXES = [
