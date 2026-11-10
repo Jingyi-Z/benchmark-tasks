@@ -1183,7 +1183,7 @@ def demo():
         P = clip_frame(k)[0]
         xy = _pw((*P, 0.0))[:2]
         key = "sd"  # one trim for all three screws: it follows how the screwdriver sits in the hand
-        n_strokes = STROKES + 1  # a try can miss the slot; strokes after the screw is tight do not turn it
+        n_strokes = STROKES + 2  # a try can miss the slot; strokes after the screw is tight do not turn it
         y0 = math.radians(STROKE_TOP)
         yaws = [Orient(_prev_grip(y0 - math.radians(STROKE) * i / 6)) for i in range(7)]
         mid = Orient(_prev_grip(math.radians(STROKE_TOP - STROKE / 2)))
