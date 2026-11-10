@@ -205,10 +205,15 @@ ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.115, friction=0.7,
 
 # -- the rod's cradles (fixed): two posts in line with the tube, each with a 9 mm slot the rod lies in. --------------------
 REST_X = (-0.040, 0.075)  # its back end stays on the front one even with the boat in the hot zone
+_FLARE = math.radians(30.0)
 REST = part("rod_cradles", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
-            boxes=[b for x in REST_X for b in (
+            boxes=[*[((REST_X[1] + 0.007 + 0.009 * math.cos(_FLARE), e * (0.0085 + 0.009 * math.sin(_FLARE)),
+                       AXZ - HANDLE_W / 2 + 0.004), (0.018, 0.004, 0.008), DARK, e * _FLARE) for e in (-1, 1)],
+                   *[((REST_X[1] + 0.007 + 0.009 * math.cos(_FLARE), e * (0.0085 + 0.009 * math.sin(_FLARE)),
+                       (AXZ - HANDLE_W / 2) / 2), (0.018, 0.004, AXZ - HANDLE_W / 2), DARK, e * _FLARE) for e in (-1, 1)],
+                   *[b for x in REST_X for b in (
                 ((x, 0.0, (AXZ - HANDLE_W / 2) / 2), (0.014, 0.020, AXZ - HANDLE_W / 2), DARK),
-                *[((x, e * 0.0065, AXZ - HANDLE_W / 2 + 0.004), (0.014, 0.004, 0.008), DARK) for e in (-1, 1)])])
+                *[((x, e * 0.0065, AXZ - HANDLE_W / 2 + 0.004), (0.014, 0.004, 0.008), DARK) for e in (-1, 1)])]])
 
 OBJECTS = [FURNACE, BOAT, *CHIPS, ROD, REST]
 PLANCHECK_BOXES = [
@@ -576,12 +581,16 @@ def demo():
     pl.phase(left=[(2.0, _Dyn(_on_rod(FEED_X1, 0.0)[0], "l1"), ROD_HOLD, "hold still: the mark seen at the tube's end",
                     O)])
     pl.window(tw + 6.0, tw + 8.0, "l1",
-              lambda env: np.array([MOUTH_X - (_seen(env, "hook_rod")[0] - MARK_AT), 0.0, 0.0]), "hook_rod")
+              lambda env: np.array([MOUTH_X - (_seen(env, "hook_rod")[0] - MARK_AT), -_seen(env, "hook_rod")[1], 0.0]),
+              "hook_rod")
     pl.phase(left=[(1.0, _Dyn(_on_rod(FEED_X1, 0.0)[0], "l1"), ROD_HOLD, "the boat in the hot zone", O)])
     # -- 3. back out: left pulls the rod out one stroke and lets go; right takes it and pulls it home into its cradles ------
     pl.phase(left=move(FEED_X1, FEED_X0, "l1", "pull the rod back out"))
     pl.phase(left=leave("left", FEED_X0, "l1"))
     pl.phase(right=take("right", FEED_X1, "r2"))
+    tw = pl.phase(right=[(1.5, _Dyn(_on_rod(FEED_X1, 0.0)[0], "r2"), ROD_HOLD, "hold still: the rod seen in line with its "
+                          "cradles", O)])
+    pl.window(tw, tw + 1.5, "r2", lambda env: np.array([0.0, -_seen(env, "hook_rod")[1], 0.0]), "hook_rod")
     pl.phase(right=move(FEED_X1, FEED_X0, "r2", "pull it back into its cradles"))
     pl.phase(right=leave("right", FEED_X0, "r2"))
     pl.phase(right=[(2.0, RIGHT_PARK, FINGER_CLOSED, "rest", 0.0)], left=[(2.0, LEFT_PARK, FINGER_CLOSED, "rest", 0.0)])
