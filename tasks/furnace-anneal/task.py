@@ -180,7 +180,7 @@ BOAT = part("boat", pos=tuple(BOAT_START), mass=0.012, friction=0.25,
 CHIP, CHIP_T = 0.010, 0.0005
 CHIP_DX = (-0.024, 0.0, 0.024)
 CHIP_START = [BOAT_START + [dx, 0.0, BOAT_T + CHIP_T / 2] for dx in CHIP_DX]
-CHIPS = [part(f"chip{i}", pos=tuple(CHIP_START[i]), mass=0.00012, friction=0.35,
+CHIPS = [part(f"chip{i}", pos=tuple(CHIP_START[i]), mass=0.00012, friction=0.8,
               boxes=[((0.0, 0.0, 0.0), (CHIP, CHIP, CHIP_T), CHIP_C)]) for i in range(3)]
 
 # -- the hook rod (loose): a 6 mm stainless rod 420 mm long, a hook at its front end that sits behind the boat's back wall,
@@ -554,7 +554,7 @@ def demo():
                 (1.0, _Dyn(_on_rod(x, 0.015)[0], key), ROD_OPEN, "up off the rod", O),
                 (1.5, park[side], ROD_OPEN, "aside", O)]
 
-    def move(x0, x1, key, label, dur=4.0):
+    def move(x0, x1, key, label, dur=6.0):
         return [(dur, _Dyn(_on_rod(x1, 0.0)[0], key), ROD_HOLD, label, O)]
 
     # -- 1. right takes the rod near its back and pushes it in one stroke (slowly: the chips must not slide) ----------------
@@ -566,7 +566,7 @@ def demo():
     tw = pl.phase(left=move(FEED_X0, FEED_X1, "l1", "push on until the red mark meets the tube's end"))
     pl.phase(left=[(2.0, _Dyn(_on_rod(FEED_X1, 0.0)[0], "l1"), ROD_HOLD, "hold still: the mark seen at the tube's end",
                     O)])
-    pl.window(tw + 4.0, tw + 6.0, "l1",
+    pl.window(tw + 6.0, tw + 8.0, "l1",
               lambda env: np.array([MOUTH_X - (_seen(env, "hook_rod")[0] - MARK_AT), 0.0, 0.0]), "hook_rod")
     pl.phase(left=[(1.0, _Dyn(_on_rod(FEED_X1, 0.0)[0], "l1"), ROD_HOLD, "the boat in the hot zone", O)])
     # -- 3. back out: left pulls the rod out one stroke, right takes it in front, left lets go, right pulls it home ---------
