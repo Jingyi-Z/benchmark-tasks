@@ -943,8 +943,10 @@ def _ctrack(env):
     w = _ct["want"]
     still = w is not None and _ct.get("want_last") is not None and np.max(np.abs(w - _ct["want_last"])) < 0.0005
     _ct["want_last"] = None if w is None else np.array(w)
-    if still and t - _ct.get("want_t", -1.0) < 0.1 and \
-            sd.pos[2] > PLATE_START[2] + TAB_TOP + HEAD_H + 0.004:  # held still, its tip clear of the screw
+    tip_last, _ct["tip_last"] = _ct.get("tip_last"), np.asarray(sd.pos, float)
+    settled = tip_last is not None and np.max(np.abs(np.asarray(sd.pos, float) - tip_last)) < 0.0001
+    if still and settled and t - _ct.get("want_t", -1.0) < 0.1 and \
+            sd.pos[2] > PLATE_START[2] + TAB_TOP + HEAD_H + 0.004:  # held still, the tip settled, clear of the screw
         # where the hand was sent (the plan's own command) against where the blade's tip is seen: how far the tip
         # sits from the hand's centre, the arm's own lag included
         om = np.asarray(w, float)[:2] - np.asarray(sd.pos, float)[:2]
@@ -1332,15 +1334,20 @@ def demo():
                     (2.0, sd_tcp(SD_XY, TOP + 0.17), SD_HOLD, "high over its holder", yo),
                     (1.5, sd_tcp(SD_XY, up), SD_HOLD, "down over its holder", yo)])
     tw = pl.t
+    near = z0 + SOCK_D + 0.003  # its tip 3 mm over the snug socket
     pl.phase(right=[(2.0, _Dyn(sd_tcp(SD_XY, up), "sdh"), SD_HOLD, "hold still, its tip seen over the socket", yo),
-                    (1.8, _Dyn(sd_tcp(SD_XY, z0 + 0.001), "sdh"), SD_HOLD, "into its holder", yo),
+                    (1.2, _Dyn(sd_tcp(SD_XY, near), "sdh"), SD_HOLD, "down, its tip just over the socket", yo),
+                    (1.2, _Dyn(sd_tcp(SD_XY, near), "sdh"), SD_HOLD, "hold still, lined up with the socket (seen)",
+                     yo),
+                    (1.0, _Dyn(sd_tcp(SD_XY, z0 + 0.001), "sdh"), SD_HOLD, "into its holder", yo),
                     (0.6, _Dyn(sd_tcp(SD_XY, z0 + 0.001), "sdh"), SD_OPEN, "let go", yo),
                     (1.2, _Dyn(sd_tcp(SD_XY, z0 + 0.06), "sdh"), SD_OPEN, "up", yo),
                     (1.5, (0.20, -0.20, TOP + 0.23), FINGER_CLOSED, "high, beside the stand", yo)],
-             left=[(5.6, LEFT_PARK, FINGER_CLOSED, "wait", 0.0),
+             left=[(7.2, LEFT_PARK, FINGER_CLOSED, "wait", 0.0),
                    (1.5, (0.20, 0.20, TOP + 0.23), FINGER_CLOSED, "high, beside the stand", 0.0)])
-    pl.window(tw + 0.8, tw + 2.0, "sdh", lambda env: np.array([*(np.asarray(SD_XY) - _seen(env, "screwdriver")[:2]), 0.0]),
-              "screwdriver")
+    seen_sock = lambda env: np.array([*(np.asarray(SD_XY) - _seen(env, "screwdriver")[:2]), 0.0])
+    pl.window(tw + 0.8, tw + 2.0, "sdh", seen_sock, "screwdriver")
+    pl.window(tw + 3.4, tw + 4.4, "sdh", seen_sock, "screwdriver")  # the arm drifts on the way down: trim again
 
     # -- 5. right opens the door again; both roll the plate and ring over together and set them on the load lock's holder
     do = door_open(pl.t)
