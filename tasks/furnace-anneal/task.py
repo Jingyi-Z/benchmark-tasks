@@ -167,14 +167,16 @@ FURNACE = part("tube_furnace", pos=(0.0, 0.0, TOP), fixed=True, friction=0.25, b
                meshes=[_tube_mesh(MOUTH_X - 0.001, TUBE_X1, TUBE_R, TUBE_IN, QUARTZ),
                        _tube_mesh(FL_X0, MOUTH_X, FL_R, TUBE_IN + 0.0005, STAINLESS)])
 
-# -- the boat (loose): a fused-quartz boat 80 x 20 x 8 mm, open on top. Frame: origin at the centre of its underside. ------
+# -- the boat (loose): a fused-quartz boat 80 x 20 x 8 mm, open on top, its back end raised 17 mm. Frame: origin at the
+# centre of its underside. ---------------------------------------------------------------------------------------------
 BOAT_L, BOAT_W, BOAT_H, BOAT_T = 0.080, 0.020, 0.008, 0.0015
+BACK_H = 0.017  # its back end is raised into a tab, which the rod's pusher meets
 BOAT_START = np.array([MOUTH_X + 0.004 + BOAT_L / 2, 0.0, TOP + FLOOR])
 BOAT = part("boat", pos=tuple(BOAT_START), mass=0.012, friction=0.25,
             boxes=[((0.0, 0.0, BOAT_T / 2), (BOAT_L, BOAT_W, BOAT_T), QUARTZ),
                    *[((0.0, e * (BOAT_W - BOAT_T) / 2, BOAT_H / 2), (BOAT_L, BOAT_T, BOAT_H), QUARTZ) for e in (-1, 1)],
-                   *[((e * (BOAT_L - BOAT_T) / 2, 0.0, BOAT_H / 2), (BOAT_T, BOAT_W - 2 * BOAT_T, BOAT_H), QUARTZ)
-                     for e in (-1, 1)]])
+                   ((-(BOAT_L - BOAT_T) / 2, 0.0, BACK_H / 2), (BOAT_T, BOAT_W - 2 * BOAT_T, BACK_H), QUARTZ),
+                   (((BOAT_L - BOAT_T) / 2, 0.0, BOAT_H / 2), (BOAT_T, BOAT_W - 2 * BOAT_T, BOAT_H), QUARTZ)])
 
 # -- the chips (loose): three 10 x 10 x 0.5 mm silicon chips with 2D flakes on them, lying in the boat. -------------------
 CHIP, CHIP_T = 0.010, 0.0005
@@ -183,11 +185,11 @@ CHIP_START = [BOAT_START + [dx, 0.0, BOAT_T + CHIP_T / 2] for dx in CHIP_DX]
 CHIPS = [part(f"chip{i}", pos=tuple(CHIP_START[i]), mass=0.00012, friction=0.8,
               boxes=[((0.0, 0.0, 0.0), (CHIP, CHIP, CHIP_T), CHIP_C)]) for i in range(3)]
 
-# -- the hook rod (loose): a 6 mm stainless rod 520 mm long, a 26 mm pusher disc at its front end behind the boat's wall,
+# -- the hook rod (loose): a 6 mm stainless rod 520 mm long, a 16 mm pusher disc at its front end behind the boat's wall,
 # and a red mark 250 mm back from the hook: at the tube's end when the boat is centred in the hot zone. Frame: origin on
 # the rod's axis at the hook's front face, the rod along -x. ------------------------------------------------------------
 ROD_L, ROD_R = 0.520, 0.003
-PUSHER_R = 0.013  # the pusher disc at its front: it meets the boat's back wall whichever way the rod is turned
+PUSHER_R = 0.008  # the pusher disc at its front: it meets the boat's back wall whichever way the rod is turned
 MARK_AT = HOT_X - BOAT_L / 2 - MOUTH_X  # 0.25 m behind the hook
 ROD_START = np.array([BOAT_START[0] - BOAT_L / 2 - 0.0005, 0.0, TOP + AXZ])
 ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.115, friction=0.8,
