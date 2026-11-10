@@ -922,7 +922,8 @@ def _ctrack(env):
             slot = (math.degrees(math.atan2(pst.rotation()[1, 0], pst.rotation()[0, 0])) + SLOT_DEG[CLIP_DEG[k]]
                     + math.degrees(float(pst.joints.get(f"clip{k}", 0.0)) + float(pst.joints.get(f"screw{k}", 0.0))))
             e = (slot - math.degrees(_ct["b_now"]) + 90.0) % 180.0 - 90.0
-            _ct["yawfix"][kn] = _ct["yawfix"].get(kn, 0.0) + math.radians(max(-3.0, min(3.0, 0.15 * e)))
+            f = _ct["yawfix"].get(kn, 0.0) + math.radians(max(-0.8, min(0.8, 0.04 * e)))
+            _ct["yawfix"][kn] = max(-math.radians(45.0), min(math.radians(45.0), f))
     if _ct["want"] is not None and t - _ct.get("want_t", -1.0) < 0.1 and \
             sd.pos[2] > PLATE_START[2] + TAB_TOP + HEAD_H + 0.004:  # held, its tip clear of the screw
         from yam_arena import runtime as _rt
