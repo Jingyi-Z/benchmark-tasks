@@ -975,26 +975,22 @@ def demo():
     keys = iter(f"r{i}" for i in range(1, 20))
     cur = {"k": "r"}
 
-    def line_up(y, key, dur=1.0):
-        """Hold open round the rod at y while the hand is lined up on it as seen (its axis there), then close."""
-        t0 = pl.t + sum(w[0] for w in seq)
-        pl.window(t0 + 0.2, t0 + dur, key,
-                  lambda env, y=y, key=key: _rod_seen_at(env, y) - _rod_at(y) - _ct["trim"].get(key, np.zeros(3))
-                  * [1.0, 0.0, 1.0], "hook_rod")
-        return [(dur, _Dyn(_on_rod(_rod_at(y)), key), ROD_OPEN, "line up on the rod (seen)", O_T)]
-
     def regrip(y_from, y_to):
+        """Let go, move along, line up on the rod as seen while hovering 3 cm over it (the open fingers clear of it, so
+        they cannot nudge it while the hand is trimmed), keep trimming on the way down, then close."""
         k_old, k_new = cur["k"], next(keys)
         cur["k"] = k_new
-        out = [(0.6, _Dyn(_on_rod(_rod_at(y_from)), k_old), ROD_OPEN, "let go of the rod", O_T),
-               (0.8, _Dyn(_on_rod(_rod_at(y_from) + 0.03 * up), k_old), ROD_OPEN, "up off the rod", O_T),
-               (1.2, _Dyn(_on_rod(_rod_at(y_to) + 0.03 * up), k_new), ROD_OPEN, "along the rod", O_T),
-               (0.8, _Dyn(_on_rod(_rod_at(y_to)), k_new), ROD_OPEN, "down round the rod", O_T)]
-        seq.extend(out)
-        out2 = line_up(y_to, k_new)
-        seq.extend(out2)
-        out3 = [(0.6, _Dyn(_on_rod(_rod_at(y_to)), k_new), ROD_HOLD, "close on the rod", O_T)]
-        seq.extend(out3)
+        over = _on_rod(_rod_at(y_to) + 0.03 * up)
+        seq.extend([(0.6, _Dyn(_on_rod(_rod_at(y_from)), k_old), ROD_OPEN, "let go of the rod", O_T),
+                    (0.8, _Dyn(_on_rod(_rod_at(y_from) + 0.03 * up), k_old), ROD_OPEN, "up off the rod", O_T),
+                    (1.2, _Dyn(over, k_new), ROD_OPEN, "along the rod", O_T)])
+        t0 = pl.t + sum(w[0] for w in seq)
+        pl.window(t0 + 0.1, t0 + 2.4, k_new,
+                  lambda env, y=y_to, key=k_new: (_rod_seen_at(env, y) - _rod_at(y) - _ct["trim"].get(key, np.zeros(3)))
+                  * [1.0, 0.0, 1.0], "hook_rod")
+        seq.extend([(1.4, _Dyn(over, k_new), ROD_OPEN, "line up over the rod (seen)", O_T),
+                    (1.0, _Dyn(_on_rod(_rod_at(y_to)), k_new), ROD_OPEN, "down round the rod", O_T),
+                    (0.6, _Dyn(_on_rod(_rod_at(y_to)), k_new), ROD_HOLD, "close on the rod", O_T)])
         return []
 
     full = FEED[1] - FEED[0]
