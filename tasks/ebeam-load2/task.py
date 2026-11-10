@@ -393,7 +393,7 @@ def _socket_walls():
         walls.append(_convex(pts, STEEL))
     return walls
 SD_XY = (0.120, -0.170)
-SOCK_Z, SOCK_D, SOCK_W = 0.060, 0.010, 0.013  # the holder's top above the bench, the socket's depth and width
+SOCK_Z, SOCK_D, SOCK_W = 0.060, 0.010, 0.0122 # the holder's top above the bench, the socket's depth and width
 SD_START = np.array([*SD_XY, TOP + SOCK_Z - SOCK_D])
 SCREWDRIVER = part(
     "screwdriver", pos=tuple(SD_START), mass=0.035, friction=1.0,
