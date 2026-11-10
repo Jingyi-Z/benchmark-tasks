@@ -367,13 +367,14 @@ ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.090, friction=0.7,
 # coming back over the near one, must not catch on it). --------------------------------------------------------------
 REST_Y = (-0.300, -0.520)  # the near one by the tube's mouth, out of the hand's strokes
 REST_Z = AXZ - GRIP_W / 2 - 0.0015
+V_RISE = 0.0015
 REST = part("rod_rests", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
-            boxes=[((XA, y, REST_Z / 2), (0.020, 0.014, REST_Z), DARK) for y in REST_Y]
-            # cheeks on the far one only: on the near one, by the hand's strokes, the rod caught on them
-            + [((XA + e * 0.0075, REST_Y[1], REST_Z + 0.004), (0.004, 0.014, 0.008), DARK) for e in (-1, 1)],
-            meshes=[_hex([(XA + sx * 0.0055, y, z) for sx in (-1, 1) for y, zt in
-                          ((REST_Y[1] + 0.007, REST_Z), (REST_Y[1] + 0.025, REST_Z - 0.006)) for z in (REST_Z - 0.010, zt)],
-                         DARK)])  # a ramp up onto the far rest
+            boxes=[((XA, y, REST_Z / 2), (0.020, 0.014, REST_Z), DARK) for y in REST_Y],
+            # each topped by a shallow V (1.5 mm deep over 10 mm a side) that centres the rod; no cheeks, which the rod's
+            # ends caught on as it slid along
+            meshes=[_hex([(XA + sx * xo, y + dy, REST_Z + zo) for xo, zt in ((0.0, 0.0002), (0.010, V_RISE))
+                          for dy in (-0.007, 0.007) for zo in (0.0, zt)], DARK)
+                    for y in REST_Y for sx in (-1, 1)])
 
 # -- the end cap (loose): an aluminium quick-release cap for the 1 inch tube: a 5 mm plate and a 25 mm sleeve that slides
 # over the tube's end until the plate meets it (its O-ring inside then seals), knurled outside where it is held. Frame:
@@ -1039,8 +1040,10 @@ def demo():
         shut.append((1.0, _tcp(p, R, past=0.002), BAR_HOLD, "lower the lid", Orient(R)))
     shut += [(0.6, _tcp(p0, R0, past=0.002), BAR_OPEN, "let go of the lid", Orient(R0)),
              (1.0, _tcp(p0 - _appr(R0) * 0.012, R0, past=0.002), BAR_OPEN, "back off the handle", Orient(R0)),
+             (1.0, _tcp(p0 - _appr(R0) * 0.060, R0, past=0.002), BAR_OPEN, "well clear of the handle", Orient(R0)),
              (2.0, LEFT_PARK, BAR_OPEN, "up and clear", O_T)]
-    pl.phase(left=[(0.6, _tcp(h), TUBE_OPEN, "let go of the tube", O_T),
+    pl.phase(left=[(0.6, _tcp(h), CAP_OPEN, "let go of the tube", O_T),
+                   (0.8, _tcp(h) - APPR_T * 0.025, CAP_OPEN, "back off the tube along the hand", O_T),
                    (1.0, _tcp(h + 0.09 * up), TUBE_OPEN, "up off the tube", O_T),
                    (1.5, _tcp(clear), TUBE_OPEN, "back past the lid's end", O_T), *shut])
     # -- 8. right puts the cap back on: in line with the tube (seen), pushed fully home -------------------------------
