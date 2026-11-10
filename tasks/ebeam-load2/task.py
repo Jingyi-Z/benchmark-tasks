@@ -940,33 +940,27 @@ def _ctrack(env):
             e = (slot - math.degrees(_ct["b_now"]) + 90.0) % 180.0 - 90.0
             f = _ct["yawfix"].get(kn, 0.0) + math.radians(max(-0.8, min(0.8, 0.04 * e)))
             _ct["yawfix"][kn] = max(-math.radians(45.0), min(math.radians(45.0), f))
-    if _ct["want"] is not None and t - _ct.get("want_t", -1.0) < 0.1 and \
-            sd.pos[2] > PLATE_START[2] + TAB_TOP + HEAD_H + 0.004:  # held, its tip clear of the screw
-        from yam_arena import runtime as _rt
-
-        g = np.asarray(_rt.pad_tips_world(b.scene["right_robot"]), float) - b.scene.env_origins[0].cpu().numpy()
-        om = g[:2] - np.asarray(sd.pos, float)[:2]  # from the tip to the fingers' centre
+    w = _ct["want"]
+    still = w is not None and _ct.get("want_last") is not None and np.max(np.abs(w - _ct["want_last"])) < 0.0005
+    _ct["want_last"] = None if w is None else np.array(w)
+    if still and t - _ct.get("want_t", -1.0) < 0.1 and \
+            sd.pos[2] > PLATE_START[2] + TAB_TOP + HEAD_H + 0.004:  # held still, its tip clear of the screw
+        # where the hand was sent (the plan's own command) against where the blade's tip is seen: how far the tip
+        # sits from the hand's centre, the arm's own lag included
+        om = np.asarray(w, float)[:2] - np.asarray(sd.pos, float)[:2]
         if _ct.get("b0") is None:
             _ct["b0"] = _ct["b_now"]
         a = _ct["b0"] - _ct["b_now"]
         c, s_ = math.cos(a), math.sin(a)
         om = np.array([c * om[0] - s_ * om[1], s_ * om[0] + c * om[1]])
         _ct["o_ref"] = om if _ct.get("o_ref") is None else 0.9 * _ct["o_ref"] + 0.1 * om
-    w = _ct["want"]
-    still = w is not None and _ct.get("want_last") is not None and np.max(np.abs(w - _ct["want_last"])) < 0.0005
-    _ct["want_last"] = None if w is None else np.array(w)
-    if still and t - _ct.get("want_t", -1.0) < 0.1:
-        # With the screwdriver, and above all turning the wrist far out, the arm drifts off its commanded place. It
-        # knows where its fingertips are (its joint readings), so while its target holds still it corrects that drift
-        # itself (applied all through the screwdriver's work, so the hand never jumps), keeping the blade over the
-        # screw while it turns.
-        from yam_arena import runtime as _rt
-
-        b = env.unwrapped
-        tip = np.asarray(_rt.pad_tips_world(b.scene["right_robot"]), float) - b.scene.env_origins[0].cpu().numpy()
-        e = (np.asarray(_ct["want"]) - [0.0, 0.0, TIP_ABOVE_TCP]) - tip
-        e[2] = 0.0
-        _ct["arm"] = np.clip(_ct["arm"] + np.clip(0.1 * e, -0.0002, 0.0002), -0.006, 0.006)  # faster than the seen trim
+    if t - _ct.get("want_t", -1.0) < 0.1 and sd.pos[2] < PLATE_START[2] + TAB_TOP + HEAD_H + 0.0015:
+        # The blade is down in a slot (seen low), so its tip is held there. With the wrist turned far out the arm drifts
+        # off its commanded place, which leans the screwdriver (seen, the shaft's direction): move the hand back over
+        # the tip until the shaft stands upright again (applied all through the screwdriver's work, so the hand never
+        # jumps).
+        lean = np.array([*Rs[:2, 2], 0.0])  # the shaft's axis, tip to handle, seen from above
+        _ct["arm"] = np.clip(_ct["arm"] + np.clip(-0.005 * lean, -0.0002, 0.0002), -0.006, 0.006)
     if any(f0 <= t < f1 for f0, f1 in _ct["freeze"]):  # the hand is feeling for a slot: hold the trims
         return
     for t0, t1, key, fn, watch in _ct["wins"]:
