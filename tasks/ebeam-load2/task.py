@@ -801,6 +801,7 @@ BAR_OPEN, BAR_HOLD = -0.016, -0.0045  # round the 12 mm handle bar
 SD_GRIP = 0.018  # the fingertips' ends this far above the blade's tip
 CLIPS_USED = {"left": (0, 3), "right": (6,)}  # 0, 135 and 270 degrees
 STROKE_TOP, STROKE, STROKES = 145.0, 190.0, 3  # hand yaw at the start of each tightening stroke, and how far it turns
+HAND_HI = 165.0  # the most the wrist turns the hand (yaw, degrees) at the screws; it reaches down to STROKE_TOP - STROKE
 SCREW_AIM, STROKE_PLAY = 355.0, 40.0  # aim each screw at 355 degrees; a stroke turns the screw ~28 degrees less than the hand
 FLIP = {"right": True, "left": False}
 ROLL_SIGN = -1.0
@@ -872,25 +873,28 @@ class _SlotYaw(float):
         obj.k, obj.frac, obj.start, obj.end, obj.prev = k, frac, start, end, prev
         return obj
 
+    def s0(self):
+        """The hand's yaw at the start of this stroke: turned to line the blade up with the slot, by whichever multiple
+        of 180 degrees keeps it within the wrist's reach (HAND_HI down to HAND_HI - 180)."""
+        d = _ct["turn"].get(self.k)
+        if d is None:
+            return self.start
+        s = self.prev_end() + math.radians(d)
+        return s + math.pi * math.floor((math.radians(HAND_HI) - s) / math.pi)
+
     def turn(self):
-        """How far this stroke turns the hand (radians)."""
+        """How far this stroke turns the hand (radians), no further than the wrist reaches."""
         a = _ct["ang"].get(self.k)
-        if a is None:
-            return math.radians(STROKE)
-        return math.radians(_hand_turn(a))
+        t = math.radians(STROKE) if a is None else math.radians(_hand_turn(a))
+        return max(0.0, min(t, self.s0() - self.end))
 
     def prev_end(self):
         if self.prev is None:
             return self.end
-        return self.prev.start + self.prev.off() - self.prev.turn()
+        return self.prev.s0() - self.prev.turn()
 
     def off(self):
-        d = _ct["turn"].get(self.k)
-        if d is None:
-            return 0.0
-        s0 = self.prev_end() + math.radians(d)  # the hand's yaw now, turned to line the blade up
-        s0 += math.pi * round((self.start - s0) / math.pi)
-        return s0 - self.start
+        return self.s0() - self.start
 
     @property
     def rot(self):
