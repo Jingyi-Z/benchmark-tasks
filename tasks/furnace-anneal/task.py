@@ -1,14 +1,14 @@
 """Loading chips into a 2 inch tube furnace for an anneal (2D materials, after a CVD tube-furnace SOP).
 
-A quartz tube runs through a split-tube furnace, its open end, with a KF flange, towards the robots. Just inside the
-mouth stands a quartz boat with three chips in it, and behind it, lying in two cradles in line with the tube, a stainless
-hook rod, its pusher just short of the tube's end. The boat must go to the furnace's hot zone: the rod carries a red
-mark that meets the tube's end when the boat is centred on the thermocouple. A rod as long as the push cannot be pushed
-from its end, so it is fed hand over hand; the boat is hidden inside the furnace, so the mark is all one can see.
+A quartz tube runs through a split-tube furnace, its open end towards the robots. Just inside that end stands a quartz
+boat with three chips in it, and in front of it, lying in a trough in line with the tube, a stainless hook rod whose
+pusher meets the boat's raised back. The boat must go to the furnace's hot zone: the rod carries a red mark that meets
+the tube's end when the boat is centred on the thermocouple. The boat is hidden inside the furnace, so the mark is all
+one can see, and a rod as long as the push is fed hand over hand.
 
 The job: push the boat to the hot zone with the rod, without jolting the chips off their places (a chip that slides or
-flips is a lost sample), pull the rod back out and lay it in its cradles. Then seal the tube (centering ring with its
-O-ring on the flange, blank cap, clamp).
+flips is a lost sample), pull the rod back out and lay it in its trough, then seal the tube: push the quick-release end
+cap (its O-ring inside) fully home on the tube's end, square, and let go.
 
 Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jitter=0 -E control_hz=20 \\
            --instruction "<see task.json>" --scorer task_score ...
@@ -157,7 +157,7 @@ def _box_mesh(c, s, colour, collide="none"):
 
 
 # -- the furnace (fixed): a split-tube furnace 300 mm long with a 2 inch quartz tube through it, the tube's open end towards
-# the robots, a KF flange on it. Frame: on the bench, the tube's axis at y = 0, AXZ above the bench, along +x. ---------------
+# the robots, its end bare for a quick-release cap. Frame: on the bench, the tube's axis at y = 0, AXZ above the bench, along +x. ---------------
 AXZ = 0.150  # the tube's axis above the bench (low: the arms reach the rod only a little higher)
 TUBE_R, TUBE_IN = 0.0254, 0.0230  # 2 inch quartz tube: 50.8 mm outside, 46 mm inside
 MOUTH_X, TUBE_X1 = 0.330, 0.860  # the tube's open end (clear of the hands' strokes), and its far end
@@ -221,7 +221,7 @@ ROD_L, ROD_R = 0.520, 0.003
 HANDLE_X0, HANDLE_W = 0.130, 0.008  # its square 8 mm grip, from this far back from the front to its back end
 PUSHER_R = 0.008  # the pusher disc at its front: it meets the boat's back wall whichever way the rod is turned
 MARK_AT = HOT_X - BOAT_L / 2 - MOUTH_X  # 0.25 m behind the hook
-ROD_START = np.array([MOUTH_X - 0.050, 0.0, TOP + AXZ + 0.0003])  # its pusher 50 mm short of the tube's end (room for the cap)
+ROD_START = np.array([MOUTH_X - 0.060, 0.0, TOP + AXZ + 0.0003])  # its pusher 60 mm short of the tube's end (room for the cap)
 ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.115, friction=0.7,
            cylinders=[((-(HANDLE_X0 + 0.0) / 2, 0.0, 0.0), ROD_R, HANDLE_X0, STEEL, "X"),
                       ((-0.0015, 0.0, 0.0), PUSHER_R, 0.003, STEEL, "X")],
@@ -235,7 +235,7 @@ REST_X = (-0.040, 0.075)  # the posts
 CHEEK_X = (0.040, 0.075)
 _FLARE = math.radians(30.0)
 REST_Z = AXZ - HANDLE_W / 2  # the trough's floor, under the rod's grip (the rod lies in line with the tube)
-REST = part("rod_cradles", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
+REST = part("rod_trough", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
             boxes=[*[((REST_X[1] + 0.007 + 0.009 * math.cos(_FLARE), e * (0.0095 + 0.009 * math.sin(_FLARE)),
                        REST_Z + 0.004), (0.018, 0.004, 0.008), DARK, e * _FLARE) for e in (-1, 1)],
                    *[((REST_X[1] + 0.007 + 0.009 * math.cos(_FLARE), e * (0.0095 + 0.009 * math.sin(_FLARE)),
@@ -277,7 +277,7 @@ CHIP_SLIDE = 0.003  # a chip that moves over 3 mm on the boat has slid (lost or 
 CHIP_FLIP = 30.0  # or tilted over 30 degrees
 BOAT_TILT = 20.0
 HOT_TOL = 0.010  # the boat centred on the hot zone within 10 mm
-RACK_TOL = 0.015  # the rod back in its cradles: within 15 mm of where it lay, hook out of the tube
+RACK_TOL = 0.015  # the rod back in its trough: within 15 mm of where it lay, hook out of the tube
 HANDS_FAR = 0.08
 SEAT_TOL, AXIS_TOL, CAP_TILT = 0.002, 0.003, 3.0  # the cap home: its plate within 2 mm of the tube's end, on its axis
 SETTLE_STEPS, SETTLE_TOL = 20, 0.001
@@ -384,10 +384,11 @@ def distance(objects):
 
 
 # -- scripted demo ----------------------------------------------------------------------------------------------------
-# The hands feed the rod in turn: right takes it near its back, pushes it 12 cm in and lets go (it rests in its cradles
+# The hands feed the rod in turn: right takes it near its back, pushes it 14 cm in and lets go (it rests in its trough
 # and on its hook); left takes it near its back and pushes on until the rod's red mark meets the tube's end (seen).
-# Then back out the same way: left pulls it one stroke and lets go, right pulls it home into its cradles; both away.
-# Aims are trimmed only by what a camera sees: the rod's position and its mark.
+# Then back out the same way: left pulls it one stroke and lets go, right pulls it home into its trough. Then left
+# takes the cap off its stand, holds it in line with the tube, pushes it fully home and lets go; both away.
+# Aims are trimmed only by what a camera sees: the rod's position and its mark, the cap's position.
 from yam_arena import ik as _ik  # noqa: E402
 from yam_arena.constants import READY as _READY  # noqa: E402
 
@@ -560,7 +561,7 @@ LEFT_PARK = (0.20, 0.22, TOP + 0.22)
 RIGHT_PARK = (0.20, -0.22, TOP + 0.22)
 ROD_OPEN, ROD_HOLD = -0.012, -0.0030  # round the rod's 8 mm square grip, squeezed firmly
 GRIP_DZ = -0.008  # the fingertips' ends this far below the rod's axis (well past it, or a squeeze pops it out)
-FEED_X0, FEED_X1 = 0.110, 0.250  # each stroke, the hand moves along the rod's line from here to here
+FEED_X0, FEED_X1 = 0.110, 0.255  # each stroke, the hand moves along the rod's line from here to here
 # the cap: held from behind and above, the hand tipped 45 degrees forward, fingers either side of its sleeve
 CAP_ROT = axis_angle_matrix(Y, -math.pi / 4) @ _prev_grip(0.0)
 CAP_APPR = axis_angle_matrix(Y, -math.pi / 4) @ np.array([0.0, 0.0, -1.0])  # the fingers' direction: forward and down
@@ -647,7 +648,7 @@ def demo():
         return [(dur, _Dyn(_on_rod(x1, 0.0)[0], key), ROD_HOLD, label, O)]
 
     # -- 1. right takes the rod near its back and pushes it in one stroke (slowly: the chips must not slide), then lets go:
-    # the rod rests in its cradles and on its hook in the tube -------------------------------------------------------------
+    # the rod rests in its trough and on its hook in the tube -------------------------------------------------------------
     pl.phase(right=take("right", FEED_X0, "r1"), left=[(2.0, LEFT_PARK, ROD_OPEN, "wait", O)])
     pl.phase(right=move(FEED_X0, FEED_X1, "r1", "push the rod in"))
     pl.phase(right=leave("right", FEED_X1, "r1"))
@@ -660,14 +661,17 @@ def demo():
               lambda env: np.array([MOUTH_X - (_seen(env, "hook_rod")[0] - MARK_AT), -_seen(env, "hook_rod")[1], 0.0]),
               "hook_rod")
     pl.phase(left=[(1.0, _Dyn(_on_rod(FEED_X1, 0.0)[0], "l1"), ROD_HOLD, "the boat in the hot zone", O)])
-    # -- 3. back out: left pulls the rod out one stroke and lets go; right takes it and pulls it home into its cradles ------
+    # -- 3. back out: left pulls the rod out one stroke and lets go; right takes it and pulls it home into its trough ------
     pl.phase(left=move(FEED_X1, FEED_X0, "l1", "pull the rod back out"))
     pl.phase(left=leave("left", FEED_X0, "l1"))
     pl.phase(right=take("right", FEED_X1, "r2"))
     tw = pl.phase(right=[(1.5, _Dyn(_on_rod(FEED_X1, 0.0)[0], "r2"), ROD_HOLD, "hold still: the rod seen in line with its "
-                          "cradles", O)])
+                          "trough", O)])
     pl.window(tw, tw + 1.5, "r2", lambda env: np.array([0.0, -_seen(env, "hook_rod")[1], 0.0]), "hook_rod")
-    pl.phase(right=move(FEED_X1, FEED_X0, "r2", "pull it back into its cradles"))
+    pl.phase(right=move(FEED_X1, FEED_X0, "r2", "pull it back into its trough"))
+    tw = pl.phase(right=[(2.0, _Dyn(_on_rod(FEED_X0, 0.0)[0], "r2"), ROD_HOLD, "hold still: the rod seen at its place", O)])
+    pl.window(tw, tw + 2.0, "r2", lambda env: np.array([ROD_START[0] - _seen(env, "hook_rod")[0],
+                                                        -_seen(env, "hook_rod")[1], 0.0]), "hook_rod")
     pl.phase(right=leave("right", FEED_X0, "r2"))
     # -- 4. the cap: left picks it off its stand, holds it in line with the tube (seen), pushes it fully home, lets go ----
     C = Orient(CAP_ROT)
