@@ -50,5 +50,5 @@ process. The score is `task_score` in the log, computed by `score()` in `task.py
 
 ## Runtime and seeds
 
-- 6,600 control steps (330 s of simulated time) per trial. The scripted demo finishes in about 310 s.
+- 6,600 control steps (330 s of simulated time) per trial. The scripted demo finishes in about 320 s.
 - One fixed starting layout: run with `-E object_jitter=0`. No other randomness.

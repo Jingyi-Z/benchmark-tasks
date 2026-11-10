@@ -955,7 +955,7 @@ def _ctrack(env):
         a = _ct["b0"] - _ct["b_now"]
         c, s_ = math.cos(a), math.sin(a)
         om = np.array([c * om[0] - s_ * om[1], s_ * om[0] + c * om[1]])
-        _ct["o_ref"] = om if _ct.get("o_ref") is None else 0.9 * _ct["o_ref"] + 0.1 * om
+        _ct["o_ref"] = om if _ct.get("o_ref") is None else 0.7 * _ct["o_ref"] + 0.3 * om
     if t - _ct.get("want_t", -1.0) < 0.1 and sd.pos[2] < PLATE_START[2] + TAB_TOP + HEAD_H + 0.0015:
         # The blade is down in a slot (seen low), so its tip is held there. With the wrist turned far out the arm drifts
         # off its commanded place, which leans the screwdriver (seen, the shaft's direction): move the hand back over
@@ -1290,8 +1290,10 @@ def demo():
         y0 = math.radians(STROKE_TOP)
         yaws = [Orient(_prev_grip(y0 - math.radians(STROKE) * i / 6)) for i in range(7)]
         mid = Orient(_prev_grip(math.radians(STROKE_TOP - STROKE / 2)))
-        seq = [(1.5, sd_tcp(xy, head + 0.008), SD_HOLD, f"over the {CLIP_DEG[k]} degree clip's screw", mid),
-               (1.0, sd_tcp(xy, head + 0.008), SD_HOLD, "turn the blade to the slot", yaws[0])]
+        # held still here (no screw offset yet), the tip seen against where the hand was sent gives the tip's offset as
+        # the arm now holds it, before the hand is placed over this screw by it
+        seq = [(1.5, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, f"over the {CLIP_DEG[k]} degree clip's screw", mid),
+               (1.0, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "turn the blade to the slot", yaws[0])]
         tw0 = pl.t + 2.5
         # the slot's direction depends on how far the clip swung in: line the blade up with it as seen, as on later strokes
         yaws = [_SlotYaw((k, -1), i / 6, y0, y0 - math.radians(STROKE)) for i in range(7)]
