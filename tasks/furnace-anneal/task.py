@@ -193,8 +193,7 @@ ROD_START = np.array([BOAT_START[0] - BOAT_L / 2 - 0.0005, 0.0, TOP + AXZ])
 ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.095, friction=0.5,
            cylinders=[((-ROD_L / 2, 0.0, 0.0), ROD_R, ROD_L, STEEL, "X"),
                       ((-0.0015, 0.0, 0.0), PUSHER_R, 0.003, STEEL, "X"),
-                      ((-MARK_AT, 0.0, 0.0), ROD_R + 0.0003, 0.006, RED, "X"),
-                      ((-ROD_L + 0.010, 0.0, 0.0), 0.006, 0.020, DARK, "X")],
+                      ((-MARK_AT, 0.0, 0.0), ROD_R + 0.0003, 0.006, RED, "X")],
            boxes=[])
 
 # -- the rod's cradles (fixed): two posts in line with the tube, each with a 7 mm slot the rod lies in. --------------------
