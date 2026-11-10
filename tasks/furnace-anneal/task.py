@@ -162,8 +162,8 @@ AXZ = 0.150  # the tube's axis above the bench (low: the arms reach the rod only
 TUBE_R, TUBE_IN = 0.0254, 0.0230  # 2 inch quartz tube: 50.8 mm outside, 46 mm inside
 MOUTH_X, TUBE_X1 = 0.330, 0.860  # the tube's open end (clear of the hands' strokes), and its far end
 END_L = 0.045  # the open end's last 45 mm, outside the furnace, where the end cap slides on
-FURN_X0, FURN_X1, FURN_Y, FURN_Z1 = 0.450, 0.750, 0.130, 0.330
-HOT_X = 0.600  # the hot zone's centre, at the thermocouple
+FURN_X0, FURN_X1, FURN_Y, FURN_Z1 = 0.420, 0.720, 0.130, 0.330
+HOT_X = 0.570  # the hot zone's centre, at the thermocouple
 FLOOR = AXZ - 0.0195  # the tube's floor under the boat: the 46 mm bore 12 mm either side of the bottom
 _L = TUBE_X1 - MOUTH_X
 _mid = (TUBE_X1 + MOUTH_X) / 2
@@ -213,16 +213,16 @@ CHIP_START = [BOAT_START + [dx, 0.0, BOAT_T + CHIP_T / 2] for dx in CHIP_DX]
 CHIPS = [part(f"chip{i}", pos=tuple(CHIP_START[i]), mass=0.00012, friction=0.8,
               boxes=[((0.0, 0.0, 0.0), (CHIP, CHIP, CHIP_T), CHIP_C)]) for i in range(3)]
 
-# -- the hook rod (loose): a 6 mm stainless rod 520 mm long, a 16 mm pusher disc at its front end for the boat's raised
+# -- the hook rod (loose): a stainless rod 490 mm long (6 mm round at its front, 8 mm square behind), a 16 mm pusher disc at its front end for the boat's raised
 # back, and under it a skid that slides on the tube's floor (so the rod's front stays level),
-# and a red mark 250 mm back from the hook: at the tube's end when the boat is centred in the hot zone. Frame: origin on
+# and a red band 200 mm back from the hook: at the tube's end when the boat is centred in the hot zone. Frame: origin on
 # the rod's axis at the hook's front face, the rod along -x. ------------------------------------------------------------
-ROD_L, ROD_R = 0.520, 0.003
+ROD_L, ROD_R = 0.490, 0.003  # (the bench behind the arms stops anything longer)
 HANDLE_X0, HANDLE_W = 0.130, 0.008  # its square 8 mm grip, from this far back from the front to its back end
 PUSHER_R = 0.008  # the pusher disc at its front: it meets the boat's back wall whichever way the rod is turned
-MARK_AT = HOT_X - BOAT_L / 2 - MOUTH_X  # 0.25 m behind the hook
-ROD_START = np.array([MOUTH_X - 0.060, 0.0, TOP + AXZ + 0.0003])  # its pusher 60 mm short of the tube's end (room for the cap)
-ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.115, friction=0.7,
+MARK_AT = HOT_X - BOAT_L / 2 - MOUTH_X  # 0.20 m behind the hook
+ROD_START = np.array([MOUTH_X - 0.050, 0.0, TOP + AXZ + 0.0003])  # its pusher 50 mm short of the tube's end (room for the cap)
+ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.108, friction=0.7,
            cylinders=[((-(HANDLE_X0 + 0.0) / 2, 0.0, 0.0), ROD_R, HANDLE_X0, STEEL, "X"),
                       ((-0.0015, 0.0, 0.0), PUSHER_R, 0.003, STEEL, "X")],
            meshes=[_box_mesh((-MARK_AT, 0.0, 0.0), (0.006, HANDLE_W + 0.0006, HANDLE_W + 0.0006), RED)],
@@ -384,7 +384,7 @@ def distance(objects):
 
 
 # -- scripted demo ----------------------------------------------------------------------------------------------------
-# The hands feed the rod in turn: right takes it near its back, pushes it 14 cm in and lets go (it rests in its trough
+# The hands feed the rod in turn: right takes it near its back, pushes it 12.5 cm in and lets go (it rests in its trough
 # and on its hook); left takes it near its back and pushes on until the rod's red mark meets the tube's end (seen).
 # Then back out the same way: left pulls it one stroke and lets go, right pulls it home into its trough. Then left
 # takes the cap off its stand, holds it in line with the tube, pushes it fully home and lets go; both away.
@@ -561,7 +561,7 @@ LEFT_PARK = (0.20, 0.22, TOP + 0.22)
 RIGHT_PARK = (0.20, -0.22, TOP + 0.22)
 ROD_OPEN, ROD_HOLD = -0.012, -0.0015  # round the rod's 8 mm square grip, squeezed hard (a looser grip slips on the pull)
 GRIP_DZ = -0.008  # the fingertips' ends this far below the rod's axis (well past it, or a squeeze pops it out)
-FEED_X0, FEED_X1 = 0.115, 0.260  # each stroke, the hand moves along the rod's line from here to here
+FEED_X0, FEED_X1 = 0.115, 0.240  # each stroke, the hand moves along the rod's line from here to here
 # the cap: held from behind and above, the hand tipped 45 degrees forward, fingers either side of its sleeve
 CAP_ROT = axis_angle_matrix(Y, -math.pi / 4) @ _prev_grip(0.0)
 CAP_APPR = axis_angle_matrix(Y, -math.pi / 4) @ np.array([0.0, 0.0, -1.0])  # the fingers' direction: forward and down
