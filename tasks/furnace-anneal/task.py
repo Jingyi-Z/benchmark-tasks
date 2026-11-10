@@ -292,7 +292,10 @@ def _dial_arc(p0, p1, colour, r0=0.019, r1=0.026):
 
 VALVE_PIVOT = (XA - 0.040, (FIT_Y0 + FIT_Y1) / 2, AXZ + 0.016)
 LEVER_L = 0.045
-TUBE_MESHES = [*_ring_y(TUBE_Y0, FIT_Y0 + 0.005, TUBE_IN, TUBE_R, 24, QUARTZ, cx=XA, cz=AXZ),
+# the tube's wall in 45 mm lengths (PhysX cannot build long, thin convex pieces on the GPU)
+_TUBE_CUTS = np.linspace(TUBE_Y0, FIT_Y0 + 0.005, 14)
+TUBE_MESHES = [*[m for y0, y1 in zip(_TUBE_CUTS[:-1], _TUBE_CUTS[1:])
+                 for m in _ring_y(y0, y1, TUBE_IN, TUBE_R, 16, QUARTZ, cx=XA, cz=AXZ)],
                *_ring_y(FIT_Y0, FIT_Y1, TUBE_R, FIT_R, 16, STAINLESS, cx=XA, cz=AXZ),
                *_dial_arc(P_MIN, P_LO, WHITE), *_dial_arc(P_LO, P_HI, GREEN), *_dial_arc(P_HI, P_MAX, RED)]
 TUBE_DRAWN = [
