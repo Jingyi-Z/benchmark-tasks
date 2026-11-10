@@ -801,7 +801,7 @@ BAR_OPEN, BAR_HOLD = -0.016, -0.0045  # round the 12 mm handle bar
 SD_GRIP = 0.018  # the fingertips' ends this far above the blade's tip
 CLIPS_USED = {"left": (0, 3), "right": (6,)}  # 0, 135 and 270 degrees
 STROKE_TOP, STROKE, STROKES = 145.0, 190.0, 3  # hand yaw at the start of each tightening stroke, and how far it turns
-SCREW_AIM, STROKE_PLAY = 355.0, 28.0  # aim each screw at 355 degrees; a stroke turns the screw ~28 degrees less than the hand
+SCREW_AIM, STROKE_PLAY = 355.0, 40.0  # aim each screw at 355 degrees; a stroke turns the screw ~28 degrees less than the hand
 FLIP = {"right": True, "left": False}
 ROLL_SIGN = -1.0
 LIFT_Z = 0.27  # the stack's centre this high (above the bench) while it is rolled over
@@ -811,7 +811,8 @@ PUSH_DIR = -W_OFF / np.linalg.norm(W_OFF)
 
 # trims: each a 3-vector added to the TCPs of _Dyn waypoints with its key; integrated in windows from seen positions
 _ct = {"trim": {}, "wins": [], "last": {}, "looks": [], "turn": {}, "ang": {}, "freeze": [], "vis": {},
-       "strokes": [], "engaged": {}, "arm": np.zeros(3), "want": None, "in_stroke": False}
+       "strokes": [], "engaged": {}, "arm": np.zeros(3), "want": None, "in_stroke": False, "aligns": [],
+       "yawfix": {}}
 
 
 @on_reset
@@ -893,7 +894,7 @@ class _SlotYaw(float):
 
     @property
     def rot(self):
-        return _prev_grip(self.start + self.off() - self.frac * self.turn())
+        return _prev_grip(self.start + self.off() - self.frac * self.turn() + _ct["yawfix"].get(self.k, 0.0))
 
 
 def _seen(env, name):
@@ -916,6 +917,12 @@ def _ctrack(env):
     sd = labkit._part_state(env, labkit._SPECS["screwdriver"])
     Rs = sd.rotation()
     _ct["b_now"] = math.atan2(Rs[1, 1], Rs[0, 1])
+    for t0, t1, k, kn in _ct["aligns"]:  # blade lifted over the slot: turn the hand until blade and slot line up (seen)
+        if t0 <= t < t1 and sd.pos[2] > PLATE_START[2] + TAB_TOP + HEAD_H + 0.0015:
+            slot = (math.degrees(math.atan2(pst.rotation()[1, 0], pst.rotation()[0, 0])) + SLOT_DEG[CLIP_DEG[k]]
+                    + math.degrees(float(pst.joints.get(f"clip{k}", 0.0)) + float(pst.joints.get(f"screw{k}", 0.0))))
+            e = (slot - math.degrees(_ct["b_now"]) + 90.0) % 180.0 - 90.0
+            _ct["yawfix"][kn] = _ct["yawfix"].get(kn, 0.0) + math.radians(max(-3.0, min(3.0, 0.15 * e)))
     if _ct["want"] is not None and t - _ct.get("want_t", -1.0) < 0.1 and \
             sd.pos[2] > PLATE_START[2] + TAB_TOP + HEAD_H + 0.004:  # held, its tip clear of the screw
         from yam_arena import runtime as _rt
@@ -1065,6 +1072,7 @@ def demo():
     _ct["vis"], _ct["strokes"], _ct["engaged"] = {}, [], {}
     _ct["arm"], _ct["want"], _ct["in_stroke"] = np.zeros(3), None, False
     _ct["o_ref"], _ct["b0"], _ct["plate"], _ct["b_now"] = None, None, None, 0.0
+    _ct["aligns"], _ct["yawfix"] = [], {}
     pl = _Plan()
     face = PL_T  # the plate's face, plate frame
 
@@ -1273,8 +1281,11 @@ def demo():
                 prev = ys[0] if isinstance(ys[0], _SlotYaw) else None
                 ys = [_SlotYaw((k, stroke), i / 6, y0, y_end, prev) for i in range(7)]
                 seq += [(0.8, _Dyn(sd_tcp(xy, head + 0.008), key, P), SD_HOLD, "turn back", ys[i]) for i in (4, 2, 0)]
-                seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.008), key, P), SD_HOLD, "hold still over the slot", ys[0]))
+                ta = now(seq)
+                seq.append((1.2, _Dyn(sd_tcp(xy, head + 0.008), key, P), SD_HOLD, "hold still over the slot, blade "
+                            "turned to it", ys[0]))
                 seq.append((0.8, _Dyn(sd_tcp(xy, head + 0.0002), key, P), SD_HOLD, "blade back in the slot", ys[0]))
+                _ct["aligns"].append((ta, now(seq), k, (k, stroke)))
                 feel(seq, xy, key, ys[0], P)
                 f0 = now(seq)
         seq.append((1.2, _Dyn(sd_tcp(xy, head + 0.008), key, P), SD_HOLD, "up", ys[6]))
