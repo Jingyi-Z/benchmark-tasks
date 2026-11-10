@@ -351,14 +351,13 @@ CHIP_START = [BOAT_START + [0.0, dy, BOAT_T + CHIP_T / 2] for dy in CHIP_DY]
 CHIPS = [part(f"chip{i}", pos=tuple(CHIP_START[i]), mass=0.00008, friction=0.8,
               boxes=[((0.0, 0.0, 0.0), (CHIP, CHIP, CHIP_T), CHIP_C)]) for i in range(3)]
 
-# -- the hook rod (loose): stainless, 340 mm: a 10 mm pusher disc at its front for the boat's tab, 4 mm round for 100 mm,
-# then a 6 mm square grip to its back end. Frame: origin on its axis at the pusher's front face, the rod along -y. ----
-ROD_L, ROD_R, GRIP_W, PUSHER_R, ROUND_L = 0.340, 0.002, 0.006, 0.005, 0.100
+# -- the hook rod (loose): stainless, 340 mm, 6 mm square its whole length (a step would catch on its rests), a 10 mm
+# pusher disc at its front for the boat's tab. Frame: origin on its axis at the pusher's front face, the rod along -y.
+ROD_L, GRIP_W, PUSHER_R = 0.340, 0.006, 0.005
 ROD_START = np.array([XA, TUBE_Y0 - 0.045, TOP + AXZ - 0.0015])  # on its rests in line with the tube, 45 mm short of its end
 ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.090, friction=0.7,
-           cylinders=[((0.0, -ROUND_L / 2, 0.0), ROD_R, ROUND_L, STEEL, "Y"),
-                      ((0.0, -0.0015, 0.0), PUSHER_R, 0.003, STEEL, "Y")],
-           boxes=[((0.0, -(ROUND_L + ROD_L) / 2, 0.0), (GRIP_W, ROD_L - ROUND_L, GRIP_W), DARK)])
+           cylinders=[((0.0, -0.0015, 0.0), PUSHER_R, 0.003, STEEL, "Y")],
+           boxes=[((0.0, -(0.003 + ROD_L) / 2, 0.0), (GRIP_W, ROD_L - 0.003, GRIP_W), STEEL)])
 
 # -- the rod's rests (fixed): two short troughs on posts, in line with the tube, 1.5 mm under the rod's grip (its back end,
 # coming back over the near one, must not catch on it). --------------------------------------------------------------
@@ -934,11 +933,14 @@ def demo():
     # -- 4. left holds the tube; right takes the rod ---------------------------------------------------------------------
     h = _rod_at(HOLD_Y)
     r_g0 = _rod_at(FEED[0], AXZ - 0.0015)
-    pl.phase(left=[(2.5, _tcp(h + 0.04 * up), TUBE_OPEN, "hand turned over the tube's far end", O_T),
-                   (1.5, _tcp(h), TUBE_OPEN, "down round the tube", O_T),
+    pl.phase(left=[(1.0, _tcp(p1 + [-0.05, 0.0, -0.03], R1, past=0.002), BAR_OPEN, "away from the lid", Orient(R1)),
+                   (2.5, _tcp(h + 0.09 * up), TUBE_OPEN, "hand turned over the tube's far end", O_T),
+                   (1.0, _tcp(h + 0.03 * up), TUBE_OPEN, "down over the tube", O_T),
+                   (1.0, _tcp(h), TUBE_OPEN, "down round the tube", O_T),
                    (0.6, _tcp(h), TUBE_HOLD, "hold the tube (it rolls and slides)", O_T)],
-             right=[(2.5, _tcp(r_g0 + 0.04 * up), ROD_OPEN, "hand turned over the rod", O_T),
-                    (1.5, _tcp(r_g0), ROD_OPEN, "down round the rod", O_T),
+             right=[(2.5, _tcp(r_g0 + 0.09 * up), ROD_OPEN, "hand turned over the rod", O_T),
+                    (1.0, _tcp(r_g0 + 0.03 * up), ROD_OPEN, "down over the rod", O_T),
+                    (1.0, _tcp(r_g0), ROD_OPEN, "down round the rod", O_T),
                     (0.6, _tcp(r_g0), ROD_HOLD, "close on the rod", O_T)])
     # -- 5. right pushes the boat in, two strokes, until it sits under the thermocouple (seen) ---------------------------
     def stroke(y0, y1, key, label, dur):
@@ -971,7 +973,8 @@ def demo():
                 (1.0, _Dyn(_tcp(_rod_at(FEED[0], AXZ - 0.0015) + 0.04 * up), "r4"), ROD_OPEN, "up off the rod", O_T),
                 (2.0, RIGHT_PARK, ROD_OPEN, "up and clear", O_T)])
     # -- 7. left lets go of the tube and shuts the lid -------------------------------------------------------------------
-    shut = [(2.5, _tcp(p1 - _appr(R1) * 0.03, R1, past=0.002), BAR_OPEN, "hand turned to the lid's handle", Orient(R1)),
+    shut = [(2.5, _tcp(p1 + [-0.05, 0.0, -0.03], R1, past=0.002), BAR_OPEN, "hand turned to the lid's handle", Orient(R1)),
+            (1.0, _tcp(p1 - _appr(R1) * 0.03, R1, past=0.002), BAR_OPEN, "in towards the handle", Orient(R1)),
             (1.0, _tcp(p1, R1, past=0.002), BAR_OPEN, "round the handle", Orient(R1)),
             (0.6, _tcp(p1, R1, past=0.002), BAR_HOLD, "close on the handle", Orient(R1))]
     for f in (0.75, 0.5, 0.25, 0.0):
@@ -981,7 +984,7 @@ def demo():
              (1.0, _tcp(p0 - _appr(R0) * 0.012, R0, past=0.002), BAR_OPEN, "back off the handle", Orient(R0)),
              (2.0, LEFT_PARK, BAR_OPEN, "up and clear", O_T)]
     pl.phase(left=[(0.6, _tcp(h), TUBE_OPEN, "let go of the tube", O_T),
-                   (0.8, _tcp(h + 0.04 * up), TUBE_OPEN, "up off the tube", O_T), *shut])
+                   (1.0, _tcp(h + 0.09 * up), TUBE_OPEN, "up off the tube", O_T), *shut])
     # -- 8. right puts the cap back on: in line with the tube (seen), pushed fully home -------------------------------
     pre = CAP_START - [0.0, CAP_D + 0.005, 0.0]
     pl.phase(right=[(2.5, _tcp(s0 + 0.05 * up), CAP_OPEN, "hand turned over the cap", O_T),
