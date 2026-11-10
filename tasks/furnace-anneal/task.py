@@ -221,7 +221,7 @@ ROD_L, ROD_R = 0.520, 0.003
 HANDLE_X0, HANDLE_W = 0.130, 0.008  # its square 8 mm grip, from this far back from the front to its back end
 PUSHER_R = 0.008  # the pusher disc at its front: it meets the boat's back wall whichever way the rod is turned
 MARK_AT = HOT_X - BOAT_L / 2 - MOUTH_X  # 0.25 m behind the hook
-ROD_START = np.array([MOUTH_X - 0.050, 0.0, TOP + AXZ])  # its pusher 50 mm short of the tube's end (room for the cap)
+ROD_START = np.array([MOUTH_X - 0.050, 0.0, TOP + AXZ + 0.0003])  # its pusher 50 mm short of the tube's end (room for the cap)
 ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.115, friction=0.7,
            cylinders=[((-(HANDLE_X0 + 0.0) / 2, 0.0, 0.0), ROD_R, HANDLE_X0, STEEL, "X"),
                       ((-0.0015, 0.0, 0.0), PUSHER_R, 0.003, STEEL, "X")],
@@ -231,7 +231,8 @@ ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.115, friction=0.7,
                   ((-0.0095, 0.0, -(AXZ - FLOOR) + 0.002), (0.015, 0.012, 0.002), STEEL)])  # 1 mm over the floor
 
 # -- the rod's rest (fixed): two posts in line with the tube under one trough with an 11 mm slot the rod lies in. ------------
-REST_X = (-0.040, 0.075)  # its back end stays on the front one even with the boat in the hot zone
+REST_X = (-0.040, 0.075)  # the posts
+CHEEK_X = (0.040, 0.075)
 _FLARE = math.radians(30.0)
 REST_Z = AXZ - HANDLE_W / 2  # the trough's floor, under the rod's grip (the rod lies in line with the tube)
 REST = part("rod_cradles", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
@@ -242,8 +243,9 @@ REST = part("rod_cradles", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
                    # two posts carry one continuous trough, so the rod's back end never leaves it and comes back
                    *[((x, 0.0, (REST_Z - 0.004) / 2), (0.014, 0.020, REST_Z - 0.004), DARK) for x in REST_X],
                    ((sum(REST_X) / 2, 0.0, REST_Z - 0.002), (REST_X[1] - REST_X[0] + 0.014, 0.020, 0.004), DARK),
-                   *[((sum(REST_X) / 2, e * 0.0075, REST_Z + 0.004), (REST_X[1] - REST_X[0] + 0.014, 0.004, 0.008),
-                      DARK) for e in (-1, 1)]]) 
+                   # its cheeks only near the front (a long slot jams a slightly turned rod), where the rod's back end
+                   # stays even with the boat in the hot zone
+                   *[((x, e * 0.0075, REST_Z + 0.004), (0.014, 0.004, 0.008), DARK) for x in CHEEK_X for e in (-1, 1)]]) 
 
 # -- the end cap (loose): an aluminium quick-release cap for a 2 inch tube, 68 mm across: a 5 mm end plate and a 25 mm
 # sleeve that slides over the tube's end until the plate meets it (its O-ring inside then seals). Frame: origin on its
