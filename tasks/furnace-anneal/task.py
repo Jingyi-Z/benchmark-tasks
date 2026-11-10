@@ -185,7 +185,8 @@ CHIP_START = [BOAT_START + [dx, 0.0, BOAT_T + CHIP_T / 2] for dx in CHIP_DX]
 CHIPS = [part(f"chip{i}", pos=tuple(CHIP_START[i]), mass=0.00012, friction=0.8,
               boxes=[((0.0, 0.0, 0.0), (CHIP, CHIP, CHIP_T), CHIP_C)]) for i in range(3)]
 
-# -- the hook rod (loose): a 6 mm stainless rod 520 mm long, a 16 mm pusher disc at its front end behind the boat's wall,
+# -- the hook rod (loose): a 6 mm stainless rod 520 mm long, a 16 mm pusher disc at its front end for the boat's raised
+# back, and under it a skid that slides on the tube's floor (so the rod's front stays level),
 # and a red mark 250 mm back from the hook: at the tube's end when the boat is centred in the hot zone. Frame: origin on
 # the rod's axis at the hook's front face, the rod along -x. ------------------------------------------------------------
 ROD_L, ROD_R = 0.520, 0.003
@@ -196,7 +197,8 @@ ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.115, friction=0.3,
            cylinders=[((-ROD_L / 2, 0.0, 0.0), ROD_R, ROD_L, STEEL, "X"),
                       ((-0.0015, 0.0, 0.0), PUSHER_R, 0.003, STEEL, "X"),
                       ((-MARK_AT, 0.0, 0.0), ROD_R + 0.0003, 0.006, RED, "X")],
-           boxes=[])
+           boxes=[((-0.0055, 0.0, -(AXZ - FLOOR) / 2), (0.003, 0.005, AXZ - FLOOR - 0.002), STEEL),
+                  ((-0.0095, 0.0, -(AXZ - FLOOR) + 0.001), (0.015, 0.012, 0.002), STEEL)])
 
 # -- the rod's cradles (fixed): two posts in line with the tube, each with a 7 mm slot the rod lies in. --------------------
 REST_X = (-0.040, 0.075)  # its back end stays on the front one even with the boat in the hot zone
