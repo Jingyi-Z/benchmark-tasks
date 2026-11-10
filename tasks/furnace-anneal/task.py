@@ -411,12 +411,10 @@ def _push_cap(env, fy):
     import torch
 
     a = _asset(env, "end_cap")
-    q = labkit._part_state(env, labkit._SPECS["end_cap"]).rotation()
-    f = q.T @ np.array([0.0, fy, 0.0])  # in the cap's frame
     dev = _t(a.data.root_link_pose_w).device
-    F = torch.tensor(f, dtype=torch.float32, device=dev).reshape(1, 1, 3)
+    F = torch.tensor([0.0, fy, 0.0], dtype=torch.float32, device=dev).reshape(1, 1, 3)
     try:
-        a.set_external_force_and_torque(F, torch.zeros_like(F))
+        a.set_external_force_and_torque(F, torch.zeros_like(F), is_global=True)
     except Exception as e:  # noqa: BLE001
         if not _gas.get("warned"):
             _gas["warned"] = True
