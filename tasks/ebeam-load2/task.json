@@ -17,6 +17,6 @@
   "run_limit": "6,600 steps (330 s at 20 Hz)",
   "reset_notes": "One fixed layout; nothing is consumed. Clips start parked open with loose screws; the load lock starts vented, its door shut and locked, its light blue.",
   "fidelity": "Screws turn on hinges but do not move in or out: a clip is tight once its screw turns 300 degrees after it is swung in, which then holds the clip; past 420 the wafer cracks. A lip under each tab keeps the wafer from sliding out, in place of clamping. The door's top latch is a spring that lets go when pulled 25 mm down; the twist lock holds the door shut by a stiff spring. The wafer collides as strips 1 mm inside its outline. Venting, pumping and the transfer arm are left out.",
-  "scores": "Dream-1 run: TBD; demo: TBD",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
   "media": ""
 }
