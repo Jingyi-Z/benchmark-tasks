@@ -2,7 +2,7 @@
 
 A quartz tube runs through a split-tube furnace, its open end, with a KF flange, towards the robots. Just inside the
 mouth stands a quartz boat with three chips in it, and behind it, lying in two cradles in line with the tube, a stainless
-hook rod whose hook rests against the boat's back wall. The boat must go to the furnace's hot zone: the rod carries a red
+hook rod, its pusher just short of the tube's end. The boat must go to the furnace's hot zone: the rod carries a red
 mark that meets the tube's end when the boat is centred on the thermocouple. A rod as long as the push cannot be pushed
 from its end, so it is fed hand over hand; the boat is hidden inside the furnace, so the mark is all one can see.
 
@@ -193,7 +193,7 @@ ROD_L, ROD_R = 0.520, 0.003
 HANDLE_X0, HANDLE_X1, HANDLE_W = 0.180, 0.400, 0.008  # its square 8 mm grip, this far back from the front
 PUSHER_R = 0.008  # the pusher disc at its front: it meets the boat's back wall whichever way the rod is turned
 MARK_AT = HOT_X - BOAT_L / 2 - MOUTH_X  # 0.25 m behind the hook
-ROD_START = np.array([BOAT_START[0] - BOAT_L / 2 - 0.0005, 0.0, TOP + AXZ])
+ROD_START = np.array([MOUTH_X - 0.010, 0.0, TOP + AXZ])  # its pusher 10 mm short of the tube's end
 ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.115, friction=0.7,
            cylinders=[((-(HANDLE_X0 + 0.0) / 2, 0.0, 0.0), ROD_R, HANDLE_X0, STEEL, "X"),
                       ((-(HANDLE_X1 + ROD_L) / 2, 0.0, 0.0), ROD_R, ROD_L - HANDLE_X1, STEEL, "X"),
@@ -490,7 +490,7 @@ LEFT_PARK = (0.20, 0.22, TOP + 0.22)
 RIGHT_PARK = (0.20, -0.22, TOP + 0.22)
 ROD_OPEN, ROD_HOLD = -0.012, -0.0030  # round the rod's 8 mm square grip, squeezed firmly
 GRIP_DZ = -0.008  # the fingertips' ends this far below the rod's axis (well past it, or a squeeze pops it out)
-FEED_X0, FEED_X1 = 0.120, 0.2433  # each stroke, the hand moves along the rod's line from here to here
+FEED_X0, FEED_X1 = 0.110, 0.2433  # each stroke, the hand moves along the rod's line from here to here
 H_IN = HOT_X - BOAT_L / 2  # the hook at the hot zone (the boat's back wall)
 X_AT = {"right": -0.0, "left": 0.0}
 
