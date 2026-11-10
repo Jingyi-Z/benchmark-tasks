@@ -1040,7 +1040,10 @@ def demo():
         shut.append((1.0, _tcp(p, R, past=0.002), BAR_HOLD, "lower the lid", Orient(R)))
     shut += [(0.6, _tcp(p0, R0, past=0.002), BAR_OPEN, "let go of the lid", Orient(R0)),
              (1.0, _tcp(p0 - _appr(R0) * 0.012, R0, past=0.002), BAR_OPEN, "back off the handle", Orient(R0)),
-             (1.0, _tcp(p0 - _appr(R0) * 0.060, R0, past=0.002), BAR_OPEN, "well clear of the handle", Orient(R0)),
+             (1.0, _tcp(p0 - _appr(R0) * 0.022, R0, past=0.002), BAR_OPEN, "the fingers out in front of the handle",
+              Orient(R0)),
+             (1.0, _tcp(p0 - _appr(R0) * 0.022 - [0.0, 0.0, 0.05], R0, past=0.002), BAR_OPEN, "down, clear of the handle",
+              Orient(R0)),
              (2.0, LEFT_PARK, BAR_OPEN, "up and clear", O_T)]
     pl.phase(left=[(0.6, _tcp(h), CAP_OPEN, "let go of the tube", O_T),
                    (0.8, _tcp(h) - APPR_T * 0.025, CAP_OPEN, "back off the tube along the hand", O_T),
