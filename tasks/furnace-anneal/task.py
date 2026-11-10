@@ -368,9 +368,9 @@ ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.090, friction=0.7,
 REST_Y = (-0.300, -0.520)  # the near one by the tube's mouth, out of the hand's strokes
 REST_Z = AXZ - GRIP_W / 2 - 0.0015
 REST = part("rod_rests", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
-            boxes=[b for y in REST_Y for b in (
-                ((XA, y, REST_Z / 2), (0.020, 0.014, REST_Z), DARK),
-                *[((XA + e * 0.0075, y, REST_Z + 0.004), (0.004, 0.014, 0.008), DARK) for e in (-1, 1)])],
+            boxes=[((XA, y, REST_Z / 2), (0.020, 0.014, REST_Z), DARK) for y in REST_Y]
+            # cheeks on the far one only: on the near one, by the hand's strokes, the rod caught on them
+            + [((XA + e * 0.0075, REST_Y[1], REST_Z + 0.004), (0.004, 0.014, 0.008), DARK) for e in (-1, 1)],
             meshes=[_hex([(XA + sx * 0.0055, y, z) for sx in (-1, 1) for y, zt in
                           ((REST_Y[1] + 0.007, REST_Z), (REST_Y[1] + 0.025, REST_Z - 0.006)) for z in (REST_Z - 0.010, zt)],
                          DARK)])  # a ramp up onto the far rest
