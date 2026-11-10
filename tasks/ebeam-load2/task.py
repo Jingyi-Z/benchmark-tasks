@@ -802,6 +802,8 @@ SD_GRIP = 0.018  # the fingertips' ends this far above the blade's tip
 CLIPS_USED = {"left": (0, 3), "right": (6,)}  # 0, 135 and 270 degrees
 STROKE_TOP, STROKE, STROKES = 145.0, 190.0, 3  # hand yaw at the start of each tightening stroke, and how far it turns
 HAND_HI, HAND_LO = 168.0, -52.0  # how far the wrist (joint6, +-120 degrees) turns the hand at the screws (yaw, degrees)
+J6_SIGN, J6_REACH = -1.0, math.radians(120.0)  # joint6 turns against the hand's yaw, to its limit
+REACH_SLACK = math.radians(4.0)  # a start up to this far past the wrist's limit still lines the blade up well enough
 SCREW_AIM, STROKE_PLAY = 355.0, 40.0  # aim each screw at 355 degrees; a stroke turns the screw ~28 degrees less than the hand
 FLIP = {"right": True, "left": False}
 ROLL_SIGN = -1.0
@@ -813,7 +815,7 @@ PUSH_DIR = -W_OFF / np.linalg.norm(W_OFF)
 # trims: each a 3-vector added to the TCPs of _Dyn waypoints with its key; integrated in windows from seen positions
 _ct = {"trim": {}, "wins": [], "last": {}, "looks": [], "turn": {}, "ang": {}, "freeze": [], "vis": {},
        "strokes": [], "engaged": {}, "arm": np.zeros(3), "want": None, "in_stroke": False, "aligns": [],
-       "yawfix": {}}
+       "yawfix": {}, "j6look": {}}
 
 
 @on_reset
@@ -853,6 +855,8 @@ def _look_at_slot(env):
             if d > 340.0:
                 d -= 360.0
             _ct["vis"][(k, n)], _ct["ang"][(k, n)] = vis, prev_ang + d
+            # and where the wrist stands (the arm's own joint reading), for how much further it turns each way
+            _ct["j6look"][(k, n)] = float(env.unwrapped.scene["right_robot"].data.joint_pos[0, 5])
 
 
 def _hand_turn(a):
@@ -873,20 +877,29 @@ class _SlotYaw(float):
         obj.k, obj.frac, obj.start, obj.end, obj.prev = k, frac, start, end, prev
         return obj
 
+    def reach(self):
+        """The hand yaws (lo, hi) the wrist reaches over this screw, from where its joint stood at the last look."""
+        j = _ct["j6look"].get(self.k)
+        if j is None:
+            return math.radians(HAND_LO), math.radians(HAND_HI)
+        c = j - J6_SIGN * self.prev_end()
+        a, b = (J6_REACH - c) / J6_SIGN, (-J6_REACH - c) / J6_SIGN
+        return min(a, b), max(a, b)
+
     def s0(self):
         """The hand's yaw at the start of this stroke: turned to line the blade up with the slot, by whichever multiple
-        of 180 degrees keeps it within the wrist's reach (HAND_HI down to HAND_HI - 180)."""
+        of 180 degrees starts it highest within the wrist's reach, for the longest stroke."""
         d = _ct["turn"].get(self.k)
         if d is None:
             return self.start
         s = self.prev_end() + math.radians(d)
-        return s + math.pi * math.floor((math.radians(HAND_HI) - s) / math.pi)
+        return s + math.pi * math.floor((self.reach()[1] + REACH_SLACK - s) / math.pi)
 
     def turn(self):
         """How far this stroke turns the hand (radians), no further than the wrist reaches."""
         a = _ct["ang"].get(self.k)
         t = math.radians(STROKE) if a is None else math.radians(_hand_turn(a))
-        return max(0.0, min(t, self.s0() - math.radians(HAND_LO)))
+        return max(0.0, min(t, self.s0() - self.reach()[0]))
 
     def prev_end(self):
         if self.prev is None:
@@ -1074,7 +1087,7 @@ class _Plan:
 
 def demo():
     _ct["trim"], _ct["wins"], _ct["looks"], _ct["freeze"] = {}, [], [], []
-    _ct["vis"], _ct["strokes"], _ct["engaged"] = {}, [], {}
+    _ct["vis"], _ct["strokes"], _ct["engaged"], _ct["j6look"] = {}, [], {}, {}
     _ct["arm"], _ct["want"], _ct["in_stroke"] = np.zeros(3), None, False
     _ct["o_ref"], _ct["b0"], _ct["plate"], _ct["b_now"] = None, None, None, 0.0
     _ct["aligns"], _ct["yawfix"] = [], {}
