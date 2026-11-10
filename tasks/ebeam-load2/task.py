@@ -376,7 +376,7 @@ DOOR = part(
 # blade down in its holder, a block with a 9 mm square socket 10 mm deep, the tip 50 mm above the bench. ---------------
 # the nut driver: a 7 mm hex socket (2.8 mm deep, its mouth chamfered from 10.5 mm across flats, so it centres itself
 # on a head), a round 5 mm steel shaft and a round red handle. Its frame's origin is the socket's mouth.
-NS_AF, NS_MOUTH, NS_BEV, NS_DEPTH, NS_RO = 0.0073, 0.0105, 0.0015, 0.0028, 0.0060
+NS_AF, NS_MOUTH, NS_BEV, NS_DEPTH, NS_RO = 0.0076, 0.0105, 0.0015, 0.0028, 0.0060
 SH_W, SH_L, H_W, H_L = 0.0050, 0.052, 0.012, 0.014
 
 
@@ -1229,7 +1229,11 @@ def demo():
         for n in range(n_strokes):
             ys = [_TurnYaw(k, n, i / 6, y0) for i in range(7)]
             what = "turn it clockwise (the socket drops over the head)" if n == 0 else "turn it clockwise"
-            seq += [(0.9 if n == 0 else 0.6, press, SD_HOLD, what, ys[i]) for i in range(1, 7)]
+            if n == 0:  # seating: turn while easing down, so a socket resting on the head's corners is not forced
+                seq += [(0.9, _Dyn(sd_tcp(xy, head - 0.0008 - (seated - 0.0004 - head + 0.0008) * -min(1.0, i / 3)), key),
+                         SD_HOLD, what, ys[i]) for i in range(1, 7)]
+            else:
+                seq += [(0.6, press, SD_HOLD, what, ys[i]) for i in range(1, 7)]
             if n < n_strokes - 1:
                 # let go of the shaft (the driver stands in place on the head), read the mark, turn the hand back
                 seq.append((0.4, press, SD_OPEN, "let go of the shaft", ys[6]))
