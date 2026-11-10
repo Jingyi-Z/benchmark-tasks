@@ -909,6 +909,25 @@ def _ctrack(env):
             _ct["in_stroke"] = True
             if _seen(env, "screwdriver")[2] < PLATE_START[2] + TAB_TOP + HEAD_H + 0.0015:
                 _ct["engaged"][kn] = True
+    # what the cameras and the arm's joints tell about the screwdriver in the hand
+    b = env.unwrapped
+    pst = labkit._part_state(env, labkit._SPECS["sample_plate"])
+    _ct["plate"] = (np.asarray(pst.pos, float), pst.rotation())
+    sd = labkit._part_state(env, labkit._SPECS["screwdriver"])
+    Rs = sd.rotation()
+    _ct["b_now"] = math.atan2(Rs[1, 1], Rs[0, 1])
+    if _ct["want"] is not None and t - _ct.get("want_t", -1.0) < 0.1 and \
+            sd.pos[2] > PLATE_START[2] + TAB_TOP + HEAD_H + 0.004:  # held, its tip clear of the screw
+        from yam_arena import runtime as _rt
+
+        g = np.asarray(_rt.pad_tips_world(b.scene["right_robot"]), float) - b.scene.env_origins[0].cpu().numpy()
+        om = g[:2] - np.asarray(sd.pos, float)[:2]  # from the tip to the fingers' centre
+        if _ct.get("b0") is None:
+            _ct["b0"] = _ct["b_now"]
+        a = _ct["b0"] - _ct["b_now"]
+        c, s_ = math.cos(a), math.sin(a)
+        om = np.array([c * om[0] - s_ * om[1], s_ * om[0] + c * om[1]])
+        _ct["o_ref"] = om if _ct.get("o_ref") is None else 0.9 * _ct["o_ref"] + 0.1 * om
     w = _ct["want"]
     still = w is not None and _ct.get("want_last") is not None and np.max(np.abs(w - _ct["want_last"])) < 0.0005
     _ct["want_last"] = None if w is None else np.array(w)
@@ -951,13 +970,23 @@ def _screw_seen(env, P):
 
 
 class _Dyn:
-    """A TCP plus the live trim ``key``; during a screwdriver stroke, plus the arm's own correction (see _ctrack)."""
+    """A TCP plus the live trim ``key``; during a screwdriver stroke, plus the arm's own correction (see _ctrack).
+    Given a screw ``P`` (plate frame), the hand is placed over that screw as now seen, offset by where the screwdriver's
+    tip sits in the hand: the shaft is not held exactly on the hand's turning axis, so as the hand turns, the hand
+    moves round the tip and the tip stays over the screw."""
 
-    def __init__(self, tcp, key):
-        self.tcp, self.key = np.asarray(tcp, float), key
+    def __init__(self, tcp, key, P=None):
+        self.tcp, self.key, self.P = np.asarray(tcp, float), key, P
 
     def __array__(self, dtype=None, copy=None):
         p = self.tcp + _ct["trim"].get(self.key, np.zeros(3))
+        if self.P is not None and _ct.get("o_ref") is not None and _ct.get("plate") is not None:
+            pos, R = _ct["plate"]
+            sxy = (pos + R @ np.array([self.P[0], self.P[1], 0.0]))[:2]
+            a = _ct["b_now"] - _ct["b0"]
+            c, s_ = math.cos(a), math.sin(a)
+            o = np.array([c * _ct["o_ref"][0] - s_ * _ct["o_ref"][1], s_ * _ct["o_ref"][0] + c * _ct["o_ref"][1]])
+            p = np.array([*(sxy + o), self.tcp[2]])
         if self.key == "sd":
             _ct["want"] = p  # the planner evaluates the current waypoint last
             _ct["want_t"] = getattr(_demo, "_plan_clock", 0.0)
@@ -1035,6 +1064,7 @@ def demo():
     _ct["trim"], _ct["wins"], _ct["looks"], _ct["freeze"] = {}, [], [], []
     _ct["vis"], _ct["strokes"], _ct["engaged"] = {}, [], {}
     _ct["arm"], _ct["want"], _ct["in_stroke"] = np.zeros(3), None, False
+    _ct["o_ref"], _ct["b0"], _ct["plate"], _ct["b_now"] = None, None, None, 0.0
     pl = _Plan()
     face = PL_T  # the plate's face, plate frame
 
@@ -1203,10 +1233,10 @@ def demo():
     head = PLATE_START[2] + TAB_TOP + HEAD_H  # a screw head's top (world z)
     FEEL_R, FEEL_N, FEEL_DT = 0.0006, 6, 0.2
 
-    def feel(seq, xy, key, yaw):
+    def feel(seq, xy, key, yaw, P=None):
         """Pressing lightly, keep the blade's tip (seen) centred on the screw, so that a tip resting on the slot's
         edges slides over until it drops in."""
-        seq.append((FEEL_DT * (FEEL_N + 1), _Dyn(sd_tcp(xy, head - 0.0005), key), SD_HOLD,
+        seq.append((FEEL_DT * (FEEL_N + 1), _Dyn(sd_tcp(xy, head - 0.0005), key, P), SD_HOLD,
                     "press, the tip centred on the screw", yaw))
     def now(seq):
         return pl.t + sum(w[0] for w in seq)
@@ -1222,32 +1252,32 @@ def demo():
         seq = [(1.5, sd_tcp(xy, head + 0.008), SD_HOLD, f"over the {CLIP_DEG[k]} degree clip's screw", mid),
                (1.0, sd_tcp(xy, head + 0.008), SD_HOLD, "turn the blade to the slot", yaws[0])]
         tw0 = pl.t + 2.5
-        seq += [(2.0, _Dyn(sd_tcp(xy, head + 0.005), key), SD_HOLD, "hold still, the blade's tip seen over the slot",
+        seq += [(2.0, _Dyn(sd_tcp(xy, head + 0.005), key, P), SD_HOLD, "hold still, the blade's tip seen over the slot",
                  yaws[0])]
-        seq.append((1.0, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade into the slot", yaws[0]))
-        feel(seq, xy, key, yaws[0])
+        seq.append((1.0, _Dyn(sd_tcp(xy, head + 0.0002), key, P), SD_HOLD, "blade into the slot", yaws[0]))
+        feel(seq, xy, key, yaws[0], P)
         f0 = now(seq)  # from here until the blade is lifted out, the tip is held by the screw: hold the trim
         y_end = y0 - math.radians(STROKE)
         ys = yaws
         for stroke in range(n_strokes):
             ts = now(seq) - 1.4  # from the press before the stroke
-            seq += [(0.6, _Dyn(sd_tcp(xy, head - 0.0010), key), SD_HOLD, "turn it clockwise", ys[i])
+            seq += [(0.6, _Dyn(sd_tcp(xy, head - 0.0010), key, P), SD_HOLD, "turn it clockwise", ys[i])
                     for i in range(1, 7)]
             _ct["strokes"].append((ts, now(seq), (k, stroke)))
-            seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "lift the blade out", ys[6]))
+            seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.008), key, P), SD_HOLD, "lift the blade out", ys[6]))
             _ct["freeze"].append((f0, now(seq)))
             if stroke < n_strokes - 1:
                 t_look = pl.t + sum(w[0] for w in seq)
                 _ct["looks"].append((t_look, t_look + 0.6, k, stroke))
-                seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "look at the slot", ys[6]))
+                seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.008), key, P), SD_HOLD, "look at the slot", ys[6]))
                 prev = ys[0] if isinstance(ys[0], _SlotYaw) else None
                 ys = [_SlotYaw((k, stroke), i / 6, y0, y_end, prev) for i in range(7)]
-                seq += [(0.8, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "turn back", ys[i]) for i in (4, 2, 0)]
-                seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "hold still over the slot", ys[0]))
-                seq.append((0.8, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade back in the slot", ys[0]))
-                feel(seq, xy, key, ys[0])
+                seq += [(0.8, _Dyn(sd_tcp(xy, head + 0.008), key, P), SD_HOLD, "turn back", ys[i]) for i in (4, 2, 0)]
+                seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.008), key, P), SD_HOLD, "hold still over the slot", ys[0]))
+                seq.append((0.8, _Dyn(sd_tcp(xy, head + 0.0002), key, P), SD_HOLD, "blade back in the slot", ys[0]))
+                feel(seq, xy, key, ys[0], P)
                 f0 = now(seq)
-        seq.append((1.2, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "up", ys[6]))
+        seq.append((1.2, _Dyn(sd_tcp(xy, head + 0.008), key, P), SD_HOLD, "up", ys[6]))
         pl.phase(right=seq)
         pl.window(tw0 + 0.6, pl.t - 1.2, key, lambda env, P=P: np.array([*(_screw_seen(env, P)
                                                                             - _seen(env, "screwdriver")[:2]), 0.0]),
