@@ -1189,7 +1189,15 @@ def demo():
         r, l_ = both(*a, **k)
         return pl.phase(right=r, left=l_)
 
-    ph(3.0, np.array([0.24, 0.0, TOP + 0.25]), OPEN_W, "high over the stand, wrist turned", out=0.0)
+    def ph_off_door(*a, **k):
+        """Like ph, for the move just after the right hand backs away from the raised door: the left turns its wrist in
+        free space, while the right follows a straight line, its hand turning on the way, so it swings nowhere near the
+        door."""
+        r, l_ = both(*a, **k)
+        r = [(w[0], w[1], w[2], "away from the door, hand turning down", w[4]) for w in r]
+        return pl.phase(right=r, left=l_)
+
+    ph_off_door(3.0, np.array([0.24, 0.0, TOP + 0.25]), OPEN_W, "high over the stand, wrist turned", out=0.0)
     ph(2.0, rc + [-0.225, 0, 0.02], OPEN_W, "in front of the open door", out=0.02)
     ph(2.5, rc + [-0.03, 0, 0.0], OPEN_W, "into the load lock, beside the ring holder", out=0.02)
     ph(2.0, rc, OPEN_W, "level with its rim", out=0.02)
@@ -1340,7 +1348,8 @@ def demo():
     pl.phase(right=do, left=[(sum(w[0] for w in do), (0.20, 0.20, TOP + 0.23), FINGER_CLOSED, "wait", 0.0)])
     c0 = np.array([*ST_XY, PLATE_START[2] + (PL_T + RG_T) / 2])
     lift = np.array([*ST_XY, TOP + LIFT_Z])
-    ph(3.0, c0 + [0, 0, 0.12], OPEN_W, "high beside the plate and ring, wrist turned", r_tip=STACK_IN, out=0.03)
+    ph_off_door(3.0, c0 + [0, 0, 0.12], OPEN_W, "high beside the plate and ring, wrist turned", r_tip=STACK_IN,
+                out=0.03)
     ph(2.0, c0 + [0, 0, 0.03], OPEN_W, "beside the plate's and ring's side edges, above", r_tip=STACK_IN, out=0.03)
     ph(1.5, c0, OPEN_W, "level with them", r_tip=STACK_IN, out=0.03)
     ph(1.5, c0, OPEN_W, "fingers over the ring and under the plate", r_tip=STACK_IN)
