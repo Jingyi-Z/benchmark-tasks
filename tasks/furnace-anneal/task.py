@@ -160,9 +160,8 @@ FURNACE_BOXES = [
       for e in (-1, 1)],
     # the tube's far end rests on a block
     ((0.765, 0.0, (AXZ - TUBE_R) / 2), (0.030, 0.050, AXZ - TUBE_R), DARK),
-    # the hot zone's mark on the furnace's lid, in line with the thermocouple, and the end plates' insulation rings
+    # the hot zone's mark on the furnace's lid, in line with the thermocouple
     ((HOT_X, 0.0, FURN_Z1 + 0.0005), (0.004, 0.120, 0.001), RED),
-    *[((x, 0.0, AXZ), (0.004, 2 * FURN_Y - 0.004, 2 * _hole + 0.020), INSUL) for x in (FURN_X0 - 0.002, FURN_X1 + 0.002)],
 ]
 FURNACE = part("tube_furnace", pos=(0.0, 0.0, TOP), fixed=True, friction=0.25, boxes=FURNACE_BOXES,
                meshes=[_tube_mesh(MOUTH_X - 0.001, TUBE_X1, TUBE_R, TUBE_IN, QUARTZ),
