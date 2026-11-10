@@ -908,16 +908,21 @@ def _ctrack(env):
             _ct["in_stroke"] = True
             if _seen(env, "screwdriver")[2] < PLATE_START[2] + TAB_TOP + HEAD_H + 0.0015:
                 _ct["engaged"][kn] = True
-    if _ct["in_stroke"] and _ct["want"] is not None:
-        # Turning the wrist far out, the arm drifts off its commanded place. It knows where its fingertips are (its
-        # joint readings), so it corrects that drift itself and keeps the blade over the screw while it turns.
+    w = _ct["want"]
+    still = w is not None and _ct.get("want_last") is not None and np.max(np.abs(w - _ct["want_last"])) < 0.0005
+    _ct["want_last"] = None if w is None else np.array(w)
+    if still and t - _ct.get("want_t", -1.0) < 0.1:
+        # With the screwdriver, and above all turning the wrist far out, the arm drifts off its commanded place. It
+        # knows where its fingertips are (its joint readings), so while its target holds still it corrects that drift
+        # itself (applied all through the screwdriver's work, so the hand never jumps), keeping the blade over the
+        # screw while it turns.
         from yam_arena import runtime as _rt
 
         b = env.unwrapped
         tip = np.asarray(_rt.pad_tips_world(b.scene["right_robot"]), float) - b.scene.env_origins[0].cpu().numpy()
         e = (np.asarray(_ct["want"]) - [0.0, 0.0, TIP_ABOVE_TCP]) - tip
         e[2] = 0.0
-        _ct["arm"] = np.clip(_ct["arm"] + np.clip(0.1 * e, -0.0002, 0.0002), -0.008, 0.008)
+        _ct["arm"] = np.clip(_ct["arm"] + np.clip(0.1 * e, -0.0002, 0.0002), -0.006, 0.006)  # faster than the seen trim
     if any(f0 <= t < f1 for f0, f1 in _ct["freeze"]):  # the hand is feeling for a slot: hold the trims
         return
     for t0, t1, key, fn, watch in _ct["wins"]:
@@ -947,8 +952,8 @@ class _Dyn:
         p = self.tcp + _ct["trim"].get(self.key, np.zeros(3))
         if self.key == "sd":
             _ct["want"] = p  # the planner evaluates the current waypoint last
-            if _ct["in_stroke"]:
-                p = p + _ct["arm"]
+            _ct["want_t"] = getattr(_demo, "_plan_clock", 0.0)
+            p = p + _ct["arm"]
         return np.asarray(p, dtype=dtype or float)
 
 
