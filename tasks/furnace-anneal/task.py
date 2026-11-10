@@ -247,9 +247,10 @@ _lid_boxes = [
       for y in (LID_HANDLE_Y - 0.035, LID_HANDLE_Y + 0.035)],
     ((FX0 - LID_HANDLE_OUT, LID_HANDLE_Y, LID_HANDLE_Z), (0.008, 0.080, 0.008), DARK),
 ]
-LID_UP = 1.0  # rad: how far the lid can lift (it stays where it is left: a stiff hinge, part sprung)
+LID_UP = 1.0  # rad: how far the lid can lift
+LID_K, LID_SLIP = 15.0, 0.04  # its stiff hinge: it holds where it is left, giving way to 0.6 N m (see _lid_hold)
 LID = Joint("lid", kind="hinge", axis="Y", anchor=(HINGE[0], _mid_y, HINGE[1]), lower=0.0, upper=LID_UP,
-            stiffness=0.8, target=LID_UP, damping=0.6, friction=0.6, initial=0.0, mass=0.8, boxes=_lid_boxes)
+            stiffness=LID_K, target=0.0, damping=0.5, initial=0.0, mass=0.4, boxes=_lid_boxes)
 FURNACE = part("tube_furnace", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5, boxes=FURNACE_BOXES,
                cylinders=FURNACE_CYLS, meshes=FURNACE_MESHES, joints=[LID])
 
@@ -410,19 +411,39 @@ def _t(x):
     return getattr(x, "torch", x)
 
 
-def _show_pressure(env, p):
-    """Turn the gauge's needle to the pressure (its joint's drive target)."""
+def _drive(env, part_name, joint, value):
+    """Set a joint's drive target (the gauge's needle; the lid's stiff hinge)."""
     import torch
 
-    a = _asset(env, "quartz_tube")
+    a = _asset(env, part_name)
     try:
-        i = list(a.joint_names).index(NEEDLE.joint_name)
+        i = list(a.joint_names).index(joint.joint_name)
         dev = _t(a.data.joint_pos).device
-        a.set_joint_position_target(torch.tensor([[dial_angle(p)]], dtype=torch.float32, device=dev), joint_ids=[i])
+        a.set_joint_position_target(torch.tensor([[value]], dtype=torch.float32, device=dev), joint_ids=[i])
     except Exception as e:  # noqa: BLE001
-        if not _gas.get("warned_n"):
-            _gas["warned_n"] = True
-            print(f"[furnace-anneal] gauge not driven: {e!r}")
+        if not _gas.get("warned_" + joint.name):
+            _gas["warned_" + joint.name] = True
+            print(f"[furnace-anneal] {joint.name} not driven: {e!r}")
+
+
+def _show_pressure(env, p):
+    """Turn the gauge's needle to the pressure."""
+    _drive(env, "quartz_tube", NEEDLE, dial_angle(p))
+
+
+@on_step
+def _lid_hold(env):
+    """The lid's hinge is stiff, like a real split furnace's: its drive holds the lid where it was left and gives way
+    (the target follows) only when the lid is pushed more than LID_SLIP from it, i.e. past 0.6 N m."""
+    th = labkit._part_state(env, labkit._SPECS["tube_furnace"]).joints.get("lid", 0.0)
+    tgt = _gas.get("lid_t", 0.0)
+    if th - tgt > LID_SLIP:
+        tgt = th - LID_SLIP
+    elif tgt - th > LID_SLIP:
+        tgt = th + LID_SLIP
+    tgt = min(max(tgt, 0.0), LID_UP)
+    _gas["lid_t"] = tgt
+    _drive(env, "tube_furnace", LID, tgt)
 
 
 _gas = {}
