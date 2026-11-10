@@ -864,7 +864,7 @@ def _tcp(tip, R=ROT_T, past=0.004):
     return np.asarray(tip, float) + a * past - a * TIP_ABOVE_TCP
 
 
-ROD_OPEN, ROD_HOLD = -0.012, -0.0005  # round the 6 mm rod, squeezed hard
+ROD_OPEN, ROD_HOLD = -0.012, 0.0  # round the 6 mm rod, squeezed hard (a looser grip slips)
 TUBE_OPEN, TUBE_HOLD = -0.022, -0.0115  # round the 25.4 mm tube
 CAP_OPEN, CAP_HOLD = -0.030, -0.0170  # round the cap's 36.4 mm sleeve
 KNOB_OPEN, KNOB_HOLD = -0.014, -0.0035  # round the valve's 10 mm knob
@@ -896,6 +896,11 @@ def _knob(phi):
 
 def _rod_at(y, z=AXZ):
     return np.array([XA, y, TOP + z])
+
+
+def _on_rod(p):
+    """TCP for the fingers pinching the rod across its axis at p (not past it: the pinch would pull the rod aside)."""
+    return _tcp(p, past=0.0)
 
 
 def demo():
@@ -948,29 +953,31 @@ def demo():
                    (1.0, _tcp(h + 0.03 * up), TUBE_OPEN, "down over the tube", O_T),
                    (1.0, _tcp(h), TUBE_OPEN, "down round the tube", O_T),
                    (0.6, _tcp(h), TUBE_HOLD, "hold the tube (it rolls and slides)", O_T)],
-             right=[(2.5, _tcp(r_g0 + 0.09 * up), ROD_OPEN, "hand turned over the rod", O_T),
-                    (1.0, _tcp(r_g0 + 0.03 * up), ROD_OPEN, "down over the rod", O_T),
-                    (1.0, _tcp(r_g0), ROD_OPEN, "down round the rod", O_T),
-                    (0.6, _tcp(r_g0), ROD_HOLD, "close on the rod", O_T)])
+             right=[(2.5, _on_rod(r_g0 + 0.09 * up), ROD_OPEN, "hand turned over the rod", O_T),
+                    (1.0, _on_rod(r_g0 + 0.03 * up), ROD_OPEN, "down over the rod", O_T),
+                    (1.0, _on_rod(r_g0), ROD_OPEN, "down round the rod", O_T),
+                    (0.6, _on_rod(r_g0), ROD_HOLD, "close on the rod", O_T)])
     # -- 5. right pushes the boat in, stroke by stroke, until it sits under the thermocouple (seen) -----------------------
     def stroke(y1, label, dur):
-        return [(dur, _Dyn(_tcp(_rod_at(y1)), "r"), ROD_HOLD, label, O_T)]
+        return [(dur, _Dyn(_on_rod(_rod_at(y1)), "r"), ROD_HOLD, label, O_T)]
 
     def regrip(y_from, y_to):
-        return [(0.6, _Dyn(_tcp(_rod_at(y_from)), "r"), ROD_OPEN, "let go of the rod", O_T),
-                (0.8, _Dyn(_tcp(_rod_at(y_from) + 0.03 * up), "r"), ROD_OPEN, "up off the rod", O_T),
-                (1.2, _Dyn(_tcp(_rod_at(y_to) + 0.03 * up), "r"), ROD_OPEN, "along the rod", O_T),
-                (0.8, _Dyn(_tcp(_rod_at(y_to)), "r"), ROD_OPEN, "down round the rod", O_T),
-                (0.6, _Dyn(_tcp(_rod_at(y_to)), "r"), ROD_HOLD, "close on the rod", O_T)]
+        return [(0.6, _Dyn(_on_rod(_rod_at(y_from)), "r"), ROD_OPEN, "let go of the rod", O_T),
+                (0.8, _Dyn(_on_rod(_rod_at(y_from) + 0.03 * up), "r"), ROD_OPEN, "up off the rod", O_T),
+                (1.2, _Dyn(_on_rod(_rod_at(y_to) + 0.03 * up), "r"), ROD_OPEN, "along the rod", O_T),
+                (0.8, _Dyn(_on_rod(_rod_at(y_to)), "r"), ROD_OPEN, "down round the rod", O_T),
+                (0.6, _Dyn(_on_rod(_rod_at(y_to)), "r"), ROD_HOLD, "close on the rod", O_T)]
 
     full = FEED[1] - FEED[0]
     last = H_IN - (ROD_START[1] + 2 * full)  # the third stroke's length
-    push = [(1.0, _tcp(_rod_at(FEED[0])), ROD_HOLD, "lift the rod off its rest", O_T)]
-    push += stroke(FEED[1], "push the boat in", 4.5) + regrip(FEED[1], FEED[0])
-    push += stroke(FEED[1], "push the boat on", 4.5) + regrip(FEED[1], FEED[1] - last)
+    push = [(1.0, _on_rod(_rod_at(FEED[0])), ROD_HOLD, "lift the rod off its rest", O_T)]
+    touch = FEED[0] + (BOAT_START[1] - BOAT_L / 2 - 0.003) - ROD_START[1]  # the hand, the pusher 3 mm from the boat
+    push += stroke(touch, "the pusher up to the boat", 2.0) + stroke(FEED[1], "push the boat in, slowly", 6.0)
+    push += regrip(FEED[1], FEED[0])
+    push += stroke(FEED[1], "push the boat on", 5.0) + regrip(FEED[1], FEED[1] - last)
     push += stroke(FEED[1], "push on until the boat is under the thermocouple", 3.0)
     pl.phase(right=push)
-    tw = pl.phase(right=[(2.0, _Dyn(_tcp(_rod_at(FEED[1])), "r"), ROD_HOLD,
+    tw = pl.phase(right=[(2.0, _Dyn(_on_rod(_rod_at(FEED[1])), "r"), ROD_HOLD,
                           "hold still: the boat seen under the thermocouple", O_T)])
     pl.window(tw + 0.3, tw + 2.0, "r",
               lambda env: np.array([0.0, HOT_Y - _seen(env, "boat")[1], 0.0]), "boat")
@@ -978,9 +985,9 @@ def demo():
     pull = stroke(FEED[1] - last, "pull the rod back", 2.5) + regrip(FEED[1] - last, FEED[1])
     pull += stroke(FEED[0], "pull the rod back", 4.0) + regrip(FEED[0], FEED[1])
     pull += stroke(FEED[0], "pull the rod out", 4.0)
-    pull += [(1.0, _Dyn(_tcp(_rod_at(FEED[0], AXZ - 0.0015)), "r"), ROD_HOLD, "down onto its rests", O_T),
-             (0.6, _Dyn(_tcp(_rod_at(FEED[0], AXZ - 0.0015)), "r"), ROD_OPEN, "let go of the rod", O_T),
-             (1.0, _Dyn(_tcp(_rod_at(FEED[0], AXZ - 0.0015) + 0.04 * up), "r"), ROD_OPEN, "up off the rod", O_T),
+    pull += [(1.0, _Dyn(_on_rod(_rod_at(FEED[0], AXZ - 0.0015)), "r"), ROD_HOLD, "down onto its rests", O_T),
+             (0.6, _Dyn(_on_rod(_rod_at(FEED[0], AXZ - 0.0015)), "r"), ROD_OPEN, "let go of the rod", O_T),
+             (1.0, _Dyn(_on_rod(_rod_at(FEED[0], AXZ - 0.0015) + 0.04 * up), "r"), ROD_OPEN, "up off the rod", O_T),
              (2.0, RIGHT_PARK, ROD_OPEN, "up and clear", O_T)]
     pl.phase(right=pull)
     # -- 7. left lets go of the tube and shuts the lid -------------------------------------------------------------------
