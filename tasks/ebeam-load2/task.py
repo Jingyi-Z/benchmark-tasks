@@ -856,7 +856,8 @@ def _look_at_slot(env):
                 d -= 360.0
             _ct["vis"][(k, n)], _ct["ang"][(k, n)] = vis, prev_ang + d
             # and where the wrist stands (the arm's own joint reading), for how much further it turns each way
-            _ct["j6look"][(k, n)] = float(env.unwrapped.scene["right_robot"].data.joint_pos[0, 5])
+            _ct["j6look"][(k, n)] = (float(env.unwrapped.scene["right_robot"].data.joint_pos[0, 5]),
+                                     math.radians(blade))
 
 
 def _hand_turn(a):
@@ -879,10 +880,13 @@ class _SlotYaw(float):
 
     def reach(self):
         """The hand yaws (lo, hi) the wrist reaches over this screw, from where its joint stood at the last look."""
-        j = _ct["j6look"].get(self.k)
-        if j is None:
+        jb = _ct["j6look"].get(self.k)
+        if jb is None:
             return math.radians(HAND_LO), math.radians(HAND_HI)
-        c = j - J6_SIGN * self.prev_end()
+        j, b = jb
+        h = b + 1.5 * math.pi  # the hand's yaw then, from the blade's (seen), taken near where the plan left it
+        h += 2.0 * math.pi * round((self.prev_end() - h) / (2.0 * math.pi))
+        c = j - J6_SIGN * h
         a, b = (J6_REACH - c) / J6_SIGN, (-J6_REACH - c) / J6_SIGN
         return min(a, b), max(a, b)
 
