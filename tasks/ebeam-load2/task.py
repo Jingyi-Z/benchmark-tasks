@@ -801,7 +801,7 @@ BAR_OPEN, BAR_HOLD = -0.016, -0.0045  # round the 12 mm handle bar
 SD_GRIP = 0.018  # the fingertips' ends this far above the blade's tip
 CLIPS_USED = {"left": (0, 3), "right": (6,)}  # 0, 135 and 270 degrees
 STROKE_TOP, STROKE, STROKES = 145.0, 190.0, 3  # hand yaw at the start of each tightening stroke, and how far it turns
-HAND_HI = 165.0  # the most the wrist turns the hand (yaw, degrees) at the screws; it reaches down to STROKE_TOP - STROKE
+HAND_HI, HAND_LO = 168.0, -52.0  # how far the wrist (joint6, +-120 degrees) turns the hand at the screws (yaw, degrees)
 SCREW_AIM, STROKE_PLAY = 355.0, 40.0  # aim each screw at 355 degrees; a stroke turns the screw ~28 degrees less than the hand
 FLIP = {"right": True, "left": False}
 ROLL_SIGN = -1.0
@@ -886,7 +886,7 @@ class _SlotYaw(float):
         """How far this stroke turns the hand (radians), no further than the wrist reaches."""
         a = _ct["ang"].get(self.k)
         t = math.radians(STROKE) if a is None else math.radians(_hand_turn(a))
-        return max(0.0, min(t, self.s0() - self.end))
+        return max(0.0, min(t, self.s0() - math.radians(HAND_LO)))
 
     def prev_end(self):
         if self.prev is None:
