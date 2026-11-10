@@ -140,14 +140,16 @@ def _hex(pts, colour, collide="hull"):
     return labkit.Mesh(points=pts, tris=np.array(tris), color=colour, collide=collide)
 
 
-def _ring(x0, x1, r_in, r_out, n, colour, cy=0.0, cz=0.0, a0=0.0, a1=2 * math.pi, collide="hull"):
+def _ring(x0, x1, r_in, r_out, n, colour, cy=0.0, cz=0.0, a0=0.0, a1=2 * math.pi, collide="hull", r_in1=None):
     """A ring (or an arc of one) round an axis along x through (cy, cz), from x0 to x1: n convex segments, each one
-    colliding as itself (a hollow part's walls, round, where boxes would be square)."""
+    colliding as itself (a hollow part's walls, round, where boxes would be square). ``r_in1``: the inside radius at x1,
+    for a flared mouth."""
     out = []
+    r_in1 = r_in if r_in1 is None else r_in1
     for i in range(n):
         aa = (a0 + (a1 - a0) * i / n, a0 + (a1 - a0) * (i + 1) / n)
-        out.append(_hex([(x, cy + r * math.cos(a), cz + r * math.sin(a)) for x in (x0, x1) for r in (r_in, r_out)
-                         for a in aa], colour, collide))
+        out.append(_hex([(x, cy + r * math.cos(a), cz + r * math.sin(a)) for x, ri in ((x0, r_in), (x1, r_in1))
+                         for r in (ri, r_out) for a in aa], colour, collide))
     return out
 
 
@@ -251,14 +253,15 @@ REST = part("rod_trough", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
 # over the tube's end until the plate meets it (its O-ring inside then seals), and a knurled nut 68 mm across round the
 # sleeve next to the plate. Frame: origin on its axis at the plate's inner face, the sleeve along +x. ------------------
 ALUM = (0.80, 0.81, 0.83)
-CAP_IN, CAP_D, CAP_PLATE = TUBE_R + 0.0013, 0.025, 0.005
-CAP_OUT = CAP_IN + 0.004  # the sleeve's outside, 61.4 mm across
+CAP_IN, CAP_D, CAP_PLATE = TUBE_R + 0.0025, 0.025, 0.005  # 2.5 mm play round the tube (the O-ring takes it up)
+CAP_OUT = CAP_IN + 0.004  # the sleeve's outside, 63.8 mm across
 NUT_R, NUT_X0, NUT_X1 = 0.034, 0.002, 0.016  # the knurled nut, where the fingers hold it (about its balance point)
 CAP_X0, CAP_Y0 = 0.265, 0.110  # it waits on a small stand beside the tube, its axis level and along the tube's
 CAP_START = np.array([CAP_X0, CAP_Y0, TOP + AXZ - 0.0012])  # its nut in the stand's saddle
 CAP = part("end_cap", pos=tuple(CAP_START), mass=0.10, friction=0.35,
            cylinders=[((-CAP_PLATE / 2, 0.0, 0.0), CAP_OUT, CAP_PLATE, ALUM, "X")],
-           meshes=[*_ring(0.0, CAP_D, CAP_IN, CAP_OUT, 24, ALUM),
+           meshes=[*_ring(0.0, CAP_D - 0.004, CAP_IN, CAP_OUT, 24, ALUM),
+                   *_ring(CAP_D - 0.004, CAP_D, CAP_IN, CAP_OUT, 24, ALUM, r_in1=CAP_IN + 0.002),  # its flared mouth
                    *_ring(NUT_X0, NUT_X1, CAP_OUT, NUT_R, 24, (0.66, 0.67, 0.70))])
 CAP_STAND = part("cap_stand", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
                  boxes=[((CAP_X0 + (NUT_X0 + NUT_X1) / 2, CAP_Y0, (AXZ - NUT_R - 0.0052) / 2),
