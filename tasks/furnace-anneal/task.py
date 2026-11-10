@@ -898,6 +898,14 @@ def _rod_at(y, z=AXZ):
     return np.array([XA, y, TOP + z])
 
 
+def _rod_seen_at(env, y):
+    """Where the rod's axis is (seen) where it crosses y."""
+    r = labkit._part_state(env, labkit._SPECS["hook_rod"])
+    d = r.rotation()[:, 1]
+    p = np.asarray(r.pos, float)
+    return p + d * ((y - p[1]) / d[1])
+
+
 def _on_rod(p):
     """TCP for the fingers round the rod at p, their tips 6 mm past its axis (so the pads, not the tips, hold it)."""
     return _tcp(p, past=0.006)
@@ -958,38 +966,66 @@ def demo():
                     (1.0, _on_rod(r_g0), ROD_OPEN, "down round the rod", O_T),
                     (0.6, _on_rod(r_g0), ROD_HOLD, "close on the rod", O_T)])
     # -- 5. right pushes the boat in, stroke by stroke, until it sits under the thermocouple (seen) -----------------------
+    seq = []
+
     def stroke(y1, label, dur):
-        return [(dur, _Dyn(_on_rod(_rod_at(y1)), "r"), ROD_HOLD, label, O_T)]
+        seq.append((dur, _Dyn(_on_rod(_rod_at(y1)), cur["k"]), ROD_HOLD, label, O_T))
+        return []
+
+    keys = iter(f"r{i}" for i in range(1, 20))
+    cur = {"k": "r"}
+
+    def line_up(y, key, dur=1.0):
+        """Hold open round the rod at y while the hand is lined up on it as seen (its axis there), then close."""
+        t0 = pl.t + sum(w[0] for w in seq)
+        pl.window(t0 + 0.2, t0 + dur, key,
+                  lambda env, y=y, key=key: _rod_seen_at(env, y) - _rod_at(y) - _ct["trim"].get(key, np.zeros(3))
+                  * [1.0, 0.0, 1.0], "hook_rod")
+        return [(dur, _Dyn(_on_rod(_rod_at(y)), key), ROD_OPEN, "line up on the rod (seen)", O_T)]
 
     def regrip(y_from, y_to):
-        return [(0.6, _Dyn(_on_rod(_rod_at(y_from)), "r"), ROD_OPEN, "let go of the rod", O_T),
-                (0.8, _Dyn(_on_rod(_rod_at(y_from) + 0.03 * up), "r"), ROD_OPEN, "up off the rod", O_T),
-                (1.2, _Dyn(_on_rod(_rod_at(y_to) + 0.03 * up), "r"), ROD_OPEN, "along the rod", O_T),
-                (0.8, _Dyn(_on_rod(_rod_at(y_to)), "r"), ROD_OPEN, "down round the rod", O_T),
-                (0.6, _Dyn(_on_rod(_rod_at(y_to)), "r"), ROD_HOLD, "close on the rod", O_T)]
+        k_old, k_new = cur["k"], next(keys)
+        cur["k"] = k_new
+        out = [(0.6, _Dyn(_on_rod(_rod_at(y_from)), k_old), ROD_OPEN, "let go of the rod", O_T),
+               (0.8, _Dyn(_on_rod(_rod_at(y_from) + 0.03 * up), k_old), ROD_OPEN, "up off the rod", O_T),
+               (1.2, _Dyn(_on_rod(_rod_at(y_to) + 0.03 * up), k_new), ROD_OPEN, "along the rod", O_T),
+               (0.8, _Dyn(_on_rod(_rod_at(y_to)), k_new), ROD_OPEN, "down round the rod", O_T)]
+        seq.extend(out)
+        out2 = line_up(y_to, k_new)
+        seq.extend(out2)
+        out3 = [(0.6, _Dyn(_on_rod(_rod_at(y_to)), k_new), ROD_HOLD, "close on the rod", O_T)]
+        seq.extend(out3)
+        return []
 
     full = FEED[1] - FEED[0]
     last = H_IN - (ROD_START[1] + 2 * full)  # the third stroke's length
-    push = [(1.0, _on_rod(_rod_at(FEED[0])), ROD_HOLD, "lift the rod off its rest", O_T)]
     touch = FEED[0] + (BOAT_START[1] - BOAT_L / 2 - 0.003) - ROD_START[1]  # the hand, the pusher 3 mm from the boat
-    push += stroke(touch, "the pusher up to the boat", 2.0) + stroke(FEED[1], "push the boat in, slowly", 6.0)
-    push += regrip(FEED[1], FEED[0])
-    push += stroke(FEED[1], "push the boat on", 5.0) + regrip(FEED[1], FEED[1] - last)
-    push += stroke(FEED[1], "push on until the boat is under the thermocouple", 3.0)
-    pl.phase(right=push)
-    tw = pl.phase(right=[(2.0, _Dyn(_on_rod(_rod_at(FEED[1])), "r"), ROD_HOLD,
+    seq.append((1.0, _on_rod(_rod_at(FEED[0])), ROD_HOLD, "lift the rod off its rest", O_T))
+    stroke(touch, "the pusher up to the boat", 2.0)
+    stroke(FEED[1], "push the boat in, slowly", 6.0)
+    regrip(FEED[1], FEED[0])
+    stroke(FEED[1], "push the boat on", 5.0)
+    regrip(FEED[1], FEED[1] - last)
+    stroke(FEED[1], "push on until the boat is under the thermocouple", 3.0)
+    k_push = cur["k"]
+    pl.phase(right=seq)
+    tw = pl.phase(right=[(2.0, _Dyn(_on_rod(_rod_at(FEED[1])), k_push), ROD_HOLD,
                           "hold still: the boat seen under the thermocouple", O_T)])
-    pl.window(tw + 0.3, tw + 2.0, "r",
+    pl.window(tw + 0.3, tw + 2.0, k_push,
               lambda env: np.array([0.0, HOT_Y - _seen(env, "boat")[1], 0.0]), "boat")
     # -- 6. right pulls the rod back out, stroke by stroke, and lays it on its rests -------------------------------------
-    pull = stroke(FEED[1] - last, "pull the rod back", 2.5) + regrip(FEED[1] - last, FEED[1])
-    pull += stroke(FEED[0], "pull the rod back", 4.0) + regrip(FEED[0], FEED[1])
-    pull += stroke(FEED[0], "pull the rod out", 4.0)
-    pull += [(1.0, _Dyn(_on_rod(_rod_at(FEED[0], AXZ - 0.0015)), "r"), ROD_HOLD, "down onto its rests", O_T),
-             (0.6, _Dyn(_on_rod(_rod_at(FEED[0], AXZ - 0.0015)), "r"), ROD_OPEN, "let go of the rod", O_T),
-             (1.0, _Dyn(_on_rod(_rod_at(FEED[0], AXZ - 0.0015) + 0.04 * up), "r"), ROD_OPEN, "up off the rod", O_T),
-             (2.0, RIGHT_PARK, ROD_OPEN, "up and clear", O_T)]
-    pl.phase(right=pull)
+    seq = []
+    stroke(FEED[1] - last, "pull the rod back", 2.5)
+    regrip(FEED[1] - last, FEED[1])
+    stroke(FEED[0], "pull the rod back", 4.0)
+    regrip(FEED[0], FEED[1])
+    stroke(FEED[0], "pull the rod out", 4.0)
+    k = cur["k"]
+    seq += [(1.0, _Dyn(_on_rod(_rod_at(FEED[0], AXZ - 0.0015)), k), ROD_HOLD, "down onto its rests", O_T),
+            (0.6, _Dyn(_on_rod(_rod_at(FEED[0], AXZ - 0.0015)), k), ROD_OPEN, "let go of the rod", O_T),
+            (1.0, _Dyn(_on_rod(_rod_at(FEED[0], AXZ - 0.0015)) + 0.04 * up, k), ROD_OPEN, "up off the rod", O_T),
+            (2.0, RIGHT_PARK, ROD_OPEN, "up and clear", O_T)]
+    pl.phase(right=seq)
     # -- 7. left lets go of the tube and shuts the lid -------------------------------------------------------------------
     shut = [(2.5, _tcp(p1 + [-0.05, 0.0, -0.03], R1, past=0.002), BAR_OPEN, "hand turned to the lid's handle", Orient(R1)),
             (1.0, _tcp(p1 - _appr(R1) * 0.03, R1, past=0.002), BAR_OPEN, "in towards the handle", Orient(R1)),
