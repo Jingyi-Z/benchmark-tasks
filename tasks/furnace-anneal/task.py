@@ -163,7 +163,7 @@ FURNACE_BOXES = [
     # the hot zone's mark on the furnace's lid, in line with the thermocouple
     ((HOT_X, 0.0, FURN_Z1 + 0.0005), (0.004, 0.120, 0.001), RED),
 ]
-FURNACE = part("tube_furnace", pos=(0.0, 0.0, TOP), fixed=True, friction=0.2, boxes=FURNACE_BOXES,
+FURNACE = part("tube_furnace", pos=(0.0, 0.0, TOP), fixed=True, friction=0.4, boxes=FURNACE_BOXES,
                meshes=[_tube_mesh(MOUTH_X - 0.001, TUBE_X1, TUBE_R, TUBE_IN, QUARTZ),
                        _tube_mesh(FL_X0, MOUTH_X, FL_R, TUBE_IN + 0.0005, STAINLESS)])
 
@@ -172,7 +172,7 @@ FURNACE = part("tube_furnace", pos=(0.0, 0.0, TOP), fixed=True, friction=0.2, bo
 BOAT_L, BOAT_W, BOAT_H, BOAT_T = 0.080, 0.020, 0.008, 0.0015
 BACK_H = 0.017  # its back end is raised into a tab, which the rod's pusher meets
 BOAT_START = np.array([MOUTH_X + 0.004 + BOAT_L / 2, 0.0, TOP + FLOOR])
-BOAT = part("boat", pos=tuple(BOAT_START), mass=0.012, friction=0.2,
+BOAT = part("boat", pos=tuple(BOAT_START), mass=0.012, friction=0.4,
             boxes=[((0.0, 0.0, BOAT_T / 2), (BOAT_L, BOAT_W, BOAT_T), QUARTZ),
                    *[((0.0, e * (BOAT_W - BOAT_T) / 2, BOAT_H / 2), (BOAT_L, BOAT_T, BOAT_H), QUARTZ) for e in (-1, 1)],
                    ((-(BOAT_L - BOAT_T) / 2, 0.0, BACK_H / 2), (BOAT_T, BOAT_W - 2 * BOAT_T, BACK_H), QUARTZ),
