@@ -255,7 +255,11 @@ def _clip_joints(k):
     screw = Joint(f"screw{k}", kind="hinge", axis="Z", anchor=(P[0], P[1], TAB_Z), lower=-10.0, upper=0.05,
                   initial=0.0, friction=0.001, damping=0.0005, mass=0.002, parent=f"clip{k}", cylinders=cyl,
                   boxes=[((P[0] + e * (SLOT / 2 + RIDGE[0] / 2) * nrm[0], P[1] + e * (SLOT / 2 + RIDGE[0] / 2) * nrm[1], rz),
-                          RIDGE, STEEL, s - math.pi / 2) for e in (-1, 1)])
+                          RIDGE, STEEL, s - math.pi / 2) for e in (-1, 1)]
+                  # a white paint mark on one end of one ridge, so the screw's turns can be counted from above
+                  + [((P[0] + m * (SLOT / 2 + RIDGE[0] / 2) * nrm[0] + (RIDGE[1] / 2 - 0.0007) * math.cos(s),
+                       P[1] + m * (SLOT / 2 + RIDGE[0] / 2) * nrm[1] + (RIDGE[1] / 2 - 0.0007) * math.sin(s),
+                       rz + RIDGE[2] / 2 + 0.00015), (0.0013, 0.0013, 0.0003), (0.95, 0.95, 0.95), s) for m in (1,)])
     return [clip, screw]
 
 
@@ -835,20 +839,16 @@ def _look_at_slot(env):
             Rs = labkit._part_state(env, labkit._SPECS["screwdriver"]).rotation()
             blade = math.degrees(math.atan2(Rs[1, 1], Rs[0, 1]))
             _ct["turn"][(k, n)] = _wrap180(slot - blade)
-            # Count the screw's turns from what is seen: the slot is a line, so only its direction modulo 180 degrees
-            # shows (``slot`` above is that line, worked out from the plate's pose and the hinges). The turn since the last look is the change in that line, taking the multiple of 180 degrees
-            # nearest what the stroke should have done: none if the blade's tip never dropped into the slot (seen
-            # high), else the hand's turn less the blade's play in the slot.
-            vis = slot % 180.0
-            seen0 = (math.degrees(math.atan2(Rp[1, 0], Rp[0, 0])) + SLOT_DEG[CLIP_DEG[k]]
-                     + math.degrees(float(p.joints.get(f"clip{k}", 0.0)))) % 180.0  # the slot before any stroke
-            prev_vis = _ct["vis"].get((k, n - 1), seen0)
+            # Count the screw's turns from what is seen: a white mark on its head shows which way it faces relative
+            # to its clip (worked out here from the hinges: the same direction a camera sees). A stroke turns it less
+            # than a full turn, so the turn since the last look is the change in that direction, read in -20 to
+            # 340 degrees.
+            vis = (-math.degrees(float(p.joints.get(f"screw{k}", 0.0)))) % 360.0
+            prev_vis = _ct["vis"].get((k, n - 1), 0.0)  # loose and untouched at the start, its mark at 0
             prev_ang = _ct["ang"].get((k, n - 1), 0.0)
-            hand = STROKE if n == 0 else _hand_turn(prev_ang)
-            expect = max(0.0, hand - STROKE_PLAY) if _ct["engaged"].get((k, n)) else 0.0
-            d0 = (prev_vis - vis) % 180.0
-            d = min([c for c in (d0 - 180.0, d0, d0 + 180.0) if -20.0 <= c <= hand + 10.0] or [d0],
-                    key=lambda c: abs(c - expect))  # never more than the hand turned
+            d = (vis - prev_vis) % 360.0
+            if d > 340.0:
+                d -= 360.0
             _ct["vis"][(k, n)], _ct["ang"][(k, n)] = vis, prev_ang + d
 
 
@@ -1202,17 +1202,17 @@ def demo():
             seq += [(0.6, _Dyn(sd_tcp(xy, head - 0.0010), key), SD_HOLD, "turn it clockwise", ys[i])
                     for i in range(1, 7)]
             _ct["strokes"].append((ts, now(seq), (k, stroke)))
-            seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "lift the blade out", ys[6]))
+            seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "lift the blade out", ys[6]))
             _ct["freeze"].append((f0, now(seq)))
             if stroke < n_strokes - 1:
                 t_look = pl.t + sum(w[0] for w in seq)
                 _ct["looks"].append((t_look, t_look + 0.6, k, stroke))
-                seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "look at the slot", ys[6]))
+                seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "look at the slot", ys[6]))
                 prev = ys[0] if isinstance(ys[0], _SlotYaw) else None
                 ys = [_SlotYaw((k, stroke), i / 6, y0, y_end, prev) for i in range(7)]
-                seq += [(0.8, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "turn back", ys[i]) for i in (4, 2, 0)]
-                seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.004), key), SD_HOLD, "hold still over the slot", ys[0]))
-                seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade back in the slot", ys[0]))
+                seq += [(0.8, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "turn back", ys[i]) for i in (4, 2, 0)]
+                seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "hold still over the slot", ys[0]))
+                seq.append((0.8, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade back in the slot", ys[0]))
                 feel(seq, xy, key, ys[0])
                 f0 = now(seq)
         seq.append((1.2, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "up", ys[6]))
