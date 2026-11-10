@@ -17,9 +17,8 @@ task:
    would bite nothing. One has a screw too long for its hole: its head stands 8 mm proud, and tightened, its tip would
    stick out of the plate's back and jam the transfer. Swing in clips that hold the round edge with no gap over 150
    degrees between them (the demo uses 0, 135 and 270 degrees).
-4. **Tighten their screws** with the nut driver, 300 to 420 degrees each, after the clip is swung in, and put the
-   driver back. The demo leaves the socket on the head between strokes, counts each screw's turns from the white mark
-   on its head and stops once it is tight.
+4. **Tighten their screws** with the screwdriver, 300 to 420 degrees each, after the clip is swung in, and put the
+   screwdriver back. The demo counts each screw's turns from its slot and stops once it is tight.
 5. **Turn the plate and ring over together** (wafer face down; the ring now carries the plate) and set them on the
    load lock's holder.
 6. **Close and lock the door.** Pull it down by its handle, off its latch, onto its seat, let go, and turn the twist
@@ -27,9 +26,9 @@ task:
 
 ## Files
 
-- `task.py`: scene, scoring and scripted demo (yam_arena task file). The stand, load lock, door frame and nut driver
+- `task.py`: scene, scoring and scripted demo (yam_arena task file). The stand, load lock, door frame and screwdriver
   holder are fixed; the plate (with eight hinged clips, each with a hinged screw), the wafer, the ring holder and the
-  nut driver are loose. The door slides on a joint; the twist lock turns on one; each lamp's lens slides out when lit. An `on_step` hook works the light, the door's lock and latch, times how long the door is open, latches the violations,
+  screwdriver are loose. The door slides on a joint; the twist lock turns on one; each lamp's lens slides out when lit. An `on_step` hook works the light, the door's lock and latch, times how long the door is open, latches the violations,
   follows the screws and checks that everything has been still for the last second.
 - `labkit.py`: parts built from several shapes, with hinges and slides. It hooks `yam_arena.scene` and the embodiment
   from the task's import, so no change to yam_arena is needed.
@@ -46,7 +45,7 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
         --scorer task_score --max-steps 6600 --store-frames --log-dir logs
 
 Scripted demo: the same command with `--policy yam_scripted`. The demo reads only what a camera sees: the wafer's,
-plate's, ring's, door handle's and nut driver tip's positions and the screw slots' directions. Run one trial per
+plate's, ring's, door handle's and screwdriver tip's positions and the screw slots' directions. Run one trial per
 process. The score is `task_score` in the log, computed by `score()` in `task.py`.
 
 ## Runtime and seeds
