@@ -321,7 +321,11 @@ VALVE = Joint("vent_valve", kind="hinge", axis="Z", anchor=VALVE_PIVOT, lower=-m
                       RED)],
               cylinders=[((VALVE_PIVOT[0] - LEVER_L + 0.004, VALVE_PIVOT[1], VALVE_PIVOT[2] + 0.013), 0.005, 0.014, RED,
                           "Z")])
-TUBE = part("quartz_tube", pos=(0.0, 0.0, TOP), mass=0.30, friction=0.3, meshes=TUBE_MESHES, joints=[NEEDLE])
+# a smooth strip along the tube's floor, one piece (the boat would catch on the seams between the wall's lengths)
+FLOOR_Z = AXZ - 0.0075
+TUBE_BOXES = [((XA, (TUBE_Y0 + FIT_Y0) / 2 + 0.001, FLOOR_Z - 0.001), (0.012, FIT_Y0 - TUBE_Y0 - 0.002, 0.002), QUARTZ)]
+TUBE = part("quartz_tube", pos=(0.0, 0.0, TOP), mass=0.30, friction=0.3, boxes=TUBE_BOXES, meshes=TUBE_MESHES,
+            joints=[NEEDLE])
 # the gas line's valve stands on its own post in front of the end fitting (a soft hose, drawn only, joins them), so
 # working it does not push the loose tube
 GAS = part("gas_valve", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
@@ -333,10 +337,10 @@ GAS = part("gas_valve", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
 KNOB_AT = (VALVE_PIVOT[0] - LEVER_L + 0.004, VALVE_PIVOT[1], VALVE_PIVOT[2] + 0.013)  # the lever's knob (open)
 
 # -- the boat (loose): an alumina boat 80 x 15 x 8 mm, open on top, its back end a 12 mm tab the rod's pusher meets. In the
-# round bore it sits 8 mm under the axis. Frame: origin at the centre of its underside. ----------------------------------
+# tube it sits on the floor strip, 7.5 mm under the axis. Frame: origin at the centre of its underside. ----------------------------------
 BOAT_L, BOAT_W, BOAT_H, BOAT_T, BACK_H = 0.080, 0.015, 0.008, 0.0015, 0.012
 ALUMINA = (0.97, 0.96, 0.93)
-BOAT_Z = AXZ - math.sqrt(TUBE_IN ** 2 - (BOAT_W / 2) ** 2) * math.cos(math.pi / 24) + 0.0005
+BOAT_Z = FLOOR_Z + 0.0003  # on the floor strip
 BOAT_START = np.array([XA, TUBE_Y0 + 0.006 + BOAT_L / 2, TOP + BOAT_Z])
 BOAT = part("boat", pos=tuple(BOAT_START), mass=0.020, friction=0.5,
             boxes=[((0.0, 0.0, BOAT_T / 2), (BOAT_W, BOAT_L, BOAT_T), ALUMINA),
