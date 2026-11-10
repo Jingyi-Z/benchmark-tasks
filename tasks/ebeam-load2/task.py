@@ -374,9 +374,9 @@ DOOR = part(
 # -- the screwdriver (loose) in its holder (fixed): a stubby one, a 0.8 x 5 mm blade on a 5 mm square shaft 52 mm long
 # under a 12 mm square handle 14 mm long. Frame: origin at the blade's tip, +z up the shaft, the blade's width along y. It stands
 # blade down in its holder, a block with a 9 mm square socket 10 mm deep, the tip 50 mm above the bench. ---------------
-# the nut driver: a 7 mm hex socket (2.6 mm deep, its mouth chamfered from 9.3 mm across flats, so it centres itself
+# the nut driver: a 7 mm hex socket (2.8 mm deep, its mouth chamfered from 10.5 mm across flats, so it centres itself
 # on a head), a round 5 mm steel shaft and a round red handle. Its frame's origin is the socket's mouth.
-NS_AF, NS_MOUTH, NS_BEV, NS_DEPTH, NS_RO = 0.0073, 0.0093, 0.0010, 0.0026, 0.0052
+NS_AF, NS_MOUTH, NS_BEV, NS_DEPTH, NS_RO = 0.0073, 0.0105, 0.0015, 0.0028, 0.0060
 SH_W, SH_L, H_W, H_L = 0.0050, 0.052, 0.012, 0.014
 
 
@@ -1223,13 +1223,13 @@ def demo():
         press = _Dyn(sd_tcp(xy, seated - 0.0004), key)
         seq = [(1.5, sd_tcp(xy, head + 0.008), SD_HOLD, f"over the {CLIP_DEG[k]} degree clip's screw", o0)]
         tw0 = pl.t + 1.5
-        seq += [(2.0, _Dyn(sd_tcp(xy, head + 0.005), key), SD_HOLD, "hold still, the socket seen over the head", o0),
+        seq += [(3.0, _Dyn(sd_tcp(xy, head + 0.005), key), SD_HOLD, "hold still, the socket seen over the head", o0),
                 (1.0, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "socket down onto the head", o0)]
         f0 = now(seq)  # from here on the socket sits on the head: hold the trim
         for n in range(n_strokes):
             ys = [_TurnYaw(k, n, i / 6, y0) for i in range(7)]
             what = "turn it clockwise (the socket drops over the head)" if n == 0 else "turn it clockwise"
-            seq += [(0.6, press, SD_HOLD, what, ys[i]) for i in range(1, 7)]
+            seq += [(0.9 if n == 0 else 0.6, press, SD_HOLD, what, ys[i]) for i in range(1, 7)]
             if n < n_strokes - 1:
                 # let go of the shaft (the driver stands in place on the head), read the mark, turn the hand back
                 seq.append((0.4, press, SD_OPEN, "let go of the shaft", ys[6]))
