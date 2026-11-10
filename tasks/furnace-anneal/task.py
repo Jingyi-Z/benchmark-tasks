@@ -559,9 +559,9 @@ class _Plan:
 
 LEFT_PARK = (0.20, 0.22, TOP + 0.22)
 RIGHT_PARK = (0.20, -0.22, TOP + 0.22)
-ROD_OPEN, ROD_HOLD = -0.012, -0.0030  # round the rod's 8 mm square grip, squeezed firmly
+ROD_OPEN, ROD_HOLD = -0.012, -0.0015  # round the rod's 8 mm square grip, squeezed hard (a looser grip slips on the pull)
 GRIP_DZ = -0.008  # the fingertips' ends this far below the rod's axis (well past it, or a squeeze pops it out)
-FEED_X0, FEED_X1 = 0.110, 0.255  # each stroke, the hand moves along the rod's line from here to here
+FEED_X0, FEED_X1 = 0.115, 0.260  # each stroke, the hand moves along the rod's line from here to here
 # the cap: held from behind and above, the hand tipped 45 degrees forward, fingers either side of its sleeve
 CAP_ROT = axis_angle_matrix(Y, -math.pi / 4) @ _prev_grip(0.0)
 CAP_APPR = axis_angle_matrix(Y, -math.pi / 4) @ np.array([0.0, 0.0, -1.0])  # the fingers' direction: forward and down
@@ -667,11 +667,10 @@ def demo():
     pl.phase(right=take("right", FEED_X1, "r2"))
     tw = pl.phase(right=[(1.5, _Dyn(_on_rod(FEED_X1, 0.0)[0], "r2"), ROD_HOLD, "hold still: the rod seen in line with its "
                           "trough", O)])
-    pl.window(tw, tw + 1.5, "r2", lambda env: np.array([0.0, -_seen(env, "hook_rod")[1], 0.0]), "hook_rod")
-    pl.phase(right=move(FEED_X1, FEED_X0, "r2", "pull it back into its trough"))
-    tw = pl.phase(right=[(2.0, _Dyn(_on_rod(FEED_X0, 0.0)[0], "r2"), ROD_HOLD, "hold still: the rod seen at its place", O)])
-    pl.window(tw, tw + 2.0, "r2", lambda env: np.array([ROD_START[0] - _seen(env, "hook_rod")[0],
+    # seen: the rod in line, and where it is along the tube, so that one stroke back lays it where it started
+    pl.window(tw, tw + 1.5, "r2", lambda env: np.array([ROD_START[0] + (FEED_X1 - FEED_X0) - _seen(env, "hook_rod")[0],
                                                         -_seen(env, "hook_rod")[1], 0.0]), "hook_rod")
+    pl.phase(right=move(FEED_X1, FEED_X0, "r2", "pull it back into its trough"))
     pl.phase(right=leave("right", FEED_X0, "r2"))
     # -- 4. the cap: left picks it off its stand, holds it in line with the tube (seen), pushes it fully home, lets go ----
     C = Orient(CAP_ROT)
