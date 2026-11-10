@@ -810,7 +810,7 @@ PUSH_DIR = -W_OFF / np.linalg.norm(W_OFF)
 
 # trims: each a 3-vector added to the TCPs of _Dyn waypoints with its key; integrated in windows from seen positions
 _ct = {"trim": {}, "wins": [], "last": {}, "looks": [], "turn": {}, "ang": {}, "freeze": [], "vis": {},
-       "strokes": [], "engaged": {}}
+       "strokes": [], "engaged": {}, "arm": np.zeros(3), "want": None, "in_stroke": False}
 
 
 @on_reset
@@ -902,9 +902,22 @@ def _seen(env, name):
 @on_step
 def _ctrack(env):
     t = getattr(_demo, "_plan_clock", 0.0)
+    _ct["in_stroke"] = False
     for t0, t1, kn in _ct["strokes"]:  # during a stroke: did the blade's tip drop into the slot (seen low)?
-        if t0 <= t < t1 and _seen(env, "screwdriver")[2] < PLATE_START[2] + TAB_TOP + HEAD_H + 0.0015:
-            _ct["engaged"][kn] = True
+        if t0 <= t < t1:
+            _ct["in_stroke"] = True
+            if _seen(env, "screwdriver")[2] < PLATE_START[2] + TAB_TOP + HEAD_H + 0.0015:
+                _ct["engaged"][kn] = True
+    if _ct["in_stroke"] and _ct["want"] is not None:
+        # Turning the wrist far out, the arm drifts off its commanded place. It knows where its fingertips are (its
+        # joint readings), so it corrects that drift itself and keeps the blade over the screw while it turns.
+        from yam_arena import runtime as _rt
+
+        b = env.unwrapped
+        tip = np.asarray(_rt.pad_tips_world(b.scene["right_robot"]), float) - b.scene.env_origins[0].cpu().numpy()
+        e = (np.asarray(_ct["want"]) - [0.0, 0.0, TIP_ABOVE_TCP]) - tip
+        e[2] = 0.0
+        _ct["arm"] = np.clip(_ct["arm"] + np.clip(0.1 * e, -0.0002, 0.0002), -0.008, 0.008)
     if any(f0 <= t < f1 for f0, f1 in _ct["freeze"]):  # the hand is feeling for a slot: hold the trims
         return
     for t0, t1, key, fn, watch in _ct["wins"]:
@@ -925,13 +938,18 @@ def _ctrack(env):
 
 
 class _Dyn:
-    """A TCP plus the live trim ``key``."""
+    """A TCP plus the live trim ``key``; during a screwdriver stroke, plus the arm's own correction (see _ctrack)."""
 
     def __init__(self, tcp, key):
         self.tcp, self.key = np.asarray(tcp, float), key
 
     def __array__(self, dtype=None, copy=None):
-        return np.asarray(self.tcp + _ct["trim"].get(self.key, np.zeros(3)), dtype=dtype or float)
+        p = self.tcp + _ct["trim"].get(self.key, np.zeros(3))
+        if self.key == "sd":
+            _ct["want"] = p  # the planner evaluates the current waypoint last
+            if _ct["in_stroke"]:
+                p = p + _ct["arm"]
+        return np.asarray(p, dtype=dtype or float)
 
 
 def _down(p, yaw):
@@ -1003,6 +1021,7 @@ class _Plan:
 def demo():
     _ct["trim"], _ct["wins"], _ct["looks"], _ct["freeze"] = {}, [], [], []
     _ct["vis"], _ct["strokes"], _ct["engaged"] = {}, [], {}
+    _ct["arm"], _ct["want"], _ct["in_stroke"] = np.zeros(3), None, False
     pl = _Plan()
     face = PL_T  # the plate's face, plate frame
 
@@ -1183,7 +1202,7 @@ def demo():
         P = clip_frame(k)[0]
         xy = _pw((*P, 0.0))[:2]
         key = "sd"  # one trim for all three screws: it follows how the screwdriver sits in the hand
-        n_strokes = STROKES + 2  # a try can miss the slot; strokes after the screw is tight do not turn it
+        n_strokes = STROKES + 1  # one spare, should a try miss the slot; once the screw is tight, a stroke does not turn
         y0 = math.radians(STROKE_TOP)
         yaws = [Orient(_prev_grip(y0 - math.radians(STROKE) * i / 6)) for i in range(7)]
         mid = Orient(_prev_grip(math.radians(STROKE_TOP - STROKE / 2)))
