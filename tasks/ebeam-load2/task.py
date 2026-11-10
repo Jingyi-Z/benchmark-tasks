@@ -1189,13 +1189,18 @@ def demo():
         r, l_ = both(*a, **k)
         return pl.phase(right=r, left=l_)
 
-    def ph_off_door(*a, **k):
-        """Like ph, for the move just after the right hand backs away from the raised door: the left turns its wrist in
-        free space, while the right follows a straight line, its hand turning on the way, so it swings nowhere near the
-        door."""
-        r, l_ = both(*a, **k)
-        r = [(w[0], w[1], w[2], "away from the door, hand turning down", w[4]) for w in r]
-        return pl.phase(right=r, left=l_)
+    def ph_off_door(dur, c, finger, label, r_tip=RING_IN, out=0.0):
+        """Like ph, for the move just after the right hand backs away from the raised door. The right's wrist turns
+        over there (a joint-space move), so it first turns over towards a point well back from the door, fingertips at
+        (0.12, -0.04) and 35 cm up: its fingers then swing no nearer the door than about 12 cm (checked on the arm's
+        kinematics), where turning straight to c would sweep them into it. Then it goes on to c in a straight line."""
+        via = np.array([0.12, -0.04 + r_tip, TOP + 0.35])
+        rv, rvo = _pinch("right", via, I, r_tip, out)
+        rt, ro = _pinch("right", c, I, r_tip, out)
+        lt, lo = _pinch("left", c, I, r_tip, out)
+        return pl.phase(right=[(2.5, rv, finger, "back from the door, wrist turned", rvo),
+                               (dur - 1.0, rt, finger, "on to " + label.split(",")[0], ro)],
+                        left=[(dur + 1.5, lt, finger, label, lo)])
 
     ph_off_door(3.0, np.array([0.24, 0.0, TOP + 0.25]), OPEN_W, "high over the stand, wrist turned", out=0.0)
     ph(2.0, rc + [-0.225, 0, 0.02], OPEN_W, "in front of the open door", out=0.02)
