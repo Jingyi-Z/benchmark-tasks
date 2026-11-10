@@ -257,7 +257,7 @@ FURNACE = part("tube_furnace", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5, bo
 # -- the tube (loose): fused quartz, 25.4 mm outside, 22 mm inside, 610 mm long, open at its near end; at its far end a
 # stainless end fitting with a compound gauge (its face towards the robots: -20 to +20 kPa, the safe band for opening
 # the tube marked green, red above it) and the gas valve, a quarter-turn ball valve: its lever pointing at the robots is
-# open, turned a quarter turn towards the furnace is shut. Frame: on the bench. ---------------------------------------
+# open, turned a quarter turn away from the furnace is shut. Frame: on the bench. ---------------------------------------
 FIT_Y0, FIT_Y1, FIT_R = TUBE_Y1 - 0.030, TUBE_Y1 + 0.010, 0.017
 GAUGE_C = (XA, (FIT_Y0 + FIT_Y1) / 2, AXZ + 0.075)  # the gauge's centre; its face at x - 0.012
 GAUGE_R = 0.028
@@ -315,7 +315,7 @@ NEEDLE = Joint("needle", kind="hinge", axis="X", anchor=(GAUGE_C[0] - 0.006, GAU
                target=0.0, initial=0.0, mass=0.002,
                meshes=[_box_mesh((GAUGE_C[0] - 0.0064, GAUGE_C[1], GAUGE_C[2] + 0.010), (0.001, 0.0016, 0.024), DARK)],
                boxes=[((GAUGE_C[0] - 0.0064, GAUGE_C[1], GAUGE_C[2]), (0.001, 0.003, 0.003), DARK)])
-VALVE = Joint("vent_valve", kind="hinge", axis="Z", anchor=VALVE_PIVOT, lower=0.0, upper=math.pi / 2,
+VALVE = Joint("vent_valve", kind="hinge", axis="Z", anchor=VALVE_PIVOT, lower=-math.pi / 2, upper=0.0,
               stiffness=0.0, damping=0.02, friction=0.03, initial=0.0, mass=0.01,
               boxes=[((VALVE_PIVOT[0] - LEVER_L / 2, VALVE_PIVOT[1], VALVE_PIVOT[2] + 0.004), (LEVER_L, 0.010, 0.004),
                       RED)],
@@ -399,7 +399,7 @@ PLANCHECK_BOXES = [
 P0, P_RATE = 1.0, 0.4  # kPa, kPa/s
 CAP_ON, CAP_OFF = 0.010, 0.020  # the cap seals within 10 mm of its seat, is off past 20 mm
 VENT_OPEN_S = 5.0
-VALVE_SHUT = math.radians(80.0)
+VALVE_SHUT = math.radians(80.0)  # the valve counts as shut once its lever is turned this far (clockwise)
 
 
 def _asset(env, name):
@@ -464,7 +464,7 @@ def _gas_step(env):
     S = labkit._SPECS
     c = labkit._part_state(env, S["end_cap"])
     t = labkit._part_state(env, S["quartz_tube"])
-    valve_open = labkit._part_state(env, S["gas_valve"]).joints.get("vent_valve", 0.0) < VALVE_SHUT
+    valve_open = -labkit._part_state(env, S["gas_valve"]).joints.get("vent_valve", 0.0) < VALVE_SHUT
     d = cap_out(c)
     p = _gas.get("p", P0)
     on = d < CAP_ON and math.hypot(c.pos[0] - XA, c.pos[2] - (TOP + AXZ)) < 0.006
@@ -534,7 +534,7 @@ def rod_racked(r):
 def cap_sealed(c, gas):
     p = np.asarray(c.pos, float)
     return (abs(cap_out(c)) <= SEAT_TOL and math.hypot(p[0] - XA, p[2] - (TOP + AXZ)) <= AXIS_TOL
-            and axis_off(c) <= CAP_TILT and gas.joints.get("vent_valve", 0.0) >= VALVE_SHUT)
+            and axis_off(c) <= CAP_TILT and -gas.joints.get("vent_valve", 0.0) >= VALVE_SHUT)
 
 
 def _tube_ref(t):
@@ -880,8 +880,9 @@ def _bar(theta):
 
 
 def _knob(phi):
-    """The valve knob's centre, the lever turned phi from open (pointing at the robots) towards shut."""
-    a = math.pi + phi
+    """The valve knob's centre, the lever turned phi from open (pointing at the robots) towards shut (clockwise seen
+    from above: the knob swings out, away from the furnace)."""
+    a = math.pi - phi
     return np.array([VALVE_PIVOT[0] + (LEVER_L - 0.004) * math.cos(a), VALVE_PIVOT[1] + (LEVER_L - 0.004) * math.sin(a),
                      TOP + VALVE_PIVOT[2] + 0.013])
 
