@@ -207,8 +207,8 @@ ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.115, friction=0.7,
 REST_X = (-0.040, 0.075)  # its back end stays on the front one even with the boat in the hot zone
 REST = part("rod_cradles", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
             boxes=[b for x in REST_X for b in (
-                ((x, 0.0, (AXZ - ROD_R) / 2), (0.014, 0.020, AXZ - ROD_R), DARK),
-                *[((x, e * 0.0065, AXZ - ROD_R + 0.004), (0.014, 0.004, 0.008), DARK) for e in (-1, 1)])])
+                ((x, 0.0, (AXZ - HANDLE_W / 2) / 2), (0.014, 0.020, AXZ - HANDLE_W / 2), DARK),
+                *[((x, e * 0.0065, AXZ - HANDLE_W / 2 + 0.004), (0.014, 0.004, 0.008), DARK) for e in (-1, 1)])])
 
 OBJECTS = [FURNACE, BOAT, *CHIPS, ROD, REST]
 PLANCHECK_BOXES = [
