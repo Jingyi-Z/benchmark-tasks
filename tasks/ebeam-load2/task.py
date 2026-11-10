@@ -908,7 +908,7 @@ class _SlotYaw(float):
     def prev_end(self):
         if self.prev is None:
             return self.end
-        return self.prev.s0() - self.prev.turn()
+        return self.prev.s0() - self.prev.turn() + _ct["yawfix"].get(self.prev.k, 0.0)
 
     def off(self):
         return self.s0() - self.start
@@ -1282,8 +1282,12 @@ def demo():
         seq = [(1.5, sd_tcp(xy, head + 0.008), SD_HOLD, f"over the {CLIP_DEG[k]} degree clip's screw", mid),
                (1.0, sd_tcp(xy, head + 0.008), SD_HOLD, "turn the blade to the slot", yaws[0])]
         tw0 = pl.t + 2.5
+        # the slot's direction depends on how far the clip swung in: line the blade up with it as seen, as on later strokes
+        yaws = [_SlotYaw((k, -1), i / 6, y0, y0 - math.radians(STROKE)) for i in range(7)]
+        ta = now(seq)
         seq += [(2.0, _Dyn(sd_tcp(xy, head + 0.005), key, P), SD_HOLD, "hold still, the blade's tip seen over the slot",
                  yaws[0])]
+        _ct["aligns"].append((ta, now(seq), k, (k, -1)))
         seq.append((1.0, _Dyn(sd_tcp(xy, head + 0.0002), key, P), SD_HOLD, "blade into the slot", yaws[0]))
         feel(seq, xy, key, yaws[0], P)
         f0 = now(seq)  # from here until the blade is lifted out, the tip is held by the screw: hold the trim
