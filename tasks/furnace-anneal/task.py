@@ -1001,7 +1001,14 @@ def demo():
     last = H_IN - (ROD_START[1] + 2 * full)  # the third stroke's length
     touch = FEED[0] + (BOAT_START[1] - BOAT_L / 2 - 0.003) - ROD_START[1]  # the hand, the pusher 3 mm from the boat
     seq.append((1.0, _on_rod(_rod_at(FEED[0])), ROD_HOLD, "lift the rod off its rest", O_T))
-    stroke(touch, "the pusher up to the boat", 2.0)
+    mouth = FEED[0] + (TUBE_Y0 - 0.012) - ROD_START[1]  # the hand, the pusher 12 mm short of the tube's mouth
+    stroke(mouth, "the rod up to the tube's mouth", 1.5)
+    t0 = pl.t + sum(w[0] for w in seq)
+    stroke(mouth, "hold still: the rod's tip seen in line with the tube", 1.5)
+    pl.window(t0 + 0.2, t0 + 1.5, "r",
+              lambda env: np.array([XA, 0.0, TOP + AXZ]) - _rod_seen_at(env, TUBE_Y0 - 0.012) * [1.0, 0.0, 1.0],
+              "hook_rod")
+    stroke(touch, "the pusher up to the boat", 1.0)
     stroke(FEED[1], "push the boat in, slowly", 6.0)
     regrip(FEED[1], FEED[0])
     stroke(FEED[1], "push the boat on", 5.0)
