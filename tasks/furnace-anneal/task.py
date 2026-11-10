@@ -290,7 +290,7 @@ def _dial_arc(p0, p1, colour, r0=0.019, r1=0.026):
     return out
 
 
-VALVE_PIVOT = (XA - 0.040, (FIT_Y0 + FIT_Y1) / 2, AXZ + 0.016)
+VALVE_PIVOT = (XA - 0.045, (FIT_Y0 + FIT_Y1) / 2, AXZ + 0.016)
 LEVER_L = 0.045
 # the tube's wall in 45 mm lengths (PhysX cannot build long, thin convex pieces on the GPU)
 _TUBE_CUTS = np.linspace(TUBE_Y0, FIT_Y0 + 0.005, 14)
@@ -302,8 +302,7 @@ TUBE_DRAWN = [
     _box_mesh((XA, FIT_Y1 + 0.002, AXZ), (0.020, 0.004, 0.020), STAINLESS),  # the far end's blank
     _box_mesh((XA, GAUGE_C[1], (AXZ + FIT_R + GAUGE_C[2] - GAUGE_R) / 2),
               (0.008, 0.008, GAUGE_C[2] - GAUGE_R - AXZ - FIT_R + 0.004), STAINLESS),  # the gauge's stem
-    _box_mesh((XA - 0.025, VALVE_PIVOT[1], AXZ), (0.022, 0.010, 0.010), STAINLESS),  # the valve's port, to the front
-    _box_mesh((VALVE_PIVOT[0], VALVE_PIVOT[1], AXZ + 0.002), (0.018, 0.016, 0.018), (0.78, 0.66, 0.30)),  # the valve
+    _box_mesh((XA - FIT_R - 0.004, VALVE_PIVOT[1], AXZ), (0.008, 0.010, 0.010), STAINLESS),  # the gas inlet's stub
     *_ring(GAUGE_C[0] - 0.004, GAUGE_C[0] + 0.012, 0.0005, GAUGE_R + 0.002, 24, STAINLESS, cy=GAUGE_C[1],
            cz=GAUGE_C[2], collide="none"),  # the gauge's case
     *_ring(GAUGE_C[0] - 0.0050, GAUGE_C[0] - 0.0042, 0.0005, GAUGE_R, 24, WHITE, cy=GAUGE_C[1], cz=GAUGE_C[2],
@@ -316,12 +315,20 @@ NEEDLE = Joint("needle", kind="hinge", axis="X", anchor=(GAUGE_C[0] - 0.006, GAU
                meshes=[_box_mesh((GAUGE_C[0] - 0.0064, GAUGE_C[1], GAUGE_C[2] + 0.010), (0.001, 0.0016, 0.024), DARK)],
                boxes=[((GAUGE_C[0] - 0.0064, GAUGE_C[1], GAUGE_C[2]), (0.001, 0.003, 0.003), DARK)])
 VALVE = Joint("vent_valve", kind="hinge", axis="Z", anchor=VALVE_PIVOT, lower=0.0, upper=math.pi / 2,
-              stiffness=0.0, damping=0.002, friction=0.004, initial=0.0, mass=0.01,
+              stiffness=0.0, damping=0.02, friction=0.03, initial=0.0, mass=0.01,
               boxes=[((VALVE_PIVOT[0] - LEVER_L / 2, VALVE_PIVOT[1], VALVE_PIVOT[2] + 0.004), (LEVER_L, 0.010, 0.004),
                       RED)],
               cylinders=[((VALVE_PIVOT[0] - LEVER_L + 0.004, VALVE_PIVOT[1], VALVE_PIVOT[2] + 0.013), 0.005, 0.014, RED,
                           "Z")])
-TUBE = part("quartz_tube", pos=(0.0, 0.0, TOP), mass=0.30, friction=0.3, meshes=TUBE_MESHES, joints=[NEEDLE, VALVE])
+TUBE = part("quartz_tube", pos=(0.0, 0.0, TOP), mass=0.30, friction=0.3, meshes=TUBE_MESHES, joints=[NEEDLE])
+# the gas line's valve stands on its own post in front of the end fitting (a soft hose, drawn only, joins them), so
+# working it does not push the loose tube
+GAS = part("gas_valve", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
+           boxes=[((VALVE_PIVOT[0], VALVE_PIVOT[1], (AXZ - 0.008) / 2), (0.012, 0.012, AXZ - 0.008), DARK),
+                  ((VALVE_PIVOT[0], VALVE_PIVOT[1], AXZ + 0.002), (0.018, 0.016, 0.018), (0.78, 0.66, 0.30))],
+           meshes=[_box_mesh(((VALVE_PIVOT[0] + XA - FIT_R - 0.008) / 2 + 0.0045, VALVE_PIVOT[1], AXZ),
+                             (XA - FIT_R - 0.008 - VALVE_PIVOT[0] - 0.009, 0.006, 0.006), (0.30, 0.55, 0.85))],
+           joints=[VALVE])
 KNOB_AT = (VALVE_PIVOT[0] - LEVER_L + 0.004, VALVE_PIVOT[1], VALVE_PIVOT[2] + 0.013)  # the lever's knob (open)
 
 # -- the boat (loose): an alumina boat 80 x 15 x 8 mm, open on top, its back end a 12 mm tab the rod's pusher meets. In the
@@ -378,7 +385,7 @@ CAP_STAND = part("cap_stand", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
                  meshes=_ring_y(CAP_REST[1] + 0.002, CAP_REST[1] + CAP_D - 0.002, CAP_OUT + 0.0012, CAP_OUT + 0.005, 6,
                                 DARK, cx=CAP_REST[0], cz=CAP_REST[2] - TOP, a0=math.radians(215), a1=math.radians(325)))
 
-OBJECTS = [FURNACE, TUBE, BOAT, *CHIPS, ROD, REST, CAP, CAP_STAND]
+OBJECTS = [FURNACE, TUBE, GAS, BOAT, *CHIPS, ROD, REST, CAP, CAP_STAND]
 PLANCHECK_BOXES = [
     ("furnace", (((FX0 + FX1) / 2), _mid_y, TOP + LID_Z1 / 2), (FX1 - FX0, _len_y, LID_Z1)),
 ]
@@ -437,7 +444,7 @@ def _gas_step(env):
     S = labkit._SPECS
     c = labkit._part_state(env, S["end_cap"])
     t = labkit._part_state(env, S["quartz_tube"])
-    valve_open = t.joints.get("vent_valve", 0.0) < VALVE_SHUT
+    valve_open = labkit._part_state(env, S["gas_valve"]).joints.get("vent_valve", 0.0) < VALVE_SHUT
     d = cap_out(c)
     p = _gas.get("p", P0)
     on = d < CAP_ON and math.hypot(c.pos[0] - XA, c.pos[2] - (TOP + AXZ)) < 0.006
@@ -504,10 +511,10 @@ def rod_racked(r):
     return float(np.linalg.norm(p - ROD_START)) <= RACK_TOL and axis_off(r) <= 5.0
 
 
-def cap_sealed(c, tube):
+def cap_sealed(c, gas):
     p = np.asarray(c.pos, float)
     return (abs(cap_out(c)) <= SEAT_TOL and math.hypot(p[0] - XA, p[2] - (TOP + AXZ)) <= AXIS_TOL
-            and axis_off(c) <= CAP_TILT and tube.joints.get("vent_valve", 0.0) >= VALVE_SHUT)
+            and axis_off(c) <= CAP_TILT and gas.joints.get("vent_valve", 0.0) >= VALVE_SHUT)
 
 
 def _tube_ref(t):
@@ -547,7 +554,7 @@ def _watch(env):
     st["centred"] = abs(bp[1] - HOT_Y) <= HOT_TOL
     st["racked"] = rod_racked(r)
     st["lid"] = f.joints.get("lid", 0.0) <= LID_SHUT
-    st["sealed"] = cap_sealed(c, t)
+    st["sealed"] = cap_sealed(c, labkit._part_state(env, S["gas_valve"]))
     tips = _tips(env)
     keep = [np.asarray(r.pos, float), np.asarray(c.pos, float), np.array([FX0 - LID_HANDLE_OUT, LID_HANDLE_Y, TOP + LID_HANDLE_Z])]
     st["far"] = all(np.linalg.norm(np.asarray(tp) - k) >= HANDS_FAR for tp in tips for k in keep)
