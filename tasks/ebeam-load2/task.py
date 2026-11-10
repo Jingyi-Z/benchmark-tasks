@@ -11,7 +11,7 @@ stick out of the plate's back and jam the transfer. A screwdriver stands in a ho
 
 The job: once the light is green, turn the twist lock and lift the door until it latches open, take the ring holder out and set it on the plate; centre the wafer; swing
 in clips that can hold its round edge, enough of them and not the one with the long screw, and tighten their screws
-(300 to 420 degrees: tighter cracks the wafer); put the screwdriver back; turn the plate and ring over together
+with the nut driver (300 to 420 degrees: tighter cracks the wafer); put the driver back; turn the plate and ring over together
 (samples face down, the ring now carrying the plate) and set them on the load lock's holder; pull the door down shut
 and lock it.
 The door may be open 2 minutes in all: an open load lock takes on air and water that slow its pump-down and load the
@@ -202,7 +202,23 @@ TAB_Z = TAB_BOT + CLIP_T / 2
 TAB_TOP = TAB_BOT + CLIP_T
 LIP_D0, LIP_D1 = 0.0024, CLIP_P - (W_R - 0.0005)  # the lip under each tab, from the screw out along the tab
 KNOB_AT, KNOB_R, KNOB_H = 0.007, 0.0020, 0.005
-HEAD_R, HEAD_H, SLOT, RIDGE = 0.0035, 0.0025, 0.0022, (0.0012, 0.0060, 0.0025)
+HEX_AF, HEAD_H, HEAD_CH = 0.0070, 0.0030, 0.0004  # hex head: across flats, height, top chamfer (M4 hex screw)
+
+
+def _convex(points, color, collide="hull"):
+    """A convex solid (its corner points, part frame) as a labkit mesh that collides as its hull."""
+    from scipy.spatial import ConvexHull
+
+    pts = np.asarray(points, float)
+    return labkit.Mesh(points=pts, tris=np.asarray(ConvexHull(pts).simplices, int), color=tuple(color),
+                       collide=collide)
+
+
+def _hex_pts(cx, cy, af, z, rot):
+    """Corners of a hexagon (across flats ``af``, flats facing rot + k 60 degrees) at height z."""
+    rc = af / math.sqrt(3.0)
+    return [(cx + rc * math.cos(rot + math.radians(30 + 60 * i)), cy + rc * math.sin(rot + math.radians(30 + 60 * i)), z)
+            for i in range(6)]
 CLIP_DEG = (0, 45, 90, 135, 180, 225, 270, 315)
 FLAT_AT = 90.0  # the wafer's flat faces the 90 degree clip
 LONG_AT = 225  # the clip whose screw is too long
@@ -246,20 +262,18 @@ def _clip_joints(k):
                  cylinders=[((kb[0], kb[1], TAB_TOP + KNOB_H / 2), KNOB_R, KNOB_H, DARK)])
     up = LONG_UP if CLIP_DEG[k] == LONG_AT else 0.0
     s = math.radians(SLOT_DEG[CLIP_DEG[k]])
-    nrm = np.array([-math.sin(s), math.cos(s)])  # across the slot
-    hz = TAB_TOP + up + HEAD_H / 2
-    rz = TAB_TOP + up + HEAD_H + RIDGE[2] / 2
-    cyl = [((P[0], P[1], hz), HEAD_R, HEAD_H, STEEL)]
+    zb, zt = TAB_TOP + up, TAB_TOP + up + HEAD_H
+    head = _convex(_hex_pts(P[0], P[1], HEX_AF, zb, s) + _hex_pts(P[0], P[1], HEX_AF, zt - HEAD_CH, s)
+                   + _hex_pts(P[0], P[1], HEX_AF - 2 * HEAD_CH, zt, s), STEEL)
+    cyl = []
     if up:
         cyl.append(((P[0], P[1], TAB_TOP + up / 2), 0.0019, up, STEEL))
     screw = Joint(f"screw{k}", kind="hinge", axis="Z", anchor=(P[0], P[1], TAB_Z), lower=-10.0, upper=0.05,
                   initial=0.0, friction=0.001, damping=0.0005, mass=0.002, parent=f"clip{k}", cylinders=cyl,
-                  boxes=[((P[0] + e * (SLOT / 2 + RIDGE[0] / 2) * nrm[0], P[1] + e * (SLOT / 2 + RIDGE[0] / 2) * nrm[1], rz),
-                          RIDGE, STEEL, s - math.pi / 2) for e in (-1, 1)]
-                  # a white paint mark on one end of one ridge, so the screw's turns can be counted from above
-                  + [((P[0] + m * (SLOT / 2 + RIDGE[0] / 2) * nrm[0] + (RIDGE[1] / 2 - 0.0007) * math.cos(s),
-                       P[1] + m * (SLOT / 2 + RIDGE[0] / 2) * nrm[1] + (RIDGE[1] / 2 - 0.0007) * math.sin(s),
-                       rz + RIDGE[2] / 2 + 0.00015), (0.0013, 0.0013, 0.0003), (0.95, 0.95, 0.95), s) for m in (1,)])
+                  meshes=[head],
+                  # a white paint mark on the head's top, near one flat, so its turns can be counted from above
+                  boxes=[((P[0] + 0.0019 * math.cos(s), P[1] + 0.0019 * math.sin(s), zt + 0.00015),
+                          (0.0012, 0.0012, 0.0003), (0.95, 0.95, 0.95), s)])
     return [clip, screw]
 
 
@@ -360,16 +374,33 @@ DOOR = part(
 # -- the screwdriver (loose) in its holder (fixed): a stubby one, a 0.8 x 5 mm blade on a 5 mm square shaft 52 mm long
 # under a 12 mm square handle 14 mm long. Frame: origin at the blade's tip, +z up the shaft, the blade's width along y. It stands
 # blade down in its holder, a block with a 9 mm square socket 10 mm deep, the tip 50 mm above the bench. ---------------
-BLADE = (0.0008, 0.0050, 0.0040)
+# the nut driver: a 7 mm hex socket (2.6 mm deep, its mouth chamfered from 9.3 mm across flats, so it centres itself
+# on a head), a round 5 mm steel shaft and a round red handle. Its frame's origin is the socket's mouth.
+NS_AF, NS_MOUTH, NS_BEV, NS_DEPTH, NS_RO = 0.0073, 0.0093, 0.0010, 0.0026, 0.0052
 SH_W, SH_L, H_W, H_L = 0.0050, 0.052, 0.012, 0.014
+
+
+def _socket_walls():
+    t30 = math.tan(math.radians(30.0))
+    walls = []
+    for i in range(6):
+        a = math.radians(60.0 * i)
+        n, t = np.array([math.cos(a), math.sin(a)]), np.array([-math.sin(a), math.cos(a)])
+        pts = []
+        for r, z in ((NS_MOUTH / 2, 0.0), (NS_AF / 2, NS_BEV), (NS_AF / 2, NS_DEPTH), (NS_RO, 0.0), (NS_RO, NS_DEPTH)):
+            for e in (-1.0, 1.0):
+                pts.append((*(r * n + e * r * t30 * t), z))
+        walls.append(_convex(pts, STEEL))
+    return walls
 SD_XY = (0.120, -0.170)
-SOCK_Z, SOCK_D, SOCK_W = 0.060, 0.010, 0.009  # the holder's top above the bench, the socket's depth and width
+SOCK_Z, SOCK_D, SOCK_W = 0.060, 0.010, 0.013  # the holder's top above the bench, the socket's depth and width
 SD_START = np.array([*SD_XY, TOP + SOCK_Z - SOCK_D])
 SCREWDRIVER = part(
     "screwdriver", pos=tuple(SD_START), mass=0.035, friction=1.0,
-    boxes=[((0.0, 0.0, BLADE[2] / 2), BLADE, STEEL),
-           ((0.0, 0.0, BLADE[2] + (SH_L - BLADE[2]) / 2), (SH_W, SH_W, SH_L - BLADE[2]), STEEL),
-           ((0.0, 0.0, SH_L + H_L / 2), (H_W, H_W, H_L), RED)],
+    meshes=_socket_walls(),
+    cylinders=[((0.0, 0.0, NS_DEPTH + 0.00075), NS_RO, 0.0015, STEEL),
+               ((0.0, 0.0, (NS_DEPTH + 0.0015 + SH_L) / 2), SH_W / 2, SH_L - NS_DEPTH - 0.0015, STEEL),
+               ((0.0, 0.0, SH_L + H_L / 2), H_W / 2, H_L, RED)],
 )
 _hb = (0.030 - SOCK_W) / 2  # the socket's walls
 HOLDER = part(
@@ -667,8 +698,9 @@ def distance(objects):
 # Right: pushes the wafer to the plate's centre by its edge, then lifts the load lock's door until it latches. Both: take
 # the ring holder off the load lock's holder and set it on the plate; right shuts the door again. Left swings in the 0 and
 # 135 degree clips, right the 270 degree one (the 90 degree one faces the flat; the 225 degree one has the long screw).
-# Right takes the screwdriver and tightens the three screws, stroke by stroke, stopping once a screw has turned about
-# 300 to 360 degrees (counted from its slot), then puts it back. Right opens the door; both pinch the plate and ring by
+# Right takes the nut driver and tightens the three screws, stroke by stroke: the socket stays on the head while the
+# hand lets go, turns back and grips the shaft again; it stops once a screw has turned about 300 to 360 degrees
+# (counted from the white mark on its head), then puts the driver back. Right opens the door; both pinch the plate and ring by
 # their side edges, lift them, roll them over together, carry them into the load lock and set them on its holder. Right
 # pulls the door down off its latch; both move away. Aims are trimmed only by what a camera sees: the wafer's, plate's,
 # ring's and screwdriver tip's positions, and the screw's slot and the blade between strokes.
@@ -800,7 +832,7 @@ BAR_OPEN, BAR_HOLD = -0.016, -0.0045  # round the 12 mm handle bar
 SD_GRIP = 0.018  # the fingertips' ends this far above the blade's tip
 CLIPS_USED = {"left": (0, 3), "right": (6,)}  # 0, 135 and 270 degrees
 STROKE_TOP, STROKE, STROKES = 145.0, 190.0, 3  # hand yaw at the start of each tightening stroke, and how far it turns
-SCREW_AIM, STROKE_PLAY = 355.0, 28.0  # aim each screw at 355 degrees; a stroke turns the screw ~28 degrees less than the hand
+SCREW_AIM, STROKE_PLAY = 355.0, 5.0  # aim each screw at 355 degrees; the socket turns the screw ~5 degrees less than the hand
 FLIP = {"right": True, "left": False}
 ROLL_SIGN = -1.0
 LIFT_Z = 0.27  # the stack's centre this high (above the bench) while it is rolled over
@@ -860,39 +892,22 @@ def _hand_turn(a):
     return max(0.0, min(STROKE, SCREW_AIM - a + STROKE_PLAY))
 
 
-class _SlotYaw(float):
-    """A Waypoint ``yaw`` for a later stroke: the planned hand yaw shifted so that the blade lines up with the slot as
-    last seen (by a multiple of 180 degrees, kept near the stroke's planned start), and the stroke shortened so that the
-    screw ends near SCREW_AIM (none at all once it is tight)."""
+class _TurnYaw(float):
+    """A Waypoint ``yaw`` for a nut-driver stroke on clip k's screw: the hand turns from y0 by this stroke's turn
+    (``frac`` of the way), the turn set from the screw's turns counted so far (none once it is tight)."""
 
-    def __new__(cls, k, frac, start, end, prev=None):  # k: (clip, look); frac: how far through the stroke
+    def __new__(cls, k, n, frac, y0):
         obj = float.__new__(cls, 0.0)
-        obj.k, obj.frac, obj.start, obj.end, obj.prev = k, frac, start, end, prev
+        obj.k, obj.n, obj.frac, obj.y0 = k, n, frac, y0
         return obj
 
     def turn(self):
-        """How far this stroke turns the hand (radians)."""
-        a = _ct["ang"].get(self.k)
-        if a is None:
-            return math.radians(STROKE)
-        return math.radians(_hand_turn(a))
-
-    def prev_end(self):
-        if self.prev is None:
-            return self.end
-        return self.prev.start + self.prev.off() - self.prev.turn()
-
-    def off(self):
-        d = _ct["turn"].get(self.k)
-        if d is None:
-            return 0.0
-        s0 = self.prev_end() + math.radians(d)  # the hand's yaw now, turned to line the blade up
-        s0 += math.pi * round((self.start - s0) / math.pi)
-        return s0 - self.start
+        a = _ct["ang"].get((self.k, self.n - 1)) if self.n > 0 else None
+        return math.radians(STROKE if a is None else _hand_turn(a))
 
     @property
     def rot(self):
-        return _prev_grip(self.start + self.off() - self.frac * self.turn())
+        return _prev_grip(self.y0 - self.frac * self.turn())
 
 
 def _seen(env, name):
@@ -1193,53 +1208,37 @@ def demo():
                     (1.8, sd_tcp(SD_XY, up), SD_HOLD, "lift it out of its holder", yo),
                     (1.5, sd_tcp(SD_XY, TOP + 0.17), SD_HOLD, "up, its tip well over the plate and ring", yo)])
     head = PLATE_START[2] + TAB_TOP + HEAD_H  # a screw head's top (world z)
-    FEEL_R, FEEL_N, FEEL_DT = 0.0006, 6, 0.2
+    seated = head - NS_DEPTH  # the socket's mouth, seated on a head
 
-    def feel(seq, xy, key, yaw):
-        """Pressing lightly, keep the blade's tip (seen) centred on the screw, so that a tip resting on the slot's
-        edges slides over until it drops in."""
-        seq.append((FEEL_DT * (FEEL_N + 1), _Dyn(sd_tcp(xy, head - 0.0005), key), SD_HOLD,
-                    "press, the tip centred on the screw", yaw))
     def now(seq):
         return pl.t + sum(w[0] for w in seq)
 
     for k in (6, 0, 3):  # 270, 0, 135 degrees
         P = clip_frame(k)[0]
         xy = _pw((*P, 0.0))[:2]
-        key = "sd"  # one trim for all three screws: it follows how the screwdriver sits in the hand
-        n_strokes = STROKES + 1  # one spare, should a try miss the slot; once the screw is tight, a stroke does not turn
+        key = "sd"  # one trim for all three screws: it follows how the nut driver sits in the hand
+        n_strokes = STROKES  # the second is usually the last to turn; the third is a spare and does not turn a tight screw
         y0 = math.radians(STROKE_TOP)
-        yaws = [Orient(_prev_grip(y0 - math.radians(STROKE) * i / 6)) for i in range(7)]
-        mid = Orient(_prev_grip(math.radians(STROKE_TOP - STROKE / 2)))
-        seq = [(1.5, sd_tcp(xy, head + 0.008), SD_HOLD, f"over the {CLIP_DEG[k]} degree clip's screw", mid),
-               (1.0, sd_tcp(xy, head + 0.008), SD_HOLD, "turn the blade to the slot", yaws[0])]
-        tw0 = pl.t + 2.5
-        seq += [(2.0, _Dyn(sd_tcp(xy, head + 0.005), key), SD_HOLD, "hold still, the blade's tip seen over the slot",
-                 yaws[0])]
-        seq.append((1.0, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade into the slot", yaws[0]))
-        feel(seq, xy, key, yaws[0])
-        f0 = now(seq)  # from here until the blade is lifted out, the tip is held by the screw: hold the trim
-        y_end = y0 - math.radians(STROKE)
-        ys = yaws
-        for stroke in range(n_strokes):
-            ts = now(seq) - 1.4  # from the press before the stroke
-            seq += [(0.6, _Dyn(sd_tcp(xy, head - 0.0010), key), SD_HOLD, "turn it clockwise", ys[i])
-                    for i in range(1, 7)]
-            _ct["strokes"].append((ts, now(seq), (k, stroke)))
-            seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "lift the blade out", ys[6]))
-            _ct["freeze"].append((f0, now(seq)))
-            if stroke < n_strokes - 1:
-                t_look = pl.t + sum(w[0] for w in seq)
-                _ct["looks"].append((t_look, t_look + 0.6, k, stroke))
-                seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "look at the slot", ys[6]))
-                prev = ys[0] if isinstance(ys[0], _SlotYaw) else None
-                ys = [_SlotYaw((k, stroke), i / 6, y0, y_end, prev) for i in range(7)]
-                seq += [(0.8, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "turn back", ys[i]) for i in (4, 2, 0)]
-                seq.append((0.6, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "hold still over the slot", ys[0]))
-                seq.append((0.8, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "blade back in the slot", ys[0]))
-                feel(seq, xy, key, ys[0])
-                f0 = now(seq)
-        seq.append((1.2, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "up", ys[6]))
+        o0 = Orient(_prev_grip(y0))
+        press = _Dyn(sd_tcp(xy, seated - 0.0004), key)
+        seq = [(1.5, sd_tcp(xy, head + 0.008), SD_HOLD, f"over the {CLIP_DEG[k]} degree clip's screw", o0)]
+        tw0 = pl.t + 1.5
+        seq += [(2.0, _Dyn(sd_tcp(xy, head + 0.005), key), SD_HOLD, "hold still, the socket seen over the head", o0),
+                (1.0, _Dyn(sd_tcp(xy, head + 0.0002), key), SD_HOLD, "socket down onto the head", o0)]
+        f0 = now(seq)  # from here on the socket sits on the head: hold the trim
+        for n in range(n_strokes):
+            ys = [_TurnYaw(k, n, i / 6, y0) for i in range(7)]
+            what = "turn it clockwise (the socket drops over the head)" if n == 0 else "turn it clockwise"
+            seq += [(0.6, press, SD_HOLD, what, ys[i]) for i in range(1, 7)]
+            if n < n_strokes - 1:
+                # let go of the shaft (the driver stands in place on the head), read the mark, turn the hand back
+                seq.append((0.4, press, SD_OPEN, "let go of the shaft", ys[6]))
+                _ct["looks"].append((now(seq), now(seq) + 0.4, k, n))
+                seq.append((0.4, press, SD_OPEN, "look at the head's mark", ys[6]))
+                seq += [(0.6, press, SD_OPEN, "turn the hand back", ys[i]) for i in (4, 2, 0)]
+                seq.append((0.5, press, SD_HOLD, "grip the shaft again", ys[0]))
+        _ct["freeze"].append((f0, now(seq)))
+        seq.append((1.2, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "lift the socket off", ys[6]))
         pl.phase(right=seq)
         pl.window(tw0 + 0.6, pl.t - 1.2, key, lambda env, P=P: np.array([*(_pw((*P, 0.0))[:2]
                                                                             - _seen(env, "screwdriver")[:2]), 0.0]),
