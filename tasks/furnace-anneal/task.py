@@ -351,13 +351,13 @@ CHIP_START = [BOAT_START + [0.0, dy, BOAT_T + CHIP_T / 2] for dy in CHIP_DY]
 CHIPS = [part(f"chip{i}", pos=tuple(CHIP_START[i]), mass=0.00008, friction=0.8,
               boxes=[((0.0, 0.0, 0.0), (CHIP, CHIP, CHIP_T), CHIP_C)]) for i in range(3)]
 
-# -- the hook rod (loose): stainless, 340 mm, 6 mm square its whole length (a step would catch on its rests), a 10 mm
+# -- the hook rod (loose): stainless, 340 mm, 6 mm round its whole length (a step would catch on its rests), a 10 mm
 # pusher disc at its front for the boat's tab. Frame: origin on its axis at the pusher's front face, the rod along -y.
 ROD_L, GRIP_W, PUSHER_R = 0.340, 0.006, 0.005
 ROD_START = np.array([XA, TUBE_Y0 - 0.045, TOP + AXZ - 0.0015])  # on its rests in line with the tube, 45 mm short of its end
 ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.090, friction=0.7,
-           cylinders=[((0.0, -0.0015, 0.0), PUSHER_R, 0.003, STEEL, "Y")],
-           boxes=[((0.0, -(0.003 + ROD_L) / 2, 0.0), (GRIP_W, ROD_L - 0.003, GRIP_W), STEEL)])
+           cylinders=[((0.0, -0.0015, 0.0), PUSHER_R, 0.003, STEEL, "Y"),
+                      ((0.0, -(0.003 + ROD_L) / 2, 0.0), GRIP_W / 2, ROD_L - 0.003, STEEL, "Y")])
 
 # -- the rod's rests (fixed): two short troughs on posts, in line with the tube, 1.5 mm under the rod's grip (its back end,
 # coming back over the near one, must not catch on it). --------------------------------------------------------------
@@ -857,7 +857,7 @@ def _tcp(tip, R=ROT_T, past=0.004):
     return np.asarray(tip, float) + a * past - a * TIP_ABOVE_TCP
 
 
-ROD_OPEN, ROD_HOLD = -0.012, -0.0005  # round the rod's 6 mm square grip, squeezed hard
+ROD_OPEN, ROD_HOLD = -0.012, -0.0005  # round the 6 mm rod, squeezed hard
 TUBE_OPEN, TUBE_HOLD = -0.022, -0.0115  # round the 25.4 mm tube
 CAP_OPEN, CAP_HOLD = -0.030, -0.0170  # round the cap's 36.4 mm sleeve
 KNOB_OPEN, KNOB_HOLD = -0.014, -0.0035  # round the valve's 10 mm knob
@@ -933,8 +933,10 @@ def demo():
     # -- 4. left holds the tube; right takes the rod ---------------------------------------------------------------------
     h = _rod_at(HOLD_Y)
     r_g0 = _rod_at(FEED[0], AXZ - 0.0015)
-    pl.phase(left=[(1.0, _tcp(p1 + [-0.05, 0.0, -0.03], R1, past=0.002), BAR_OPEN, "away from the lid", Orient(R1)),
-                   (2.5, _tcp(h + 0.09 * up), TUBE_OPEN, "hand turned over the tube's far end", O_T),
+    clear = np.array([0.215, 0.350, TOP + 0.320])  # out past the lid's end, in front of it
+    pl.phase(left=[(1.0, _tcp(p1 + [-0.06, 0.0, -0.04], R1, past=0.002), BAR_OPEN, "out from the lid", Orient(R1)),
+                   (2.0, _tcp(clear), TUBE_OPEN, "hand turned, past the lid's end", O_T),
+                   (1.5, _tcp(h + 0.09 * up), TUBE_OPEN, "over the tube's far end", O_T),
                    (1.0, _tcp(h + 0.03 * up), TUBE_OPEN, "down over the tube", O_T),
                    (1.0, _tcp(h), TUBE_OPEN, "down round the tube", O_T),
                    (0.6, _tcp(h), TUBE_HOLD, "hold the tube (it rolls and slides)", O_T)],
@@ -984,7 +986,8 @@ def demo():
              (1.0, _tcp(p0 - _appr(R0) * 0.012, R0, past=0.002), BAR_OPEN, "back off the handle", Orient(R0)),
              (2.0, LEFT_PARK, BAR_OPEN, "up and clear", O_T)]
     pl.phase(left=[(0.6, _tcp(h), TUBE_OPEN, "let go of the tube", O_T),
-                   (1.0, _tcp(h + 0.09 * up), TUBE_OPEN, "up off the tube", O_T), *shut])
+                   (1.0, _tcp(h + 0.09 * up), TUBE_OPEN, "up off the tube", O_T),
+                   (1.5, _tcp(clear), TUBE_OPEN, "back past the lid's end", O_T), *shut])
     # -- 8. right puts the cap back on: in line with the tube (seen), pushed fully home -------------------------------
     pre = CAP_START - [0.0, CAP_D + 0.005, 0.0]
     pl.phase(right=[(2.5, _tcp(s0 + 0.05 * up), CAP_OPEN, "hand turned over the cap", O_T),
