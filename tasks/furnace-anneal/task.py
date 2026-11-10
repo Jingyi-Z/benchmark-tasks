@@ -679,7 +679,9 @@ def demo():
                    (2.0, _cap_tcp(c0), CAP_OPEN, "down round the cap", C),
                    (0.8, _cap_tcp(c0), CAP_HOLD, "close on the cap", C),
                    (1.0, _cap_tcp(c0, 0.025), CAP_HOLD, "lift the cap", C),
-                   (2.0, _cap_tcp((CAP_PRE_X, CAP_Y0, TOP + AXZ), 0.025), CAP_HOLD, "the cap forward, beside the tube", C)])
+                   (2.0, _cap_tcp((CAP_PRE_X, CAP_Y0, TOP + AXZ), 0.04), CAP_HOLD, "the cap forward, beside the tube", C),
+                   # across high: lower, the inside finger would sweep through the rod's pusher
+                   (2.0, _cap_tcp((CAP_PRE_X, 0.0, TOP + AXZ), 0.04), CAP_HOLD, "the cap over the tube's line", C)])
     pre = (CAP_PRE_X, 0.0, TOP + AXZ)
     pl.phase(left=[(2.0, _Dyn(_cap_tcp(pre), "c1"), CAP_HOLD, "the cap in front of the tube's end", C)])
     tw = pl.phase(left=[(2.0, _Dyn(_cap_tcp(pre), "c1"), CAP_HOLD, "hold still: the cap seen in line with the tube", C)])
