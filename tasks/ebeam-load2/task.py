@@ -943,6 +943,13 @@ def _ctrack(env):
         _ct["trim"][key] = np.clip(tr + np.clip(g * e, -step, step), -0.012, 0.012)
 
 
+def _screw_seen(env, P):
+    """Where a screw is now (world x, y), from the plate's pose as seen: the plate turns a little on its stand under
+    the screwdriver's twist, so its screws are not where they started."""
+    p = labkit._part_state(env, labkit._SPECS["sample_plate"])
+    return (np.asarray(p.pos, float) + p.rotation() @ np.array([P[0], P[1], 0.0]))[:2]
+
+
 class _Dyn:
     """A TCP plus the live trim ``key``; during a screwdriver stroke, plus the arm's own correction (see _ctrack)."""
 
@@ -1242,7 +1249,7 @@ def demo():
                 f0 = now(seq)
         seq.append((1.2, _Dyn(sd_tcp(xy, head + 0.008), key), SD_HOLD, "up", ys[6]))
         pl.phase(right=seq)
-        pl.window(tw0 + 0.6, pl.t - 1.2, key, lambda env, P=P: np.array([*(_pw((*P, 0.0))[:2]
+        pl.window(tw0 + 0.6, pl.t - 1.2, key, lambda env, P=P: np.array([*(_screw_seen(env, P)
                                                                             - _seen(env, "screwdriver")[:2]), 0.0]),
                   "screwdriver")
     pl.phase(right=[(1.5, sd_tcp((0.17, -0.10), head + 0.03), SD_HOLD, "up, off the plate", yo),
