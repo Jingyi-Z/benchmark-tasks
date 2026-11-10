@@ -247,20 +247,23 @@ REST = part("rod_cradles", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
                    # stays even with the boat in the hot zone
                    *[((x, e * 0.0075, REST_Z + 0.004), (0.014, 0.004, 0.008), DARK) for x in CHEEK_X for e in (-1, 1)]]) 
 
-# -- the end cap (loose): an aluminium quick-release cap for a 2 inch tube, 68 mm across: a 5 mm end plate and a 25 mm
-# sleeve that slides over the tube's end until the plate meets it (its O-ring inside then seals). Frame: origin on its
-# axis at the plate's inner face, the sleeve along +x. ------------------------------------------------------------------
+# -- the end cap (loose): an aluminium quick-release cap for a 2 inch tube: a 5 mm end plate, a 25 mm sleeve that slides
+# over the tube's end until the plate meets it (its O-ring inside then seals), and a knurled nut 68 mm across round the
+# sleeve next to the plate. Frame: origin on its axis at the plate's inner face, the sleeve along +x. ------------------
 ALUM = (0.80, 0.81, 0.83)
-CAP_R, CAP_IN, CAP_D, CAP_PLATE = 0.034, TUBE_R + 0.0013, 0.025, 0.005
-CAP_OUT = CAP_IN + 0.004  # the sleeve's outside: 61.4 mm across, where the fingers hold it
+CAP_IN, CAP_D, CAP_PLATE = TUBE_R + 0.0013, 0.025, 0.005
+CAP_OUT = CAP_IN + 0.004  # the sleeve's outside, 61.4 mm across
+NUT_R, NUT_X0, NUT_X1 = 0.034, 0.002, 0.016  # the knurled nut, where the fingers hold it (about its balance point)
 CAP_X0, CAP_Y0 = 0.265, 0.110  # it waits on a small stand beside the tube, its axis level and along the tube's
-CAP_START = np.array([CAP_X0, CAP_Y0, TOP + AXZ - 0.0012])
+CAP_START = np.array([CAP_X0, CAP_Y0, TOP + AXZ - 0.0012])  # its nut in the stand's saddle
 CAP = part("end_cap", pos=tuple(CAP_START), mass=0.10, friction=0.35,
-           cylinders=[((-CAP_PLATE / 2, 0.0, 0.0), CAP_R, CAP_PLATE, ALUM, "X")],
-           meshes=_ring(0.0, CAP_D, CAP_IN, CAP_OUT, 24, ALUM))
+           cylinders=[((-CAP_PLATE / 2, 0.0, 0.0), CAP_OUT, CAP_PLATE, ALUM, "X")],
+           meshes=[*_ring(0.0, CAP_D, CAP_IN, CAP_OUT, 24, ALUM),
+                   *_ring(NUT_X0, NUT_X1, CAP_OUT, NUT_R, 24, (0.66, 0.67, 0.70))])
 CAP_STAND = part("cap_stand", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
-                 boxes=[((CAP_X0 + 0.0125, CAP_Y0, (AXZ - 0.036) / 2), (0.023, 0.030, AXZ - 0.036), DARK)],
-                 meshes=_ring(CAP_X0 + 0.001, CAP_X0 + 0.024, CAP_OUT + 0.0012, CAP_OUT + 0.0052, 6, DARK, cy=CAP_Y0,
+                 boxes=[((CAP_X0 + (NUT_X0 + NUT_X1) / 2, CAP_Y0, (AXZ - NUT_R - 0.0052) / 2),
+                         (NUT_X1 - NUT_X0, 0.030, AXZ - NUT_R - 0.0052), DARK)],
+                 meshes=_ring(CAP_X0 + NUT_X0, CAP_X0 + NUT_X1, NUT_R + 0.0012, NUT_R + 0.0052, 6, DARK, cy=CAP_Y0,
                               cz=AXZ, a0=math.radians(215.0), a1=math.radians(325.0)))
 
 OBJECTS = [FURNACE, BOAT, *CHIPS, ROD, REST, CAP, CAP_STAND]
@@ -561,8 +564,8 @@ FEED_X0, FEED_X1 = 0.110, 0.250  # each stroke, the hand moves along the rod's l
 # the cap: held from behind and above, the hand tipped 45 degrees forward, fingers either side of its sleeve
 CAP_ROT = axis_angle_matrix(Y, -math.pi / 4) @ _prev_grip(0.0)
 CAP_APPR = axis_angle_matrix(Y, -math.pi / 4) @ np.array([0.0, 0.0, -1.0])  # the fingers' direction: forward and down
-CAP_GRIP = np.array([0.0135, 0.0, -0.005])  # where the fingertips meet, in the cap's frame: on its sleeve, behind the plate
-CAP_OPEN, CAP_HOLD = -0.040, -0.0295  # round the 61.4 mm sleeve, squeezed firmly
+CAP_GRIP = np.array([(NUT_X0 + NUT_X1) / 2, 0.0, -0.005])  # where the fingertips meet, in the cap's frame: on its nut
+CAP_OPEN, CAP_HOLD = -0.046, -0.0330  # round the 68 mm nut, squeezed firmly
 CAP_PRE_X = MOUTH_X - CAP_D - 0.006  # the cap held in line with the tube, its sleeve 6 mm short of the tube's end
 H_IN = HOT_X - BOAT_L / 2  # the hook at the hot zone (the boat's back wall)
 X_AT = {"right": -0.0, "left": 0.0}
@@ -660,21 +663,20 @@ def demo():
     # -- 3. back out: left pulls the rod out one stroke and lets go; right takes it and pulls it home into its cradles ------
     pl.phase(left=move(FEED_X1, FEED_X0, "l1", "pull the rod back out"))
     pl.phase(left=leave("left", FEED_X0, "l1"))
-    # (meanwhile left picks the cap off its stand and lifts it, out of the right hand's way)
-    C = Orient(CAP_ROT)
-    c0 = CAP_START - [0.0, 0.0, 0.0]
-    pl.phase(right=take("right", FEED_X1, "r2"),
-             left=[(2.5, _cap_tcp(c0, 0.04), CAP_OPEN, "hand turned over the cap", C),
-                   (1.5, _cap_tcp(c0), CAP_OPEN, "down round the cap", C),
-                   (0.8, _cap_tcp(c0), CAP_HOLD, "close on the cap", C),
-                   (1.0, _cap_tcp(c0, 0.025), CAP_HOLD, "lift the cap", C)])
+    pl.phase(right=take("right", FEED_X1, "r2"))
     tw = pl.phase(right=[(1.5, _Dyn(_on_rod(FEED_X1, 0.0)[0], "r2"), ROD_HOLD, "hold still: the rod seen in line with its "
                           "cradles", O)])
     pl.window(tw, tw + 1.5, "r2", lambda env: np.array([0.0, -_seen(env, "hook_rod")[1], 0.0]), "hook_rod")
     pl.phase(right=move(FEED_X1, FEED_X0, "r2", "pull it back into its cradles"))
-    pl.phase(right=leave("right", FEED_X0, "r2"),
-             left=[(2.0, _cap_tcp((CAP_PRE_X, CAP_Y0, TOP + AXZ), 0.025), CAP_HOLD, "the cap forward, beside the tube", C)])
-    # -- 4. the cap: in line with the tube (seen), pushed fully home, let go ---------------------------------------------
+    pl.phase(right=leave("right", FEED_X0, "r2"))
+    # -- 4. the cap: left picks it off its stand, holds it in line with the tube (seen), pushes it fully home, lets go ----
+    C = Orient(CAP_ROT)
+    c0 = CAP_START
+    pl.phase(left=[(2.5, _cap_tcp(c0, 0.08), CAP_OPEN, "hand turned over the cap", C),
+                   (2.0, _cap_tcp(c0), CAP_OPEN, "down round the cap", C),
+                   (0.8, _cap_tcp(c0), CAP_HOLD, "close on the cap", C),
+                   (1.0, _cap_tcp(c0, 0.025), CAP_HOLD, "lift the cap", C),
+                   (2.0, _cap_tcp((CAP_PRE_X, CAP_Y0, TOP + AXZ), 0.025), CAP_HOLD, "the cap forward, beside the tube", C)])
     pre = (CAP_PRE_X, 0.0, TOP + AXZ)
     pl.phase(left=[(2.0, _Dyn(_cap_tcp(pre), "c1"), CAP_HOLD, "the cap in front of the tube's end", C)])
     tw = pl.phase(left=[(2.0, _Dyn(_cap_tcp(pre), "c1"), CAP_HOLD, "hold still: the cap seen in line with the tube", C)])
