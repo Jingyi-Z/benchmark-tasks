@@ -675,6 +675,7 @@ def distance(objects):
 # ring's and screwdriver tip's positions, and the screw's slot and the blade between strokes.
 from yam_arena import ik as _ik  # noqa: E402
 from yam_arena.constants import READY as _READY  # noqa: E402
+from yam_arena.constants import RIGHT_BASE_POS as _RIGHT_BASE  # noqa: E402
 
 
 def _ik_err(pe, re):
@@ -815,7 +816,7 @@ PUSH_DIR = -W_OFF / np.linalg.norm(W_OFF)
 # trims: each a 3-vector added to the TCPs of _Dyn waypoints with its key; integrated in windows from seen positions
 _ct = {"trim": {}, "wins": [], "last": {}, "looks": [], "turn": {}, "ang": {}, "freeze": [], "vis": {},
        "strokes": [], "engaged": {}, "arm": np.zeros(3), "want": None, "in_stroke": False, "aligns": [],
-       "yawfix": {}, "j6look": {}}
+       "yawfix": {}, "c6": {}}
 
 
 @on_reset
@@ -855,9 +856,6 @@ def _look_at_slot(env):
             if d > 340.0:
                 d -= 360.0
             _ct["vis"][(k, n)], _ct["ang"][(k, n)] = vis, prev_ang + d
-            # and where the wrist stands (the arm's own joint reading), for how much further it turns each way
-            _ct["j6look"][(k, n)] = (float(env.unwrapped.scene["right_robot"].data.joint_pos[0, 5]),
-                                     math.radians(blade))
 
 
 def _hand_turn(a):
@@ -879,14 +877,11 @@ class _SlotYaw(float):
         return obj
 
     def reach(self):
-        """The hand yaws (lo, hi) the wrist reaches over this screw, from where its joint stood at the last look."""
-        jb = _ct["j6look"].get(self.k)
-        if jb is None:
+        """The hand yaws (lo, hi) the wrist reaches over this screw: worked out when the demo is planned, from the arm's
+        kinematics and joint6's limits (no sensor reading)."""
+        c = _ct["c6"].get(self.k[0])
+        if c is None:
             return math.radians(HAND_LO), math.radians(HAND_HI)
-        j, b = jb
-        h = b + 1.5 * math.pi  # the hand's yaw then, from the blade's (seen), taken near where the plan left it
-        h += 2.0 * math.pi * round((self.prev_end() - h) / (2.0 * math.pi))
-        c = j - J6_SIGN * h
         a, b = (J6_REACH - c) / J6_SIGN, (-J6_REACH - c) / J6_SIGN
         return min(a, b), max(a, b)
 
@@ -1091,7 +1086,7 @@ class _Plan:
 
 def demo():
     _ct["trim"], _ct["wins"], _ct["looks"], _ct["freeze"] = {}, [], [], []
-    _ct["vis"], _ct["strokes"], _ct["engaged"], _ct["j6look"] = {}, [], {}, {}
+    _ct["vis"], _ct["strokes"], _ct["engaged"], _ct["c6"] = {}, [], {}, {}
     _ct["arm"], _ct["want"], _ct["in_stroke"] = np.zeros(3), None, False
     _ct["o_ref"], _ct["b0"], _ct["plate"], _ct["b_now"] = None, None, None, 0.0
     _ct["aligns"], _ct["yawfix"] = [], {}
@@ -1159,7 +1154,9 @@ def demo():
                  (3.0, top, BAR_HOLD, "lift the door until it latches open", bo),
                  (0.6, top, BAR_HOLD, "hold it against its top stop", bo),
                  (0.5, top, BAR_OPEN, "let go: the latch holds it up", bo),
-                 (1.0, _bar(HANDLE_Z + DOOR_UP, back=0.07)[0], BAR_OPEN, "back off", bo)]
+                 (1.0, _bar(HANDLE_Z + DOOR_UP, back=0.07)[0], BAR_OPEN, "back off", bo),
+                 # straight back, well clear of the raised door, before the wrist turns over in free space
+                 (1.0, _bar(HANDLE_Z + DOOR_UP, back=0.16)[0], BAR_OPEN, "back away from the raised door", bo)]
 
     door_shut = [(2.5, _bar(HANDLE_Z + DOOR_UP - 0.006, back=0.10)[0], BAR_OPEN, "back from the raised door, hand turned",
                   bo),
@@ -1274,6 +1271,11 @@ def demo():
     for k in (6, 0, 3):  # 270, 0, 135 degrees
         P = clip_frame(k)[0]
         xy = _pw((*P, 0.0))[:2]
+        # how far the hand can turn over this screw: from the arm's kinematics (joint6 = c - hand yaw, within +-120)
+        ym = math.radians(STROKE_TOP - STROKE / 2)
+        qk, _, _ = _ik.solve(sd_tcp(xy, head + 0.008), _ik.matrix_to_quat_xyzw(_prev_grip(ym)), np.array(_READY, float),
+                             base_pos=_RIGHT_BASE, iters=300)
+        _ct["c6"][k] = float(qk[5]) - J6_SIGN * ym
         key = "sd"  # one trim for all three screws: it follows how the screwdriver sits in the hand
         n_strokes = STROKES + 1  # one spare, should a try miss the slot; once the screw is tight, a stroke does not turn
         y0 = math.radians(STROKE_TOP)
