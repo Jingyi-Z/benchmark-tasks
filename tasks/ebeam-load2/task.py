@@ -1341,11 +1341,12 @@ def demo():
                     (1.2, _Dyn(sd_tcp(SD_XY, near), "sdh"), SD_HOLD, "down, its tip just over the socket", yo),
                     (1.2, _Dyn(sd_tcp(SD_XY, near), "sdh"), SD_HOLD, "hold still, lined up with the socket (seen)",
                      yo),
-                    (1.0, _Dyn(sd_tcp(SD_XY, z0 + 0.001), "sdh"), SD_HOLD, "into its holder", yo),
+                    # slowly: a quick move down drags the tip a millimetre or more sideways, onto the socket's rim
+                    (3.0, _Dyn(sd_tcp(SD_XY, z0 + 0.001), "sdh"), SD_HOLD, "slowly into its holder", yo),
                     (0.6, _Dyn(sd_tcp(SD_XY, z0 + 0.001), "sdh"), SD_OPEN, "let go", yo),
                     (1.2, _Dyn(sd_tcp(SD_XY, z0 + 0.06), "sdh"), SD_OPEN, "up", yo),
                     (1.5, (0.20, -0.20, TOP + 0.23), FINGER_CLOSED, "high, beside the stand", yo)],
-             left=[(7.2, LEFT_PARK, FINGER_CLOSED, "wait", 0.0),
+             left=[(9.2, LEFT_PARK, FINGER_CLOSED, "wait", 0.0),
                    (1.5, (0.20, 0.20, TOP + 0.23), FINGER_CLOSED, "high, beside the stand", 0.0)])
     seen_sock = lambda env: np.array([*(np.asarray(SD_XY) - _seen(env, "screwdriver")[:2]), 0.0])
     pl.window(tw + 0.8, tw + 2.0, "sdh", seen_sock, "screwdriver")
