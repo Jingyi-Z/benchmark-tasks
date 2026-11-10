@@ -306,7 +306,7 @@ def distance(objects):
 
 
 # -- scripted demo ----------------------------------------------------------------------------------------------------
-# Both hands feed the rod hand over hand: right takes it near its back and pushes it 12 cm in, left takes it behind
+# The hands feed the rod in turn: right takes it near its back, pushes it 12 cm in and lets go (it rests in its cradles
 # the right hand, right lets go and moves aside, left pushes on until the rod's red mark meets the tube's end (seen).
 # Then back out the same way: left pulls, right takes over and pulls the rod back into its cradles; both move away.
 # Aims are trimmed only by what a camera sees: the rod's position and its mark.
@@ -557,22 +557,23 @@ def demo():
     def move(x0, x1, key, label, dur=6.0):
         return [(dur, _Dyn(_on_rod(x1, 0.0)[0], key), ROD_HOLD, label, O)]
 
-    # -- 1. right takes the rod near its back and pushes it in one stroke (slowly: the chips must not slide) ----------------
+    # -- 1. right takes the rod near its back and pushes it in one stroke (slowly: the chips must not slide), then lets go:
+    # the rod rests in its cradles and on its hook in the tube -------------------------------------------------------------
     pl.phase(right=take("right", FEED_X0, "r1"), left=[(2.0, LEFT_PARK, ROD_OPEN, "wait", O)])
     pl.phase(right=move(FEED_X0, FEED_X1, "r1", "push the rod in"))
-    # -- 2. left takes it behind the right hand; right lets go and moves aside; left pushes on to the mark ----------------
-    pl.phase(left=take("left", FEED_X0, "l1"))
     pl.phase(right=leave("right", FEED_X1, "r1"))
+    # -- 2. left takes it near its back and pushes on until the red mark meets the tube's end (seen) ----------------------
+    pl.phase(left=take("left", FEED_X0, "l1"))
     tw = pl.phase(left=move(FEED_X0, FEED_X1, "l1", "push on until the red mark meets the tube's end"))
     pl.phase(left=[(2.0, _Dyn(_on_rod(FEED_X1, 0.0)[0], "l1"), ROD_HOLD, "hold still: the mark seen at the tube's end",
                     O)])
     pl.window(tw + 6.0, tw + 8.0, "l1",
               lambda env: np.array([MOUTH_X - (_seen(env, "hook_rod")[0] - MARK_AT), 0.0, 0.0]), "hook_rod")
     pl.phase(left=[(1.0, _Dyn(_on_rod(FEED_X1, 0.0)[0], "l1"), ROD_HOLD, "the boat in the hot zone", O)])
-    # -- 3. back out: left pulls the rod out one stroke, right takes it in front, left lets go, right pulls it home ---------
+    # -- 3. back out: left pulls the rod out one stroke and lets go; right takes it and pulls it home into its cradles ------
     pl.phase(left=move(FEED_X1, FEED_X0, "l1", "pull the rod back out"))
-    pl.phase(right=take("right", FEED_X1, "r2"))
     pl.phase(left=leave("left", FEED_X0, "l1"))
+    pl.phase(right=take("right", FEED_X1, "r2"))
     pl.phase(right=move(FEED_X1, FEED_X0, "r2", "pull it back into its cradles"))
     pl.phase(right=leave("right", FEED_X0, "r2"))
     pl.phase(right=[(2.0, RIGHT_PARK, FINGER_CLOSED, "rest", 0.0)], left=[(2.0, LEFT_PARK, FINGER_CLOSED, "rest", 0.0)])
