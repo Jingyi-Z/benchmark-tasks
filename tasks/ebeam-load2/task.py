@@ -360,11 +360,11 @@ DOOR = part(
 
 # -- the screwdriver (loose) in its holder (fixed): a stubby one, a 0.8 x 5 mm blade on a 5 mm square shaft 52 mm long
 # under a 12 mm square handle 14 mm long. Frame: origin at the blade's tip, +z up the shaft, the blade's width along y. It stands
-# blade down in its holder, a block with a 9 mm square socket 10 mm deep, the tip 50 mm above the bench. ---------------
+# blade down in its holder, a block with a 6.5 mm square socket 12 mm deep (snug: the screwdriver stands in it), the tip 48 mm above the bench. ---------------
 BLADE = (0.0008, 0.0050, 0.0040)
 SH_W, SH_L, H_W, H_L = 0.0050, 0.052, 0.012, 0.014
 SD_XY = (0.120, -0.170)
-SOCK_Z, SOCK_D, SOCK_W = 0.060, 0.010, 0.009  # the holder's top above the bench, the socket's depth and width
+SOCK_Z, SOCK_D, SOCK_W = 0.060, 0.012, 0.0065  # the holder's top above the bench, the socket's depth and width
 SD_START = np.array([*SD_XY, TOP + SOCK_Z - SOCK_D])
 SCREWDRIVER = part(
     "screwdriver", pos=tuple(SD_START), mass=0.035, friction=1.0,
