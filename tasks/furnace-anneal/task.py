@@ -250,7 +250,7 @@ _lid_boxes = [
 LID_UP = 1.0  # rad: how far the lid can lift (it stays where it is left: a stiff hinge, part sprung)
 LID = Joint("lid", kind="hinge", axis="Y", anchor=(HINGE[0], _mid_y, HINGE[1]), lower=0.0, upper=LID_UP,
             stiffness=0.8, target=LID_UP, damping=0.6, friction=0.6, initial=0.0, mass=0.8, boxes=_lid_boxes)
-FURNACE = part("tube_furnace", pos=(0.0, 0.0, TOP), fixed=True, friction=0.15, boxes=FURNACE_BOXES,
+FURNACE = part("tube_furnace", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5, boxes=FURNACE_BOXES,
                cylinders=FURNACE_CYLS, meshes=FURNACE_MESHES, joints=[LID])
 
 # -- the tube (loose): fused quartz, 25.4 mm outside, 22 mm inside, 610 mm long, open at its near end; at its far end a
@@ -316,12 +316,12 @@ NEEDLE = Joint("needle", kind="hinge", axis="X", anchor=(GAUGE_C[0] - 0.006, GAU
                meshes=[_box_mesh((GAUGE_C[0] - 0.0064, GAUGE_C[1], GAUGE_C[2] + 0.010), (0.001, 0.0016, 0.024), DARK)],
                boxes=[((GAUGE_C[0] - 0.0064, GAUGE_C[1], GAUGE_C[2]), (0.001, 0.003, 0.003), DARK)])
 VALVE = Joint("vent_valve", kind="hinge", axis="Z", anchor=VALVE_PIVOT, lower=0.0, upper=math.pi / 2,
-              stiffness=0.0, damping=0.02, friction=0.03, initial=0.0, mass=0.01,
+              stiffness=0.0, damping=0.002, friction=0.004, initial=0.0, mass=0.01,
               boxes=[((VALVE_PIVOT[0] - LEVER_L / 2, VALVE_PIVOT[1], VALVE_PIVOT[2] + 0.004), (LEVER_L, 0.010, 0.004),
                       RED)],
               cylinders=[((VALVE_PIVOT[0] - LEVER_L + 0.004, VALVE_PIVOT[1], VALVE_PIVOT[2] + 0.013), 0.005, 0.014, RED,
                           "Z")])
-TUBE = part("quartz_tube", pos=(0.0, 0.0, TOP), mass=0.30, friction=0.15, meshes=TUBE_MESHES, joints=[NEEDLE, VALVE])
+TUBE = part("quartz_tube", pos=(0.0, 0.0, TOP), mass=0.30, friction=0.3, meshes=TUBE_MESHES, joints=[NEEDLE, VALVE])
 KNOB_AT = (VALVE_PIVOT[0] - LEVER_L + 0.004, VALVE_PIVOT[1], VALVE_PIVOT[2] + 0.013)  # the lever's knob (open)
 
 # -- the boat (loose): an alumina boat 80 x 15 x 8 mm, open on top, its back end a 12 mm tab the rod's pusher meets. In the
@@ -386,14 +386,11 @@ PLANCHECK_BOXES = [
 
 # -- the gas and the cap --------------------------------------------------------------------------------------------
 # The trial starts mid-backfill: the gas valve open, the tube 1 kPa over atmospheric and rising. With the cap on and the
-# valve open the pressure rises 0.4 kPa/s; shutting the valve holds it. Below the green band (P_LO) the pressure
-# difference holds the cap on (40 N); in the band only its O-ring does (1.5 N); over P_HI the tube is over-pressured.
-# Once the cap is off the tube is at atmospheric; the valve must then be shut within VENT_OPEN_S.
+# valve open the pressure rises 0.4 kPa/s; shutting the valve holds it. The cap may come off only in the green band:
+# below it (P_LO) the pressure difference holds it on (forced off, its O-ring tears); over P_HI the tube is
+# over-pressured. Once the cap is off the tube is at atmospheric; the valve must then be shut within VENT_OPEN_S.
 P0, P_RATE = 1.0, 0.4  # kPa, kPa/s
-CAP_HOLD_LOCKED, CAP_HOLD_ORING = 40.0, 1.5  # N
-CAP_K = 4000.0  # N/m: the hold rises over the cap's first mm off its seat
 CAP_ON, CAP_OFF = 0.010, 0.020  # the cap seals within 10 mm of its seat, is off past 20 mm
-CAP_AREA = math.pi * TUBE_R ** 2
 VENT_OPEN_S = 5.0
 VALVE_SHUT = math.radians(80.0)
 
@@ -404,21 +401,6 @@ def _asset(env, name):
 
 def _t(x):
     return getattr(x, "torch", x)
-
-
-def _push_cap(env, fy):
-    """A force fy (N) along +y on the cap (towards its seat): the pressure and the O-ring, which the sim does not have."""
-    import torch
-
-    a = _asset(env, "end_cap")
-    dev = _t(a.data.root_link_pose_w).device
-    F = torch.tensor([0.0, fy, 0.0], dtype=torch.float32, device=dev).reshape(1, 1, 3)
-    try:
-        a.set_external_force_and_torque(F, torch.zeros_like(F), is_global=True)
-    except Exception as e:  # noqa: BLE001
-        if not _gas.get("warned"):
-            _gas["warned"] = True
-            print(f"[furnace-anneal] cap force not applied: {e!r}")
 
 
 def _show_pressure(env, p):
@@ -469,13 +451,10 @@ def _gas_step(env):
         p = 0.0  # back on after loading: at atmospheric
     _gas["p"] = p
     _gas["open_off"] = _gas.get("open_off", 0.0) + DT if (valve_open and d > CAP_ON) else 0.0
-    # the hold on the cap: the pressure difference below the band, the O-ring above it; the pressure itself pushes it off
-    hold = 0.0
-    if d < CAP_OFF:
-        locked = p < P_LO and not _gas.get("removed")
-        hold = min(CAP_HOLD_LOCKED if locked else CAP_HOLD_ORING, CAP_K * max(d, 0.0))
-    push = (p * 1000.0 * CAP_AREA) if d < CAP_ON else 0.0
-    _push_cap(env, hold - push)
+    if d > CAP_ON and not _gas.get("off_at_p"):
+        _gas["off_at_p"] = (_gas.get("p_on", p),)  # the pressure the cap came off at
+    if on and not _gas.get("removed"):
+        _gas["p_on"] = p
     _show_pressure(env, p)
 
 
@@ -557,6 +536,8 @@ def _watch(env):
         st["viol"].add("the tube was over-pressured")
     if _gas.get("open_off", 0.0) > VENT_OPEN_S:
         st["viol"].add("the gas ran with the tube open")
+    if _gas.get("off_at_p") and _gas["off_at_p"][0] < P_LO:
+        st["viol"].add("the cap was forced off below the green band")
     if "tube0" in st:
         p0, R0 = st["tube0"]
         turn = math.degrees(math.acos(max(-1.0, min(1.0, (np.trace(R0.T @ t.rotation()) - 1) / 2))))
@@ -578,7 +559,8 @@ def _watch(env):
 
 
 def score(objects):
-    """0 after any violation (the tube over-pressured; the gas left running over 5 s with the cap off; a chip slid over
+    """0 after any violation (the cap pulled off while the gauge read below its green band, 2 kPa; the tube
+    over-pressured, over 8 kPa; the gas left running over 5 s with the cap off; a chip slid over
     3 mm on the boat or tilted over 30 degrees; the boat tipped over 20 degrees; the tube slid over 3 mm or rolled over
     3 degrees), unless everything has been still (under 1 mm) for the last second, or unless the boat's centre is within
     8 mm of the thermocouple along the tube. Then 0.2, plus 0.2 each for: the rod back on its rests (within 15 mm of
