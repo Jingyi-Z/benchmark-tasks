@@ -126,7 +126,7 @@ def _tube_mesh(x0, x1, r_out, r_in, colour, n=48):
 
 # -- the furnace (fixed): a split-tube furnace 300 mm long with a 2 inch quartz tube through it, the tube's open end towards
 # the robots, a KF flange on it. Frame: on the bench, the tube's axis at y = 0, AXZ above the bench, along +x. ---------------
-AXZ = 0.168  # the tube's axis above the bench
+AXZ = 0.150  # the tube's axis above the bench (low: the arms reach the rod only a little higher)
 TUBE_R, TUBE_IN = 0.0254, 0.0230  # 2 inch quartz tube: 50.8 mm outside, 46 mm inside
 MOUTH_X, TUBE_X1 = 0.270, 0.800  # the flange's face, and the tube's far end
 FL_X0, FL_R = 0.255, 0.0375  # the KF flange (stainless, 75 mm across) from FL_X0 to the mouth
@@ -546,13 +546,13 @@ def demo():
 
     def take(side, x, key):
         """Over the rod at x, down round it, close."""
-        return [(2.0, _Dyn(_on_rod(x, 0.06)[0], key), ROD_OPEN, "high over the rod", O),
+        return [(2.0, _Dyn(_on_rod(x, 0.015)[0], key), ROD_OPEN, "high over the rod", O),
                 (1.5, _Dyn(_on_rod(x, 0.0)[0], key), ROD_OPEN, "down round the rod", O),
                 (0.6, _Dyn(_on_rod(x, 0.0)[0], key), ROD_HOLD, "close on the rod", O)]
 
     def leave(side, x, key):
         return [(0.6, _Dyn(_on_rod(x, 0.0)[0], key), ROD_OPEN, "let go of the rod", O),
-                (1.0, _Dyn(_on_rod(x, 0.06)[0], key), ROD_OPEN, "up off the rod", O),
+                (1.0, _Dyn(_on_rod(x, 0.015)[0], key), ROD_OPEN, "up off the rod", O),
                 (1.5, park[side], ROD_OPEN, "aside", O)]
 
     def move(x0, x1, key, label, dur=4.0):
