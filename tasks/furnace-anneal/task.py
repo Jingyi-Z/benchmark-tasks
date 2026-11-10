@@ -183,17 +183,19 @@ CHIP_START = [BOAT_START + [dx, 0.0, BOAT_T + CHIP_T / 2] for dx in CHIP_DX]
 CHIPS = [part(f"chip{i}", pos=tuple(CHIP_START[i]), mass=0.00012, friction=0.8,
               boxes=[((0.0, 0.0, 0.0), (CHIP, CHIP, CHIP_T), CHIP_C)]) for i in range(3)]
 
-# -- the hook rod (loose): a 6 mm stainless rod 420 mm long, a hook at its front end that sits behind the boat's back wall,
+# -- the hook rod (loose): a 6 mm stainless rod 420 mm long, a 34 mm pusher disc at its front end behind the boat's wall,
 # and a red mark 250 mm back from the hook: at the tube's end when the boat is centred in the hot zone. Frame: origin on
 # the rod's axis at the hook's front face, the rod along -x. ------------------------------------------------------------
 ROD_L, ROD_R = 0.420, 0.003
+PUSHER_R = 0.017  # the pusher disc at its front: it meets the boat's back wall whichever way the rod is turned
 MARK_AT = HOT_X - BOAT_L / 2 - MOUTH_X  # 0.25 m behind the hook
 ROD_START = np.array([BOAT_START[0] - BOAT_L / 2 - 0.0005, 0.0, TOP + AXZ])
 ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.095, friction=0.5,
            cylinders=[((-ROD_L / 2, 0.0, 0.0), ROD_R, ROD_L, STEEL, "X"),
+                      ((-0.0015, 0.0, 0.0), PUSHER_R, 0.003, STEEL, "X"),
                       ((-MARK_AT, 0.0, 0.0), ROD_R + 0.0003, 0.006, RED, "X"),
                       ((-ROD_L + 0.010, 0.0, 0.0), 0.006, 0.020, DARK, "X")],
-           boxes=[((-0.0015, 0.0, -0.008), (0.003, 0.010, 0.016), STEEL)])
+           boxes=[])
 
 # -- the rod's cradles (fixed): two posts in line with the tube, each with a 7 mm slot the rod lies in. --------------------
 REST_X = (0.000, 0.090)
@@ -307,8 +309,8 @@ def distance(objects):
 
 # -- scripted demo ----------------------------------------------------------------------------------------------------
 # The hands feed the rod in turn: right takes it near its back, pushes it 12 cm in and lets go (it rests in its cradles
-# the right hand, right lets go and moves aside, left pushes on until the rod's red mark meets the tube's end (seen).
-# Then back out the same way: left pulls, right takes over and pulls the rod back into its cradles; both move away.
+# and on its hook); left takes it near its back and pushes on until the rod's red mark meets the tube's end (seen).
+# Then back out the same way: left pulls it one stroke and lets go, right pulls it home into its cradles; both away.
 # Aims are trimmed only by what a camera sees: the rod's position and its mark.
 from yam_arena import ik as _ik  # noqa: E402
 from yam_arena.constants import READY as _READY  # noqa: E402
@@ -480,7 +482,7 @@ class _Plan:
 
 LEFT_PARK = (0.20, 0.22, TOP + 0.22)
 RIGHT_PARK = (0.20, -0.22, TOP + 0.22)
-ROD_OPEN, ROD_HOLD = -0.012, -0.0017  # round the 6 mm rod
+ROD_OPEN, ROD_HOLD = -0.012, -0.0025  # round the 6 mm rod, squeezed firmly
 GRIP_DZ = -0.008  # the fingertips' ends this far below the rod's axis (well past it, or a squeeze pops it out)
 FEED_X0, FEED_X1 = 0.120, 0.2433  # each stroke, the hand moves along the rod's line from here to here
 H_IN = HOT_X - BOAT_L / 2  # the hook at the hot zone (the boat's back wall)
