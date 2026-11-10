@@ -376,7 +376,7 @@ DOOR = part(
 # blade down in its holder, a block with a 9 mm square socket 10 mm deep, the tip 50 mm above the bench. ---------------
 # the nut driver: a 7 mm hex socket (2.8 mm deep, its mouth chamfered from 10.5 mm across flats, so it centres itself
 # on a head), a round 5 mm steel shaft and a round red handle. Its frame's origin is the socket's mouth.
-NS_AF, NS_MOUTH, NS_BEV, NS_DEPTH, NS_RO = 0.0076, 0.0105, 0.0015, 0.0028, 0.0060
+NS_AF, NS_MOUTH, NS_BEV, NS_DEPTH, NS_RO = 0.0076, 0.0105, 0.0015, 0.0028, 0.0055
 SH_W, SH_L, H_W, H_L = 0.0050, 0.052, 0.012, 0.014
 
 
@@ -393,7 +393,7 @@ def _socket_walls():
         walls.append(_convex(pts, STEEL))
     return walls
 SD_XY = (0.120, -0.170)
-SOCK_Z, SOCK_D, SOCK_W = 0.060, 0.010, 0.0122 # the holder's top above the bench, the socket's depth and width
+SOCK_Z, SOCK_D, SOCK_W = 0.060, 0.010, 0.0132  # the holder's top above the bench, the hole's depth and width
 SD_START = np.array([*SD_XY, TOP + SOCK_Z - SOCK_D])
 SCREWDRIVER = part(
     "screwdriver", pos=tuple(SD_START), mass=0.035, friction=1.0,
