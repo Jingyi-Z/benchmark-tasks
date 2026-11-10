@@ -128,10 +128,10 @@ def _tube_mesh(x0, x1, r_out, r_in, colour, n=48):
 # the robots, a KF flange on it. Frame: on the bench, the tube's axis at y = 0, AXZ above the bench, along +x. ---------------
 AXZ = 0.150  # the tube's axis above the bench (low: the arms reach the rod only a little higher)
 TUBE_R, TUBE_IN = 0.0254, 0.0230  # 2 inch quartz tube: 50.8 mm outside, 46 mm inside
-MOUTH_X, TUBE_X1 = 0.270, 0.800  # the flange's face, and the tube's far end
-FL_X0, FL_R = 0.255, 0.0375  # the KF flange (stainless, 75 mm across) from FL_X0 to the mouth
-FURN_X0, FURN_X1, FURN_Y, FURN_Z1 = 0.410, 0.710, 0.130, 0.330
-HOT_X = 0.560  # the hot zone's centre, at the thermocouple
+MOUTH_X, TUBE_X1 = 0.330, 0.860  # the flange's face (clear of the hands' strokes), and the tube's far end
+FL_X0, FL_R = 0.315, 0.0375  # the KF flange (stainless, 75 mm across) from FL_X0 to the mouth
+FURN_X0, FURN_X1, FURN_Y, FURN_Z1 = 0.470, 0.770, 0.130, 0.330
+HOT_X = 0.620  # the hot zone's centre, at the thermocouple
 FLOOR = AXZ - 0.0195  # the tube's floor under the boat: the 46 mm bore 12 mm either side of the bottom
 _L = TUBE_X1 - FL_X0
 _mid = (TUBE_X1 + FL_X0) / 2
@@ -148,7 +148,7 @@ FURNACE_BOXES = [
     ((FL_X0 + 0.0075, 0.0, AXZ - 0.0285), (0.015, 0.034, 0.011), STAINLESS),
     *[((FL_X0 + 0.0075, e * 0.0285, AXZ), (0.015, 0.011, 0.034), STAINLESS) for e in (-1, 1)],
     # the tube's stand, just behind the flange
-    ((0.315, 0.0, (AXZ - TUBE_R) / 2), (0.030, 0.050, AXZ - TUBE_R), DARK),
+    ((0.375, 0.0, (AXZ - TUBE_R) / 2), (0.030, 0.050, AXZ - TUBE_R), DARK),
     # the furnace body round the tube (a square hole for it), on its feet
     (((FURN_X0 + FURN_X1) / 2, 0.0, (0.030 + AXZ - _hole) / 2), (FURN_X1 - FURN_X0, 2 * FURN_Y, AXZ - _hole - 0.030),
      FURNACE_C),
@@ -159,7 +159,7 @@ FURNACE_BOXES = [
     *[((x, e * (FURN_Y - 0.015), 0.015), (0.030, 0.030, 0.030), DARK) for x in (FURN_X0 + 0.02, FURN_X1 - 0.02)
       for e in (-1, 1)],
     # the tube's far end rests on a block
-    ((0.765, 0.0, (AXZ - TUBE_R) / 2), (0.030, 0.050, AXZ - TUBE_R), DARK),
+    ((0.825, 0.0, (AXZ - TUBE_R) / 2), (0.030, 0.050, AXZ - TUBE_R), DARK),
     # the hot zone's mark on the furnace's lid, in line with the thermocouple
     ((HOT_X, 0.0, FURN_Z1 + 0.0005), (0.004, 0.120, 0.001), RED),
 ]
@@ -187,7 +187,7 @@ CHIPS = [part(f"chip{i}", pos=tuple(CHIP_START[i]), mass=0.00012, friction=0.8,
 # and a red mark 250 mm back from the hook: at the tube's end when the boat is centred in the hot zone. Frame: origin on
 # the rod's axis at the hook's front face, the rod along -x. ------------------------------------------------------------
 ROD_L, ROD_R = 0.420, 0.003
-PUSHER_R = 0.017  # the pusher disc at its front: it meets the boat's back wall whichever way the rod is turned
+PUSHER_R = 0.015  # the pusher disc at its front: it meets the boat's back wall whichever way the rod is turned
 MARK_AT = HOT_X - BOAT_L / 2 - MOUTH_X  # 0.25 m behind the hook
 ROD_START = np.array([BOAT_START[0] - BOAT_L / 2 - 0.0005, 0.0, TOP + AXZ])
 ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.095, friction=0.5,
