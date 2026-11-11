@@ -370,7 +370,7 @@ CAPS = part("end_caps", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5, meshes=CA
 
 # -- the boats (loose), side by side on a tray beside the loading end (behind the tube's line), level with the tube's
 # floor: an alumina boat of sulfur powder, an alumina boat of MoO3 powder, and a short quartz boat carrying the 1 cm chip,
-# face up. Each has a round tongue out of its back end, to hold it by and for the rod's pusher. Frame: the centre of its
+# face up. Each has a square tongue out of its back end, to hold it by and for the rod's pusher. Frame: the centre of its
 # underside. -----------------------------------------------------------------------------------------------------------
 ALUMINA = (0.97, 0.96, 0.93)
 SULFUR_C = (0.95, 0.85, 0.15)
@@ -378,8 +378,9 @@ MOO3_C = (0.86, 0.88, 0.78)
 QBOAT_C = (0.80, 0.86, 0.88)
 CHIP_C = (0.42, 0.33, 0.58)
 BOAT_W, BOAT_H, BOAT_T = 0.020, 0.012, 0.002
-TONGUE_L, TONGUE_R = 0.020, 0.003
-TONGUE_Z = BOAT_T + TONGUE_R  # the tongue's axis, over the boat's underside
+TONGUE_L, TONGUE_W = 0.020, 0.005  # a 5 mm square bar out of the back wall, turned on its axis
+TONGUE_TURN = math.radians(-55.0)  # its faces square to the tipped hand's closing (checked against ROT_D in the demo)
+TONGUE_Z = 0.004  # the bar's axis over the boat's underside (its lowest edge 0.5 mm above it)
 BOATS = {"s_boat": (0.060, ALUMINA, SULFUR_C), "moo3_boat": (0.060, ALUMINA, MOO3_C), "chip_boat": (0.035, QBOAT_C, None)}
 BOAT_Z = FLOOR_Z + 0.0003  # a boat on the tube's floor strip
 TRAY_Z = FLOOR_Z  # the tray's top: level with the tube's floor
@@ -392,11 +393,10 @@ def _boat(name):
     bx = [((0.0, 0.0, BOAT_T / 2), (BOAT_W, L, BOAT_T), wall),
           *[((e * (BOAT_W - BOAT_T) / 2, 0.0, BOAT_H / 2), (BOAT_T, L, BOAT_H), wall) for e in (-1, 1)],
           *[((0.0, e * (L - BOAT_T) / 2, BOAT_H / 2), (BOAT_W - 2 * BOAT_T, BOAT_T, BOAT_H), wall) for e in (-1, 1)],
-          ]
-    cy = [((0.0, -L / 2 - TONGUE_L / 2, TONGUE_Z), TONGUE_R, TONGUE_L, wall, "Y")]
+          ((0.0, -L / 2 - TONGUE_L / 2 + 0.001, TONGUE_Z), (TONGUE_W, TONGUE_L + 0.002, TONGUE_W), wall, (0.0, TONGUE_TURN))]
     if powder:  # a layer of powder in it, 4 mm deep
         bx.append(((0.0, 0.0, BOAT_T + 0.002), (BOAT_W - 2 * BOAT_T - 0.0004, L - 2 * BOAT_T - 0.0004, 0.004), powder))
-    return part(name, pos=tuple(boat_start(name)), mass=0.012 if powder else 0.006, friction=0.5, boxes=bx, cylinders=cy)
+    return part(name, pos=tuple(boat_start(name)), mass=0.012 if powder else 0.006, friction=0.5, boxes=bx)
 
 
 def boat_start(name):
@@ -803,16 +803,17 @@ def _tcp(tip, R=ROT_T, past=0.004):
 
 
 ROD_OPEN, ROD_HOLD = -0.012, 0.0  # round the 6 mm rod, squeezed hard (a looser grip slips)
-TONGUE_OPEN, TONGUE_HOLD = -0.012, 0.0  # on a boat's 4 mm thick tongue (squeezed)
+TONGUE_OPEN, TONGUE_HOLD = -0.012, 0.0  # on a boat's 5 mm tongue (squeezed)
 FEED = (-0.395, -0.275)  # each stroke on the rod: from here to here along y (reach behind, the tray's end in front)
 ROD_GRIP = 0.0015  # (the hand holds the rod a little under its axis' height: its pads, not its tips, on it)
-ROT_D = axis_angle_matrix(Y, -math.radians(55.0)) @ _prev_grip(math.pi / 2)  # in from the front, tipped 55 deg,
-O_D = Orient(ROT_D)  # closing across a boat's round tongue
+ROT_D = axis_angle_matrix(Y, TONGUE_TURN) @ _prev_grip(math.pi / 2)  # in from the front, tipped 55 deg,
+O_D = Orient(ROT_D)  # closing square across a boat's tongue
+assert abs(math.atan2(-ROT_D[2, 0], ROT_D[0, 0]) - TONGUE_TURN) < 1e-6  # the pads meet the tongue's faces flat
 LOAD_ORDER = ("chip_boat", "moo3_boat", "s_boat")  # the deepest first: boats cannot pass each other in the tube
 # (upstream is the loading end, where the argon comes in: the chip, furthest downstream, goes in first, sulfur last)
 TARGET = {"chip_boat": MO_AT + (CHIP_DMIN + CHIP_DMAX) / 2, "moo3_boat": MO_AT, "s_boat": S_AT}
 MOUTH_HI = 0.004  # carried in this much above the tube's floor (a held boat droops a little)
-MOUTH_OUT = 0.015  # a boat set in the mouth: its back end this far out of the tube (most of it, and its weight, inside)
+MOUTH_OUT = 0.008  # a boat set in the mouth: its back end this far out of the tube (most of it, and its weight, inside)
 CARRY_UP = 0.030  # carried this high over the tray and the tube's end
 
 
