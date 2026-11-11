@@ -335,12 +335,13 @@ _TUBE_CUTS = np.linspace(TUBE_Y0, FIT_Y0 + 0.005, 14)
 ARGON_PORT = (XA - COLLAR_R - 0.010, (TUBE_Y0 + NC_Y1) / 2 + 0.004, AXZ)  # the argon line's port, on the collar's side
 BLEED_PORT = (XA - COLLAR_R - 0.010, FIT_Y0 + 0.012, AXZ)  # the bleed line's port on the far flange
 CLAMP_PIVOT = (XA, NC_Y1 - 0.012, AXZ + COLLAR_R + 0.010)  # the clamp's hinge, on top of the loading collar
-TUBE_MESHES = [*[m for y0, y1 in zip(_TUBE_CUTS[:-1], _TUBE_CUTS[1:])
-                 for m in _ring_y(y0, y1, TUBE_IN, TUBE_R, 16, QUARTZ, cx=XA, cz=AXZ)],
-               *_ring_y(TUBE_Y0 + 0.006, NC_Y1, TUBE_R, COLLAR_R, 16, STAINLESS, cx=XA, cz=AXZ),
-               *_ring_y(TUBE_Y0, TUBE_Y0 + 0.006, TUBE_R, FLANGE_R, 16, STAINLESS, cx=XA, cz=AXZ),
-               *_ring_y(FIT_Y0, FIT_Y1 - 0.006, TUBE_R, COLLAR_R, 16, STAINLESS, cx=XA, cz=AXZ),
-               *_ring_y(FIT_Y1 - 0.006, FIT_Y1, TUBE_R, FLANGE_R, 16, STAINLESS, cx=XA, cz=AXZ)]
+# (the flanges first: PhysX keeps a limited number of shapes on one body, so the pieces that must collide come first)
+TUBE_MESHES = [*_ring_y(TUBE_Y0, TUBE_Y0 + 0.006, TUBE_R, FLANGE_R, 12, STAINLESS, cx=XA, cz=AXZ),
+               *_ring_y(TUBE_Y0 + 0.006, NC_Y1, TUBE_R, COLLAR_R, 12, STAINLESS, cx=XA, cz=AXZ),
+               *_ring_y(FIT_Y0, FIT_Y1 - 0.006, TUBE_R, COLLAR_R, 12, STAINLESS, cx=XA, cz=AXZ),
+               *_ring_y(FIT_Y1 - 0.006, FIT_Y1, TUBE_R, FLANGE_R, 12, STAINLESS, cx=XA, cz=AXZ),
+               *[m for y0, y1 in zip(_TUBE_CUTS[:-1], _TUBE_CUTS[1:])
+                 for m in _ring_y(y0, y1, TUBE_IN, TUBE_R, 12, QUARTZ, cx=XA, cz=AXZ)]]
 TUBE_DRAWN = [
     *_disc_mesh(np.array([XA, FIT_Y1, AXZ]), Y, FLANGE_R, 0.006, STAINLESS, 16),  # the far flange's blank
     _seg((XA, GAUGE_C[1], AXZ + COLLAR_R - 0.002), GAUGE_C - 0.010 * GAUGE_N, 0.009, STAINLESS),  # the gauge's stem
