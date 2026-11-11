@@ -356,7 +356,7 @@ TUBE_MESHES += TUBE_DRAWN
 _na = GAUGE_C + 0.0024 * GAUGE_N  # the needle's pivot, just in front of the face; it turns about the face's normal
 NEEDLE = Joint("needle", kind="hinge", axis="Z", anchor=tuple(_na),
                lower=-DIAL_SWEEP / 2 - 0.05, upper=DIAL_SWEEP / 2 + 0.05, stiffness=0.05, damping=0.003,
-               target=0.0, initial=0.0, mass=0.002,
+               target=0.0, initial=0.0, mass=0.0002,
                meshes=[_seg(_na - 0.006 * _gu, _na + 0.034 * _gu, 0.0022, DARK)],
                boxes=[(tuple(_na), (0.003, 0.003, 0.003), DARK)])
 
@@ -367,7 +367,7 @@ PLATE_T, PLATE_R = 0.006, FLANGE_R  # the blank plate: 6 mm stainless, as wide a
 _cz = CLAMP_PIVOT[2]
 _hook_y = TUBE_Y0 - PLATE_T - 0.0012  # the hook's inside face, 1.2 mm off the plate's outside
 CLAMP = Joint("clamp", kind="hinge", axis="X", anchor=CLAMP_PIVOT, lower=-CLAMP_UP, upper=0.0,
-              stiffness=0.0, damping=0.02, friction=0.02, initial=0.0, mass=0.015,
+              stiffness=0.0, damping=0.02, friction=0.02, initial=0.0, mass=0.002,
               boxes=[((XA, (CLAMP_PIVOT[1] + _hook_y - 0.004) / 2, _cz + 0.002),
                       (0.012, CLAMP_PIVOT[1] - _hook_y + 0.004, 0.004), STAINLESS),  # the arm
                      ((XA, _hook_y - 0.002, _cz - 0.006), (0.012, 0.004, 0.020), STAINLESS),  # the hook
@@ -375,6 +375,7 @@ CLAMP = Joint("clamp", kind="hinge", axis="X", anchor=CLAMP_PIVOT, lower=-CLAMP_
 # a smooth strip along the tube's floor, one piece (the boat would catch on the seams between the wall's lengths)
 FLOOR_Z = AXZ - 0.0075
 TUBE_BOXES = [((XA, (TUBE_Y0 + FIT_Y0) / 2, FLOOR_Z - 0.001), (0.012, FIT_Y0 - TUBE_Y0, 0.002), QUARTZ)]
+# (the clamp and the needle are light: the tube's weight must stay under its axis, or it rolls in its saddles)
 TUBE = part("quartz_tube", pos=(0.0, 0.0, TOP), mass=0.40, friction=0.3, boxes=TUBE_BOXES, meshes=TUBE_MESHES,
             joints=[NEEDLE, CLAMP])
 
@@ -443,9 +444,6 @@ def _lever_knob(pivot, angle):
 KNOB_R, KNOB_L = 0.008, 0.022
 SPIGOT_R, SPIGOT_L = 0.0072, 0.006  # its centring spigot, in the bore: it rests on the floor strip
 PLATE_START = np.array([XA, TUBE_Y0 - 0.0003, TOP + AXZ])
-import os as _os2
-if _os2.path.exists("/home/ubuntu/fa_plate_off"):
-    PLATE_START = np.array([XA - 0.09, -0.38, TOP + 0.10])
 PLATE = part("end_plate", pos=tuple(PLATE_START), mass=0.10, friction=0.4,
              cylinders=[((0.0, -PLATE_T / 2, 0.0), PLATE_R, PLATE_T, STAINLESS, "Y"),
                         ((0.0, SPIGOT_L / 2, -0.0003), SPIGOT_R, SPIGOT_L, DARK, "Y"),
