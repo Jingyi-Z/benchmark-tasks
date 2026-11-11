@@ -1044,7 +1044,9 @@ def demo():
               Orient(R0)),
              (1.0, _tcp(p0 - _appr(R0) * 0.022 - [0.0, 0.0, 0.05], R0, past=0.002), BAR_OPEN, "down, clear of the handle",
               Orient(R0)),
-             (2.0, LEFT_PARK, BAR_OPEN, "up and clear", O_T)]
+             (1.5, _tcp(np.array([0.18, 0.325, TOP + 0.23]), R0, past=0.002), BAR_OPEN, "past the furnace's end",
+              Orient(R0)),
+             (1.5, LEFT_PARK, BAR_OPEN, "hand turned at the park", O_T)]
     pl.phase(left=[(0.6, _tcp(h), CAP_OPEN, "let go of the tube", O_T),
                    (0.8, _tcp(h) - APPR_T * 0.025, CAP_OPEN, "back off the tube along the hand", O_T),
                    (1.0, _tcp(h + 0.09 * up), TUBE_OPEN, "up off the tube", O_T),
