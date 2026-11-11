@@ -1285,6 +1285,9 @@ def demo():
     if _SKIP:  # DEBUG-SKIP: start here (the valves already shut)
         pl = _Plan()
         _ct["gates"] = []
+        pl.phase(right=[(2.0, np.array([0.37, -0.27, TOP + 0.37]), KNOB_OPEN, "hand turned, up clear of the tube's end", O_T)],
+                 left=[(2.0, _READY_L[0] + 0.07 * up, KNOB_OPEN, "straight up, off the bleed valve's grip",
+                        Orient(_READY_L[1]))])
     lid = [*_lid_moves([0.0, math.radians(15), math.radians(30), math.radians(45), LID_SWAP], LID_GRIP_A,
                        "lift the lid", first="hand turned to the lid's handle"),
            *_lid_moves([LID_SWAP, math.radians(70), LID_OPEN], LID_GRIP_B, "lift the lid (on up)",
