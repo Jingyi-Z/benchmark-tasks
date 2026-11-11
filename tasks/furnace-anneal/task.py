@@ -1336,11 +1336,15 @@ def demo():
                     (0.6, _tcp(k0, ROT_P), PK_HOLD, "close on the knob", O_P),
                     (1.5, _tcp(k0 - 0.018 * Y, ROT_P), PK_HOLD, "pull the plate off (the gauge in the green)", O_P),
                     (1.0, _tcp(k0 - 0.018 * Y + 0.035 * up, ROT_P), PK_HOLD, "lift the plate", O_P),
-                    (2.0, _tcp(kr + 0.04 * up, ROT_P), PK_HOLD, "the plate over its stand", O_P),
-                    (1.2, _tcp(kr + 0.002 * up, ROT_P), PK_HOLD, "the plate down in its stand", O_P),
-                    (0.5, _tcp(kr + 0.002 * up, ROT_P), PK_OPEN, "let go of the plate", O_P),
-                    (0.8, _tcp(kr + 0.002 * up - 0.03 * a_p, ROT_P), PK_OPEN, "back off the plate's knob", O_P),
-                    (0.8, _tcp(kr + 0.05 * up - 0.03 * a_p, ROT_P), PK_OPEN, "up off the plate", O_P)])
+                    (2.0, _tcp(kr + 0.04 * up, ROT_P), PK_HOLD, "the plate over its stand", O_P)])
+    # (it can slide along the knob in the fingers: lined up over the stand by eye before it goes down)
+    tw = pl.phase(right=[(2.6, _Dyn(_tcp(kr + 0.04 * up, ROT_P), "pr"), PK_HOLD, "hold still: the plate seen over its stand",
+                          O_P)])
+    pl.window(tw + 0.3, tw + 2.6, "pr", lambda env: (PLATE_REST - _seen(env, "end_plate")) * [1.0, 1.0, 0.0], "end_plate")
+    pl.phase(right=[(1.2, _Dyn(_tcp(kr + 0.002 * up, ROT_P), "pr"), PK_HOLD, "the plate down in its stand", O_P),
+                    (0.5, _Dyn(_tcp(kr + 0.002 * up, ROT_P), "pr"), PK_OPEN, "let go of the plate", O_P),
+                    (0.8, _Dyn(_tcp(kr + 0.002 * up - 0.03 * a_p, ROT_P), "pr"), PK_OPEN, "back off the plate's knob", O_P),
+                    (0.8, _Dyn(_tcp(kr + 0.05 * up - 0.03 * a_p, ROT_P), "pr"), PK_OPEN, "up off the plate", O_P)])
     # -- 6. right picks the boat up from its tray by its tongue and sets it in the tube's mouth, lined up by eye --------
     tg = BOAT_START + [0.0, -BOAT_L / 2 - TONGUE_L / 2 - 0.003, TONGUE_T / 2]  # (3 mm back: the fingers clear its back)
     a_d = _appr(ROT_D)
