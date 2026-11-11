@@ -300,7 +300,7 @@ FURNACE_MESHES = [*SADDLES, _boxes_mesh(_coils, COIL_C),
                   *_console()]
 
 # the lid: front and back blocks either side of the tube's gap, the top over it; a handle bar at the middle of its front
-LID_HANDLE_Y, LID_HANDLE_Z, LID_HANDLE_OUT = _mid_y, AXZ + 0.060, 0.012  # the handle's bar: 12 mm out from the front
+LID_HANDLE_Y, LID_HANDLE_Z, LID_HANDLE_OUT = _mid_y, AXZ + 0.060, 0.030  # the handle's bar: 30 mm out from the front
 _lid_boxes = [
     (((FX0 + XA - SLOT) / 2, _mid_y, (AXZ + LID_Z1) / 2), (XA - SLOT - FX0, _len_y, LID_Z1 - AXZ), WHITE_F),
     (((XA + SLOT + FX1) / 2, _mid_y, (AXZ + LID_Z1) / 2), (FX1 - XA - SLOT, _len_y, LID_Z1 - AXZ), WHITE_F),
@@ -482,11 +482,13 @@ GAS = part("gas_lines", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5, boxes=[*_
 # black knob on its outside to hold it by.
 # Frame: origin on its axis at its inside face, the knob along -y. ------------------------------------------------------
 KNOB_R, KNOB_L = 0.008, 0.016
-SPIGOT_R, SPIGOT_L = 0.0072, 0.006  # its centring spigot, in the bore: it rests on the floor strip
+SPIGOT_R, SPIGOT_L = 0.0085, 0.010  # its centring ring, in the bore: it rests on the floor strip, and keeps the plate
+# from tipping out when the clamp is open (it has 1 mm to the bore's top)
+_SPZ = FLOOR_Z + 0.0003 + SPIGOT_R - (AXZ + 0.0004)  # the ring's centre, from the plate's
 PLATE_START = np.array([XA, TUBE_Y0 - 0.0008, TOP + AXZ + 0.0004])
 PLATE = part("end_plate", pos=tuple(PLATE_START), mass=0.10, friction=0.4,
              cylinders=[((0.0, -PLATE_T / 2, 0.0), PLATE_R, PLATE_T, STAINLESS, "Y"),
-                        ((0.0, SPIGOT_L / 2, -0.0003), SPIGOT_R, SPIGOT_L, DARK, "Y"),
+                        ((0.0, SPIGOT_L / 2, _SPZ), SPIGOT_R, SPIGOT_L, DARK, "Y"),
                         ((0.0, -PLATE_T - KNOB_L / 2, 0.0), KNOB_R, KNOB_L, DARK, "Y")])
 # its stand (fixed): a post with a V cradle the plate stands in, on edge, knob towards -y
 PLATE_REST = np.array([XA + 0.090, -0.440, TOP + AXZ - 0.020])  # the plate's centre on the stand
