@@ -32,5 +32,6 @@ def _dbg_f3(env):
 def _dbg_f3_reset(env):
     S = labkit._SPECS
     t = labkit._part_state(env, S["quartz_tube"])
-    open("/home/ubuntu/dbg_fd.txt", "a").write(f"RESET tpos={np.round((np.asarray(t.pos) - [0, 0, TOP]) * 1000, 1).tolist()} tR={np.round(t.rotation()[:, 1:3].T, 3).tolist()} "
+    c = labkit._part_state(env, S["end_plate"])
+    open("/home/ubuntu/dbg_fd.txt", "a").write(f"RESET plate={np.round((np.asarray(c.pos) - [0, 0, TOP]) * 1000, 1).tolist()}  tpos={np.round((np.asarray(t.pos) - [0, 0, TOP]) * 1000, 1).tolist()} tR={np.round(t.rotation()[:, 1:3].T, 3).tolist()} "
                                               f"tips={[np.round((np.asarray(x) - [0, 0, TOP]) * 1000).astype(int).tolist() for x in _tips(env)]}\n")

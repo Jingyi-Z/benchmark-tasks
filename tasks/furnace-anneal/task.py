@@ -479,7 +479,7 @@ GAS = part("gas_lines", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5, boxes=[*_
 # Frame: origin on its axis at its inside face, the knob along -y. ------------------------------------------------------
 KNOB_R, KNOB_L = 0.008, 0.022
 SPIGOT_R, SPIGOT_L = 0.0072, 0.006  # its centring spigot, in the bore: it rests on the floor strip
-PLATE_START = np.array([XA, TUBE_Y0 - 0.0003, TOP + AXZ])
+PLATE_START = np.array([XA, TUBE_Y0 - 0.0008, TOP + AXZ + 0.0004])
 PLATE = part("end_plate", pos=tuple(PLATE_START), mass=0.10, friction=0.4,
              cylinders=[((0.0, -PLATE_T / 2, 0.0), PLATE_R, PLATE_T, STAINLESS, "Y"),
                         ((0.0, SPIGOT_L / 2, -0.0003), SPIGOT_R, SPIGOT_L, DARK, "Y"),
