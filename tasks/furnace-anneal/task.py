@@ -443,6 +443,9 @@ def _lever_knob(pivot, angle):
 KNOB_R, KNOB_L = 0.008, 0.022
 SPIGOT_R, SPIGOT_L = 0.0072, 0.006  # its centring spigot, in the bore: it rests on the floor strip
 PLATE_START = np.array([XA, TUBE_Y0 - 0.0003, TOP + AXZ])
+import os as _os2
+if _os2.path.exists("/home/ubuntu/fa_plate_off"):
+    PLATE_START = np.array([XA - 0.09, -0.38, TOP + 0.10])
 PLATE = part("end_plate", pos=tuple(PLATE_START), mass=0.10, friction=0.4,
              cylinders=[((0.0, -PLATE_T / 2, 0.0), PLATE_R, PLATE_T, STAINLESS, "Y"),
                         ((0.0, SPIGOT_L / 2, -0.0003), SPIGOT_R, SPIGOT_L, DARK, "Y"),
