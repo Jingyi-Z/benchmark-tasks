@@ -26,3 +26,11 @@ def _dbg_f3(env):
         f"viol={sorted(_state.get('viol', []))} cent={_state.get('centred')} rack={_state.get('racked')} "
         f"lidok={_state.get('lid')} seal={_state.get('sealed')} far={_state.get('far')} settled={_state.get('settled')} "
         f"tips={tips}\n")
+
+
+@on_reset
+def _dbg_f3_reset(env):
+    S = labkit._SPECS
+    t = labkit._part_state(env, S["quartz_tube"])
+    open("/home/ubuntu/dbg_fd.txt", "a").write(f"RESET tpos={np.round((np.asarray(t.pos) - [0, 0, TOP]) * 1000, 1).tolist()} "
+                                              f"tips={[np.round((np.asarray(x) - [0, 0, TOP]) * 1000).astype(int).tolist() for x in _tips(env)]}\n")
