@@ -1251,15 +1251,19 @@ def demo():
                     (0.6, _tcp(kb + 0.03 * up, R, past=0.002), KNOB_OPEN, "up off the grip", Orient(R))]
         return out
 
+    from yam_arena.constants import LEFT_BASE_POS
+    _READY_L = _ik.tcp_pose(np.array(_READY, float), np.array(LEFT_BASE_POS))  # where the left hand starts
     pl.phase(right=[(2.0, np.array([0.37, -0.27, TOP + 0.37]), KNOB_OPEN, "hand turned, up clear of the tube's end", O_T),
                     *vturn(ARGON_PIVOT, 0, -30, "turn the argon off"), *vturn(ARGON_PIVOT, -30, -60, "turn the argon off"),
                     *vturn(ARGON_PIVOT, -60, -92, "turn the argon off")],
-             left=[(2.0, np.array([0.37, 0.27, TOP + 0.37]), KNOB_OPEN, "hand turned, up clear of the bleed valve", O_T),
+             left=[(0.8, _READY_L[0] + 0.07 * up, KNOB_OPEN, "straight up, off the bleed valve's grip",
+                    Orient(_READY_L[1])),
+                   (1.5, np.array([0.37, 0.27, TOP + 0.37]), KNOB_OPEN, "hand turned, up clear of the bleed valve", O_T),
                    (1.5, _tcp(_vknob(BLEED_PIVOT, -math.pi / 2) + 0.03 * up, past=0.002), KNOB_OPEN,
                     "over the bleed valve's grip", O_T)])
     # -- 2. left opens the bleed a third and holds it, watching the gauge; in the green band, turns it shut -------------
-    t_open = pl.phase(left=vturn(BLEED_PIVOT, -90, -60, "open the bleed (a third)", release=False))
-    pl.gate(t_open + 0.5, t_open + 16.0, "bleed", lambda env: _gauge_kpa(env) <= P_OPEN_AT)
+    pl.phase(left=vturn(BLEED_PIVOT, -90, -60, "open the bleed (a third)", release=False))
+    pl.gate(pl.t + 0.2, pl.t + 16.0, "bleed", lambda env: _gauge_kpa(env) <= P_OPEN_AT)  # once it is open and held
     back = [-60, -70, -80, -90, -92]
     rots = [axis_angle_matrix(Z, math.radians(t + 90)) @ ROT_T for t in back]
     pts = [_tcp(_vknob(BLEED_PIVOT, math.radians(t)), R, past=0.002) for t, R in zip(back, rots)]
