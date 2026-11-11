@@ -418,14 +418,14 @@ CHIP_START = boat_start("chip_boat") + [0.0, 0.0, BOAT_T + CHIP_T / 2]
 CHIP_PART = part("chip", pos=tuple(CHIP_START), mass=0.0004, friction=0.8,  # (4x a real chip: steadier contact)
                  boxes=[((0.0, 0.0, 0.0), (CHIP, CHIP, CHIP_T), CHIP_C)])
 
-# -- the push rod (loose): stainless, 500 mm, 6 mm round, a 10 mm pusher disc at its front, on two V-topped rests in line
-# with the tube behind the tray. Frame: on its axis at the pusher's front face, the rod along -y. ------------------------
-ROD_L, GRIP_W, PUSHER_R = 0.500, 0.006, 0.005
-ROD_Z = BOAT_Z + 0.0065  # the rod's axis: its pusher disc on a boat's tongue, its lower edge 1.5 mm over the floor
+# -- the push rod (loose): fused quartz, 500 mm, 8 mm round, a 12 mm knob fused on its front (the pusher), on two V-topped
+# rests in line with the tube. Frame: on its axis at the pusher's front face, the rod along -y. ---------------------------
+ROD_L, GRIP_W, PUSHER_R = 0.500, 0.008, 0.006
+ROD_Z = BOAT_Z + 0.0075  # the rod's axis: its pusher on a boat's tongue, its lower edge 1.5 mm over the tube's floor
 ROD_START = np.array([XA, TUBE_Y0 - 0.135, TOP + ROD_Z])  # its pusher 35 mm ahead of the hand at FEED[0]
-ROD = part("push_rod", pos=tuple(ROD_START), mass=0.110, friction=0.7,
-           cylinders=[((0.0, -0.0015, 0.0), PUSHER_R, 0.003, STEEL, "Y"),
-                      ((0.0, -(0.003 + ROD_L) / 2, 0.0), GRIP_W / 2, ROD_L - 0.003, STEEL, "Y")])
+ROD = part("push_rod", pos=tuple(ROD_START), mass=0.055, friction=0.7,
+           cylinders=[((0.0, -0.002, 0.0), PUSHER_R, 0.004, QUARTZ, "Y"),
+                      ((0.0, -(0.004 + ROD_L) / 2, 0.0), GRIP_W / 2, ROD_L - 0.004, QUARTZ, "Y")])
 REST_Y = (-0.480, -0.700)  # the rear one holds the rod's tail until its front is inside the tube
 V_RISE = 0.006  # each rest's V: 6 mm deep over 10 mm each side (about 30 degrees), so the rod lies in it, not on it
 REST_Z = ROD_Z - 0.0002 - GRIP_W / 2 * math.hypot(1.0, (V_RISE - 0.0002) / 0.010)  # the rod's axis at ROD_Z in the V
@@ -804,7 +804,7 @@ def _tcp(tip, R=ROT_T, past=0.004):
     return np.asarray(tip, float) + a * past - a * TIP_ABOVE_TCP
 
 
-ROD_OPEN, ROD_HOLD = -0.012, 0.0  # round the 6 mm rod, squeezed hard (a looser grip slips)
+ROD_OPEN, ROD_HOLD = -0.012, 0.0  # round the 8 mm rod, squeezed hard (a looser grip slips)
 TONGUE_OPEN, TONGUE_HOLD = -0.012, -0.0015  # on a boat's 5 mm tongue: a light squeeze (a hard one shakes the boat)
 FEED = (-0.395, -0.275)  # each stroke on the rod: from here to here along y (reach behind, the tray's end in front)
 ROD_GRIP = 0.0015  # (the hand holds the rod a little under its axis' height: its pads, not its tips, on it)
