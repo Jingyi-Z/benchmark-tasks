@@ -1284,8 +1284,8 @@ def demo():
                        Orient(_tab(a)[1])) for a in (-15.0, -30.0, CLAMP_TO)],
                     (0.4, _tcp(_tab(CLAMP_TO)[0], _tab(CLAMP_TO)[1], past=0.004), TAB_OPEN, "let go of the lever",
                      Orient(_tab(CLAMP_TO)[1])),
-                    (0.8, _tcp(_tab(CLAMP_TO)[0] - 0.03 * _appr(_tab(CLAMP_TO)[1]), _tab(CLAMP_TO)[1], past=0.004), TAB_OPEN,
-                     "back off the lever", Orient(_tab(CLAMP_TO)[1]))])
+                    (0.8, _tcp(_tab(CLAMP_TO)[0] - 0.035 * X + 0.02 * up, _tab(-10.0)[1], past=0.004), TAB_OPEN,
+                     "back off the lever, the wrist turning back", Orient(_tab(-10.0)[1]))])
     # -- 4. right takes the plate off (the gauge in its green band, the argon shut) and stands it on its stand ---------
     k0 = PLATE_START + [0.0, -PLATE_T - KNOB_L / 2, 0.0]
     kr = PLATE_REST + [0.0, -PLATE_T - KNOB_L / 2, 0.0]
@@ -1416,8 +1416,8 @@ def demo():
                     (0.6, _Dyn(_tcp(home), "c1"), PK_HOLD, "hold it home", O_T),
                     (0.5, _Dyn(_tcp(home), "c1"), PK_OPEN, "let go of the plate", O_T),
                     (0.8, _Dyn(_tcp(home) - 0.02 * Y + 0.03 * up, "c1"), PK_OPEN, "back off the plate", O_T),
-                    (1.5, _tcp(_tab(CLAMP_TO)[0] - 0.03 * _appr(_tab(CLAMP_TO)[1]), _tab(CLAMP_TO)[1], past=0.004), TAB_OPEN,
-                     "hand turned to the clamp's lever", Orient(_tab(CLAMP_TO)[1])),
+                    (1.5, _tcp(_tab(CLAMP_TO)[0] - 0.035 * X + 0.02 * up, _tab(-10.0)[1], past=0.004), TAB_OPEN,
+                     "hand turned to the clamp's lever", Orient(_tab(-10.0)[1])),
                     (0.8, _tcp(_tab(CLAMP_TO)[0], _tab(CLAMP_TO)[1], past=0.004), TAB_OPEN, "down round the lever",
                      Orient(_tab(CLAMP_TO)[1])),
                     (0.5, _tcp(_tab(CLAMP_TO)[0], _tab(CLAMP_TO)[1], past=0.004), TAB_HOLD, "close on the lever",
