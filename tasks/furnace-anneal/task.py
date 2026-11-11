@@ -17,6 +17,8 @@ import math
 import pathlib
 import sys
 
+import os
+_SKIP = os.environ.get("FA_SKIP", "")  # DEBUG-SKIP: remove before submitting
 import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -407,7 +409,7 @@ PLATE_T, PLATE_R = 0.006, FLANGE_R  # the blank plate: 6 mm stainless, as wide a
 _cz = CLAMP_PIVOT[2]
 _hook_y = TUBE_Y0 - PLATE_T - 0.0012  # the hook's inside face, 1.2 mm off the plate's outside
 CLAMP = Joint("clamp", kind="hinge", axis="X", anchor=CLAMP_PIVOT, lower=-CLAMP_UP, upper=0.0,
-              stiffness=CLAMP_K, damping=0.02, friction=0.02, initial=0.0, mass=0.002,
+              stiffness=CLAMP_K, damping=0.02, friction=0.02, initial=0.0, mass=0.030,
               boxes=[((XA, (CLAMP_PIVOT[1] + _hook_y - 0.004) / 2, _cz + 0.002),
                       (0.012, CLAMP_PIVOT[1] - _hook_y + 0.004, 0.004), STAINLESS),  # the arm
                      ((XA, _hook_y - 0.002, _cz - 0.006), (0.012, 0.004, 0.020), STAINLESS),  # the hook
@@ -435,7 +437,7 @@ HOSE_C = (0.30, 0.55, 0.85)
 ARGON_C = (0.25, 0.48, 0.30)  # the gas bottle (argon: green shoulder)
 VALVE_SHUT = math.radians(80.0)  # a valve counts as shut once its lever is turned this far
 ARGON_PIVOT = (XA + 0.060, -0.215, AXZ + 0.004)  # the inlet valve, behind the loading end's collar
-BLEED_PIVOT = (XA + 0.060, 0.370, AXZ + 0.004)  # the bleed valve, behind the far flange
+BLEED_PIVOT = (XA + 0.060, 0.405, AXZ + 0.004)  # the bleed valve, behind the far flange (clear of the left hand)
 BOTTLE = (0.42, -0.62)  # the argon bottle, off to the side of the loading end
 
 
@@ -451,7 +453,8 @@ def _valve(name, pivot, lo, hi, start):
     return j, post
 
 
-ARGON_V, _ap = _valve("argon_valve", ARGON_PIVOT, -math.pi / 2, 0.0, 0.0)  # open; shut turned towards the right arm
+ARGON_V, _ap = _valve("argon_valve", ARGON_PIVOT, -math.pi / 2, 0.0,
+                      -math.pi / 2 if _SKIP else 0.0)  # open; shut turned towards the right arm
 BLEED_V, _bp = _valve("bleed_valve", BLEED_PIVOT, -math.pi / 2, 0.0, -math.pi / 2)  # starts shut (across the line)
 LINE_MESHES = [
     # the argon bottle with its regulator, the line along the bench to the inlet valve, and on to the collar's port
@@ -498,12 +501,12 @@ PLATE_STAND = part("plate_stand", pos=(0.0, 0.0, TOP), fixed=True, friction=0.6,
 
 # -- the boat (loose): an alumina boat 80 x 15 x 8 mm, open on top, its back end a 12 mm wall with a 14 mm tongue out
 # behind it at its floor, to hold it by and for the rod's pusher. In the tube it sits on the floor strip, 7.5 mm under
-# the axis. It starts on a tray beside the loading end. Frame: origin at the centre of its underside. ---------------------
+# the axis. It starts on a tray in front of the loading end, in line with the tube. Frame: origin at the centre of its underside. ---------------------
 BOAT_L, BOAT_W, BOAT_H, BOAT_T, BACK_H = 0.080, 0.015, 0.008, 0.0015, 0.012
 TONGUE_L, TONGUE_W, TONGUE_T = 0.016, 0.012, 0.004
 ALUMINA = (0.97, 0.96, 0.93)
 BOAT_Z = FLOOR_Z + 0.0003  # on the floor strip
-TRAY = np.array([XA - 0.080, -0.270, AXZ - 0.032])  # the tray's top centre
+TRAY = np.array([XA, -0.296, AXZ - 0.032])  # the tray's top centre: in line with the tube, in front of its mouth
 BOAT_START = TRAY + [0.0, 0.006, TOP + 0.0003]
 BOAT = part("boat", pos=tuple(BOAT_START), mass=0.020, friction=0.5,
             boxes=[((0.0, 0.0, BOAT_T / 2), (BOAT_W, BOAT_L, BOAT_T), ALUMINA),
@@ -529,7 +532,7 @@ CHIPS = [part(f"chip{i}", pos=tuple(CHIP_START[i]), mass=0.00008, friction=0.8,
 # -- the hook rod (loose): stainless, 390 mm, 6 mm round its whole length, a 10 mm pusher disc at its front. Frame: origin
 # on its axis at the pusher's front face, the rod along -y. -----------------------------------------------------------------
 ROD_L, GRIP_W, PUSHER_R = 0.390, 0.006, 0.005
-ROD_START = np.array([XA, TUBE_Y0 - 0.120, TOP + AXZ - 0.0015])  # on its rests in line with the tube, room in front for the boat
+ROD_START = np.array([XA, TUBE_Y0 - 0.130, TOP + AXZ - 0.0015])  # on its rests in line with the tube, room in front for the boat
 ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.090, friction=0.7,
            cylinders=[((0.0, -0.0015, 0.0), PUSHER_R, 0.003, STEEL, "Y"),
                       ((0.0, -(0.003 + ROD_L) / 2, 0.0), GRIP_W / 2, ROD_L - 0.003, STEEL, "Y")])
@@ -559,7 +562,7 @@ PLANCHECK_BOXES = [
 # the green band in a few seconds; over-pressured, P_BURST, in 12 s). Shutting the argon holds the pressure; the bleed
 # valve lets it out (in proportion to how far it is opened). The plate may be taken off only with the argon shut and the
 # gauge in its green band; once off, the tube is at atmospheric.
-P0, P_RATE = 6.0, 0.4  # kPa, kPa/s (the argon fully open; less as its valve is turned towards shut)
+P0, P_RATE = (5.0 if _SKIP else 6.0), 0.4  # kPa, kPa/s (the argon fully open; less as its valve is turned towards shut)
 BLEED_K = 0.6  # 1/s: the bleed, fully open, lets the pressure fall by this fraction each second
 SEAT_ON, SEAT_OFF = 0.002, 0.004  # the plate seals within 2 mm of its seat; it is off (opened) past 4 mm
 
@@ -1273,6 +1276,9 @@ def demo():
              + [(0.4, pts[-1], KNOB_OPEN, "let go of the grip", Orient(rots[-1])),
                 (0.6, pts[-1] + 0.03 * up, KNOB_OPEN, "up off the grip", Orient(rots[-1]))])
     # -- 3. left holds the tube; right flips the clamp open ---------------------------------------------------------------
+    if _SKIP:  # DEBUG-SKIP: start here (the valves already shut)
+        pl = _Plan()
+        _ct["gates"] = []
     h = _rod_at(HOLD_Y)
     open_steps = [-0.30, -0.70, -1.10, -1.50, -1.75]
     pl.phase(left=[(1.5, _tcp(h + 0.08 * up), TUBE_OPEN, "over the tube", O_T),
@@ -1296,8 +1302,8 @@ def demo():
     pl.phase(right=[(1.5, _tcp(k0 + 0.04 * up), PK_OPEN, "hand turned over the plate's knob", O_T),
                     (1.0, _tcp(k0), PK_OPEN, "down round the knob", O_T),
                     (0.6, _tcp(k0), PK_HOLD, "close on the knob", O_T),
-                    (1.5, _tcp(k0 - 0.030 * Y), PK_HOLD, "pull the plate off (the gauge in the green)", O_T),
-                    (1.0, _tcp(k0 - 0.030 * Y + 0.03 * up), PK_HOLD, "lift the plate", O_T),
+                    (1.5, _tcp(k0 - 0.018 * Y), PK_HOLD, "pull the plate off (the gauge in the green)", O_T),
+                    (1.0, _tcp(k0 - 0.018 * Y + 0.035 * up), PK_HOLD, "lift the plate", O_T),
                     (2.0, _tcp(kr + 0.04 * up), PK_HOLD, "the plate over its stand", O_T),
                     (1.2, _tcp(kr + 0.002 * up), PK_HOLD, "the plate down in its stand", O_T),
                     (0.5, _tcp(kr + 0.002 * up), PK_OPEN, "let go of the plate", O_T),
@@ -1313,7 +1319,9 @@ def demo():
     p1, R1 = _lid(LID_OPEN, LID_GRIP_B)
     tg = BOAT_START + [0.0, -BOAT_L / 2 - TONGUE_L / 2, TONGUE_T / 2]
     a_d = _appr(ROT_D)
-    pick = [(2.0, _tcp(tg - 0.04 * a_d, ROT_D, past=0.006), TONGUE_OPEN, "hand turned, level with the boat's tongue", O_D),
+    pick = [(2.0, _tcp(tg - 0.04 * a_d + 0.05 * up, ROT_D, past=0.006), TONGUE_OPEN, "hand turned over the boat's tongue",
+             O_D),
+            (0.8, _tcp(tg - 0.04 * a_d, ROT_D, past=0.006), TONGUE_OPEN, "down, level with the tongue", O_D),
             (1.0, _tcp(tg, ROT_D, past=0.006), TONGUE_OPEN, "in round the tongue", O_D),
             (0.6, _tcp(tg, ROT_D, past=0.006), TONGUE_HOLD, "close on the tongue", O_D),
             (1.5, _tcp(tg + 0.035 * up, ROT_D, past=0.006), TONGUE_HOLD, "lift the boat, level", O_D)]
