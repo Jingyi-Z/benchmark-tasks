@@ -830,8 +830,8 @@ def _rod_seen_at(env, y):
 
 
 def _on_rod(p):
-    """TCP for the fingers round the rod at p, their tips 6 mm past its axis (so the pads, not the tips, hold it)."""
-    return _tcp(p, past=0.006)
+    """TCP for the fingers round the rod at p, their tips 9 mm past its axis (so the pads, not the tips, hold it)."""
+    return _tcp(p, past=0.009)
 
 
 def _tongue(name, centre):
@@ -868,10 +868,10 @@ def demo():
             (0.8, _tcp(tg - 0.04 * a_d, ROT_D, past=0.006), TONGUE_OPEN, "down, level with the tongue", O_D),
             (1.0, _tcp(tg, ROT_D, past=0.006), TONGUE_OPEN, "in round the tongue", O_D),
             (0.6, _tcp(tg, ROT_D, past=0.006), TONGUE_HOLD, "close on the tongue", O_D),
-            (1.2, _tcp(lift, ROT_D, past=0.006), TONGUE_HOLD, "lift the boat, level", O_D),
-            (2.0, _tcp(np.array([XA + 0.010, pre[1] - 0.020, lift[2]]), ROT_D, past=0.006), TONGUE_HOLD,
+            (1.6, _tcp(lift, ROT_D, past=0.006), TONGUE_HOLD, "lift the boat, level", O_D),
+            (3.0, _tcp(np.array([XA + 0.010, pre[1] - 0.020, lift[2]]), ROT_D, past=0.006), TONGUE_HOLD,
              "carry it over to the tube's line", O_D),
-            (1.5, _Dyn(_tcp(pre + [0.0, -0.020, 0.0], ROT_D, past=0.006), k_b), TONGUE_HOLD, "down in line with the tube",
+            (2.0, _Dyn(_tcp(pre + [0.0, -0.020, 0.0], ROT_D, past=0.006), k_b), TONGUE_HOLD, "down in line with the tube",
              O_D),
             (1.0, _Dyn(_tcp(pre, ROT_D, past=0.006), k_b), TONGUE_HOLD, "to the tube's mouth", O_D)])
         tw = pl.phase(right=[(1.8, _Dyn(_tcp(pre, ROT_D, past=0.006), k_b), TONGUE_HOLD,
