@@ -533,7 +533,7 @@ def score(objects):
     its centre left the boat's inside), and 0 unless the boats, the chip and the rod have moved under 1 mm over the last second. Then 0.25
     for each boat in its place, on the tube's floor: sulfur centred within 15 mm of the furnace's upstream edge (10 mm in
     from its near end); MoO3 centred within 10 mm of the thermocouple; the chip boat's centre 50 to 80 mm downstream of
-    the MoO3 boat's. 1.0 if all three, the rod back on its rests (within 15 mm) and every fingertip 8 cm from the rod and
+    the MoO3 boat's. 1.0 if all three, the rod back on its rack (within 15 mm) and every fingertip 8 cm from the rod and
     the boats."""
     st = _state
     if st.get("viol") or not st.get("settled", False):

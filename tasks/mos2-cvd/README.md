@@ -2,8 +2,9 @@
 
 A split-tube furnace holds a 2 inch quartz tube with both end caps off. Argon comes in at the near end, so the
 near end is upstream. Three boats wait on a tray beside the near end: sulfur powder, MoO3 powder, and a quartz
-boat with a SiO2/Si chip face up. A push rod lies on rests in line with the tube. The robot sets each boat in the
-tube's mouth by its tongue and pushes it into place with the rod, then racks the rod. The layout is scored:
+boat with a SiO2/Si chip face up. A quartz push rod with a ring on its back end lies on a rack beside the tube's
+line. The robot sets each boat in the tube's mouth by its tongue, takes the rod by its ring and pushes the boat
+into place, then racks the rod. The layout is scored:
 
 - sulfur at the furnace's upstream edge, where it stays cool enough to evaporate slowly;
 - MoO3 under the thermocouple, in the hot zone;
@@ -12,7 +13,7 @@ tube's mouth by its tongue and pushes it into place with the rod, then racks the
 ## Files
 
 - `task.py`: scene, scoring and scripted demo (yam_arena task file). The furnace, tube, end caps, tray and rod
-  rests are fixed; the three boats, the chip and the rod are loose. An `on_step` hook latches the violations,
+  rack are fixed; the three boats, the chip and the rod are loose. An `on_step` hook latches the violations,
   follows the end state and checks that everything has been still for the last second.
 - `labkit.py`: parts built from several shapes. It hooks `yam_arena.scene` and the embodiment from the task's
   import, so no change to yam_arena is needed.
@@ -34,5 +35,5 @@ and the rod's poses. Run one trial per process. The score is `task_score` in the
 
 ## Runtime and seeds
 
-- 4,800 control steps (240 s of simulated time) per trial.
+- 4,800 control steps (240 s of simulated time) per trial. The scripted demo finishes in about 3,030.
 - One fixed starting layout: run with `-E object_jitter=0`. No other randomness.
