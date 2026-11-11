@@ -229,7 +229,7 @@ DESK = 0.0  # no desk: the tube's far end stays under the left hand's start pose
 XA, AXZ = 0.240, DESK + 0.210  # the tube's axis: x, height above the bench
 TUBE_R, TUBE_IN = 0.0254, 0.0230  # 2 inch quartz tube: 50.8 mm outside, 46 mm inside
 TUBE_Y0, TUBE_Y1 = -0.225, 0.385  # the tube's ends: the loading end (towards the right arm) and the far end
-FX0, FX1, FY0, FY1 = 0.100, 0.380, -0.180, 0.230  # the furnace body: front, back, ends (410 mm wide, 280 mm deep)
+FX0, FX1, FY0, FY1 = 0.100, 0.380, -0.180, 0.190  # the furnace body: front, back, ends (370 mm wide, 280 mm deep)
 BASE_Z = DESK + 0.110  # the base (controller) under the heated chamber
 LID_Z1 = DESK + 0.360  # the lid's top
 HOT_Y = (FY0 + FY1) / 2  # the hot zone's centre, where the thermocouple's tip is
@@ -359,8 +359,9 @@ CAP_MESHES = [
     *_disc_mesh(np.array([BOTTLE[0], BOTTLE[1], 0.250]), Z, 0.040, 0.050, ARGON_C),
     _box_mesh((BOTTLE[0], BOTTLE[1], 0.315), (0.030, 0.030, 0.030), BRASS),
     *_hose([(BOTTLE[0] - 0.015, BOTTLE[1], 0.315), (BOTTLE[0] - 0.06, BOTTLE[1] + 0.02, 0.30),
-            (CAP_NEAR[0] - 0.02, CAP_NEAR[1] - 0.20, 0.10), (CAP_NEAR[0], CAP_NEAR[1] - 0.06, CAP_NEAR[2] + 0.06),
-            (CAP_NEAR[0], CAP_NEAR[1], CAP_NEAR[2] + 0.030)], 0.008, HOSE_C),
+            (BOTTLE[0] - 0.10, BOTTLE[1] + 0.04, 0.012), (0.10, BOTTLE[1] + 0.04, 0.012), (0.10, CAP_NEAR[1] - 0.07, 0.012),
+            (CAP_NEAR[0] - 0.02, CAP_NEAR[1] - 0.04, CAP_NEAR[2] + 0.02), (CAP_NEAR[0], CAP_NEAR[1], CAP_NEAR[2] + 0.030)],
+           0.008, HOSE_C),  # (along the bench, round the rod's rack)
     # the oil bubbler (a glass bottle) and the exhaust hose from the far cap
     *_disc_mesh(np.array([BUBBLER[0], BUBBLER[1], 0.0]), Z, 0.035, 0.160, QUARTZ),
     *_hose([(CAP_FAR[0], CAP_FAR[1], CAP_FAR[2] + 0.030), (CAP_FAR[0], CAP_FAR[1] + 0.06, CAP_FAR[2] + 0.06),
@@ -385,6 +386,7 @@ BOATS = {"s_boat": (0.060, ALUMINA, SULFUR_C), "moo3_boat": (0.060, ALUMINA, MOO
 BOAT_Z = FLOOR_Z + 0.0003  # a boat on the tube's floor strip
 TRAY_Z = FLOOR_Z  # the tray's top: level with the tube's floor
 TRAY_X = {"chip_boat": XA + 0.050, "moo3_boat": XA + 0.085, "s_boat": XA + 0.120}  # in loading order from the front
+MOUTH_OUT_SET = 0.008  # a boat set in the tube's mouth by the demo: its back end this far out of the tube
 BACK_Y = -0.300  # the boats' back ends on the tray (the hand on a tongue clear of the rod's pusher)
 
 
@@ -418,21 +420,33 @@ CHIP_START = boat_start("chip_boat") + [0.0, 0.0, BOAT_T + CHIP_T / 2]
 CHIP_PART = part("chip", pos=tuple(CHIP_START), mass=0.0004, friction=0.8,  # (4x a real chip: steadier contact)
                  boxes=[((0.0, 0.0, 0.0), (CHIP, CHIP, CHIP_T), CHIP_C)])
 
-# -- the push rod (loose): fused quartz, 550 mm, 8 mm round, a 12 mm knob fused on its front (the pusher), on two V-topped
-# rests in line with the tube. Frame: on its axis at the pusher's front face, the rod along -y. ---------------------------
-ROD_L, GRIP_W, PUSHER_R = 0.550, 0.008, 0.006
-ROD_Z = BOAT_Z + 0.0075  # the rod's axis: its pusher on a boat's tongue, its lower edge 1.5 mm over the tube's floor
-ROD_START = np.array([XA, TUBE_Y0 - 0.135, TOP + ROD_Z])  # its pusher 35 mm ahead of the hand at FEED[0]
-ROD = part("push_rod", pos=tuple(ROD_START), mass=0.061, friction=0.7,
+# -- the push rod (loose): fused quartz, 8 mm round, a 12 mm knob fused on its front (the pusher) and a flat ring (36 mm
+# across, 3 mm thick) fused on its back end, to hold it by, its face turned 40 degrees from upright (towards the robots);
+# on a rack of two V rests beside the tube's line, nearer the robots. Frame: on its axis at the pusher's front face, the
+# rod along -y. ----------------------------------------------------------------------------------------------------------
+ROD_L, GRIP_W, PUSHER_R = 0.218, 0.008, 0.006
+RING_RO, RING_RI, RING_T = 0.018, 0.010, 0.003
+RING_Y = -(ROD_L + RING_RO - 0.001)  # the ring's centre, from the frame (on the rod's axis, behind its end)
+RING_TURN = math.radians(40.0)
+RING_U = np.array([math.cos(RING_TURN), 0.0, -math.sin(RING_TURN)])  # in the ring's plane, square to the rod
+RING_N = -np.array([math.sin(RING_TURN), 0.0, math.cos(RING_TURN)])  # the ring's face normal
+ROD_Z = BOAT_Z + 0.0075  # the rod's axis in use: its pusher on a boat's tongue, its lower edge 1.5 mm over the tube's floor
+RACK_X = XA - 0.060
+ROD_START = np.array([RACK_X, TUBE_Y0 - MOUTH_OUT_SET - 0.077, TOP + ROD_Z])  # racked (its pusher clear of the hand
+# setting a boat in the mouth)
+_RING = [_hex([sx * RING_T / 2 * RING_N + [0.0, RING_Y + r * math.cos(a), 0.0] + r * math.sin(a) * RING_U
+               for sx in (-1, 1) for r in (RING_RI, RING_RO) for a in (2 * math.pi * i / 12, 2 * math.pi * (i + 1) / 12)],
+              QUARTZ) for i in range(12)]
+ROD = part("push_rod", pos=tuple(ROD_START), mass=0.028, friction=0.7,
            cylinders=[((0.0, -0.002, 0.0), PUSHER_R, 0.004, QUARTZ, "Y"),
-                      ((0.0, -(0.004 + ROD_L) / 2, 0.0), GRIP_W / 2, ROD_L - 0.004, QUARTZ, "Y")])
-REST_Y = (-0.440, -0.640)  # the front one is under the rod even at its deepest push; the rear one holds its tail
-# until its front is well inside the tube (both on the bench)
+                      ((0.0, -(0.004 + ROD_L) / 2, 0.0), GRIP_W / 2, ROD_L - 0.004, QUARTZ, "Y")],
+           meshes=_RING)
+REST_Y = (ROD_START[1] - 0.030, ROD_START[1] - 0.150)  # the rack's two Vs, under the rod's body (clear of the ring)
 V_RISE = 0.006  # each rest's V: 6 mm deep over 10 mm each side (about 30 degrees), so the rod lies in it, not on it
 REST_Z = ROD_Z - 0.0002 - GRIP_W / 2 * math.hypot(1.0, (V_RISE - 0.0002) / 0.010)  # the rod's axis at ROD_Z in the V
-REST = part("rod_rests", pos=(0.0, 0.0, TOP), fixed=True, friction=0.05,  # PTFE-lined Vs: the rod slides easily
-            boxes=[((XA, y, REST_Z / 2), (0.020, 0.014, REST_Z), DARK) for y in REST_Y],
-            meshes=[_hex([(XA + sx * xo, y + dy, REST_Z + zo) for xo, zt in ((0.0, 0.0002), (0.010, V_RISE))
+REST = part("rod_rack", pos=(0.0, 0.0, TOP), fixed=True, friction=0.3,
+            boxes=[((RACK_X, y, REST_Z / 2), (0.020, 0.014, REST_Z), DARK) for y in REST_Y],
+            meshes=[_hex([(RACK_X + sx * xo, y + dy, REST_Z + zo) for xo, zt in ((0.0, 0.0002), (0.010, V_RISE))
                           for dy in (-0.007, 0.007) for zo in (0.0, zt)], DARK)
                     for y in REST_Y for sx in (-1, 1)])
 
@@ -805,23 +819,27 @@ def _tcp(tip, R=ROT_T, past=0.004):
     return np.asarray(tip, float) + a * past - a * TIP_ABOVE_TCP
 
 
-ROD_OPEN, ROD_HOLD = -0.012, 0.0  # round the 8 mm rod, squeezed hard (a looser grip slips)
+ROD_OPEN, ROD_HOLD = -0.012, 0.0  # across the rod's 3 mm ring, squeezed hard
 TONGUE_OPEN, TONGUE_HOLD = -0.012, -0.0015  # on a boat's 5 mm tongue: a light squeeze (a hard one shakes the boat)
-FEED = (-0.395, -0.275)  # each stroke on the rod: from here to here along y (reach behind, the tray's end in front)
-ROD_GRIP = 0.0  # the hand holds the rod at its axis' height: it neither lifts it nor presses it down (either tips it off a rest)
+ROT_R = np.column_stack([RING_N, np.cross(RING_U, RING_N), RING_U])  # in from the robots' side, tipped 40 deg down,
+O_R = Orient(ROT_R)  # closing square across the ring's faces
+RING_IN = 0.040  # the open hand comes in onto the ring (and backs off it) this far along its approach
+RING_LIFT = 0.012  # the rod lifted this much off its rack (clear of its Vs) to carry it over
 ROT_D = axis_angle_matrix(Y, TONGUE_TURN) @ _prev_grip(math.pi / 2)  # in from the front, tipped 55 deg,
 O_D = Orient(ROT_D)  # closing square across a boat's tongue
 assert abs(math.atan2(-ROT_D[2, 0], ROT_D[0, 0]) - TONGUE_TURN) < 1e-6  # the pads meet the tongue's faces flat
 LOAD_ORDER = ("chip_boat", "moo3_boat", "s_boat")  # the deepest first: boats cannot pass each other in the tube
 # (upstream is the loading end, where the argon comes in: the chip, furthest downstream, goes in first, sulfur last)
-TARGET = {"chip_boat": MO_AT + (CHIP_DMIN + CHIP_DMAX) / 2, "moo3_boat": MO_AT, "s_boat": S_AT}
+TARGET = {"chip_boat": -0.0075, "moo3_boat": MO_AT, "s_boat": S_AT}
+# (the chip boat goes as deep as the rod reaches; the MoO3 boat then pushes it on, by its tongue, to 67.5 mm downstream)
 MOUTH_HI = 0.004  # carried in this much above the tube's floor (a held boat droops a little)
-MOUTH_OUT = 0.008  # a boat set in the mouth: its back end this far out of the tube (most of it, and its weight, inside)
+MOUTH_OUT = MOUTH_OUT_SET  # a boat set in the mouth: its back end this far out (most of it, and its weight, inside)
 CARRY_UP = 0.030  # carried this high over the tray and the tube's end
 
 
-def _rod_at(y, z=ROD_Z):
-    return np.array([XA, y, TOP + z])
+def _ring_at(pusher_y, x=XA):
+    """The rod's ring centre with its pusher at pusher_y (the rod along y at ROD_Z, at x)."""
+    return np.array([x, pusher_y + RING_Y, TOP + ROD_Z])
 
 
 def _rod_seen_at(env, y):
@@ -832,9 +850,10 @@ def _rod_seen_at(env, y):
     return p + d * ((y - p[1]) / d[1])
 
 
-def _on_rod(p):
-    """TCP for the fingers round the rod at p, their tips 9 mm past its axis (so the pads, not the tips, hold it)."""
-    return _tcp(p, past=0.009)
+def _on_ring(c, back=0.0):
+    """TCP for the fingers across the ring centred at c, on the part of it nearest the robots (``back`` short of it)."""
+    band = np.asarray(c, float) - (RING_RI + RING_RO) / 2 * RING_U
+    return _tcp(band - back * RING_U, ROT_R, past=0.004)
 
 
 def _tongue(name, centre):
@@ -888,91 +907,40 @@ def demo():
             (0.6, _Dyn(_tcp(g_mouth, ROT_D, past=0.006), k_b), TONGUE_OPEN, "let go of the boat", O_D),
             (0.8, _Dyn(_tcp(g_mouth - 0.035 * a_d, ROT_D, past=0.006), k_b), TONGUE_OPEN, "back off the boat", O_D),
             (0.8, _Dyn(_tcp(g_mouth - 0.035 * a_d + 0.05 * up, ROT_D, past=0.006), k_b), TONGUE_OPEN, "up and away", O_D)])
-        # -- take the rod and push the boat to its place, stroke by stroke; then pull the rod back onto its rests -------
+        # -- take the rod by its ring off its rack; push the boat to its place in one stroke; pull the rod back out and
+        # put it back on its rack ---------------------------------------------------------------------------------------
         tongue_end = TUBE_Y0 - MOUTH_OUT - TONGUE_L
         p_goal = TARGET[name] - L / 2 - TONGUE_L  # the pusher there: the boat centred at its target
-        r_g0 = _rod_at(FEED[0], ROD_Z - ROD_GRIP)
-        seq = [(2.0, _on_rod(r_g0 + 0.09 * up), ROD_OPEN, "hand turned over the rod", O_T),
-               (1.0, _on_rod(r_g0 + 0.03 * up), ROD_OPEN, "down over the rod", O_T),
-               (1.0, _on_rod(r_g0), ROD_OPEN, "down round the rod", O_T),
-               (0.6, _on_rod(r_g0), ROD_HOLD, "close on the rod", O_T)]
-        cur = {"k": next(keys)}
-        k0 = cur["k"]
-
-        def stroke(y1, label, dur):
-            seq.append((dur, _Dyn(_on_rod(_rod_at(y1, ROD_Z - ROD_GRIP)), cur["k"]), ROD_HOLD, label, O_T))
-
-        def regrip(y_from, y_to):
-            """Let go, move along, line up on the rod as seen while hovering 3 cm over it, keep trimming on the way
-            down, then close."""
-            k_old, k_new = cur["k"], next(keys)
-            cur["k"] = k_new
-            over = _on_rod(_rod_at(y_to) + 0.03 * up)
-            seq.extend([(0.6, _Dyn(_on_rod(_rod_at(y_from, ROD_Z - ROD_GRIP)), k_old), ROD_OPEN, "let go of the rod", O_T),
-                        (0.8, _Dyn(_on_rod(_rod_at(y_from, ROD_Z - ROD_GRIP) + 0.03 * up), k_old), ROD_OPEN,
-                         "up off the rod", O_T),
-                        (1.2, _Dyn(over, k_new), ROD_OPEN, "along the rod", O_T)])
-            t0 = pl.t + sum(w[0] for w in seq)
-            pl.window(t0 + 0.1, t0 + 2.4, k_new,
-                      lambda env, y=y_to, key=k_new: (_rod_seen_at(env, y) - _rod_at(y) - _ct["trim"].get(key, np.zeros(3)))
-                      * [1.0, 0.0, 1.0], "push_rod")
-            seq.extend([(1.4, _Dyn(over, k_new), ROD_OPEN, "line up over the rod (seen)", O_T),
-                        (1.0, _Dyn(_on_rod(_rod_at(y_to, ROD_Z - ROD_GRIP)), k_new), ROD_OPEN, "down round the rod", O_T),
-                        (0.6, _Dyn(_on_rod(_rod_at(y_to, ROD_Z - ROD_GRIP)), k_new), ROD_HOLD, "close on the rod", O_T)])
-
-        span = FEED[1] - FEED[0]
-        hand_of = lambda pusher, grip_pusher, grip_hand: grip_hand + (pusher - grip_pusher)  # noqa: E731
-        # (never lifted: its rests, then the tube's floor, carry its weight; the hand only slides it, its grip a pivot)
-        touch = hand_of(tongue_end - 0.004, ROD_START[1], FEED[0])  # the hand, the pusher 4 mm from the tongue's end
-        stroke(touch - 0.010, "the pusher up behind the boat", 3.0)
-        t0 = pl.t + sum(w[0] for w in seq)
-        stroke(touch - 0.010, "hold still: the rod's tip seen in line with the tube", 1.5)
-        pl.window(t0 + 0.2, t0 + 1.5, k0,
-                  lambda env, y=tongue_end - 0.014: np.array([XA, 0.0, TOP + ROD_Z]) - _rod_seen_at(env, y) * [1.0, 0.0, 1.0],
+        on_rack, k_r = _ring_at(ROD_START[1], RACK_X), next(keys)
+        p_line = tongue_end - 0.008  # the pusher, in line, before going in
+        in_line = _ring_at(p_line)
+        seq = [(2.0, _on_ring(on_rack, RING_IN) + 0.05 * up, ROD_OPEN, "hand turned to the rod's ring, over it", O_R),
+               (1.0, _on_ring(on_rack, RING_IN), ROD_OPEN, "down beside the ring", O_R),
+               (1.0, _on_ring(on_rack), ROD_OPEN, "in round the ring", O_R),
+               (0.6, _on_ring(on_rack), ROD_HOLD, "close on the ring", O_R),
+               (1.0, _on_ring(on_rack + RING_LIFT * up), ROD_HOLD, "lift the rod off its rack", O_R),
+               (2.0, _on_ring(in_line + RING_LIFT * up), ROD_HOLD, "over to the tube's line", O_R),
+               (1.0, _Dyn(_on_ring(in_line), k_r), ROD_HOLD, "down in line with the tube", O_R)]
+        pl.phase(right=seq)
+        tw = pl.phase(right=[(1.8, _Dyn(_on_ring(in_line), k_r), ROD_HOLD, "hold still: the rod's tip seen in line", O_R)])
+        pl.window(tw + 0.3, tw + 1.8, k_r,
+                  lambda env: np.array([XA, 0.0, TOP + ROD_Z]) - _rod_seen_at(env, tongue_end - 0.010) * [1.0, 0.0, 1.0],
                   "push_rod")
-        stroke(touch, "the pusher to the boat's tongue", 1.0)
-        # strokes: the grip is at FEED[0] with the pusher at ROD_START; regrip back to FEED[0] after each full stroke
-        pusher, hand = ROD_START[1] + (touch - FEED[0]), touch
-        while True:
-            room = FEED[1] - hand
-            need = p_goal - pusher
-            if need <= room + 1e-6:
-                stroke(hand + need, "push the boat on to its place", max(1.5, 30.0 * need))
-                hand += need
-                pusher += need
-                break
-            stroke(FEED[1], "push the boat in, slowly", max(1.5, 40.0 * room))
-            pusher += room
-            hand = FEED[1]
-            regrip(FEED[1], FEED[0])
-            hand = FEED[0]
-        k_push = cur["k"]
-        pl.phase(right=seq)
-        tw = pl.phase(right=[(2.0, _Dyn(_on_rod(_rod_at(hand, ROD_Z - ROD_GRIP)), k_push), ROD_HOLD,
-                              "hold still: the boat seen in its place",
-                              O_T)])
-        pl.window(tw + 0.3, tw + 2.0, k_push,
-                  lambda env, n=name: np.array([0.0, TARGET[n] - _seen(env, n)[1], 0.0]), name)
-        # pull the rod back: the pusher to ROD_START, the hand's strokes back the other way
-        seq = []
-        back = pusher - ROD_START[1]
-        while back > 1e-6:
-            room = hand - FEED[0]
-            if back <= room + 1e-6:
-                stroke(hand - back, "pull the rod back out", max(1.5, 25.0 * back))
-                hand -= back
-                back = 0.0
-                break
-            stroke(FEED[0], "pull the rod back", max(1.5, 25.0 * room))
-            back -= room
-            hand = FEED[0]
-            regrip(FEED[0], FEED[1])
-            hand = FEED[1]
-        k = cur["k"]
-        seq += [(1.0, _Dyn(_on_rod(_rod_at(hand, ROD_Z - ROD_GRIP)), k), ROD_HOLD, "down onto its rests", O_T),
-                (0.6, _Dyn(_on_rod(_rod_at(hand, ROD_Z - ROD_GRIP)), k), ROD_OPEN, "let go of the rod", O_T),
-                (1.0, _Dyn(_on_rod(_rod_at(hand, ROD_Z - ROD_GRIP)) + 0.05 * up, k), ROD_OPEN, "up off the rod", O_T)]
-        pl.phase(right=seq)
+        touch = _ring_at(tongue_end - 0.003)
+        pl.phase(right=[(1.5, _Dyn(_on_ring(touch), k_r), ROD_HOLD, "the pusher up to the boat's tongue", O_R),
+                        (max(1.5, 40.0 * (p_goal - tongue_end)), _Dyn(_on_ring(_ring_at(p_goal)), k_r), ROD_HOLD,
+                         "push the boat in, slowly", O_R)])
+        tw = pl.phase(right=[(2.0, _Dyn(_on_ring(_ring_at(p_goal)), k_r), ROD_HOLD, "hold still: the boat seen in its place",
+                              O_R)])
+        pl.window(tw + 0.3, tw + 2.0, k_r, lambda env, n=name: np.array([0.0, TARGET[n] - _seen(env, n)[1], 0.0]), name)
+        pl.phase(right=[(max(1.5, 25.0 * (p_goal - p_line)), _Dyn(_on_ring(in_line), k_r), ROD_HOLD, "pull the rod back out",
+                         O_R),
+                        (1.0, _on_ring(in_line + RING_LIFT * up), ROD_HOLD, "lift it clear", O_R),
+                        (2.0, _on_ring(on_rack + RING_LIFT * up), ROD_HOLD, "over to its rack", O_R),
+                        (1.0, _on_ring(on_rack), ROD_HOLD, "down onto its rack", O_R),
+                        (0.6, _on_ring(on_rack), ROD_OPEN, "let go of the ring", O_R),
+                        (1.0, _on_ring(on_rack, RING_IN), ROD_OPEN, "back off the ring", O_R),
+                        (1.0, _on_ring(on_rack, RING_IN) + 0.05 * up, ROD_OPEN, "up, clear of the rod", O_R)])
     pl.phase(right=[(2.0, RIGHT_PARK, ROD_OPEN, "up and clear", O_T)])
     pl.phase(right=[(3.0, RIGHT_PARK, ROD_OPEN, "rest", O_T)], left=[(3.0, LEFT_PARK, ROD_OPEN, "rest", O_T)])
     return {"left": pl.L, "right": pl.R}
