@@ -14,7 +14,7 @@
   "scoring": "0 if any boat tips over 20 degrees or drops 30 mm, or the chip tilts over 30 degrees or its centre leaves the inside of its boat, at any time; 0 unless the boats, chip and rod moved under 1 mm in the last second. Otherwise 0.25 for each boat in the tube on its floor and in place: sulfur centred within 15 mm of 10 mm inside the furnace's near (upstream) end; MoO3 centred within 10 mm of the thermocouple; the chip boat's centre 50 to 80 mm downstream of the MoO3 boat's. 1.0 if all three are in place, the rod is back on its rack (within 15 mm of its start) and every fingertip is 8 cm or more from the rod and the boats.",
   "run_limit": "4,800 steps (4 minutes at 20 Hz)",
   "reset_notes": "Put the boats back on the tray and the rod on its rests; the powders and the chip are reused.",
-  "fidelity": "Rigid-body sim. Furnace, tube, tray and rack are fixed; boats, chip and rod are loose with real sizes and masses, except the chip at 0.4 g (4x real) for a steady contact. Powder is a solid layer in each boat, so spills are scored by tilt. No heat, gas flow or growth: the layout is scored from positions. The tube's floor is a flat quartz strip as wide as a boat.",
+  "fidelity": "Rigid-body sim. Furnace, tube, tray and rack are fixed; boats, chip and rod are loose with real sizes and masses, except the chip at 0.4 g (4x real) for a steady contact. Powder is a solid layer in each boat, so spills are scored by tilt. No heat, gas flow or growth: the layout is scored from positions. The tube's floor is a flat quartz strip as wide as a boat. Quartz renders opaque: once in the tube, a boat's place shows only by the rod's depth.",
   "scores": "Dream-1 run: pending; demo: pending",
   "media": ""
 }

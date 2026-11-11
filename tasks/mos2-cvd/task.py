@@ -558,8 +558,8 @@ def distance(objects):
 
 # -- scripted demo ----------------------------------------------------------------------------------------------------
 # The right hand loads the boats deepest first: picks each up from the tray by its tongue, sets it in the tube's mouth
-# (lined up by eye), then takes the push rod and pushes the boat, stroke by stroke, to its place (seen), and pulls the
-# rod back onto its rests. Aims are trimmed only by what a camera sees: the boats and the rod.
+# (lined up by eye), then takes the push rod by its ring and pushes the boat to its place (judged by the rod's depth),
+# and puts the rod back on its rack. Aims are trimmed only by what a camera sees: the boats outside the tube, the rod.
 
 from yam_arena import ik as _ik  # noqa: E402
 from yam_arena.constants import READY as _READY  # noqa: E402
@@ -930,9 +930,10 @@ def demo():
         pl.phase(right=[(1.5, _Dyn(_on_ring(touch), k_r), ROD_HOLD, "the pusher up to the boat's tongue", O_R),
                         (max(1.5, 40.0 * (p_goal - tongue_end)), _Dyn(_on_ring(_ring_at(p_goal)), k_r), ROD_HOLD,
                          "push the boat in, slowly", O_R)])
-        tw = pl.phase(right=[(2.0, _Dyn(_on_ring(_ring_at(p_goal)), k_r), ROD_HOLD, "hold still: the boat seen in its place",
+        tw = pl.phase(right=[(2.0, _Dyn(_on_ring(_ring_at(p_goal)), k_r), ROD_HOLD, "hold still: the rod seen at its depth",
                               O_R)])
-        pl.window(tw + 0.3, tw + 2.0, k_r, lambda env, n=name: np.array([0.0, TARGET[n] - _seen(env, n)[1], 0.0]), name)
+        pl.window(tw + 0.3, tw + 2.0, k_r,  # (the boat is out of sight in the tube: judged by the rod's depth)
+                  lambda env, g=p_goal: np.array([0.0, g - _seen(env, "push_rod")[1], 0.0]), "push_rod")
         pl.phase(right=[(max(1.5, 25.0 * (p_goal - p_line)), _Dyn(_on_ring(in_line), k_r), ROD_HOLD, "pull the rod back out",
                          O_R),
                         (1.0, _on_ring(in_line + RING_LIFT * up), ROD_HOLD, "lift it clear", O_R),
