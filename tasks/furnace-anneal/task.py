@@ -535,7 +535,7 @@ CHIPS = [part(f"chip{i}", pos=tuple(CHIP_START[i]), mass=0.00008, friction=0.8,
 # -- the hook rod (loose): stainless, 390 mm, 6 mm round its whole length, a 10 mm pusher disc at its front. Frame: origin
 # on its axis at the pusher's front face, the rod along -y. -----------------------------------------------------------------
 ROD_L, GRIP_W, PUSHER_R = 0.390, 0.006, 0.005
-ROD_START = np.array([XA, TUBE_Y0 - 0.130, TOP + AXZ - 0.0015])  # on its rests in line with the tube, room in front for the boat
+ROD_START = np.array([XA, TUBE_Y0 - 0.150, TOP + AXZ - 0.0015])  # on its rests in line with the tube, room in front for the boat
 ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.090, friction=0.7,
            cylinders=[((0.0, -0.0015, 0.0), PUSHER_R, 0.003, STEEL, "Y"),
                       ((0.0, -(0.003 + ROD_L) / 2, 0.0), GRIP_W / 2, ROD_L - 0.003, STEEL, "Y")])
@@ -1087,7 +1087,7 @@ TONGUE_OPEN, TONGUE_HOLD = -0.012, 0.0  # on the boat's 4 mm thick tongue (squee
 BAR_OPEN, BAR_HOLD = -0.016, -0.0010  # round the lid's 8 mm handle bar (squeezed)
 WIDE = -0.030
 HOLD_Y = 0.290  # where the left hand holds the tube: past the furnace's end, before the far flange
-FEED = (-0.390, -0.270)  # each stroke on the rod: from here to here along y (reach behind, the near rest in front)
+FEED = (-0.395, -0.275)  # each stroke on the rod: from here to here along y (reach behind, the near rest in front)
 H_IN = HOT_Y - BOAT_L / 2 - TONGUE_L  # the pusher at the boat centred under the thermocouple (its tongue's end)
 LID_OPEN = math.radians(85.0)  # the lid lifted (all but upright): the tube, the boat and the thermocouple's tip in view
 BAR = np.array([FX0 - LID_HANDLE_OUT, LID_HANDLE_Y, TOP + LID_HANDLE_Z])
@@ -1121,6 +1121,9 @@ def _lid_grip_rot(phi, sgn, psi):
 LID_GRIP_A = _lid_grip_rot(120.0, -1, -55.0)  # holds the handle from shut to 55 degrees
 LID_GRIP_B = _lid_grip_rot(75.0, 1, 0.0)  # and from 55 degrees to (nearly) upright
 LID_SWAP = math.radians(55.0)
+LID_VIA = [np.array([0.17, 0.27, TOP + 0.50]),  # up over the furnace's end, then down in front of it to take its handle
+           np.array([float(os.environ.get("FA_VX", "0.04")), float(os.environ.get("FA_VY", "0.10")),
+                     TOP + float(os.environ.get("FA_VZ", "0.36"))])]
 
 
 def _lid(theta, R0):
@@ -1229,12 +1232,16 @@ def demo():
     ROT_D = axis_angle_matrix(Y, -math.radians(70.0)) @ _prev_grip(math.pi / 2)  # in from the front, 20 deg down,
     O_D = Orient(ROT_D)  # the fingers closing nearly up and down (on the boat's tongue)
 
-    def _lid_moves(thetas, R0, label, first, pre=0.03):
+    def _lid_moves(thetas, R0, label, first, pre=0.03, via=None):
         """Take the handle (grip R0) at thetas[0] coming in along the grip, turn the lid through thetas, let go, back
-        off along the grip."""
+        off along the grip. ``via``: first to here (the hand already turned), clear of the furnace."""
         p, R = _lid(thetas[0], R0)
         a = _appr(R)
-        out = [(2.0, _tcp(p - a * pre, R, past=0.002), BAR_OPEN, first, Orient(R)),
+        out = []
+        for k, v in enumerate(via or []):
+            out.append((2.5 if k == 0 else 1.5, _tcp(np.asarray(v, float), R, past=0.002), BAR_OPEN,
+                        first if k == 0 else "down in front of the lid", Orient(R)))
+        out += [(2.0, _tcp(p - a * pre, R, past=0.002), BAR_OPEN, first if not via else "in to the handle", Orient(R)),
                (1.0, _tcp(p, R, past=0.002), BAR_OPEN, "round the handle", Orient(R)),
                (0.6, _tcp(p, R, past=0.002), BAR_HOLD, "close on the handle", Orient(R))]
         for th in thetas[1:]:
@@ -1291,7 +1298,7 @@ def demo():
                  left=[(2.0, _READY_L[0] + 0.07 * up, KNOB_OPEN, "straight up, off the bleed valve's grip",
                         Orient(_READY_L[1]))])
     lid = [*_lid_moves([0.0, math.radians(15), math.radians(30), math.radians(45), LID_SWAP], LID_GRIP_A,
-                       "lift the lid", first="hand turned to the lid's handle"),
+                       "lift the lid", first="hand turned, in front of the lid", via=LID_VIA),
            *_lid_moves([LID_SWAP, math.radians(70), LID_OPEN], LID_GRIP_B, "lift the lid (on up)",
                        first="the hand round to hold the handle from above")]
     pl.phase(left=lid)
