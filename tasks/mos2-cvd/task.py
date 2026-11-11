@@ -383,7 +383,7 @@ TONGUE_Z = BOAT_T + TONGUE_R  # the tongue's axis, over the boat's underside
 BOATS = {"s_boat": (0.060, ALUMINA, SULFUR_C), "moo3_boat": (0.060, ALUMINA, MOO3_C), "chip_boat": (0.035, QBOAT_C, None)}
 BOAT_Z = FLOOR_Z + 0.0003  # a boat on the tube's floor strip
 TRAY_Z = FLOOR_Z  # the tray's top: level with the tube's floor
-TRAY_X = {"s_boat": XA + 0.050, "moo3_boat": XA + 0.080, "chip_boat": XA + 0.110}  # side by side, out from the tube
+TRAY_X = {"chip_boat": XA + 0.050, "moo3_boat": XA + 0.085, "s_boat": XA + 0.120}  # in loading order from the front
 BACK_Y = -0.330  # the boats' back ends on the tray
 
 
