@@ -363,11 +363,12 @@ NEEDLE = Joint("needle", kind="hinge", axis="Z", anchor=tuple(_na),
 # the quick clamp: an arm hinged on the collar's top that reaches over the plate and hooks its outside face; flipped up
 # by its lever (opening it), pushed back down over the plate (closing it). Closed is 0; open is turned up past 80 deg.
 CLAMP_OPEN, CLAMP_UP = math.radians(80.0), math.radians(110.0)
+CLAMP_K, CLAMP_SLIP = 0.5, 0.08  # its hinge is stiff too: it stays open or shut where it is left
 PLATE_T, PLATE_R = 0.006, FLANGE_R  # the blank plate: 6 mm stainless, as wide as the flange
 _cz = CLAMP_PIVOT[2]
 _hook_y = TUBE_Y0 - PLATE_T - 0.0012  # the hook's inside face, 1.2 mm off the plate's outside
 CLAMP = Joint("clamp", kind="hinge", axis="X", anchor=CLAMP_PIVOT, lower=-CLAMP_UP, upper=0.0,
-              stiffness=0.0, damping=0.02, friction=0.02, initial=0.0, mass=0.002,
+              stiffness=CLAMP_K, damping=0.02, friction=0.02, initial=0.0, mass=0.002,
               boxes=[((XA, (CLAMP_PIVOT[1] + _hook_y - 0.004) / 2, _cz + 0.002),
                       (0.012, CLAMP_PIVOT[1] - _hook_y + 0.004, 0.004), STAINLESS),  # the arm
                      ((XA, _hook_y - 0.002, _cz - 0.006), (0.012, 0.004, 0.020), STAINLESS),  # the hook
@@ -574,7 +575,7 @@ def _hinge_hold(env, part_name, joint, key, lo, hi, slip):
 @on_step
 def _holds(env):
     _hinge_hold(env, "tube_furnace", LID, "lid_t", 0.0, LID_UP, LID_SLIP)  # the lid stays where it is left
-    _hinge_hold(env, "quartz_tube", CLAMP, "clamp_t", -CLAMP_UP, 0.0, 0.05)  # so does the clamp (open or shut)
+    _hinge_hold(env, "quartz_tube", CLAMP, "clamp_t", -CLAMP_UP, 0.0, CLAMP_SLIP)  # so does the clamp (open or shut)
 
 
 _gas = {}
