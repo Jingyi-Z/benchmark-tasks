@@ -415,7 +415,7 @@ BOAT_TRAY = part("boat_tray", pos=(0.0, 0.0, TOP), fixed=True, friction=0.6,
 # -- the chip (loose): 10 x 10 x 0.5 mm SiO2/Si, face up (its oxide shows purple) in the quartz boat ---------------------
 CHIP, CHIP_T = 0.010, 0.0005
 CHIP_START = boat_start("chip_boat") + [0.0, 0.0, BOAT_T + CHIP_T / 2]
-CHIP_PART = part("chip", pos=tuple(CHIP_START), mass=0.0001, friction=0.8,
+CHIP_PART = part("chip", pos=tuple(CHIP_START), mass=0.0004, friction=0.8,  # (4x a real chip: steadier contact)
                  boxes=[((0.0, 0.0, 0.0), (CHIP, CHIP, CHIP_T), CHIP_C)])
 
 # -- the push rod (loose): stainless, 500 mm, 6 mm round, a 10 mm pusher disc at its front, on two V-topped rests in line
@@ -805,7 +805,7 @@ def _tcp(tip, R=ROT_T, past=0.004):
 
 
 ROD_OPEN, ROD_HOLD = -0.012, 0.0  # round the 6 mm rod, squeezed hard (a looser grip slips)
-TONGUE_OPEN, TONGUE_HOLD = -0.012, 0.0  # on a boat's 5 mm tongue (squeezed)
+TONGUE_OPEN, TONGUE_HOLD = -0.012, -0.0015  # on a boat's 5 mm tongue: a light squeeze (a hard one shakes the boat)
 FEED = (-0.395, -0.275)  # each stroke on the rod: from here to here along y (reach behind, the tray's end in front)
 ROD_GRIP = 0.0015  # (the hand holds the rod a little under its axis' height: its pads, not its tips, on it)
 ROT_D = axis_angle_matrix(Y, TONGUE_TURN) @ _prev_grip(math.pi / 2)  # in from the front, tipped 55 deg,
@@ -915,8 +915,8 @@ def demo():
                       lambda env, y=y_to, key=k_new: (_rod_seen_at(env, y) - _rod_at(y) - _ct["trim"].get(key, np.zeros(3)))
                       * [1.0, 0.0, 1.0], "push_rod")
             seq.extend([(1.4, _Dyn(over, k_new), ROD_OPEN, "line up over the rod (seen)", O_T),
-                        (1.0, _Dyn(_on_rod(_rod_at(y_to)), k_new), ROD_OPEN, "down round the rod", O_T),
-                        (0.6, _Dyn(_on_rod(_rod_at(y_to)), k_new), ROD_HOLD, "close on the rod", O_T)])
+                        (1.0, _Dyn(_on_rod(_rod_at(y_to, ROD_Z - ROD_GRIP)), k_new), ROD_OPEN, "down round the rod", O_T),
+                        (0.6, _Dyn(_on_rod(_rod_at(y_to, ROD_Z - ROD_GRIP)), k_new), ROD_HOLD, "close on the rod", O_T)])
 
         span = FEED[1] - FEED[0]
         hand_of = lambda pusher, grip_pusher, grip_hand: grip_hand + (pusher - grip_pusher)  # noqa: E731
