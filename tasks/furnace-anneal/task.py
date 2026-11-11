@@ -213,10 +213,10 @@ def _hose(pts, w, colour):
 # its front towards the robots: a base with the controller, the heated lower half, and a lid hinged along the back that
 # lifts (to 90 degrees, fully open) by a handle at the middle of its front. The tube runs across it along y. -------------
 DESK = 0.050  # the desk's top: the furnace stands on it, so the controller and the gauge face the camera more squarely
-XA, AXZ = 0.275, DESK + 0.220  # the tube's axis: x, height above the bench
+XA, AXZ = 0.240, DESK + 0.220  # the tube's axis: x, height above the bench
 TUBE_R, TUBE_IN = 0.0127, 0.0110  # 1 inch quartz tube: 25.4 mm outside, 22 mm inside
 TUBE_Y0, TUBE_Y1 = -0.225, 0.385  # the tube's ends: the loading end (towards the right arm) and the far end
-FX0, FX1, FY0, FY1 = 0.135, 0.415, -0.165, 0.245  # the furnace body: front, back, ends (410 mm wide, 280 mm deep)
+FX0, FX1, FY0, FY1 = 0.100, 0.380, -0.165, 0.245  # the furnace body: front, back, ends (410 mm wide, 280 mm deep)
 BASE_Z = DESK + 0.110  # the base (controller) under the heated chamber
 LID_Z1 = DESK + 0.360  # the lid's top
 HOT_Y = (FY0 + FY1) / 2  # the hot zone's centre, where the thermocouple's tip is
@@ -388,7 +388,7 @@ ARGON_C = (0.25, 0.48, 0.30)  # the gas bottle (argon: green shoulder)
 VALVE_SHUT = math.radians(80.0)  # a valve counts as shut once its lever is turned this far
 ARGON_PIVOT = (XA - 0.075, -0.200, AXZ + 0.004)  # the inlet valve, in front of the loading end
 BLEED_PIVOT = (XA - 0.075, 0.375, AXZ + 0.004)  # the bleed valve, in front of the far end
-BOTTLE = (0.47, -0.36)  # the argon bottle, behind the loading end
+BOTTLE = (0.52, -0.30)  # the argon bottle, behind the loading end
 
 
 def _valve(name, pivot, sign, lever_open):
@@ -412,9 +412,9 @@ LINE_MESHES = [
     *_disc_mesh(np.array([BOTTLE[0], BOTTLE[1], 0.0]), Z, 0.040, 0.250, (0.55, 0.56, 0.58)),
     *_disc_mesh(np.array([BOTTLE[0], BOTTLE[1], 0.250]), Z, 0.040, 0.050, ARGON_C),
     _box_mesh((BOTTLE[0], BOTTLE[1], 0.315), (0.030, 0.030, 0.030), BRASS),
-    *_hose([(BOTTLE[0] - 0.015, BOTTLE[1], 0.315), (BOTTLE[0] - 0.08, BOTTLE[1], 0.30), (ARGON_PIVOT[0] + 0.02, -0.30, 0.10),
-            (ARGON_PIVOT[0] + 0.02, ARGON_PIVOT[1] - 0.05, 0.05), (ARGON_PIVOT[0], ARGON_PIVOT[1] - 0.013, ARGON_PIVOT[2] - 0.004)],
-           0.006, HOSE_C),
+    *_hose([(BOTTLE[0] - 0.015, BOTTLE[1], 0.315), (BOTTLE[0] - 0.06, BOTTLE[1], 0.29), (BOTTLE[0] - 0.07, -0.215, 0.004),
+            (ARGON_PIVOT[0] + 0.010, -0.215, 0.004), (ARGON_PIVOT[0] + 0.010, ARGON_PIVOT[1] - 0.012, 0.03),
+            (ARGON_PIVOT[0], ARGON_PIVOT[1] - 0.013, ARGON_PIVOT[2] - 0.004)], 0.006, HOSE_C),
     *_hose([(ARGON_PIVOT[0], ARGON_PIVOT[1] + 0.013, ARGON_PIVOT[2] - 0.004),
             (ARGON_PIVOT[0] + 0.02, ARGON_PORT[1] - 0.010, AXZ - 0.004), (ARGON_PORT[0] - 0.004, ARGON_PORT[1], AXZ)],
            0.006, HOSE_C),
@@ -444,7 +444,7 @@ PLATE = part("end_plate", pos=tuple(PLATE_START), mass=0.10, friction=0.4,
                         ((0.0, 0.0015, 0.0), 0.0070, 0.003, DARK, "Y"),
                         ((0.0, -PLATE_T - KNOB_L / 2, 0.0), KNOB_R, KNOB_L, DARK, "Y")])
 # its stand (fixed): a post with a V cradle the plate stands in, on edge, knob towards -y
-PLATE_REST = np.array([0.195, -0.380, TOP + AXZ - 0.020])  # the plate's centre on the stand
+PLATE_REST = np.array([XA - 0.090, -0.380, TOP + AXZ - 0.020])  # the plate's centre on the stand
 _vz = PLATE_REST[2] - TOP - PLATE_R * 0.90  # the V's bottom
 PLATE_STAND = part("plate_stand", pos=(0.0, 0.0, TOP), fixed=True, friction=0.6,
                    boxes=[((PLATE_REST[0], PLATE_REST[1] - PLATE_T / 2, (_vz - 0.004) / 2),
