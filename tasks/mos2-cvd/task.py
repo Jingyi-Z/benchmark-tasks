@@ -899,7 +899,7 @@ def demo():
         k0 = cur["k"]
 
         def stroke(y1, label, dur):
-            seq.append((dur, _Dyn(_on_rod(_rod_at(y1)), cur["k"]), ROD_HOLD, label, O_T))
+            seq.append((dur, _Dyn(_on_rod(_rod_at(y1, ROD_Z - ROD_GRIP)), cur["k"]), ROD_HOLD, label, O_T))
 
         def regrip(y_from, y_to):
             """Let go, move along, line up on the rod as seen while hovering 3 cm over it, keep trimming on the way
@@ -907,8 +907,9 @@ def demo():
             k_old, k_new = cur["k"], next(keys)
             cur["k"] = k_new
             over = _on_rod(_rod_at(y_to) + 0.03 * up)
-            seq.extend([(0.6, _Dyn(_on_rod(_rod_at(y_from)), k_old), ROD_OPEN, "let go of the rod", O_T),
-                        (0.8, _Dyn(_on_rod(_rod_at(y_from) + 0.03 * up), k_old), ROD_OPEN, "up off the rod", O_T),
+            seq.extend([(0.6, _Dyn(_on_rod(_rod_at(y_from, ROD_Z - ROD_GRIP)), k_old), ROD_OPEN, "let go of the rod", O_T),
+                        (0.8, _Dyn(_on_rod(_rod_at(y_from, ROD_Z - ROD_GRIP) + 0.03 * up), k_old), ROD_OPEN,
+                         "up off the rod", O_T),
                         (1.2, _Dyn(over, k_new), ROD_OPEN, "along the rod", O_T)])
             t0 = pl.t + sum(w[0] for w in seq)
             pl.window(t0 + 0.1, t0 + 2.4, k_new,
@@ -920,7 +921,7 @@ def demo():
 
         span = FEED[1] - FEED[0]
         hand_of = lambda pusher, grip_pusher, grip_hand: grip_hand + (pusher - grip_pusher)  # noqa: E731
-        seq.append((1.0, _on_rod(_rod_at(FEED[0])), ROD_HOLD, "lift the rod off its rests", O_T))
+        # (never lifted: its rests, then the tube's floor, carry its weight; the hand only slides it, its grip a pivot)
         touch = hand_of(tongue_end - 0.004, ROD_START[1], FEED[0])  # the hand, the pusher 4 mm from the tongue's end
         stroke(touch - 0.010, "the pusher up behind the boat", 3.0)
         t0 = pl.t + sum(w[0] for w in seq)
@@ -946,7 +947,8 @@ def demo():
             hand = FEED[0]
         k_push = cur["k"]
         pl.phase(right=seq)
-        tw = pl.phase(right=[(2.0, _Dyn(_on_rod(_rod_at(hand)), k_push), ROD_HOLD, "hold still: the boat seen in its place",
+        tw = pl.phase(right=[(2.0, _Dyn(_on_rod(_rod_at(hand, ROD_Z - ROD_GRIP)), k_push), ROD_HOLD,
+                              "hold still: the boat seen in its place",
                               O_T)])
         pl.window(tw + 0.3, tw + 2.0, k_push,
                   lambda env, n=name: np.array([0.0, TARGET[n] - _seen(env, n)[1], 0.0]), name)
