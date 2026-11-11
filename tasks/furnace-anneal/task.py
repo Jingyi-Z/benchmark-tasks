@@ -404,7 +404,7 @@ NEEDLE = Joint("needle", kind="hinge", axis="Z", anchor=tuple(_na),
 # the quick clamp: an arm hinged on the collar's top that reaches over the plate and hooks its outside face; flipped up
 # by its lever (opening it), pushed back down over the plate (closing it). Closed is 0; open is turned up past 80 deg.
 CLAMP_OPEN, CLAMP_UP = math.radians(80.0), math.radians(110.0)
-CLAMP_K, CLAMP_SLIP = 0.5, 0.08  # its hinge is stiff too: it stays open or shut where it is left
+CLAMP_K, CLAMP_SLIP = 2.0, 0.08  # its hinge is stiff too: it stays open or shut where it is left
 PLATE_T, PLATE_R = 0.006, FLANGE_R  # the blank plate: 6 mm stainless, as wide as the flange
 _cz = CLAMP_PIVOT[2]
 _hook_y = TUBE_Y0 - PLATE_T - 0.0012  # the hook's inside face, 1.2 mm off the plate's outside
@@ -509,7 +509,7 @@ PLATE_STAND = part("plate_stand", pos=(0.0, 0.0, TOP), fixed=True, friction=0.6,
 # behind it at its floor, to hold it by and for the rod's pusher. In the tube it sits on the floor strip, 7.5 mm under
 # the axis. It starts on a tray in front of the loading end, in line with the tube. Frame: origin at the centre of its underside. ---------------------
 BOAT_L, BOAT_W, BOAT_H, BOAT_T, BACK_H = 0.080, 0.015, 0.008, 0.0015, 0.012
-TONGUE_L, TONGUE_W, TONGUE_T = 0.016, 0.012, 0.004
+TONGUE_L, TONGUE_W, TONGUE_T = 0.020, 0.012, 0.004
 ALUMINA = (0.97, 0.96, 0.93)
 BOAT_Z = FLOOR_Z + 0.0003  # on the floor strip
 TRAY = np.array([XA, -0.296, AXZ - 0.032])  # the tray's top centre: in line with the tube, in front of its mouth
@@ -1189,9 +1189,11 @@ def _push_open(th):
     return np.array(CLAMP_PIVOT) + [0.0, 0.0, TOP] + axis_angle_matrix(X, th) @ np.array([0.0, _LEVER_OUT - 0.005, 0.016])
 
 
+ROT_P = axis_angle_matrix(Y, -math.radians(65.0)) @ _prev_grip(math.pi / 2)  # tipped 65 deg (in from the front), closing across a knob
+O_P = Orient(ROT_P)  # along y (above and below it)
 ROT_K = axis_angle_matrix(Y, -math.radians(55.0)) @ _prev_grip(0.0)  # tipped 55 deg, closing along y (across the lever)
 _TAB = np.array([0.0, _hook_y - 0.002 - CLAMP_PIVOT[1], 0.016])  # the clamp lever's middle, from its hinge (shut)
-CLAMP_TO = -45.0  # degrees: the clamp turned up this far, its hook is clear of the plate (it slides out under it)
+CLAMP_TO = -45.0  # degrees: the clamp turned up and over, its hook clear of the plate and of the hand on its knob
 
 
 def _tab(th):
@@ -1325,17 +1327,17 @@ def demo():
                     (0.8, _tcp(_tab(CLAMP_TO)[0] - 0.035 * X + 0.02 * up, _tab(-10.0)[1], past=0.004), TAB_OPEN,
                      "back off the lever, the wrist turning back", Orient(_tab(-10.0)[1]))])
     # -- 5. right takes the plate off (the gauge in its green band, the argon shut) and stands it on its stand ---------
-    k0 = PLATE_START + [0.0, -PLATE_T - KNOB_L / 2, 0.0]
-    kr = PLATE_REST + [0.0, -PLATE_T - KNOB_L / 2, 0.0]
-    pl.phase(right=[(1.5, _tcp(k0 + 0.04 * up), PK_OPEN, "hand turned over the plate's knob", O_T),
-                    (1.0, _tcp(k0), PK_OPEN, "down round the knob", O_T),
-                    (0.6, _tcp(k0), PK_HOLD, "close on the knob", O_T),
-                    (1.5, _tcp(k0 - 0.018 * Y), PK_HOLD, "pull the plate off (the gauge in the green)", O_T),
-                    (1.0, _tcp(k0 - 0.018 * Y + 0.035 * up), PK_HOLD, "lift the plate", O_T),
-                    (2.0, _tcp(kr + 0.04 * up), PK_HOLD, "the plate over its stand", O_T),
-                    (1.2, _tcp(kr + 0.002 * up), PK_HOLD, "the plate down in its stand", O_T),
-                    (0.5, _tcp(kr + 0.002 * up), PK_OPEN, "let go of the plate", O_T),
-                    (0.8, _tcp(kr + 0.05 * up), PK_OPEN, "up off the plate", O_T)])
+    k0 = PLATE_START + [0.0, -PLATE_T - KNOB_L / 2 - 0.003, 0.0]  # the fingers across the knob, 3 mm out from its middle
+    kr = PLATE_REST + [0.0, -PLATE_T - KNOB_L / 2 - 0.003, 0.0]
+    pl.phase(right=[(1.5, _tcp(k0 + 0.04 * up, ROT_P), PK_OPEN, "hand turned over the plate's knob", O_P),
+                    (1.0, _tcp(k0, ROT_P), PK_OPEN, "down round the knob", O_P),
+                    (0.6, _tcp(k0, ROT_P), PK_HOLD, "close on the knob", O_P),
+                    (1.5, _tcp(k0 - 0.018 * Y, ROT_P), PK_HOLD, "pull the plate off (the gauge in the green)", O_P),
+                    (1.0, _tcp(k0 - 0.018 * Y + 0.035 * up, ROT_P), PK_HOLD, "lift the plate", O_P),
+                    (2.0, _tcp(kr + 0.04 * up, ROT_P), PK_HOLD, "the plate over its stand", O_P),
+                    (1.2, _tcp(kr + 0.002 * up, ROT_P), PK_HOLD, "the plate down in its stand", O_P),
+                    (0.5, _tcp(kr + 0.002 * up, ROT_P), PK_OPEN, "let go of the plate", O_P),
+                    (0.8, _tcp(kr + 0.05 * up, ROT_P), PK_OPEN, "up off the plate", O_P)])
     # -- 6. right picks the boat up from its tray by its tongue and sets it in the tube's mouth, lined up by eye --------
     tg = BOAT_START + [0.0, -BOAT_L / 2 - TONGUE_L / 2, TONGUE_T / 2]
     a_d = _appr(ROT_D)
@@ -1427,21 +1429,21 @@ def demo():
     pl.phase(right=seq)
     # -- 9. right puts the plate back on, in line with the tube (seen), fully home; then shuts the clamp over it --------
     pre_k = k0 - [0.0, 0.025, 0.0]
-    pl.phase(right=[(2.5, _tcp(kr + 0.05 * up), PK_OPEN, "hand turned over the plate on its stand", O_T),
-                    (1.2, _tcp(kr + 0.002 * up), PK_OPEN, "down round the knob", O_T),
-                    (0.6, _tcp(kr + 0.002 * up), PK_HOLD, "close on the knob", O_T),
-                    (1.0, _tcp(kr + 0.04 * up), PK_HOLD, "lift the plate", O_T),
-                    (2.0, _tcp(pre_k + 0.035 * up), PK_HOLD, "the plate over the tube's end", O_T),
-                    (1.5, _Dyn(_tcp(pre_k), "c1"), PK_HOLD, "the plate in front of the tube's end", O_T)])
-    tw = pl.phase(right=[(2.0, _Dyn(_tcp(pre_k), "c1"), PK_HOLD, "hold still: the plate seen in line", O_T)])
+    pl.phase(right=[(2.5, _tcp(kr + 0.05 * up, ROT_P), PK_OPEN, "hand turned over the plate on its stand", O_P),
+                    (1.2, _tcp(kr + 0.002 * up, ROT_P), PK_OPEN, "down round the knob", O_P),
+                    (0.6, _tcp(kr + 0.002 * up, ROT_P), PK_HOLD, "close on the knob", O_P),
+                    (1.0, _tcp(kr + 0.04 * up, ROT_P), PK_HOLD, "lift the plate", O_P),
+                    (2.0, _tcp(pre_k + 0.035 * up, ROT_P), PK_HOLD, "the plate over the tube's end", O_P),
+                    (1.5, _Dyn(_tcp(pre_k, ROT_P), "c1"), PK_HOLD, "the plate in front of the tube's end", O_P)])
+    tw = pl.phase(right=[(2.0, _Dyn(_tcp(pre_k, ROT_P), "c1"), PK_HOLD, "hold still: the plate seen in line", O_P)])
     pl.window(tw + 0.4, tw + 2.0, "c1",
               lambda env: np.array([XA - _seen(env, "end_plate")[0], 0.0, TOP + AXZ - _seen(env, "end_plate")[2]]),
               "end_plate")
     home = k0 + [0.0, 0.0005, 0.0]
-    pl.phase(right=[(2.0, _Dyn(_tcp(home), "c1"), PK_HOLD, "push the plate home", O_T),
-                    (0.6, _Dyn(_tcp(home), "c1"), PK_HOLD, "hold it home", O_T),
-                    (0.5, _Dyn(_tcp(home), "c1"), PK_OPEN, "let go of the plate", O_T),
-                    (0.8, _Dyn(_tcp(home) - 0.02 * Y + 0.03 * up, "c1"), PK_OPEN, "back off the plate", O_T),
+    pl.phase(right=[(2.0, _Dyn(_tcp(home, ROT_P), "c1"), PK_HOLD, "push the plate home", O_P),
+                    (0.6, _Dyn(_tcp(home, ROT_P), "c1"), PK_HOLD, "hold it home", O_P),
+                    (0.5, _Dyn(_tcp(home, ROT_P), "c1"), PK_OPEN, "let go of the plate", O_P),
+                    (0.8, _Dyn(_tcp(home, ROT_P) - 0.02 * Y + 0.03 * up, "c1"), PK_OPEN, "back off the plate", O_P),
                     (1.5, _tcp(_tab(CLAMP_TO)[0] - 0.035 * X + 0.02 * up, _tab(-10.0)[1], past=0.004), TAB_OPEN,
                      "hand turned to the clamp's lever", Orient(_tab(-10.0)[1])),
                     (0.8, _tcp(_tab(CLAMP_TO)[0], _tab(CLAMP_TO)[1], past=0.004), TAB_OPEN, "down round the lever",
