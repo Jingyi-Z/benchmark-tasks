@@ -193,15 +193,32 @@ def _digits(text, x, y0, z0, h, colour):
     return _boxes_mesh(out, colour)
 
 
-# -- the furnace (fixed): a compact split-tube furnace (after a 1 inch, 12 inch long laboratory model), its front towards
-# the robots: a base with the controller, the heated lower half, and a lid hinged at the back that lifts by a handle on
-# its front. Frame: on the bench. The tube runs across it along y. ---------------------------------------------------------
-XA, AXZ = 0.355, 0.220  # the tube's axis: x, height above the bench
+def _seg(p0, p1, w, colour):
+    """A drawn-only square rod of width w from p0 to p1 (a hose's or a line's length)."""
+    p0, p1 = np.asarray(p0, float), np.asarray(p1, float)
+    d = p1 - p0
+    d = d / max(np.linalg.norm(d), 1e-9)
+    a = np.cross(d, Z if abs(d[2]) < 0.9 else X)
+    a /= np.linalg.norm(a)
+    b = np.cross(d, a)
+    return _hex([p + (i - 0.5) * w * a + (j - 0.5) * w * b for p in (p0, p1) for i in (0, 1) for j in (0, 1)],
+                 colour, collide="none")
+
+
+def _hose(pts, w, colour):
+    return [_seg(a, b, w, colour) for a, b in zip(pts[:-1], pts[1:])]
+
+
+# -- the furnace (fixed), on a small desk: a compact split-tube furnace (after a 1 inch, 12 inch long laboratory model),
+# its front towards the robots: a base with the controller, the heated lower half, and a lid hinged along the back that
+# lifts (to 90 degrees, fully open) by a handle at the middle of its front. The tube runs across it along y. -------------
+DESK = 0.050  # the desk's top: the furnace stands on it, so the controller and the gauge face the camera more squarely
+XA, AXZ = 0.285, DESK + 0.220  # the tube's axis: x, height above the bench
 TUBE_R, TUBE_IN = 0.0127, 0.0110  # 1 inch quartz tube: 25.4 mm outside, 22 mm inside
-TUBE_Y0, TUBE_Y1 = -0.225, 0.385  # the tube's open (loading) end, towards the right arm, and its far end
-FX0, FX1, FY0, FY1 = 0.215, 0.495, -0.125, 0.285  # the furnace body: front, back, ends (410 mm wide, 280 mm deep)
-BASE_Z = 0.110  # the base (controller) under the heated chamber
-LID_Z1 = 0.360  # the lid's top
+TUBE_Y0, TUBE_Y1 = -0.225, 0.385  # the tube's ends: the loading end (towards the right arm) and the far end
+FX0, FX1, FY0, FY1 = 0.145, 0.425, -0.125, 0.285  # the furnace body: front, back, ends (410 mm wide, 280 mm deep)
+BASE_Z = DESK + 0.110  # the base (controller) under the heated chamber
+LID_Z1 = DESK + 0.360  # the lid's top
 HOT_Y = (FY0 + FY1) / 2  # the hot zone's centre, where the thermocouple's tip is
 HINGE = (FX1 - 0.010, AXZ)  # the lid's hinge along the back, at the split
 SLOT = 0.019  # half the gap the tube lies in, front to back, in both halves
@@ -213,12 +230,16 @@ SCREEN_C = (0.06, 0.07, 0.08)
 LED_C = (0.95, 0.20, 0.12)
 TC_C = (0.70, 0.71, 0.73)
 GREEN = (0.15, 0.70, 0.25)
+DESK_C = (0.36, 0.37, 0.40)
 _mid_y, _len_y = (FY0 + FY1) / 2, FY1 - FY0
+SCREEN = (_mid_y + 0.055, DESK + 0.060, 0.130, 0.072)  # the controller's display: centre y, z, width, height
 FURNACE_BOXES = [
-    # base with the controller panel
-    ((((FX0 + FX1) / 2), _mid_y, BASE_Z / 2), (FX1 - FX0, _len_y, BASE_Z), WHITE_F),
-    ((FX0 - 0.0005, _mid_y, BASE_Z / 2), (0.001, _len_y - 0.02, BASE_Z - 0.02), PANEL_C),
-    ((FX0 - 0.0012, _mid_y + 0.05, 0.060), (0.001, 0.090, 0.045), SCREEN_C),
+    # the desk
+    (((FX0 + FX1) / 2, _mid_y, DESK / 2), (FX1 - FX0 + 0.030, _len_y + 0.030, DESK), DESK_C),
+    # base with the controller panel and its display
+    (((FX0 + FX1) / 2, _mid_y, (DESK + BASE_Z) / 2), (FX1 - FX0, _len_y, BASE_Z - DESK), WHITE_F),
+    ((FX0 - 0.0005, _mid_y, (DESK + BASE_Z) / 2), (0.001, _len_y - 0.02, BASE_Z - DESK - 0.016), PANEL_C),
+    ((FX0 - 0.0012, SCREEN[0], SCREEN[1]), (0.001, SCREEN[2], SCREEN[3]), SCREEN_C),
     # the heated lower half: front and back blocks either side of the tube's gap, ends, a floor
     (((FX0 + XA - SLOT) / 2, _mid_y, (BASE_Z + AXZ) / 2), (XA - SLOT - FX0, _len_y, AXZ - BASE_Z), WHITE_F),
     (((XA + SLOT + FX1) / 2, _mid_y, (BASE_Z + AXZ) / 2), (FX1 - XA - SLOT, _len_y, AXZ - BASE_Z), WHITE_F),
@@ -232,121 +253,230 @@ FURNACE_CYLS = [((XA + 0.020, HOT_Y, AXZ - 0.004), 0.0028, 0.004, TC_C, "X")]  #
 # the tube lies on two saddles in the furnace's end walls: round, open on top
 SADDLES = [m for y in (FY0, FY1 - 0.020) for m in _ring_y(y, y + 0.020, TUBE_R + 0.0006, TUBE_R + 0.008, 8, INSUL_C,
                                                         cx=XA, cz=AXZ, a0=math.radians(200), a1=math.radians(340))]
-# drawn only: the heating coils in the lower half, the lid's inside, the temperature on the controller's screen
+SEG.update({"C": "adef", "°": "abgf"})
 _coils = [((XA + s * (SLOT - 0.003), y, AXZ - 0.012), (0.003, 0.004, 0.012)) for s in (-1, 1)
           for y in np.arange(FY0 + 0.03, FY1 - 0.03, 0.012)]
-FURNACE_MESHES = [*SADDLES, _boxes_mesh(_coils, COIL_C), _digits("28", FX0 - 0.0018, _mid_y + 0.075, 0.062, 0.022, LED_C)]
+FURNACE_MESHES = [*SADDLES, _boxes_mesh(_coils, COIL_C),
+                  _digits("28°C", FX0 - 0.0018, SCREEN[0] + 0.050, SCREEN[1], 0.042, LED_C)]  # the furnace is cold
 
-# the lid: front and back blocks either side of the tube's gap, the top over it; a handle bar on its front
-LID_HANDLE_Y, LID_HANDLE_Z, LID_HANDLE_OUT = 0.240, 0.280, 0.010  # the handle bar: 10 mm out from the lid's front
+# the lid: front and back blocks either side of the tube's gap, the top over it; a handle bar at the middle of its front
+LID_HANDLE_Y, LID_HANDLE_Z, LID_HANDLE_OUT = _mid_y, AXZ + 0.060, 0.012  # the handle's bar: 12 mm out from the front
 _lid_boxes = [
     (((FX0 + XA - SLOT) / 2, _mid_y, (AXZ + LID_Z1) / 2), (XA - SLOT - FX0, _len_y, LID_Z1 - AXZ), WHITE_F),
     (((XA + SLOT + FX1) / 2, _mid_y, (AXZ + LID_Z1) / 2), (FX1 - XA - SLOT, _len_y, LID_Z1 - AXZ), WHITE_F),
     ((XA, _mid_y, (AXZ + 0.030 + LID_Z1) / 2), (2 * SLOT, _len_y, LID_Z1 - AXZ - 0.030), WHITE_F),
     *[((FX0 - LID_HANDLE_OUT / 2, y, LID_HANDLE_Z), (LID_HANDLE_OUT, 0.008, 0.010), DARK)
-      for y in (LID_HANDLE_Y - 0.035, LID_HANDLE_Y + 0.035)],
-    ((FX0 - LID_HANDLE_OUT, LID_HANDLE_Y, LID_HANDLE_Z), (0.008, 0.080, 0.008), DARK),
+      for y in (LID_HANDLE_Y - 0.040, LID_HANDLE_Y + 0.040)],
+    ((FX0 - LID_HANDLE_OUT, LID_HANDLE_Y, LID_HANDLE_Z), (0.008, 0.090, 0.008), DARK),
 ]
-LID_UP = 1.0  # rad: how far the lid can lift
-LID_K, LID_SLIP = 15.0, 0.04  # its stiff hinge: it holds where it is left, giving way to 0.6 N m (see _lid_hold)
+LID_UP = math.radians(92.0)  # the lid lifts to 92 degrees (its stop), fully clear of the tube
+LID_K, LID_SLIP = 15.0, 0.04  # its stiff hinge: it holds where it is left (see _hinge_hold)
 LID = Joint("lid", kind="hinge", axis="Y", anchor=(HINGE[0], _mid_y, HINGE[1]), lower=0.0, upper=LID_UP,
             stiffness=LID_K, target=0.0, damping=0.5, initial=0.0, mass=0.4, boxes=_lid_boxes)
 FURNACE = part("tube_furnace", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5, boxes=FURNACE_BOXES,
                cylinders=FURNACE_CYLS, meshes=FURNACE_MESHES, joints=[LID])
 
-# -- the tube (loose): fused quartz, 25.4 mm outside, 22 mm inside, 610 mm long, open at its near end; at its far end a
-# stainless end fitting with a compound gauge (its face towards the robots: -20 to +20 kPa, the safe band for opening
-# the tube marked green, red above it) and the gas valve, a quarter-turn ball valve: its lever pointing at the robots is
-# open, turned a quarter turn away from the furnace is shut. Frame: on the bench. ---------------------------------------
-FIT_Y0, FIT_Y1, FIT_R = TUBE_Y1 - 0.030, TUBE_Y1 + 0.010, 0.017
-GAUGE_C = (XA, (FIT_Y0 + FIT_Y1) / 2, AXZ + 0.075)  # the gauge's centre; its face at x - 0.012
-GAUGE_R = 0.028
-P_MIN, P_MAX = -20.0, 20.0  # kPa over the dial
-P_LO, P_HI = 2.0, 8.0  # the green band: the cap comes off only above P_LO (below, the pressure difference holds it);
-# above P_HI the tube is over-pressured (it can burst)
+# -- the tube (loose): fused quartz, 25.4 mm outside, 22 mm inside, 610 mm long, with a stainless vacuum flange on each
+# end. The loading end's flange is a quick-clamp one: a collar on the tube, a blank plate (loose) with an O-ring held to
+# it by a hinged clamp, opened by flipping its lever up. The argon line joins this collar's side port. The far end's
+# flange is closed; on it, the compound gauge (green band: the plate may be opened; red: over-pressured) and the bleed
+# line's port. Frame: on the bench. -------------------------------------------------------------------------------------
+COLLAR_R, FLANGE_R, COLLAR_L = 0.019, 0.025, 0.035
+NC_Y1 = TUBE_Y0 + COLLAR_L  # the loading collar: TUBE_Y0 (its face, the tube's end) to NC_Y1
+FIT_Y0, FIT_Y1 = TUBE_Y1 - COLLAR_L, TUBE_Y1 + 0.006  # the far flange (closed)
+GAUGE_C = np.array([XA, (FIT_Y0 + FIT_Y1) / 2, AXZ + 0.105])  # the gauge's centre
+GAUGE_R = 0.042
+GAUGE_N = Z  # a back-mounted gauge on an upright stem: its face looks up (at the top camera)
+P_MIN, P_MAX = -10.0, 15.0  # kPa over the dial
+P_LO, P_HI = 2.0, 8.0  # the green band: the plate may be opened only here; under it the pressure difference holds it,
+P_BURST = 12.0  # over P_HI it would blow off; over P_BURST the tube is over-pressured (it can burst)
 DIAL_SWEEP = math.radians(270.0)
+_gu, _gr = X, -Y  # the dial's "up" and "right" as the top camera (behind the robots, looking along +x) sees it
 
 
 def dial_angle(p):
-    """The needle's angle about x (rad, 0 = straight up), for pressure p (kPa): P_MIN at -135 deg, P_MAX at +135 deg,
-    clockwise as the robots see it."""
+    """The needle's angle on the dial (rad, 0 = up as the camera sees it, clockwise positive), for pressure p (kPa):
+    P_MIN at -135 deg, P_MAX at +135 deg. Its joint (about +z) turns the other way: its value is minus this."""
     s = (min(max(p, P_MIN), P_MAX) - P_MIN) / (P_MAX - P_MIN)
     return -DIAL_SWEEP / 2 + s * DIAL_SWEEP
 
 
-def _dial_arc(p0, p1, colour, r0=0.019, r1=0.026):
-    """A coloured band on the dial between two pressures (drawn on its face)."""
-    xs = GAUGE_C[0] - 0.0058
+def _on_dial(r, ang, h=0.0):
+    """A point on the dial's face: radius r, angle ang (0 up, clockwise as seen), h out of the face."""
+    return GAUGE_C + r * (math.cos(ang) * _gu + math.sin(ang) * _gr) + h * GAUGE_N
+
+
+def _dial_arc(p0, p1, colour, r0=0.028, r1=0.038):
     out = []
     n = max(2, int(abs(dial_angle(p1) - dial_angle(p0)) / math.radians(6)) + 1)
     for i in range(n):
         a, b = dial_angle(p0 + (p1 - p0) * i / n), dial_angle(p0 + (p1 - p0) * (i + 1) / n)
-        # angle 0 is up; clockwise seen from -x means towards -y... the needle turns about +x
-        pts = []
-        for x in (xs, xs + 0.0006):
-            for r in (r0, r1):
-                for ang in (a, b):
-                    pts.append((x, GAUGE_C[1] - r * math.sin(ang), GAUGE_C[2] + r * math.cos(ang)))
-        out.append(_hex(pts, colour, collide="none"))
+        out.append(_hex([_on_dial(r, ang, h) for h in (0.0011, 0.0017) for r in (r0, r1) for ang in (a, b)],
+                        colour, collide="none"))
     return out
 
 
-VALVE_PIVOT = (XA - 0.045, (FIT_Y0 + FIT_Y1) / 2, AXZ + 0.016)
-LEVER_L = 0.045
-# the tube's wall in 45 mm lengths (PhysX cannot build long, thin convex pieces on the GPU)
+def _disc_mesh(c, n, r, t, colour, k=32):
+    """A drawn disc (centre c, axis n, radius r, thickness t), as k wedges."""
+    u = np.cross(n, X if abs(n[0]) < 0.9 else Y)
+    u /= np.linalg.norm(u)
+    v = np.cross(n, u)
+    out = []
+    for i in range(k):
+        a, b = 2 * math.pi * i / k, 2 * math.pi * (i + 1) / k
+        out.append(_hex([c + h * n + rr * (math.cos(q) * u + math.sin(q) * v) for h in (0.0, t) for rr in (0.0005, r)
+                         for q in (a, b)], colour, collide="none"))
+    return out
+
+
+# the tube's wall in 45 mm lengths (PhysX cannot build long, thin convex pieces on the GPU), the two collars with their
+# flange lips, the gauge and the ports
 _TUBE_CUTS = np.linspace(TUBE_Y0, FIT_Y0 + 0.005, 14)
+ARGON_PORT = (XA - COLLAR_R - 0.010, (TUBE_Y0 + NC_Y1) / 2 + 0.004, AXZ)  # the argon line's port, on the collar's side
+BLEED_PORT = (XA - COLLAR_R - 0.010, FIT_Y0 + 0.012, AXZ)  # the bleed line's port on the far flange
+CLAMP_PIVOT = (XA, NC_Y1 - 0.012, AXZ + COLLAR_R + 0.010)  # the clamp's hinge, on top of the loading collar
 TUBE_MESHES = [*[m for y0, y1 in zip(_TUBE_CUTS[:-1], _TUBE_CUTS[1:])
                  for m in _ring_y(y0, y1, TUBE_IN, TUBE_R, 16, QUARTZ, cx=XA, cz=AXZ)],
-               *_ring_y(FIT_Y0, FIT_Y1, TUBE_R, FIT_R, 16, STAINLESS, cx=XA, cz=AXZ),
-               *_dial_arc(P_MIN, P_LO, WHITE), *_dial_arc(P_LO, P_HI, GREEN), *_dial_arc(P_HI, P_MAX, RED)]
+               *_ring_y(TUBE_Y0 + 0.006, NC_Y1, TUBE_R, COLLAR_R, 16, STAINLESS, cx=XA, cz=AXZ),
+               *_ring_y(TUBE_Y0, TUBE_Y0 + 0.006, TUBE_R, FLANGE_R, 16, STAINLESS, cx=XA, cz=AXZ),
+               *_ring_y(FIT_Y0, FIT_Y1 - 0.006, TUBE_R, COLLAR_R, 16, STAINLESS, cx=XA, cz=AXZ),
+               *_ring_y(FIT_Y1 - 0.006, FIT_Y1, TUBE_R, FLANGE_R, 16, STAINLESS, cx=XA, cz=AXZ)]
 TUBE_DRAWN = [
-    _box_mesh((XA, FIT_Y1 + 0.002, AXZ), (0.020, 0.004, 0.020), STAINLESS),  # the far end's blank
-    _box_mesh((XA, GAUGE_C[1], (AXZ + FIT_R + GAUGE_C[2] - GAUGE_R) / 2),
-              (0.008, 0.008, GAUGE_C[2] - GAUGE_R - AXZ - FIT_R + 0.004), STAINLESS),  # the gauge's stem
-    _box_mesh((XA - FIT_R - 0.004, VALVE_PIVOT[1], AXZ), (0.008, 0.010, 0.010), STAINLESS),  # the gas inlet's stub
-    *_ring(GAUGE_C[0] - 0.004, GAUGE_C[0] + 0.012, 0.0005, GAUGE_R + 0.002, 24, STAINLESS, cy=GAUGE_C[1],
-           cz=GAUGE_C[2], collide="none"),  # the gauge's case
-    *_ring(GAUGE_C[0] - 0.0050, GAUGE_C[0] - 0.0042, 0.0005, GAUGE_R, 24, WHITE, cy=GAUGE_C[1], cz=GAUGE_C[2],
-           collide="none"),  # its face
+    *_disc_mesh(np.array([XA, FIT_Y1, AXZ]), Y, FLANGE_R, 0.006, STAINLESS, 16),  # the far flange's blank
+    _seg((XA, GAUGE_C[1], AXZ + COLLAR_R - 0.002), GAUGE_C - 0.010 * GAUGE_N, 0.009, STAINLESS),  # the gauge's stem
+    _box_mesh((XA - COLLAR_R - 0.005, ARGON_PORT[1], AXZ), (0.012, 0.010, 0.010), STAINLESS),  # the argon port
+    _box_mesh((XA - COLLAR_R - 0.005, BLEED_PORT[1], AXZ), (0.012, 0.010, 0.010), STAINLESS),  # the bleed port
+    _box_mesh((XA, CLAMP_PIVOT[1], AXZ + COLLAR_R + 0.005), (0.014, 0.012, 0.012), STAINLESS),  # the clamp's hinge block
+    *_disc_mesh(GAUGE_C - 0.012 * GAUGE_N, GAUGE_N, GAUGE_R + 0.003, 0.012, STAINLESS),  # the gauge's case
+    *_disc_mesh(GAUGE_C, GAUGE_N, GAUGE_R, 0.001, WHITE),  # its face
+    *_dial_arc(P_MIN, P_LO, (0.55, 0.56, 0.58)), *_dial_arc(P_LO, P_HI, GREEN), *_dial_arc(P_HI, P_MAX, RED),
 ]
 TUBE_MESHES += TUBE_DRAWN
-NEEDLE = Joint("needle", kind="hinge", axis="X", anchor=(GAUGE_C[0] - 0.006, GAUGE_C[1], GAUGE_C[2]),
+_na = GAUGE_C + 0.0024 * GAUGE_N  # the needle's pivot, just in front of the face; it turns about the face's normal
+NEEDLE = Joint("needle", kind="hinge", axis="Z", anchor=tuple(_na),
                lower=-DIAL_SWEEP / 2 - 0.05, upper=DIAL_SWEEP / 2 + 0.05, stiffness=0.05, damping=0.003,
                target=0.0, initial=0.0, mass=0.002,
-               meshes=[_box_mesh((GAUGE_C[0] - 0.0064, GAUGE_C[1], GAUGE_C[2] + 0.010), (0.001, 0.0016, 0.024), DARK)],
-               boxes=[((GAUGE_C[0] - 0.0064, GAUGE_C[1], GAUGE_C[2]), (0.001, 0.003, 0.003), DARK)])
-VALVE = Joint("vent_valve", kind="hinge", axis="Z", anchor=VALVE_PIVOT, lower=-math.pi / 2, upper=0.0,
-              stiffness=0.0, damping=0.02, friction=0.03, initial=0.0, mass=0.01,
-              boxes=[((VALVE_PIVOT[0] - LEVER_L / 2, VALVE_PIVOT[1], VALVE_PIVOT[2] + 0.004), (LEVER_L, 0.010, 0.004),
-                      RED)],
-              cylinders=[((VALVE_PIVOT[0] - LEVER_L + 0.004, VALVE_PIVOT[1], VALVE_PIVOT[2] + 0.013), 0.005, 0.014, RED,
-                          "Z")])
+               meshes=[_seg(_na - 0.006 * _gu, _na + 0.034 * _gu, 0.0022, DARK)],
+               boxes=[(tuple(_na), (0.003, 0.003, 0.003), DARK)])
+
+# the quick clamp: an arm hinged on the collar's top that reaches over the plate and hooks its outside face; flipped up
+# by its lever (opening it), pushed back down over the plate (closing it). Closed is 0; open is turned up past 80 deg.
+CLAMP_OPEN, CLAMP_UP = math.radians(80.0), math.radians(110.0)
+PLATE_T, PLATE_R = 0.006, FLANGE_R  # the blank plate: 6 mm stainless, as wide as the flange
+_cz = CLAMP_PIVOT[2]
+_hook_y = TUBE_Y0 - PLATE_T - 0.001  # the hook's inside face, 1 mm off the plate's outside
+CLAMP = Joint("clamp", kind="hinge", axis="X", anchor=CLAMP_PIVOT, lower=-CLAMP_UP, upper=0.0,
+              stiffness=0.0, damping=0.02, friction=0.02, initial=0.0, mass=0.015,
+              boxes=[((XA, (CLAMP_PIVOT[1] + _hook_y - 0.004) / 2, _cz + 0.002),
+                      (0.012, CLAMP_PIVOT[1] - _hook_y + 0.004, 0.004), STAINLESS),  # the arm
+                     ((XA, _hook_y - 0.002, _cz - 0.008), (0.012, 0.004, 0.024), STAINLESS),  # the hook
+                     ((XA, _hook_y - 0.002, _cz + 0.016), (0.014, 0.004, 0.024), DARK)])  # the lever, up off the hook
 # a smooth strip along the tube's floor, one piece (the boat would catch on the seams between the wall's lengths)
 FLOOR_Z = AXZ - 0.0075
 TUBE_BOXES = [((XA, (TUBE_Y0 + FIT_Y0) / 2 + 0.001, FLOOR_Z - 0.001), (0.012, FIT_Y0 - TUBE_Y0 - 0.002, 0.002), QUARTZ)]
-TUBE = part("quartz_tube", pos=(0.0, 0.0, TOP), mass=0.30, friction=0.3, boxes=TUBE_BOXES, meshes=TUBE_MESHES,
-            joints=[NEEDLE])
-# the gas line's valve stands on its own post in front of the end fitting (a soft hose, drawn only, joins them), so
-# working it does not push the loose tube
-GAS = part("gas_valve", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
-           boxes=[((VALVE_PIVOT[0], VALVE_PIVOT[1], (AXZ - 0.008) / 2), (0.012, 0.012, AXZ - 0.008), DARK),
-                  ((VALVE_PIVOT[0], VALVE_PIVOT[1], AXZ + 0.002), (0.018, 0.016, 0.018), (0.78, 0.66, 0.30))],
-           meshes=[_box_mesh(((VALVE_PIVOT[0] + XA - FIT_R - 0.008) / 2 + 0.0045, VALVE_PIVOT[1], AXZ),
-                             (XA - FIT_R - 0.008 - VALVE_PIVOT[0] - 0.009, 0.006, 0.006), (0.30, 0.55, 0.85))],
-           joints=[VALVE])
-KNOB_AT = (VALVE_PIVOT[0] - LEVER_L + 0.004, VALVE_PIVOT[1], VALVE_PIVOT[2] + 0.013)  # the lever's knob (open)
+TUBE = part("quartz_tube", pos=(0.0, 0.0, TOP), mass=0.40, friction=0.3, boxes=TUBE_BOXES, meshes=TUBE_MESHES,
+            joints=[NEEDLE, CLAMP])
 
-# -- the boat (loose): an alumina boat 80 x 15 x 8 mm, open on top, its back end a 12 mm tab the rod's pusher meets. In the
-# tube it sits on the floor strip, 7.5 mm under the axis. Frame: origin at the centre of its underside. ----------------------------------
+# -- the gas lines (fixed), each with a quarter-turn ball valve on a post, so working a valve does not push the loose
+# tube: the argon line from a gas bottle, through its regulator and the inlet valve, to the loading collar's port; the
+# bleed line from the far flange's port, through the bleed valve, down to the exhaust. A lever along its line is open;
+# turned a quarter turn across it, shut. ---------------------------------------------------------------------------------
+LEVER_L = 0.045
+BRASS = (0.78, 0.66, 0.30)
+HOSE_C = (0.30, 0.55, 0.85)
+ARGON_C = (0.25, 0.48, 0.30)  # the gas bottle (argon: green shoulder)
+VALVE_SHUT = math.radians(80.0)  # a valve counts as shut once its lever is turned this far
+ARGON_PIVOT = (XA - 0.075, -0.175, AXZ + 0.004)  # the inlet valve, in front of the loading end
+BLEED_PIVOT = (XA - 0.075, 0.375, AXZ + 0.004)  # the bleed valve, in front of the far end
+BOTTLE = (0.47, -0.36)  # the argon bottle, behind the loading end
+
+
+def _valve(name, pivot, sign, lever_open):
+    """A ball valve on its post: the lever points along the line (-x, at the robots) when open and turns by
+    sign * 90 degrees about z to shut. ``lever_open``: its starting angle (0 open)."""
+    j = Joint(name, kind="hinge", axis="Z", anchor=pivot, lower=min(0.0, sign * math.pi / 2),
+              upper=max(0.0, sign * math.pi / 2), stiffness=0.0, damping=0.02, friction=0.03, initial=lever_open,
+              mass=0.01,
+              boxes=[((pivot[0] - LEVER_L / 2, pivot[1], pivot[2] + 0.010), (LEVER_L, 0.010, 0.004), RED)],
+              cylinders=[((pivot[0] - LEVER_L + 0.004, pivot[1], pivot[2] + 0.019), 0.005, 0.014, RED, "Z")])
+    post = [((pivot[0], pivot[1], (pivot[2] - 0.012) / 2), (0.012, 0.012, pivot[2] - 0.012), DARK),
+            ((pivot[0], pivot[1], pivot[2]), (0.020, 0.022, 0.016), BRASS)]
+    return j, post
+
+
+ARGON_V, _ap = _valve("argon_valve", ARGON_PIVOT, -1.0, 0.0)
+BLEED_V, _bp = _valve("bleed_valve", BLEED_PIVOT, 1.0, math.radians(90.0))  # starts shut (lever across the line)
+_reg = (BOTTLE[0], BOTTLE[1], 0.330)
+LINE_MESHES = [
+    # the argon bottle with its regulator, and the line to the valve and on to the collar's port
+    *_disc_mesh(np.array([BOTTLE[0], BOTTLE[1], 0.0]), Z, 0.040, 0.250, (0.55, 0.56, 0.58)),
+    *_disc_mesh(np.array([BOTTLE[0], BOTTLE[1], 0.250]), Z, 0.040, 0.050, ARGON_C),
+    _box_mesh((BOTTLE[0], BOTTLE[1], 0.315), (0.030, 0.030, 0.030), BRASS),
+    *_hose([(BOTTLE[0] - 0.015, BOTTLE[1], 0.315), (BOTTLE[0] - 0.08, BOTTLE[1], 0.30), (ARGON_PIVOT[0] + 0.02, -0.30, 0.10),
+            (ARGON_PIVOT[0] + 0.02, ARGON_PIVOT[1] - 0.05, 0.05), (ARGON_PIVOT[0], ARGON_PIVOT[1] - 0.013, ARGON_PIVOT[2] - 0.004)],
+           0.006, HOSE_C),
+    *_hose([(ARGON_PIVOT[0], ARGON_PIVOT[1] + 0.013, ARGON_PIVOT[2] - 0.004),
+            (ARGON_PIVOT[0] + 0.02, ARGON_PORT[1] - 0.010, AXZ - 0.004), (ARGON_PORT[0] - 0.004, ARGON_PORT[1], AXZ)],
+           0.006, HOSE_C),
+    # the bleed line: from the far flange's port to its valve, then down off the bench to the exhaust
+    *_hose([(BLEED_PORT[0] - 0.004, BLEED_PORT[1], AXZ), (BLEED_PIVOT[0] + 0.02, BLEED_PORT[1] + 0.003, AXZ - 0.004),
+            (BLEED_PIVOT[0], BLEED_PIVOT[1] - 0.013, BLEED_PIVOT[2] - 0.004)], 0.006, HOSE_C),
+    *_hose([(BLEED_PIVOT[0], BLEED_PIVOT[1] + 0.013, BLEED_PIVOT[2] - 0.004), (BLEED_PIVOT[0], BLEED_PIVOT[1] + 0.06, 0.12),
+            (BLEED_PIVOT[0] + 0.05, BLEED_PIVOT[1] + 0.12, 0.0)], 0.006, (0.25, 0.26, 0.28)),
+]
+GAS = part("gas_lines", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5, boxes=[*_ap, *_bp], meshes=LINE_MESHES,
+           joints=[ARGON_V, BLEED_V])
+
+
+def _lever_knob(pivot, angle):
+    """Where a valve lever's knob is, the lever turned by ``angle`` about z."""
+    a = math.pi - angle
+    return np.array([pivot[0] + (LEVER_L - 0.004) * math.cos(a), pivot[1] + (LEVER_L - 0.004) * math.sin(a),
+                     pivot[2] + 0.019])
+
+
+# -- the blank plate (loose): 6 mm stainless, an O-ring on its inside and a short spigot that centres it in the tube's
+# bore, a black knob on its outside to hold it by. Frame: origin on its axis at its inside face, the knob along -y. --------
+KNOB_R, KNOB_L = 0.008, 0.022
+PLATE_START = np.array([XA, TUBE_Y0, TOP + AXZ])
+PLATE = part("end_plate", pos=tuple(PLATE_START), mass=0.10, friction=0.4,
+             cylinders=[((0.0, -PLATE_T / 2, 0.0), PLATE_R, PLATE_T, STAINLESS, "Y"),
+                        ((0.0, 0.0015, 0.0), TUBE_IN - 0.0008, 0.003, DARK, "Y"),
+                        ((0.0, -PLATE_T - KNOB_L / 2, 0.0), KNOB_R, KNOB_L, DARK, "Y")])
+# its stand (fixed): a post with a V cradle the plate stands in, on edge, knob towards -y
+PLATE_REST = np.array([0.195, -0.380, TOP + AXZ - 0.020])  # the plate's centre on the stand
+_vz = PLATE_REST[2] - TOP - PLATE_R * 0.90  # the V's bottom
+PLATE_STAND = part("plate_stand", pos=(0.0, 0.0, TOP), fixed=True, friction=0.6,
+                   boxes=[((PLATE_REST[0], PLATE_REST[1] - PLATE_T / 2, (_vz - 0.004) / 2),
+                           (0.016, 0.016, _vz - 0.004), DARK),
+                          *[((PLATE_REST[0], PLATE_REST[1] - PLATE_T / 2 + s * (PLATE_T / 2 + 0.0035), _vz + 0.004),
+                             (0.040, 0.003, 0.016), DARK) for s in (-1, 1)]],
+                   meshes=[_hex([(PLATE_REST[0] + sx * xo, PLATE_REST[1] - PLATE_T / 2 + dy, zz)
+                                 for xo, zt in ((0.0, _vz), (0.020, _vz + 0.009)) for dy in (-0.005, 0.005)
+                                 for zz in (_vz - 0.004, zt)], DARK) for sx in (-1, 1)])
+
+# -- the boat (loose): an alumina boat 80 x 15 x 8 mm, open on top, its back end a 12 mm wall with a 14 mm tongue out
+# behind it at its floor, to hold it by and for the rod's pusher. In the tube it sits on the floor strip, 7.5 mm under
+# the axis. It starts on a tray beside the loading end. Frame: origin at the centre of its underside. ---------------------
 BOAT_L, BOAT_W, BOAT_H, BOAT_T, BACK_H = 0.080, 0.015, 0.008, 0.0015, 0.012
+TONGUE_L, TONGUE_W, TONGUE_T = 0.014, 0.010, 0.003
 ALUMINA = (0.97, 0.96, 0.93)
 BOAT_Z = FLOOR_Z + 0.0003  # on the floor strip
-BOAT_START = np.array([XA, TUBE_Y0 + 0.006 + BOAT_L / 2, TOP + BOAT_Z])
+TRAY = np.array([XA - 0.080, -0.270, AXZ - 0.032])  # the tray's top centre
+BOAT_START = TRAY + [0.0, 0.006, TOP + 0.0003]
 BOAT = part("boat", pos=tuple(BOAT_START), mass=0.020, friction=0.5,
             boxes=[((0.0, 0.0, BOAT_T / 2), (BOAT_W, BOAT_L, BOAT_T), ALUMINA),
                    *[((e * (BOAT_W - BOAT_T) / 2, 0.0, BOAT_H / 2), (BOAT_T, BOAT_L, BOAT_H), ALUMINA) for e in (-1, 1)],
                    ((0.0, -(BOAT_L - BOAT_T) / 2, BACK_H / 2), (BOAT_W - 2 * BOAT_T, BOAT_T, BACK_H), ALUMINA),
-                   ((0.0, (BOAT_L - BOAT_T) / 2, BOAT_H / 2), (BOAT_W - 2 * BOAT_T, BOAT_T, BOAT_H), ALUMINA)])
+                   ((0.0, (BOAT_L - BOAT_T) / 2, BOAT_H / 2), (BOAT_W - 2 * BOAT_T, BOAT_T, BOAT_H), ALUMINA),
+                   ((0.0, -BOAT_L / 2 - TONGUE_L / 2, TONGUE_T / 2), (TONGUE_W, TONGUE_L, TONGUE_T), ALUMINA)])
+# the tray (fixed): a stainless tray on a post, shorter than the boat so its tongue hangs out over the tray's end
+TRAY_L = 0.060
+BOAT_TRAY = part("boat_tray", pos=(0.0, 0.0, TOP), fixed=True, friction=0.6,
+                 boxes=[((TRAY[0], TRAY[1] + 0.012, (TRAY[2] - 0.003) / 2), (0.012, 0.012, TRAY[2] - 0.003), DARK),
+                        ((TRAY[0], TRAY[1] + 0.012, TRAY[2] - 0.0015), (0.030, TRAY_L, 0.003), STAINLESS),
+                        *[((TRAY[0] + s * 0.0125, TRAY[1] + 0.012, TRAY[2] + 0.002), (0.003, TRAY_L, 0.004), STAINLESS)
+                          for s in (-1, 1)]])
 
 # -- the chips (loose): three 8 x 8 x 0.5 mm silicon chips (with 2D flakes on their oxide, which shows purple) in a row
 CHIP, CHIP_T = 0.008, 0.0005
@@ -355,59 +485,37 @@ CHIP_START = [BOAT_START + [0.0, dy, BOAT_T + CHIP_T / 2] for dy in CHIP_DY]
 CHIPS = [part(f"chip{i}", pos=tuple(CHIP_START[i]), mass=0.00008, friction=0.8,
               boxes=[((0.0, 0.0, 0.0), (CHIP, CHIP, CHIP_T), CHIP_C)]) for i in range(3)]
 
-# -- the hook rod (loose): stainless, 390 mm, 6 mm round its whole length (a step would catch on its rests), a 10 mm
-# pusher disc at its front for the boat's tab. Frame: origin on its axis at the pusher's front face, the rod along -y.
+# -- the hook rod (loose): stainless, 390 mm, 6 mm round its whole length, a 10 mm pusher disc at its front. Frame: origin
+# on its axis at the pusher's front face, the rod along -y. -----------------------------------------------------------------
 ROD_L, GRIP_W, PUSHER_R = 0.390, 0.006, 0.005
-ROD_START = np.array([XA, TUBE_Y0 - 0.045, TOP + AXZ - 0.0015])  # on its rests in line with the tube, 45 mm short of its end
+ROD_START = np.array([XA, TUBE_Y0 - 0.075, TOP + AXZ - 0.0015])  # on its rests in line with the tube
 ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.090, friction=0.7,
            cylinders=[((0.0, -0.0015, 0.0), PUSHER_R, 0.003, STEEL, "Y"),
                       ((0.0, -(0.003 + ROD_L) / 2, 0.0), GRIP_W / 2, ROD_L - 0.003, STEEL, "Y")])
-
-# -- the rod's rests (fixed): two short troughs on posts, in line with the tube, 1.5 mm under the rod's grip (its back end,
-# coming back over the near one, must not catch on it). --------------------------------------------------------------
-REST_Y = (-0.300, -0.520)  # the near one by the tube's mouth, out of the hand's strokes
+# its rests (fixed): two posts with shallow V tops (1.5 mm deep over 10 mm a side) that centre the rod
+REST_Y = (-0.330, -0.550)
 REST_Z = AXZ - GRIP_W / 2 - 0.0015
 V_RISE = 0.0015
 REST = part("rod_rests", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
             boxes=[((XA, y, REST_Z / 2), (0.020, 0.014, REST_Z), DARK) for y in REST_Y],
-            # each topped by a shallow V (1.5 mm deep over 10 mm a side) that centres the rod; no cheeks, which the rod's
-            # ends caught on as it slid along
             meshes=[_hex([(XA + sx * xo, y + dy, REST_Z + zo) for xo, zt in ((0.0, 0.0002), (0.010, V_RISE))
                           for dy in (-0.007, 0.007) for zo in (0.0, zt)], DARK)
                     for y in REST_Y for sx in (-1, 1)])
 
-# -- the end cap (loose): an aluminium quick-release cap for the 1 inch tube: a 5 mm plate and a 25 mm sleeve that slides
-# over the tube's end until the plate meets it (its O-ring inside then seals), knurled outside where it is held. Frame:
-# origin on its axis at the plate's inner face, the sleeve along +y. ---------------------------------------------------
-ALUM = (0.80, 0.81, 0.83)
-CAP_IN, CAP_D, CAP_PLATE = TUBE_R + 0.0015, 0.025, 0.005
-CAP_OUT = CAP_IN + 0.004  # 36.4 mm across
-CAP_START = np.array([XA, TUBE_Y0, TOP + AXZ])  # on the tube's end
-CAP_REST = np.array([0.250, -0.280, TOP + 0.020 + CAP_OUT + 0.0012])  # its stand, beside the tube's end
-CAP = part("end_cap", pos=tuple(CAP_START), mass=0.06, friction=0.35,
-           cylinders=[((0.0, -CAP_PLATE / 2, 0.0), CAP_OUT, CAP_PLATE, ALUM, "Y")],
-           meshes=[*_ring_y(0.0, CAP_D - 0.004, CAP_IN, CAP_OUT, 24, ALUM),
-                   *_ring_y(CAP_D - 0.004, CAP_D, CAP_IN, CAP_OUT, 24, ALUM, r_in1=CAP_IN + 0.0015)])
-CAP_STAND = part("cap_stand", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
-                 boxes=[((CAP_REST[0], CAP_REST[1] + CAP_D / 2, 0.010), (0.030, 0.030, 0.020), DARK)],
-                 meshes=_ring_y(CAP_REST[1] + 0.002, CAP_REST[1] + CAP_D - 0.002, CAP_OUT + 0.0012, CAP_OUT + 0.005, 6,
-                                DARK, cx=CAP_REST[0], cz=CAP_REST[2] - TOP, a0=math.radians(215), a1=math.radians(325)))
-
-OBJECTS = [FURNACE, TUBE, GAS, BOAT, *CHIPS, ROD, REST, CAP, CAP_STAND]
+OBJECTS = [FURNACE, TUBE, GAS, PLATE, PLATE_STAND, BOAT, BOAT_TRAY, *CHIPS, ROD, REST]
 PLANCHECK_BOXES = [
     ("furnace", (((FX0 + FX1) / 2), _mid_y, TOP + LID_Z1 / 2), (FX1 - FX0, _len_y, LID_Z1)),
 ]
 
 
-# -- the gas and the cap --------------------------------------------------------------------------------------------
-# The trial starts mid-backfill: the gas valve open, the tube 1 kPa over atmospheric and rising. With the cap on and the
-# valve open the pressure rises 0.4 kPa/s; shutting the valve holds it. The cap may come off only in the green band:
-# below it (P_LO) the pressure difference holds it on (forced off, its O-ring tears); over P_HI the tube is
-# over-pressured. Once the cap is off the tube is at atmospheric; the valve must then be shut within VENT_OPEN_S.
-P0, P_RATE = 1.0, 0.4  # kPa, kPa/s
-CAP_ON, CAP_OFF = 0.010, 0.020  # the cap seals within 10 mm of its seat, is off past 20 mm
-VENT_OPEN_S = 5.0
-VALVE_SHUT = math.radians(80.0)  # the valve counts as shut once its lever is turned this far (clockwise)
+# -- the gas ----------------------------------------------------------------------------------------------------------
+# The trial starts mid-backfill: the argon inlet open, the sealed tube 7 kPa over atmospheric and rising 0.4 kPa/s (over
+# the green band in a few seconds; over-pressured, P_BURST, in 12 s). Shutting the argon holds the pressure; the bleed
+# valve lets it out (in proportion to how far it is opened). The plate may be taken off only with the argon shut and the
+# gauge in its green band; once off, the tube is at atmospheric.
+P0, P_RATE = 7.0, 0.4  # kPa, kPa/s
+BLEED_K = 0.6  # 1/s: the bleed, fully open, lets the pressure fall by this fraction each second
+SEAT_ON, SEAT_OFF = 0.002, 0.004  # the plate seals within 2 mm of its seat; it is off (opened) past 4 mm
 
 
 def _asset(env, name):
@@ -419,7 +527,7 @@ def _t(x):
 
 
 def _drive(env, part_name, joint, value):
-    """Set a joint's drive target (the gauge's needle; the lid's stiff hinge)."""
+    """Set a joint's drive target (the gauge's needle; the stiff hinges)."""
     import torch
 
     a = _asset(env, part_name)
@@ -433,24 +541,24 @@ def _drive(env, part_name, joint, value):
             print(f"[furnace-anneal] {joint.name} not driven: {e!r}")
 
 
-def _show_pressure(env, p):
-    """Turn the gauge's needle to the pressure."""
-    _drive(env, "quartz_tube", NEEDLE, dial_angle(p))
+def _hinge_hold(env, part_name, joint, key, lo, hi, slip):
+    """A stiff hinge: its drive holds it where it was left and gives way (the target follows) only when it is pushed
+    more than ``slip`` from it."""
+    th = labkit._part_state(env, labkit._SPECS[part_name]).joints.get(joint.name, 0.0)
+    tgt = _gas.get(key, th)
+    if th - tgt > slip:
+        tgt = th - slip
+    elif tgt - th > slip:
+        tgt = th + slip
+    tgt = min(max(tgt, lo), hi)
+    _gas[key] = tgt
+    _drive(env, part_name, joint, tgt)
 
 
 @on_step
-def _lid_hold(env):
-    """The lid's hinge is stiff, like a real split furnace's: its drive holds the lid where it was left and gives way
-    (the target follows) only when the lid is pushed more than LID_SLIP from it, i.e. past 0.6 N m."""
-    th = labkit._part_state(env, labkit._SPECS["tube_furnace"]).joints.get("lid", 0.0)
-    tgt = _gas.get("lid_t", 0.0)
-    if th - tgt > LID_SLIP:
-        tgt = th - LID_SLIP
-    elif tgt - th > LID_SLIP:
-        tgt = th + LID_SLIP
-    tgt = min(max(tgt, 0.0), LID_UP)
-    _gas["lid_t"] = tgt
-    _drive(env, "tube_furnace", LID, tgt)
+def _holds(env):
+    _hinge_hold(env, "tube_furnace", LID, "lid_t", 0.0, LID_UP, LID_SLIP)  # the lid stays where it is left
+    _hinge_hold(env, "quartz_tube", CLAMP, "clamp_t", -CLAMP_UP, 0.0, 0.05)  # so does the clamp (open or shut)
 
 
 _gas = {}
@@ -459,49 +567,57 @@ _gas = {}
 @on_reset
 def _reset_gas(env):
     _gas.clear()
-    _gas.update(p=P0, removed=False, open_off=0.0)
+    _gas.update(p=P0, opened=None)
 
 
-def cap_out(c):
-    """How far the cap is off its seat along the tube (m; 0 when home)."""
-    return float(TUBE_Y0 - np.asarray(c.pos, float)[1])
+def plate_out(pl):
+    """How far the plate is off its seat along the tube (m; 0 when home)."""
+    return float(TUBE_Y0 - np.asarray(pl.pos, float)[1])
+
+
+def plate_on(pl):
+    p = np.asarray(pl.pos, float)
+    return plate_out(pl) < SEAT_ON and math.hypot(p[0] - XA, p[2] - (TOP + AXZ)) < 0.002
+
+
+def valve_shut(g, name):
+    return abs(g.joints.get(name, 0.0)) >= VALVE_SHUT
+
+
+def bleed_open(g):
+    return min(1.0, abs(math.pi / 2 - abs(g.joints.get("bleed_valve", 0.0))) / (math.pi / 2))
 
 
 @on_step
 def _gas_step(env):
     S = labkit._SPECS
-    c = labkit._part_state(env, S["end_cap"])
-    t = labkit._part_state(env, S["quartz_tube"])
-    valve_open = -labkit._part_state(env, S["gas_valve"]).joints.get("vent_valve", 0.0) < VALVE_SHUT
-    d = cap_out(c)
+    pl = labkit._part_state(env, S["end_plate"])
+    g = labkit._part_state(env, S["gas_lines"])
+    argon = not valve_shut(g, "argon_valve")
     p = _gas.get("p", P0)
-    on = d < CAP_ON and math.hypot(c.pos[0] - XA, c.pos[2] - (TOP + AXZ)) < 0.006
-    if on and not _gas.get("removed"):
-        p += P_RATE * DT if valve_open else 0.0
+    if plate_out(pl) < SEAT_OFF and _gas.get("opened") is None:
+        p += (P_RATE if argon else 0.0) * DT
+        p -= BLEED_K * bleed_open(g) * max(p, 0.0) * DT
     else:
-        p *= math.exp(-DT / 0.3)  # open to the room
-        if d > CAP_OFF:
-            _gas["removed"] = True
-    if on and _gas.get("removed"):
-        p = 0.0  # back on after loading: at atmospheric
+        if _gas.get("opened") is None:
+            _gas["opened"] = (p, argon)  # the pressure, and whether the argon still ran, when the plate came off
+        p = 0.0 if not plate_on(pl) else p  # open to the room; back on after loading, at atmospheric
+        if plate_on(pl):
+            p += (P_RATE if argon else 0.0) * DT
     _gas["p"] = p
-    _gas["open_off"] = _gas.get("open_off", 0.0) + DT if (valve_open and d > CAP_ON) else 0.0
-    if d > CAP_ON and not _gas.get("off_at_p"):
-        _gas["off_at_p"] = (_gas.get("p_on", p),)  # the pressure the cap came off at
-    if on and not _gas.get("removed"):
-        _gas["p_on"] = p
-    _show_pressure(env, p)
+    _drive(env, "quartz_tube", NEEDLE, -dial_angle(p))
 
 
 # -- scoring ----------------------------------------------------------------------------------------------------------
 CHIP_SLIDE = 0.003  # a chip that moves over 3 mm on the boat has slid (lost or scratched)
 CHIP_FLIP = 30.0  # or tilted over 30 degrees
 BOAT_TILT = 20.0
+BOAT_DROP = 0.030  # the boat dropped: over 30 mm under the tray or the tube's floor
 HOT_TOL = 0.008  # the boat centred under the thermocouple within 8 mm
 TUBE_MOVE, TUBE_TURN = 0.003, 3.0  # the tube slid over 3 mm or rolled over 3 degrees
 RACK_TOL = 0.015  # the rod back on its rests: within 15 mm of where it lay
 LID_SHUT = math.radians(2.0)
-SEAT_TOL, AXIS_TOL, CAP_TILT = 0.002, 0.003, 3.0
+AXIS_TOL, PLATE_TILT = 0.002, 3.0
 HANDS_FAR = 0.08
 SETTLE_STEPS, SETTLE_TOL = 20, 0.001
 
@@ -539,10 +655,10 @@ def rod_racked(r):
     return float(np.linalg.norm(p - ROD_START)) <= RACK_TOL and axis_off(r) <= 5.0
 
 
-def cap_sealed(c, gas):
-    p = np.asarray(c.pos, float)
-    return (abs(cap_out(c)) <= SEAT_TOL and math.hypot(p[0] - XA, p[2] - (TOP + AXZ)) <= AXIS_TOL
-            and axis_off(c) <= CAP_TILT and -gas.joints.get("vent_valve", 0.0) >= VALVE_SHUT)
+def flange_sealed(pl, t, g):
+    """The plate home and square, the clamp shut over it, both gas valves shut."""
+    return (plate_on(pl) and axis_off(pl) <= PLATE_TILT and abs(t.joints.get("clamp", 0.0)) <= math.radians(5.0)
+            and valve_shut(g, "argon_valve") and valve_shut(g, "bleed_valve"))
 
 
 def _tube_ref(t):
@@ -555,8 +671,8 @@ def _watch(env):
     S = labkit._SPECS
     st = _state
     st["step"] += 1
-    b, r, c = (labkit._part_state(env, S[n]) for n in ("boat", "hook_rod", "end_cap"))
-    t, f = labkit._part_state(env, S["quartz_tube"]), labkit._part_state(env, S["tube_furnace"])
+    b, r, pl = (labkit._part_state(env, S[n]) for n in ("boat", "hook_rod", "end_plate"))
+    t, f, g = (labkit._part_state(env, S[n]) for n in ("quartz_tube", "tube_furnace", "gas_lines"))
     chips = [labkit._part_state(env, S[f"chip{i}"]) for i in range(3)]
     if st["step"] == 10:
         st["tube0"] = _tube_ref(t)  # where the tube lies once settled
@@ -565,28 +681,37 @@ def _watch(env):
             st["viol"].add("a chip slid on the boat")
         if tilt > CHIP_FLIP:
             st["viol"].add("a chip flipped")
-    if b.tilt_deg() > BOAT_TILT:
-        st["viol"].add("the boat tipped")
-    if _gas.get("p", 0.0) > P_HI:
+    if b.tilt_deg() > BOAT_TILT or np.asarray(b.pos, float)[2] < TOP + min(TRAY[2], FLOOR_Z) - BOAT_DROP:
+        st["viol"].add("the boat tipped or dropped")
+    p = _gas.get("p", 0.0)
+    if p > P_BURST:
         st["viol"].add("the tube was over-pressured")
-    if _gas.get("open_off", 0.0) > VENT_OPEN_S:
-        st["viol"].add("the gas ran with the tube open")
-    if _gas.get("off_at_p") and _gas["off_at_p"][0] < P_LO:
-        st["viol"].add("the cap was forced off below the green band")
+    if abs(t.joints.get("clamp", 0.0)) > math.radians(20.0) and _gas.get("opened") is None and p > P_HI:
+        st["viol"].add("the clamp was opened over the green band")
+    op = _gas.get("opened")
+    if op is not None:
+        if op[1]:
+            st["viol"].add("the plate came off with the argon on")
+        if op[0] > P_HI:
+            st["viol"].add("the plate came off over the green band")
+        if op[0] < P_LO:
+            st["viol"].add("the plate was forced off under the green band")
     if "tube0" in st:
         p0, R0 = st["tube0"]
         turn = math.degrees(math.acos(max(-1.0, min(1.0, (np.trace(R0.T @ t.rotation()) - 1) / 2))))
         if np.linalg.norm(np.asarray(t.pos, float) - p0) > TUBE_MOVE or turn > TUBE_TURN:
             st["viol"].add("the tube slid or rolled")
     bp = np.asarray(b.pos, float)
-    st["centred"] = abs(bp[1] - HOT_Y) <= HOT_TOL
+    st["centred"] = abs(bp[1] - HOT_Y) <= HOT_TOL and abs(bp[2] - (TOP + BOAT_Z)) < 0.004
     st["racked"] = rod_racked(r)
     st["lid"] = f.joints.get("lid", 0.0) <= LID_SHUT
-    st["sealed"] = cap_sealed(c, labkit._part_state(env, S["gas_valve"]))
+    st["sealed"] = flange_sealed(pl, t, g)
     tips = _tips(env)
-    keep = [np.asarray(r.pos, float), np.asarray(c.pos, float), np.array([FX0 - LID_HANDLE_OUT, LID_HANDLE_Y, TOP + LID_HANDLE_Z])]
+    keep = [np.asarray(r.pos, float), np.asarray(pl.pos, float) - [0.0, PLATE_T + KNOB_L / 2, 0.0],
+            np.array([FX0 - LID_HANDLE_OUT, LID_HANDLE_Y, TOP + LID_HANDLE_Z]),
+            np.array([XA, _hook_y, TOP + _cz + 0.016])]
     st["far"] = all(np.linalg.norm(np.asarray(tp) - k) >= HANDS_FAR for tp in tips for k in keep)
-    _hist.append(np.concatenate([bp, np.asarray(r.pos, float), np.asarray(c.pos, float),
+    _hist.append(np.concatenate([bp, np.asarray(r.pos, float), np.asarray(pl.pos, float),
                                  *[np.asarray(x.pos, float) for x in chips], [f.joints.get("lid", 0.0) * 0.1]]))
     del _hist[:-(SETTLE_STEPS + 1)]
     st["settled"] = (len(_hist) > SETTLE_STEPS
@@ -594,14 +719,14 @@ def _watch(env):
 
 
 def score(objects):
-    """0 after any violation (the cap pulled off while the gauge read below its green band, 2 kPa; the tube
-    over-pressured, over 8 kPa; the gas left running over 5 s with the cap off; a chip slid over
-    3 mm on the boat or tilted over 30 degrees; the boat tipped over 20 degrees; the tube slid over 3 mm or rolled over
-    3 degrees), unless everything has been still (under 1 mm) for the last second, or unless the boat's centre is within
-    8 mm of the thermocouple along the tube. Then 0.2, plus 0.2 each for: the rod back on its rests (within 15 mm of
-    where it lay), the lid shut (within 2 degrees), the cap home and square (its plate within 2 mm of the tube's end, its
-    axis within 3 mm and 3 degrees of the tube's) with the gas valve shut. 1.0 if all three, and every fingertip is 8 cm
-    from the rod, the cap and the lid's handle."""
+    """0 after any violation: the tube over-pressured (over 12 kPa); the clamp opened or the plate taken off with the
+    gauge over its green band (8 kPa), or the plate forced off under it (2 kPa), or with the argon still on; a chip slid
+    over 3 mm on the boat or tilted over 30 degrees; the boat tipped over 20 degrees or dropped; the tube slid over 3 mm
+    or rolled over 3 degrees. 0 also unless everything has been still (under 1 mm) for the last second, and the boat's
+    centre lies on the tube's floor within 8 mm of the thermocouple along the tube. Then 0.2, plus 0.2 each for: the rod
+    back on its rests (within 15 mm of where it lay); the lid shut (within 2 degrees); the flange sealed (the plate home
+    and square, within 2 mm and 3 degrees, the clamp shut, both gas valves shut). 1.0 if all three, and every fingertip
+    is 8 cm from the rod, the plate's knob, the clamp's lever and the lid's handle."""
     st = _state
     if st.get("viol") or not st.get("settled", False) or not st.get("centred"):
         return 0.0
@@ -915,160 +1040,5 @@ def _on_rod(p):
 def demo():
     _ct["trim"], _ct["wins"] = {}, []
     pl = _Plan()
-    O = Orient(_prev_grip(0.0))
-    up = np.array([0.0, 0.0, 1.0])
-    cap_g = np.array([0.0, CAP_D / 2, 0.0])  # where the cap is held: its sleeve's middle
-
-    # -- 1. right takes the cap; left takes the valve's knob ---------------------------------------------------------
-    c0 = CAP_START + cap_g
-    k0 = _knob(0.0)
-    pl.phase(right=[(2.5, _tcp(c0 + 0.04 * up), CAP_OPEN, "hand turned over the cap", O_T),
-                    (1.5, _tcp(c0), CAP_OPEN, "down round the cap", O_T),
-                    (0.6, _tcp(c0), CAP_HOLD, "close on the cap", O_T)],
-             left=[(2.5, _tcp(k0 + 0.03 * up, past=0.0), KNOB_OPEN, "hand turned over the valve's knob", O_T),
-                   (1.5, _tcp(k0, past=0.0), KNOB_OPEN, "down round the knob", O_T),
-                   (0.6, _tcp(k0, past=0.0), KNOB_HOLD, "close on the knob", O_T)])
-    # -- 2. with the gauge in the green, right pulls the cap off; at once left shuts the gas -------------------------
-    c1 = c0 - [0.0, 0.035, 0.0]
-    pl.phase(right=[(2.0, _tcp(c1), CAP_HOLD, "pull the cap off (the gauge in the green band)", O_T)])
-    pl.phase(left=[(0.6, _tcp(_knob(f * math.pi / 2), past=0.0), KNOB_HOLD, "shut the gas", O_T) for f in (1 / 3, 2 / 3, 1.0)]
-             + [(0.4, _tcp(_knob(math.pi / 2), past=0.0), KNOB_HOLD, "shut the gas", O_T)],
-             right=[(1.0, _tcp(c1 + 0.04 * up), CAP_HOLD, "lift the cap", O_T)])
-    # -- 3. right sets the cap on its stand; left lifts the lid ----------------------------------------------------------
-    s0 = CAP_REST + cap_g
-    p0, R0 = _bar(0.0)
-    lid = [(2.5, _tcp(p0 - [0.012, 0.0, 0.0], R0, past=0.0), BAR_OPEN, "hand turned to the lid's handle", Orient(R0)),
-           (1.0, _tcp(p0, R0, past=0.002), BAR_OPEN, "round the handle", Orient(R0)),
-           (0.6, _tcp(p0, R0, past=0.002), BAR_HOLD, "close on the handle", Orient(R0))]
-    for f in (0.25, 0.5, 0.75, 1.0):
-        p, R = _bar(f * LID_OPEN)
-        lid.append((1.2, _tcp(p, R, past=0.002), BAR_HOLD, "lift the lid", Orient(R)))
-    p1, R1 = _bar(LID_OPEN)
-    lid += [(0.6, _tcp(p1, R1, past=0.002), BAR_OPEN, "let go of the lid", Orient(R1)),
-            (1.0, _tcp(p1 - _appr(R1) * 0.03, R1, past=0.002), BAR_OPEN, "back off the handle", Orient(R1))]
-    pl.phase(left=[(0.6, _tcp(_knob(math.pi / 2), past=0.0), KNOB_OPEN, "let go of the knob", O_T),
-                   (0.8, _tcp(_knob(math.pi / 2) + 0.03 * up, past=0.0), KNOB_OPEN, "up off the knob", O_T), *lid],
-             right=[(2.0, _tcp(s0 + 0.05 * up), CAP_HOLD, "the cap over its stand", O_T),
-                    (1.5, _tcp(s0 + 0.002 * up), CAP_HOLD, "the cap down on its stand", O_T),
-                    (0.6, _tcp(s0 + 0.002 * up), CAP_OPEN, "let go of the cap", O_T),
-                    (1.0, _tcp(s0 + 0.05 * up), CAP_OPEN, "up off the cap", O_T)])
-    # -- 4. left holds the tube; right takes the rod ---------------------------------------------------------------------
-    h = _rod_at(HOLD_Y)
-    r_g0 = _rod_at(FEED[0], AXZ - 0.0015)
-    clear = np.array([0.215, 0.350, TOP + 0.320])  # out past the lid's end, in front of it
-    pl.phase(left=[(1.0, _tcp(p1 + [-0.06, 0.0, -0.04], R1, past=0.002), BAR_OPEN, "out from the lid", Orient(R1)),
-                   (2.0, _tcp(clear), TUBE_OPEN, "hand turned, past the lid's end", O_T),
-                   (1.5, _tcp(h + 0.09 * up), TUBE_OPEN, "over the tube's far end", O_T),
-                   (1.0, _tcp(h + 0.03 * up), TUBE_OPEN, "down over the tube", O_T),
-                   (1.0, _tcp(h), TUBE_OPEN, "down round the tube", O_T),
-                   (0.6, _tcp(h), TUBE_HOLD, "hold the tube (it rolls and slides)", O_T)],
-             right=[(2.5, _on_rod(r_g0 + 0.09 * up), ROD_OPEN, "hand turned over the rod", O_T),
-                    (1.0, _on_rod(r_g0 + 0.03 * up), ROD_OPEN, "down over the rod", O_T),
-                    (1.0, _on_rod(r_g0), ROD_OPEN, "down round the rod", O_T),
-                    (0.6, _on_rod(r_g0), ROD_HOLD, "close on the rod", O_T)])
-    # -- 5. right pushes the boat in, stroke by stroke, until it sits under the thermocouple (seen) -----------------------
-    seq = []
-
-    def stroke(y1, label, dur):
-        seq.append((dur, _Dyn(_on_rod(_rod_at(y1)), cur["k"]), ROD_HOLD, label, O_T))
-        return []
-
-    keys = iter(f"r{i}" for i in range(1, 20))
-    cur = {"k": "r"}
-
-    def regrip(y_from, y_to):
-        """Let go, move along, line up on the rod as seen while hovering 3 cm over it (the open fingers clear of it, so
-        they cannot nudge it while the hand is trimmed), keep trimming on the way down, then close."""
-        k_old, k_new = cur["k"], next(keys)
-        cur["k"] = k_new
-        over = _on_rod(_rod_at(y_to) + 0.03 * up)
-        seq.extend([(0.6, _Dyn(_on_rod(_rod_at(y_from)), k_old), ROD_OPEN, "let go of the rod", O_T),
-                    (0.8, _Dyn(_on_rod(_rod_at(y_from) + 0.03 * up), k_old), ROD_OPEN, "up off the rod", O_T),
-                    (1.2, _Dyn(over, k_new), ROD_OPEN, "along the rod", O_T)])
-        t0 = pl.t + sum(w[0] for w in seq)
-        pl.window(t0 + 0.1, t0 + 2.4, k_new,
-                  lambda env, y=y_to, key=k_new: (_rod_seen_at(env, y) - _rod_at(y) - _ct["trim"].get(key, np.zeros(3)))
-                  * [1.0, 0.0, 1.0], "hook_rod")
-        seq.extend([(1.4, _Dyn(over, k_new), ROD_OPEN, "line up over the rod (seen)", O_T),
-                    (1.0, _Dyn(_on_rod(_rod_at(y_to)), k_new), ROD_OPEN, "down round the rod", O_T),
-                    (0.6, _Dyn(_on_rod(_rod_at(y_to)), k_new), ROD_HOLD, "close on the rod", O_T)])
-        return []
-
-    full = FEED[1] - FEED[0]
-    last = H_IN - (ROD_START[1] + 2 * full)  # the third stroke's length
-    touch = FEED[0] + (BOAT_START[1] - BOAT_L / 2 - 0.003) - ROD_START[1]  # the hand, the pusher 3 mm from the boat
-    seq.append((1.0, _on_rod(_rod_at(FEED[0])), ROD_HOLD, "lift the rod off its rest", O_T))
-    mouth = FEED[0] + (TUBE_Y0 - 0.012) - ROD_START[1]  # the hand, the pusher 12 mm short of the tube's mouth
-    stroke(mouth, "the rod up to the tube's mouth", 1.5)
-    t0 = pl.t + sum(w[0] for w in seq)
-    stroke(mouth, "hold still: the rod's tip seen in line with the tube", 1.5)
-    pl.window(t0 + 0.2, t0 + 1.5, "r",
-              lambda env: np.array([XA, 0.0, TOP + AXZ]) - _rod_seen_at(env, TUBE_Y0 - 0.012) * [1.0, 0.0, 1.0],
-              "hook_rod")
-    stroke(touch, "the pusher up to the boat", 1.0)
-    stroke(FEED[1], "push the boat in, slowly", 6.0)
-    regrip(FEED[1], FEED[0])
-    stroke(FEED[1], "push the boat on", 5.0)
-    regrip(FEED[1], FEED[1] - last)
-    stroke(FEED[1], "push on until the boat is under the thermocouple", 3.0)
-    k_push = cur["k"]
-    pl.phase(right=seq)
-    tw = pl.phase(right=[(2.0, _Dyn(_on_rod(_rod_at(FEED[1])), k_push), ROD_HOLD,
-                          "hold still: the boat seen under the thermocouple", O_T)])
-    pl.window(tw + 0.3, tw + 2.0, k_push,
-              lambda env: np.array([0.0, HOT_Y - _seen(env, "boat")[1], 0.0]), "boat")
-    # -- 6. right pulls the rod back out, stroke by stroke, and lays it on its rests -------------------------------------
-    seq = []
-    stroke(FEED[1] - last, "pull the rod back", 2.5)
-    regrip(FEED[1] - last, FEED[1])
-    stroke(FEED[0], "pull the rod back", 4.0)
-    regrip(FEED[0], FEED[1])
-    stroke(FEED[0], "pull the rod out", 4.0)
-    k = cur["k"]
-    seq += [(1.0, _Dyn(_on_rod(_rod_at(FEED[0], AXZ - 0.0015)), k), ROD_HOLD, "down onto its rests", O_T),
-            (0.6, _Dyn(_on_rod(_rod_at(FEED[0], AXZ - 0.0015)), k), ROD_OPEN, "let go of the rod", O_T),
-            (1.0, _Dyn(_on_rod(_rod_at(FEED[0], AXZ - 0.0015)) + 0.04 * up, k), ROD_OPEN, "up off the rod", O_T),
-            (2.0, RIGHT_PARK, ROD_OPEN, "up and clear", O_T)]
-    pl.phase(right=seq)
-    # -- 7. left lets go of the tube and shuts the lid -------------------------------------------------------------------
-    shut = [(2.5, _tcp(p1 + [-0.05, 0.0, -0.03], R1, past=0.002), BAR_OPEN, "hand turned to the lid's handle", Orient(R1)),
-            (1.0, _tcp(p1 - _appr(R1) * 0.03, R1, past=0.002), BAR_OPEN, "in towards the handle", Orient(R1)),
-            (1.0, _tcp(p1, R1, past=0.002), BAR_OPEN, "round the handle", Orient(R1)),
-            (0.6, _tcp(p1, R1, past=0.002), BAR_HOLD, "close on the handle", Orient(R1))]
-    for f in (0.75, 0.5, 0.25, 0.0):
-        p, R = _bar(f * LID_OPEN)
-        shut.append((1.0, _tcp(p, R, past=0.002), BAR_HOLD, "lower the lid", Orient(R)))
-    shut += [(0.6, _tcp(p0, R0, past=0.002), BAR_OPEN, "let go of the lid", Orient(R0)),
-             (1.0, _tcp(p0 - _appr(R0) * 0.012, R0, past=0.002), BAR_OPEN, "back off the handle", Orient(R0)),
-             (1.0, _tcp(p0 - _appr(R0) * 0.022, R0, past=0.002), BAR_OPEN, "the fingers out in front of the handle",
-              Orient(R0)),
-             (1.0, _tcp(p0 - _appr(R0) * 0.022 - [0.0, 0.0, 0.05], R0, past=0.002), BAR_OPEN, "down, clear of the handle",
-              Orient(R0)),
-             (1.5, _tcp(np.array([0.18, 0.325, TOP + 0.23]), R0, past=0.002), BAR_OPEN, "past the furnace's end",
-              Orient(R0)),
-             (1.5, LEFT_PARK, BAR_OPEN, "hand turned at the park", O_T)]
-    pl.phase(left=[(0.6, _tcp(h), CAP_OPEN, "let go of the tube", O_T),
-                   (0.8, _tcp(h) - APPR_T * 0.025, CAP_OPEN, "back off the tube along the hand", O_T),
-                   (1.0, _tcp(h + 0.09 * up), TUBE_OPEN, "up off the tube", O_T),
-                   (1.5, _tcp(clear), TUBE_OPEN, "back past the lid's end", O_T), *shut])
-    # -- 8. right puts the cap back on: in line with the tube (seen), pushed fully home -------------------------------
-    pre = CAP_START - [0.0, CAP_D + 0.005, 0.0]
-    pl.phase(right=[(2.5, _tcp(s0 + 0.05 * up), CAP_OPEN, "hand turned over the cap", O_T),
-                    (1.5, _tcp(s0 + 0.002 * up), CAP_OPEN, "down round the cap", O_T),
-                    (0.6, _tcp(s0 + 0.002 * up), CAP_HOLD, "close on the cap", O_T),
-                    (1.0, _tcp(s0 + 0.05 * up), CAP_HOLD, "lift the cap", O_T),
-                    (2.0, _tcp(pre + cap_g + 0.045 * up), CAP_HOLD, "the cap over the tube's end", O_T),
-                    (1.5, _Dyn(_tcp(pre + cap_g), "c1"), CAP_HOLD, "the cap in front of the tube's end", O_T)])
-    tw = pl.phase(right=[(2.0, _Dyn(_tcp(pre + cap_g), "c1"), CAP_HOLD, "hold still: the cap seen in line with the tube",
-                          O_T)])
-    pl.window(tw + 0.5, tw + 2.0, "c1",
-              lambda env: np.array([XA - _seen(env, "end_cap")[0], 0.0, TOP + AXZ - _seen(env, "end_cap")[2]]),
-              "end_cap")
-    home = CAP_START + [0.0, 0.0015, 0.0] + cap_g
-    pl.phase(right=[(2.5, _Dyn(_tcp(home), "c1"), CAP_HOLD, "push the cap fully home", O_T),
-                    (0.8, _Dyn(_tcp(home), "c1"), CAP_HOLD, "hold it home", O_T),
-                    (0.6, _Dyn(_tcp(home), "c1"), CAP_OPEN, "let go of the cap", O_T),
-                    (1.0, _Dyn(_tcp(home) + 0.04 * up, "c1"), CAP_OPEN, "up off the cap", O_T),
-                    (2.0, RIGHT_PARK, CAP_OPEN, "up and clear", O_T)])
-    pl.phase(right=[(2.0, RIGHT_PARK, FINGER_CLOSED, "rest", O_T)], left=[(2.0, LEFT_PARK, FINGER_CLOSED, "rest", O_T)])
+    pl.phase(right=[(3.0, RIGHT_PARK, FINGER_CLOSED, "rest", O_T)], left=[(3.0, LEFT_PARK, FINGER_CLOSED, "rest", O_T)])
     return {"left": pl.L, "right": pl.R}
