@@ -808,7 +808,7 @@ def _tcp(tip, R=ROT_T, past=0.004):
 ROD_OPEN, ROD_HOLD = -0.012, 0.0  # round the 8 mm rod, squeezed hard (a looser grip slips)
 TONGUE_OPEN, TONGUE_HOLD = -0.012, -0.0015  # on a boat's 5 mm tongue: a light squeeze (a hard one shakes the boat)
 FEED = (-0.395, -0.275)  # each stroke on the rod: from here to here along y (reach behind, the tray's end in front)
-ROD_GRIP = 0.0015  # (the hand holds the rod a little under its axis' height: its pads, not its tips, on it)
+ROD_GRIP = 0.0  # the hand holds the rod at its axis' height: it neither lifts it nor presses it down (either tips it off a rest)
 ROT_D = axis_angle_matrix(Y, TONGUE_TURN) @ _prev_grip(math.pi / 2)  # in from the front, tipped 55 deg,
 O_D = Orient(ROT_D)  # closing square across a boat's tongue
 assert abs(math.atan2(-ROT_D[2, 0], ROT_D[0, 0]) - TONGUE_TURN) < 1e-6  # the pads meet the tongue's faces flat
