@@ -1119,7 +1119,7 @@ def _vpush(pivot, th, side, r=0.032):
     side towards larger th, so pushing turns it to smaller th; -1 the other way)."""
     d = np.array([math.cos(th), math.sin(th), 0.0])
     n = np.array([-math.sin(th), math.cos(th), 0.0])
-    return np.array([pivot[0], pivot[1], TOP + pivot[2] + 0.010]) + r * d + side * 0.008 * n
+    return np.array([pivot[0], pivot[1], TOP + pivot[2] + 0.010]) + r * d + side * 0.014 * n  # (the fingers' half width)
 
 
 class _GateSeq:
@@ -1147,7 +1147,7 @@ _LEVER_OUT = _hook_y - 0.004 - CLAMP_PIVOT[1]  # the clamp lever's outside face 
 
 def _push_open(th):
     """Where a fingertip pushes the clamp's lever open (on its outside face), the clamp turned th about x."""
-    return np.array(CLAMP_PIVOT) + [0.0, 0.0, TOP] + axis_angle_matrix(X, th) @ np.array([0.0, _LEVER_OUT - 0.003, 0.016])
+    return np.array(CLAMP_PIVOT) + [0.0, 0.0, TOP] + axis_angle_matrix(X, th) @ np.array([0.0, _LEVER_OUT - 0.011, 0.016])
 
 
 def _push_shut(th):
@@ -1201,9 +1201,11 @@ def demo():
         return out
 
     # -- 1. right pushes the argon valve shut (the tube is over its green band and still filling); left goes to the bleed ---
-    ap = [_tcp(_vpush(ARGON_PIVOT, -f * math.pi / 2, 1), past=0.0) for f in (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)]
+    ap = [_tcp(_vpush(ARGON_PIVOT, -f * math.pi / 2, 1), past=0.0) for f in (0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.1)]
     b_side = _tcp(_vpush(BLEED_PIVOT, math.pi / 2, 1), past=0.0)
-    pl.phase(right=[(2.5, ap[0] + 0.03 * up, FINGER_CLOSED, "hand turned, fingers shut, over the argon valve", O_T),
+    pl.phase(right=[(2.0, np.array([0.37, -0.27, TOP + 0.37]), FINGER_CLOSED, "hand turned, up clear of the tube's end",
+                     O_T),
+                    (1.5, ap[0] + 0.03 * up, FINGER_CLOSED, "over the argon valve, fingers shut", O_T),
                     (1.0, ap[0] + 0.004 * Y, FINGER_CLOSED, "fingertips down beside its lever", O_T),
                     *[(0.5, x, FINGER_CLOSED, "push the argon valve shut", O_T) for x in ap],
                     (0.8, ap[-1] - 0.004 * Y + 0.04 * up, FINGER_CLOSED, "up off the lever", O_T)],
@@ -1211,12 +1213,12 @@ def demo():
                    (1.0, b_side - 0.004 * X, FINGER_CLOSED, "fingertips down beside its lever", O_T)])
     # -- 2. left bleeds the tube down into the green band (watching the gauge), then pushes the bleed shut -------------
     bo = [_tcp(_vpush(BLEED_PIVOT, a, 1), past=0.0) for a in (math.pi / 2, 3 * math.pi / 8, math.pi / 4)]
-    bs = [_tcp(_vpush(BLEED_PIVOT, a, -1), past=0.0) for a in (math.pi / 4, 3 * math.pi / 8, math.pi / 2, math.pi / 2)]
+    bs = [_tcp(_vpush(BLEED_PIVOT, a, -1), past=0.0) for a in (math.pi / 4, 3 * math.pi / 8, math.pi / 2, 0.6 * math.pi)]
     t_open = pl.phase(left=[*[(0.6, x, FINGER_CLOSED, "open the bleed (half)", O_T) for x in bo],
                             (0.6, bo[-1] + 0.03 * up, FINGER_CLOSED, "up off the lever", O_T),
                             (1.0, bs[0] + 0.03 * up, FINGER_CLOSED, "over to its other side", O_T)])
     pl.gate(t_open + 1.8, t_open + 14.0, "bleed", lambda env: _gauge_kpa(env) <= P_OPEN_AT)
-    seq_b = [bs[0] + 0.03 * up, bs[0] + 0.004 * (X - Y), *bs]
+    seq_b = [bs[0] + 0.03 * up, bs[0] + 0.006 * (X - Y), *bs]
     pl.phase(left=[(0.5, _GateSeq(seq_b, "bleed", 0.5), FINGER_CLOSED, "bleed until the gauge is in the green; then shut it",
                     O_T) for _ in range(28)]
              + [(0.8, bs[-1] + 0.04 * up, FINGER_CLOSED, "up off the lever", O_T)])
