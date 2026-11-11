@@ -213,10 +213,10 @@ def _hose(pts, w, colour):
 # its front towards the robots: a base with the controller, the heated lower half, and a lid hinged along the back that
 # lifts (to 90 degrees, fully open) by a handle at the middle of its front. The tube runs across it along y. -------------
 DESK = 0.050  # the desk's top: the furnace stands on it, so the controller and the gauge face the camera more squarely
-XA, AXZ = 0.285, DESK + 0.220  # the tube's axis: x, height above the bench
+XA, AXZ = 0.275, DESK + 0.220  # the tube's axis: x, height above the bench
 TUBE_R, TUBE_IN = 0.0127, 0.0110  # 1 inch quartz tube: 25.4 mm outside, 22 mm inside
 TUBE_Y0, TUBE_Y1 = -0.225, 0.385  # the tube's ends: the loading end (towards the right arm) and the far end
-FX0, FX1, FY0, FY1 = 0.145, 0.425, -0.125, 0.285  # the furnace body: front, back, ends (410 mm wide, 280 mm deep)
+FX0, FX1, FY0, FY1 = 0.135, 0.415, -0.165, 0.245  # the furnace body: front, back, ends (410 mm wide, 280 mm deep)
 BASE_Z = DESK + 0.110  # the base (controller) under the heated chamber
 LID_Z1 = DESK + 0.360  # the lid's top
 HOT_Y = (FY0 + FY1) / 2  # the hot zone's centre, where the thermocouple's tip is
@@ -386,7 +386,7 @@ BRASS = (0.78, 0.66, 0.30)
 HOSE_C = (0.30, 0.55, 0.85)
 ARGON_C = (0.25, 0.48, 0.30)  # the gas bottle (argon: green shoulder)
 VALVE_SHUT = math.radians(80.0)  # a valve counts as shut once its lever is turned this far
-ARGON_PIVOT = (XA - 0.075, -0.175, AXZ + 0.004)  # the inlet valve, in front of the loading end
+ARGON_PIVOT = (XA - 0.075, -0.200, AXZ + 0.004)  # the inlet valve, in front of the loading end
 BLEED_PIVOT = (XA - 0.075, 0.375, AXZ + 0.004)  # the bleed valve, in front of the far end
 BOTTLE = (0.47, -0.36)  # the argon bottle, behind the loading end
 
@@ -441,7 +441,7 @@ KNOB_R, KNOB_L = 0.008, 0.022
 PLATE_START = np.array([XA, TUBE_Y0, TOP + AXZ])
 PLATE = part("end_plate", pos=tuple(PLATE_START), mass=0.10, friction=0.4,
              cylinders=[((0.0, -PLATE_T / 2, 0.0), PLATE_R, PLATE_T, STAINLESS, "Y"),
-                        ((0.0, 0.0015, 0.0), TUBE_IN - 0.0008, 0.003, DARK, "Y"),
+                        ((0.0, 0.0015, 0.0), 0.0070, 0.003, DARK, "Y"),
                         ((0.0, -PLATE_T - KNOB_L / 2, 0.0), KNOB_R, KNOB_L, DARK, "Y")])
 # its stand (fixed): a post with a V cradle the plate stands in, on edge, knob towards -y
 PLATE_REST = np.array([0.195, -0.380, TOP + AXZ - 0.020])  # the plate's centre on the stand
@@ -1040,5 +1040,8 @@ def _on_rod(p):
 def demo():
     _ct["trim"], _ct["wins"] = {}, []
     pl = _Plan()
-    pl.phase(right=[(3.0, RIGHT_PARK, FINGER_CLOSED, "rest", O_T)], left=[(3.0, LEFT_PARK, FINGER_CLOSED, "rest", O_T)])
+    # (scene check: both hands stay where they start)
+    pr, Rr = _ik.tcp_pose(np.array(_READY, float), base_pos=(0.0, -0.3, TOP))
+    pll, Rl = _ik.tcp_pose(np.array(_READY, float), base_pos=(0.0, 0.3, TOP))
+    pl.phase(right=[(3.0, pr, FINGER_OPEN, "rest", Orient(Rr))], left=[(3.0, pll, FINGER_OPEN, "rest", Orient(Rl))])
     return {"left": pl.L, "right": pl.R}
