@@ -416,7 +416,7 @@ CLAMP = Joint("clamp", kind="hinge", axis="X", anchor=CLAMP_PIVOT, lower=-CLAMP_
 FLOOR_Z = AXZ - 0.0075
 # under each collar a flat foot, which stands on a support (the tube rests on the two supports, flat on flat, so it cannot
 # roll; the furnace's saddles just clear it)
-PAD_T, PAD_W = 0.003, 0.032
+PAD_T, PAD_W = 0.003, 0.050
 _pads = [((TUBE_Y0 + 0.006 + NC_Y1) / 2, NC_Y1 - TUBE_Y0 - 0.010), ((FIT_Y0 + FIT_Y1 - 0.006) / 2, FIT_Y1 - FIT_Y0 - 0.010)]
 PAD_Z = AXZ - COLLAR_R - PAD_T / 2 + 0.0008  # (its top a little into the collar: one solid with it)
 TUBE_BOXES = [((XA, (TUBE_Y0 + FIT_Y0) / 2, FLOOR_Z - 0.001), (0.012, FIT_Y0 - TUBE_Y0, 0.002), QUARTZ),
@@ -717,8 +717,12 @@ def flange_sealed(pl, t, g):
             and valve_shut(g, "argon_valve") and valve_shut(g, "bleed_valve"))
 
 
+TUBE_MID = np.array([XA, (TUBE_Y0 + TUBE_Y1) / 2, AXZ])  # a point on the tube's axis, at its middle (part frame)
+
+
 def _tube_ref(t):
-    return np.asarray(t.pos, float), t.rotation()
+    """Where the tube's middle is (on its axis), and how it is turned."""
+    return np.asarray(t.pos, float) + t.rotation() @ TUBE_MID, t.rotation()
 
 
 @on_step
@@ -755,7 +759,7 @@ def _watch(env):
     if "tube0" in st:
         p0, R0 = st["tube0"]
         turn = math.degrees(math.acos(max(-1.0, min(1.0, (np.trace(R0.T @ t.rotation()) - 1) / 2))))
-        if np.linalg.norm(np.asarray(t.pos, float) - p0) > TUBE_MOVE or turn > TUBE_TURN:
+        if np.linalg.norm(_tube_ref(t)[0] - p0) > TUBE_MOVE or turn > TUBE_TURN:
             st["viol"].add("the tube slid or rolled")
     bp = np.asarray(b.pos, float)
     st["centred"] = abs(bp[1] - HOT_Y) <= HOT_TOL and abs(bp[2] - (TOP + BOAT_Z)) < 0.004
