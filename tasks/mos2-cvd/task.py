@@ -427,8 +427,8 @@ ROD = part("push_rod", pos=tuple(ROD_START), mass=0.110, friction=0.7,
            cylinders=[((0.0, -0.0015, 0.0), PUSHER_R, 0.003, STEEL, "Y"),
                       ((0.0, -(0.003 + ROD_L) / 2, 0.0), GRIP_W / 2, ROD_L - 0.003, STEEL, "Y")])
 REST_Y = (-0.480, -0.700)  # the rear one holds the rod's tail until its front is inside the tube
-REST_Z = ROD_Z - GRIP_W / 2 - 0.0015
-V_RISE = 0.0015
+V_RISE = 0.006  # each rest's V: 6 mm deep over 10 mm each side (about 30 degrees), so the rod lies in it, not on it
+REST_Z = ROD_Z - 0.0002 - GRIP_W / 2 * math.hypot(1.0, (V_RISE - 0.0002) / 0.010)  # the rod's axis at ROD_Z in the V
 REST = part("rod_rests", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
             boxes=[((XA, y, REST_Z / 2), (0.020, 0.014, REST_Z), DARK) for y in REST_Y],
             meshes=[_hex([(XA + sx * xo, y + dy, REST_Z + zo) for xo, zt in ((0.0, 0.0002), (0.010, V_RISE))
