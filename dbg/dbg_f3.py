@@ -22,7 +22,7 @@ def _dbg_f3(env):
     open("/home/ubuntu/dbg_fd.txt", "a").write(
         f"{_dfb['n']} t={getattr(_demo, '_plan_clock', 0.0):.1f} P={_gas.get('p', 0):.2f} argon={dg(g, 'argon_valve')} "
         f"bleed={dg(g, 'bleed_valve')} needle={dg(t, 'needle')} clamp={dg(t, 'clamp')} lid={dg(f, 'lid')} "
-        f"capout={plate_out(c) * 1000:.1f} ptilt={axis_off(c):.1f} cap={mm(c.pos)} tube_d={dt} boat={mm(b.pos)} chips={co} rod={mm(r.pos)} "
+        f"capout={plate_out(c) * 1000:.1f} ptilt={axis_off(c):.1f} tpos={mm(t.pos)} cap={mm(c.pos)} tube_d={dt} boat={mm(b.pos)} chips={co} rod={mm(r.pos)} "
         f"viol={sorted(_state.get('viol', []))} cent={_state.get('centred')} rack={_state.get('racked')} "
         f"lidok={_state.get('lid')} seal={_state.get('sealed')} far={_state.get('far')} settled={_state.get('settled')} "
         f"tips={tips}\n")
