@@ -385,7 +385,7 @@ BOATS = {"s_boat": (0.060, ALUMINA, SULFUR_C), "moo3_boat": (0.060, ALUMINA, MOO
 BOAT_Z = FLOOR_Z + 0.0003  # a boat on the tube's floor strip
 TRAY_Z = FLOOR_Z  # the tray's top: level with the tube's floor
 TRAY_X = {"chip_boat": XA + 0.050, "moo3_boat": XA + 0.085, "s_boat": XA + 0.120}  # in loading order from the front
-BACK_Y = -0.330  # the boats' back ends on the tray
+BACK_Y = -0.300  # the boats' back ends on the tray (the hand on a tongue clear of the rod's pusher)
 
 
 def _boat(name):
@@ -422,7 +422,7 @@ CHIP_PART = part("chip", pos=tuple(CHIP_START), mass=0.0004, friction=0.8,  # (4
 # with the tube behind the tray. Frame: on its axis at the pusher's front face, the rod along -y. ------------------------
 ROD_L, GRIP_W, PUSHER_R = 0.500, 0.006, 0.005
 ROD_Z = BOAT_Z + 0.0065  # the rod's axis: its pusher disc on a boat's tongue, its lower edge 1.5 mm over the floor
-ROD_START = np.array([XA, TUBE_Y0 - 0.150, TOP + ROD_Z])
+ROD_START = np.array([XA, TUBE_Y0 - 0.135, TOP + ROD_Z])  # its pusher 35 mm ahead of the hand at FEED[0]
 ROD = part("push_rod", pos=tuple(ROD_START), mass=0.110, friction=0.7,
            cylinders=[((0.0, -0.0015, 0.0), PUSHER_R, 0.003, STEEL, "Y"),
                       ((0.0, -(0.003 + ROD_L) / 2, 0.0), GRIP_W / 2, ROD_L - 0.003, STEEL, "Y")])
@@ -873,7 +873,7 @@ def demo():
             (1.6, _tcp(lift, ROT_D, past=0.006), TONGUE_HOLD, "lift the boat, level", O_D),
             (3.0, _tcp(np.array([XA + 0.010, pre[1] - 0.020, lift[2]]), ROT_D, past=0.006), TONGUE_HOLD,
              "carry it over to the tube's line", O_D),
-            (2.0, _Dyn(_tcp(pre + [0.0, -0.020, 0.0], ROT_D, past=0.006), k_b), TONGUE_HOLD, "down in line with the tube",
+            (2.0, _Dyn(_tcp(pre + [0.0, -0.010, 0.0], ROT_D, past=0.006), k_b), TONGUE_HOLD, "down in line with the tube",
              O_D),
             (1.0, _Dyn(_tcp(pre, ROT_D, past=0.006), k_b), TONGUE_HOLD, "to the tube's mouth", O_D)])
         tw = pl.phase(right=[(1.8, _Dyn(_tcp(pre, ROT_D, past=0.006), k_b), TONGUE_HOLD,
