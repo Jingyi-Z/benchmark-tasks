@@ -370,8 +370,8 @@ def _disc_mesh(c, n, r, t, colour, k=32):
 # the tube's wall in 45 mm lengths (PhysX cannot build long, thin convex pieces on the GPU), the two collars with their
 # flange lips, the gauge and the ports
 _TUBE_CUTS = np.linspace(TUBE_Y0, FIT_Y0 + 0.005, 14)
-ARGON_PORT = (XA - COLLAR_R - 0.010, (TUBE_Y0 + NC_Y1) / 2 + 0.004, AXZ)  # the argon line's port, on the collar's side
-BLEED_PORT = (XA - COLLAR_R - 0.010, FIT_Y0 + 0.012, AXZ)  # the bleed line's port on the far flange
+ARGON_PORT = (XA + COLLAR_R + 0.010, (TUBE_Y0 + NC_Y1) / 2 + 0.004, AXZ)  # the argon line's port, on the collar's back
+BLEED_PORT = (XA + COLLAR_R + 0.010, FIT_Y0 + 0.012, AXZ)  # the bleed line's port, on the far flange's back
 CLAMP_PIVOT = (XA, NC_Y1 - 0.012, AXZ + COLLAR_R + 0.010)  # the clamp's hinge, on top of the loading collar
 # (the flanges first: PhysX keeps a limited number of shapes on one body, so the pieces that must collide come first)
 TUBE_MESHES = [*_ring_y(TUBE_Y0, TUBE_Y0 + 0.006, TUBE_R, FLANGE_R, 12, STAINLESS, cx=XA, cz=AXZ),
@@ -384,8 +384,8 @@ TUBE_DRAWN = [
     *_disc_mesh(np.array([XA, FIT_Y1, AXZ]), Y, FLANGE_R, 0.006, STAINLESS, 16),  # the far flange's blank
     _seg((XA, FIT_Y1, AXZ), (XA, GAUGE_C[1] + 0.006, AXZ), 0.014, STAINLESS),  # the tee's nipple out of the blank
     _seg((XA, GAUGE_C[1], AXZ), GAUGE_C - 0.010 * GAUGE_N, 0.009, STAINLESS),  # the gauge's stem, up off the tee
-    _box_mesh((XA - COLLAR_R - 0.005, ARGON_PORT[1], AXZ), (0.012, 0.010, 0.010), STAINLESS),  # the argon port
-    _box_mesh((XA - COLLAR_R - 0.005, BLEED_PORT[1], AXZ), (0.012, 0.010, 0.010), STAINLESS),  # the bleed port
+    _box_mesh((XA + COLLAR_R + 0.005, ARGON_PORT[1], AXZ), (0.012, 0.010, 0.010), STAINLESS),  # the argon port
+    _box_mesh((XA + COLLAR_R + 0.005, BLEED_PORT[1], AXZ), (0.012, 0.010, 0.010), STAINLESS),  # the bleed port
     _box_mesh((XA, CLAMP_PIVOT[1], AXZ + COLLAR_R + 0.005), (0.014, 0.012, 0.012), STAINLESS),  # the clamp's hinge block
     *_disc_mesh(GAUGE_C - 0.012 * GAUGE_N, GAUGE_N, GAUGE_R + 0.003, 0.012, STAINLESS),  # the gauge's case
     *_disc_mesh(GAUGE_C, GAUGE_N, GAUGE_R, 0.001, WHITE),  # its face
@@ -434,54 +434,44 @@ BRASS = (0.78, 0.66, 0.30)
 HOSE_C = (0.30, 0.55, 0.85)
 ARGON_C = (0.25, 0.48, 0.30)  # the gas bottle (argon: green shoulder)
 VALVE_SHUT = math.radians(80.0)  # a valve counts as shut once its lever is turned this far
-ARGON_PIVOT = (XA - 0.075, -0.200, AXZ + 0.004)  # the inlet valve, in front of the loading end
-BLEED_PIVOT = (XA - 0.075, 0.375, AXZ + 0.004)  # the bleed valve, in front of the far end
+ARGON_PIVOT = (XA + 0.060, -0.215, AXZ + 0.004)  # the inlet valve, behind the loading end's collar
+BLEED_PIVOT = (XA + 0.060, 0.370, AXZ + 0.004)  # the bleed valve, behind the far flange
 BOTTLE = (0.42, -0.62)  # the argon bottle, off to the side of the loading end
 
 
-def _valve(name, pivot, sign, lever_open):
-    """A ball valve on its post: the lever points along the line (-x, at the robots) when open and turns by
-    sign * 90 degrees about z to shut. ``lever_open``: its starting angle (0 open)."""
-    j = Joint(name, kind="hinge", axis="Z", anchor=pivot, lower=min(0.0, sign * math.pi / 2),
-              upper=max(0.0, sign * math.pi / 2), stiffness=0.0, damping=0.02, friction=0.03, initial=lever_open,
-              mass=0.01,
-              boxes=[((pivot[0] - LEVER_L / 2, pivot[1], pivot[2] + 0.010), (LEVER_L, 0.010, 0.004), RED)],
-              cylinders=[((pivot[0] - LEVER_L + 0.004, pivot[1], pivot[2] + 0.019), 0.005, 0.014, RED, "Z")])
+def _valve(name, pivot, lo, hi, start):
+    """A ball valve on its post, in a line running along x: its lever along the line (+x) is open (0); turned a
+    quarter turn about z, across the line, shut. ``lo``/``hi``: the lever's travel; ``start``: where it starts."""
+    j = Joint(name, kind="hinge", axis="Z", anchor=pivot, lower=lo, upper=hi, stiffness=0.0, damping=0.02,
+              friction=0.03, initial=start, mass=0.01,
+              boxes=[((pivot[0] + LEVER_L / 2, pivot[1], pivot[2] + 0.010), (LEVER_L, 0.010, 0.004), RED)],
+              cylinders=[((pivot[0] + LEVER_L - 0.004, pivot[1], pivot[2] + 0.019), 0.005, 0.014, RED, "Z")])
     post = [((pivot[0], pivot[1], (pivot[2] - 0.012) / 2), (0.012, 0.012, pivot[2] - 0.012), DARK),
-            ((pivot[0], pivot[1], pivot[2]), (0.020, 0.022, 0.016), BRASS)]
+            ((pivot[0], pivot[1], pivot[2]), (0.022, 0.020, 0.016), BRASS)]
     return j, post
 
 
-ARGON_V, _ap = _valve("argon_valve", ARGON_PIVOT, -1.0, 0.0)
-BLEED_V, _bp = _valve("bleed_valve", BLEED_PIVOT, 1.0, math.radians(90.0))  # starts shut (lever across the line)
-_reg = (BOTTLE[0], BOTTLE[1], 0.330)
+ARGON_V, _ap = _valve("argon_valve", ARGON_PIVOT, -math.pi / 2, 0.0, 0.0)  # open; shut turned towards the right arm
+BLEED_V, _bp = _valve("bleed_valve", BLEED_PIVOT, 0.0, math.pi / 2, math.pi / 2)  # starts shut (across the line)
 LINE_MESHES = [
-    # the argon bottle with its regulator, and the line to the valve and on to the collar's port
+    # the argon bottle with its regulator, the line along the bench to the inlet valve, and on to the collar's port
     *_disc_mesh(np.array([BOTTLE[0], BOTTLE[1], 0.0]), Z, 0.040, 0.250, (0.55, 0.56, 0.58)),
     *_disc_mesh(np.array([BOTTLE[0], BOTTLE[1], 0.250]), Z, 0.040, 0.050, ARGON_C),
     _box_mesh((BOTTLE[0], BOTTLE[1], 0.315), (0.030, 0.030, 0.030), BRASS),
-    *_hose([(BOTTLE[0] - 0.015, BOTTLE[1], 0.315), (BOTTLE[0] - 0.05, BOTTLE[1], 0.29), (BOTTLE[0] + 0.08, BOTTLE[1], 0.004),
-            (BOTTLE[0] + 0.08, -0.215, 0.004),
-            (ARGON_PIVOT[0] + 0.010, -0.215, 0.004), (ARGON_PIVOT[0] + 0.010, ARGON_PIVOT[1] - 0.012, 0.03),
-            (ARGON_PIVOT[0], ARGON_PIVOT[1] - 0.013, ARGON_PIVOT[2] - 0.004)], 0.006, HOSE_C),
-    *_hose([(ARGON_PIVOT[0], ARGON_PIVOT[1] + 0.013, ARGON_PIVOT[2] - 0.004),
-            (ARGON_PIVOT[0] + 0.02, ARGON_PORT[1] - 0.010, AXZ - 0.004), (ARGON_PORT[0] - 0.004, ARGON_PORT[1], AXZ)],
+    *_hose([(BOTTLE[0] - 0.015, BOTTLE[1], 0.315), (BOTTLE[0] - 0.05, BOTTLE[1], 0.29), (BOTTLE[0] - 0.06, BOTTLE[1], 0.004),
+            (ARGON_PIVOT[0] + 0.04, ARGON_PIVOT[1] - 0.03, 0.004), (ARGON_PIVOT[0] + 0.03, ARGON_PIVOT[1], 0.03),
+            (ARGON_PIVOT[0] + 0.012, ARGON_PIVOT[1], ARGON_PIVOT[2] - 0.004)], 0.006, HOSE_C),
+    *_hose([(ARGON_PIVOT[0] - 0.012, ARGON_PIVOT[1], ARGON_PIVOT[2] - 0.004),
+            (ARGON_PORT[0] + 0.010, ARGON_PIVOT[1] + 0.004, AXZ - 0.002), (ARGON_PORT[0] + 0.004, ARGON_PORT[1], AXZ)],
            0.006, HOSE_C),
     # the bleed line: from the far flange's port to its valve, then down off the bench to the exhaust
-    *_hose([(BLEED_PORT[0] - 0.004, BLEED_PORT[1], AXZ), (BLEED_PIVOT[0] + 0.02, BLEED_PORT[1] + 0.003, AXZ - 0.004),
-            (BLEED_PIVOT[0], BLEED_PIVOT[1] - 0.013, BLEED_PIVOT[2] - 0.004)], 0.006, HOSE_C),
-    *_hose([(BLEED_PIVOT[0], BLEED_PIVOT[1] + 0.013, BLEED_PIVOT[2] - 0.004), (BLEED_PIVOT[0], BLEED_PIVOT[1] + 0.06, 0.12),
-            (BLEED_PIVOT[0] + 0.05, BLEED_PIVOT[1] + 0.12, 0.0)], 0.006, (0.25, 0.26, 0.28)),
+    *_hose([(BLEED_PORT[0] + 0.004, BLEED_PORT[1], AXZ), (BLEED_PORT[0] + 0.012, BLEED_PIVOT[1], AXZ - 0.002),
+            (BLEED_PIVOT[0] - 0.012, BLEED_PIVOT[1], BLEED_PIVOT[2] - 0.004)], 0.006, HOSE_C),
+    *_hose([(BLEED_PIVOT[0] + 0.012, BLEED_PIVOT[1], BLEED_PIVOT[2] - 0.004), (BLEED_PIVOT[0] + 0.05, BLEED_PIVOT[1], 0.12),
+            (BLEED_PIVOT[0] + 0.10, BLEED_PIVOT[1] + 0.05, 0.0)], 0.006, (0.25, 0.26, 0.28)),
 ]
 GAS = part("gas_lines", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5, boxes=[*_ap, *_bp], meshes=LINE_MESHES,
            joints=[ARGON_V, BLEED_V])
-
-
-def _lever_knob(pivot, angle):
-    """Where a valve lever's knob is, the lever turned by ``angle`` about z."""
-    a = math.pi - angle
-    return np.array([pivot[0] + (LEVER_L - 0.004) * math.cos(a), pivot[1] + (LEVER_L - 0.004) * math.sin(a),
-                     pivot[2] + 0.019])
 
 
 # -- the blank plate (loose): 6 mm stainless with an O-ring and a centring spigot on its inside (in the tube's bore), a
@@ -495,7 +485,7 @@ PLATE = part("end_plate", pos=tuple(PLATE_START), mass=0.10, friction=0.4,
                         ((0.0, SPIGOT_L / 2, -0.0003), SPIGOT_R, SPIGOT_L, DARK, "Y"),
                         ((0.0, -PLATE_T - KNOB_L / 2, 0.0), KNOB_R, KNOB_L, DARK, "Y")])
 # its stand (fixed): a post with a V cradle the plate stands in, on edge, knob towards -y
-PLATE_REST = np.array([XA - 0.090, -0.380, TOP + AXZ - 0.020])  # the plate's centre on the stand
+PLATE_REST = np.array([XA + 0.090, -0.440, TOP + AXZ - 0.020])  # the plate's centre on the stand
 _vz = PLATE_REST[2] - TOP - PLATE_R * 0.90  # the V's bottom
 PLATE_STAND = part("plate_stand", pos=(0.0, 0.0, TOP), fixed=True, friction=0.6,
                    boxes=[((PLATE_REST[0], PLATE_REST[1] - PLATE_T / 2, (_vz - 0.004) / 2),
@@ -539,12 +529,12 @@ CHIPS = [part(f"chip{i}", pos=tuple(CHIP_START[i]), mass=0.00008, friction=0.8,
 # -- the hook rod (loose): stainless, 390 mm, 6 mm round its whole length, a 10 mm pusher disc at its front. Frame: origin
 # on its axis at the pusher's front face, the rod along -y. -----------------------------------------------------------------
 ROD_L, GRIP_W, PUSHER_R = 0.390, 0.006, 0.005
-ROD_START = np.array([XA, TUBE_Y0 - 0.075, TOP + AXZ - 0.0015])  # on its rests in line with the tube
+ROD_START = np.array([XA, TUBE_Y0 - 0.120, TOP + AXZ - 0.0015])  # on its rests in line with the tube, room in front for the boat
 ROD = part("hook_rod", pos=tuple(ROD_START), mass=0.090, friction=0.7,
            cylinders=[((0.0, -0.0015, 0.0), PUSHER_R, 0.003, STEEL, "Y"),
                       ((0.0, -(0.003 + ROD_L) / 2, 0.0), GRIP_W / 2, ROD_L - 0.003, STEEL, "Y")])
 # its rests (fixed): two posts with shallow V tops (1.5 mm deep over 10 mm a side) that centre the rod
-REST_Y = (-0.330, -0.550)
+REST_Y = (-0.460, -0.700)  # both behind the hand's strokes on the rod
 REST_Z = AXZ - GRIP_W / 2 - 0.0015
 V_RISE = 0.0015
 REST = part("rod_rests", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
@@ -982,15 +972,38 @@ class _Plan:
     def window(self, t0, t1, key, fn, watch):
         _ct["wins"].append((t0, t1, key, fn, watch))
 
+    def gate(self, t0, t1, key, cond):
+        _ct["gates"].append((t0, t1, key, cond))
+
 
 # trims: each a 3-vector added to the TCPs of _Dyn waypoints with its key; integrated in windows from seen positions
-_ct = {"trim": {}, "wins": [], "last": {}}
+_ct = {"trim": {}, "wins": [], "last": {}, "gates": [], "gate": {}}
 
 
 @on_reset
 def _reset_ct(env):
     _ct["trim"] = {}
     _ct["last"] = {}
+    _ct["gate"] = {}
+
+
+@on_step
+def _gtrack(env):
+    """Gates: from t0 on, latch ``key`` once ``cond`` sees what it waits for (at t1 at the latest)."""
+    t = getattr(_demo, "_plan_clock", 0.0)
+    for t0, t1, key, cond in _ct["gates"]:
+        if t0 <= t and not _ct["gate"].get(key) and (t >= t1 or cond(env)):
+            _ct["gate"][key] = t
+
+
+class _Gate:
+    """A TCP that is ``a`` until the gate ``key`` latches, then ``b``."""
+
+    def __init__(self, a, b, key):
+        self.a, self.b, self.key = np.asarray(a, float), np.asarray(b, float), key
+
+    def __array__(self, dtype=None, copy=None):
+        return np.asarray(self.b if _ct["gate"].get(self.key) else self.a, dtype=dtype or float)
 
 
 def _seen(env, name):
@@ -1026,7 +1039,7 @@ class _Dyn:
 
 
 LEFT_PARK = (0.12, 0.36, TOP + 0.20)
-RIGHT_PARK = (0.20, -0.34, TOP + 0.20)
+RIGHT_PARK = (0.14, -0.30, TOP + 0.24)
 TILT = math.radians(40.0)  # hands on the tube, the rod, the cap and the valve's knob: tipped 40 degrees forward
 
 
@@ -1052,14 +1065,19 @@ def _tcp(tip, R=ROT_T, past=0.004):
 
 ROD_OPEN, ROD_HOLD = -0.012, 0.0  # round the 6 mm rod, squeezed hard (a looser grip slips)
 TUBE_OPEN, TUBE_HOLD = -0.022, -0.0115  # round the 25.4 mm tube
-CAP_OPEN, CAP_HOLD = -0.030, -0.0170  # round the cap's 36.4 mm sleeve
-KNOB_OPEN, KNOB_HOLD = -0.014, -0.0035  # round the valve's 10 mm knob
+KNOB_OPEN, KNOB_HOLD = -0.014, -0.0035  # round a valve's 10 mm knob
+PK_OPEN, PK_HOLD = -0.018, -0.0050  # round the plate's 16 mm knob
+TAB_OPEN, TAB_HOLD = -0.012, 0.0  # across the clamp's 4 mm lever
+TONGUE_OPEN, TONGUE_HOLD = -0.014, -0.0012  # across the boat's 10 mm tongue
 BAR_OPEN, BAR_HOLD = -0.016, -0.0030  # round the lid's 8 mm handle bar
-HOLD_Y = 0.322  # where the left hand holds the tube: past the furnace's end, before the end fitting
-FEED = (-0.450, -0.330)  # each stroke on the rod: from here to here along y (reach behind, the near rest in front)
-H_IN = HOT_Y - BOAT_L / 2  # the pusher at the hot zone (the boat's back wall)
-LID_OPEN = 0.60  # rad, the lid lifted this far (34 degrees): the inside and the thermocouple's tip are seen
+WIDE = -0.030
+HOLD_Y = 0.290  # where the left hand holds the tube: past the furnace's end, before the far flange
+FEED = (-0.390, -0.270)  # each stroke on the rod: from here to here along y (reach behind, the near rest in front)
+H_IN = HOT_Y - BOAT_L / 2 - TONGUE_L  # the pusher at the boat centred under the thermocouple (its tongue's end)
+LID_OPEN = math.radians(85.0)  # the lid lifted (all but upright): the tube, the boat and the thermocouple's tip in view
 BAR = np.array([FX0 - LID_HANDLE_OUT, LID_HANDLE_Y, TOP + LID_HANDLE_Z])
+P_OPEN_AT = 5.0  # the bleed is shut again once the gauge reads this (kPa): in the middle of the green band
+BOAT_IN = -0.240  # the boat set in the tube's mouth: its back end here (15 mm out; most of it, and its weight, inside)
 
 
 def _bar(theta):
@@ -1072,12 +1090,47 @@ def _bar(theta):
     return p, R
 
 
-def _knob(phi):
-    """The valve knob's centre, the lever turned phi from open (pointing at the robots) towards shut (clockwise seen
-    from above: the knob swings out, away from the furnace)."""
-    a = math.pi - phi
-    return np.array([VALVE_PIVOT[0] + (LEVER_L - 0.004) * math.cos(a), VALVE_PIVOT[1] + (LEVER_L - 0.004) * math.sin(a),
-                     TOP + VALVE_PIVOT[2] + 0.013])
+def _lid_grip_rot(phi, sgn, psi):
+    """A grip on the lid's handle bar (along y), the lid shut: the fingers closing along (cos phi, 0, sin phi), the hand
+    coming in at psi degrees out of the x-z plane (towards -y for psi < 0)."""
+    G = _prev_grip(math.pi / 2)
+    a_l, c_l = G.T @ np.array([0.0, 0.0, -1.0]), G.T @ np.array([1.0, 0.0, 0.0])
+    ml = np.column_stack([a_l, c_l, np.cross(a_l, c_l)])
+    f, s_ = math.radians(phi), math.radians(psi)
+    c = np.array([math.cos(f), 0.0, math.sin(f)])
+    a = sgn * math.cos(s_) * np.array([-math.sin(f), 0.0, math.cos(f)]) + math.sin(s_) * Y
+    a /= np.linalg.norm(a)
+    return np.column_stack([a, c, np.cross(a, c)]) @ ml.T
+
+
+LID_GRIP_A = _lid_grip_rot(120.0, -1, -55.0)  # holds the handle from shut to 55 degrees
+LID_GRIP_B = _lid_grip_rot(75.0, 1, 0.0)  # and from 55 degrees to (nearly) upright
+LID_SWAP = math.radians(55.0)
+
+
+def _lid(theta, R0):
+    """The handle's bar and the hand's rotation (grip R0, turned with the lid) with the lid lifted by theta."""
+    p, _ = _bar(theta)
+    return p, axis_angle_matrix(Y, theta) @ R0
+
+
+def _vknob(pivot, th):
+    """A valve lever's knob, the lever at th about z (0: along +x, open)."""
+    k = LEVER_L - 0.004
+    return np.array([pivot[0] + k * math.cos(th), pivot[1] + k * math.sin(th), TOP + pivot[2] + 0.019])
+
+
+_LEVER_OUT = _hook_y - 0.004 - CLAMP_PIVOT[1]  # the clamp lever's outside face (towards -y), from the hinge, shut
+
+
+def _push_open(th):
+    """Where a fingertip pushes the clamp's lever open (on its outside face), the clamp turned th about x."""
+    return np.array(CLAMP_PIVOT) + [0.0, 0.0, TOP] + axis_angle_matrix(X, th) @ np.array([0.0, _LEVER_OUT - 0.007, 0.016])
+
+
+def _push_shut(th):
+    """Where a fingertip pushes the clamp shut (on top of its arm, by the hook), the clamp turned th about x."""
+    return np.array(CLAMP_PIVOT) + [0.0, 0.0, TOP] + axis_angle_matrix(X, th) @ np.array([0.0, -0.026, 0.011])
 
 
 def _rod_at(y, z=AXZ):
@@ -1097,11 +1150,222 @@ def _on_rod(p):
     return _tcp(p, past=0.006)
 
 
+def _gauge_kpa(env):
+    """The pressure as read off the gauge's needle (where it points on the dial)."""
+    a = -labkit._part_state(env, labkit._SPECS["quartz_tube"]).joints.get("needle", 0.0)
+    return P_MIN + (a + DIAL_SWEEP / 2) / DIAL_SWEEP * (P_MAX - P_MIN)
+
+
 def demo():
-    _ct["trim"], _ct["wins"] = {}, []
+    _ct["trim"], _ct["wins"], _ct["gates"] = {}, [], []
     pl = _Plan()
-    # (scene check: both hands stay where they start)
-    pr, Rr = _ik.tcp_pose(np.array(_READY, float), base_pos=(0.0, -0.3, TOP))
-    pll, Rl = _ik.tcp_pose(np.array(_READY, float), base_pos=(0.0, 0.3, TOP))
-    pl.phase(right=[(3.0, pr, FINGER_OPEN, "rest", Orient(Rr))], left=[(3.0, pll, FINGER_OPEN, "rest", Orient(Rl))])
+    up = np.array([0.0, 0.0, 1.0])
+    ROT_D = axis_angle_matrix(Y, -math.radians(70.0)) @ _prev_grip(math.pi / 2)  # in from the front, 20 deg down,
+    O_D = Orient(ROT_D)  # the fingers closing nearly up and down (on the boat's tongue)
+
+    def _lid_moves(thetas, R0, label, first, pre=0.03):
+        """Take the handle (grip R0) at thetas[0] coming in along the grip, turn the lid through thetas, let go, back
+        off along the grip."""
+        p, R = _lid(thetas[0], R0)
+        a = _appr(R)
+        out = [(2.0, _tcp(p - a * pre, R, past=0.002), BAR_OPEN, first, Orient(R)),
+               (1.0, _tcp(p, R, past=0.002), BAR_OPEN, "round the handle", Orient(R)),
+               (0.6, _tcp(p, R, past=0.002), BAR_HOLD, "close on the handle", Orient(R))]
+        for th in thetas[1:]:
+            p, R = _lid(th, R0)
+            out.append((1.0, _tcp(p, R, past=0.002), BAR_HOLD, label, Orient(R)))
+        out += [(0.6, _tcp(p, R, past=0.002), BAR_OPEN, "let go of the lid", Orient(R)),
+                (0.8, _tcp(p - _appr(R) * pre, R, past=0.002), BAR_OPEN, "back off the handle", Orient(R))]
+        return out
+
+    # -- 1. right shuts the argon (the tube is over its green band and still filling); left takes the bleed's knob ------
+    a0, b0 = _vknob(ARGON_PIVOT, 0.0), _vknob(BLEED_PIVOT, math.pi / 2)
+    pl.phase(right=[(2.5, _tcp(a0 + 0.03 * up, past=0.0), KNOB_OPEN, "hand turned over the argon valve's knob", O_T),
+                    (1.0, _tcp(a0, past=0.0), KNOB_OPEN, "down round the knob", O_T),
+                    (0.5, _tcp(a0, past=0.0), KNOB_HOLD, "close on the knob", O_T),
+                    *[(0.5, _tcp(_vknob(ARGON_PIVOT, -f * math.pi / 2), past=0.0), KNOB_HOLD, "shut the argon", O_T)
+                      for f in (1 / 3, 2 / 3, 1.0)],
+                    (0.5, _tcp(_vknob(ARGON_PIVOT, -math.pi / 2), past=0.0), KNOB_OPEN, "let go of the knob", O_T),
+                    (0.8, _tcp(_vknob(ARGON_PIVOT, -math.pi / 2) + 0.04 * up, past=0.0), KNOB_OPEN, "up off the knob", O_T)],
+             left=[(2.5, _tcp(b0 + 0.03 * up, past=0.0), KNOB_OPEN, "hand turned over the bleed valve's knob", O_T),
+                   (1.0, _tcp(b0, past=0.0), KNOB_OPEN, "down round the knob", O_T),
+                   (0.5, _tcp(b0, past=0.0), KNOB_HOLD, "close on the knob", O_T)])
+    # -- 2. left bleeds the tube down into the green band (watching the gauge), then shuts the bleed -------------------
+    half = _tcp(_vknob(BLEED_PIVOT, math.pi / 4), past=0.0)
+    shut = _tcp(b0, past=0.0)
+    t_open = pl.phase(left=[(0.6, _tcp(_vknob(BLEED_PIVOT, 3 * math.pi / 8), past=0.0), KNOB_HOLD, "open the bleed", O_T),
+                            (0.6, half, KNOB_HOLD, "open the bleed", O_T)])
+    pl.gate(t_open + 1.2, t_open + 12.0, "bleed", lambda env: _gauge_kpa(env) <= P_OPEN_AT)
+    pl.phase(left=[*[(0.5, _Gate(half, shut, "bleed"), KNOB_HOLD, "bleed until the gauge is in the green", O_T)
+                     for _ in range(14)],
+                   (0.6, shut, KNOB_HOLD, "shut the bleed", O_T),
+                   (0.5, shut, KNOB_OPEN, "let go of the knob", O_T),
+                   (0.8, shut + 0.04 * up, KNOB_OPEN, "up off the knob", O_T)])
+    # -- 3. left holds the tube; right flips the clamp open ---------------------------------------------------------------
+    h = _rod_at(HOLD_Y)
+    open_steps = [-0.30, -0.70, -1.10, -1.50, -1.75]
+    pl.phase(left=[(1.5, _tcp(h + 0.08 * up), TUBE_OPEN, "over the tube", O_T),
+                   (1.0, _tcp(h), TUBE_OPEN, "down round the tube", O_T),
+                   (0.6, _tcp(h), TUBE_HOLD, "hold the tube (it slides and rolls)", O_T)],
+             right=[(2.0, _tcp(_push_open(0.0) - 0.015 * Y + 0.03 * up, past=0.0), FINGER_CLOSED,
+                     "hand turned, fingers shut, by the clamp's lever", O_T),
+                    (1.0, _tcp(_push_open(0.0) - 0.006 * Y, past=0.0), FINGER_CLOSED, "fingertips to the lever", O_T)])
+    pl.phase(right=[*[(0.7, _tcp(_push_open(a), past=0.0), FINGER_CLOSED, "flip the clamp open", O_T) for a in open_steps],
+                    (0.8, _tcp(_push_open(-1.75) - 0.03 * Y + 0.02 * up, past=0.0), FINGER_CLOSED, "back off the lever",
+                     O_T)])
+    # -- 4. right takes the plate off (the gauge in its green band, the argon shut) and stands it on its stand ---------
+    k0 = PLATE_START + [0.0, -PLATE_T - KNOB_L / 2, 0.0]
+    kr = PLATE_REST + [0.0, -PLATE_T - KNOB_L / 2, 0.0]
+    pl.phase(right=[(1.5, _tcp(k0 + 0.04 * up), PK_OPEN, "hand turned over the plate's knob", O_T),
+                    (1.0, _tcp(k0), PK_OPEN, "down round the knob", O_T),
+                    (0.6, _tcp(k0), PK_HOLD, "close on the knob", O_T),
+                    (1.5, _tcp(k0 - 0.030 * Y), PK_HOLD, "pull the plate off (the gauge in the green)", O_T),
+                    (1.0, _tcp(k0 - 0.030 * Y + 0.03 * up), PK_HOLD, "lift the plate", O_T),
+                    (2.0, _tcp(kr + 0.04 * up), PK_HOLD, "the plate over its stand", O_T),
+                    (1.2, _tcp(kr + 0.002 * up), PK_HOLD, "the plate down in its stand", O_T),
+                    (0.5, _tcp(kr + 0.002 * up), PK_OPEN, "let go of the plate", O_T),
+                    (0.8, _tcp(kr + 0.05 * up), PK_OPEN, "up off the plate", O_T)])
+    # -- 5. left lifts the lid (fully open); right picks the boat up from its tray by its tongue ---------------------------
+    lid = [(0.6, _tcp(h), TUBE_OPEN, "let go of the tube", O_T),
+           (0.8, _tcp(h) - APPR_T * 0.025, TUBE_OPEN, "back off the tube along the hand", O_T),
+           (1.0, _tcp(h + 0.08 * up), TUBE_OPEN, "up off the tube", O_T),
+           *_lid_moves([0.0, math.radians(15), math.radians(30), math.radians(45), LID_SWAP], LID_GRIP_A,
+                       "lift the lid", first="hand turned to the lid's handle"),
+           *_lid_moves([LID_SWAP, math.radians(70), LID_OPEN], LID_GRIP_B, "lift the lid (on up)",
+                       first="the hand round to hold the handle from above")]
+    p1, R1 = _lid(LID_OPEN, LID_GRIP_B)
+    tg = BOAT_START + [0.0, -BOAT_L / 2 - TONGUE_L / 2, TONGUE_T / 2]
+    pick = [(2.0, _tcp(tg + 0.04 * up, ROT_D), TONGUE_OPEN, "hand turned over the boat's tongue", O_D),
+            (1.0, _tcp(tg, ROT_D), TONGUE_OPEN, "down round the tongue", O_D),
+            (0.6, _tcp(tg, ROT_D), TONGUE_HOLD, "close on the tongue", O_D),
+            (1.5, _tcp(tg + 0.035 * up, ROT_D), TONGUE_HOLD, "lift the boat, level", O_D)]
+    pl.phase(left=lid, right=pick)
+    # -- 6. left holds the tube; right sets the boat in the tube's mouth, lined up with it by eye ------------------------
+    sb = np.array([XA, BOAT_IN + BOAT_L / 2, TOP + BOAT_Z])  # the boat set in the mouth (its frame's origin)
+    pre = np.array([XA, TUBE_Y0 - 0.006 - BOAT_L / 2, TOP + BOAT_Z + 0.0012])  # its front 6 mm short of the mouth
+    g_pre = pre + (tg - BOAT_START)  # the tongue's grip point, the boat in front of the mouth
+    clear = np.array([0.215, 0.350, TOP + AXZ + 0.10])
+    pl.phase(left=[(2.5, _tcp(clear), TUBE_OPEN, "hand turned, past the lid's end", O_T),
+                   (1.5, _tcp(h + 0.08 * up), TUBE_OPEN, "over the tube", O_T),
+                   (1.0, _tcp(h), TUBE_OPEN, "down round the tube", O_T),
+                   (0.6, _tcp(h), TUBE_HOLD, "hold the tube (it slides and rolls)", O_T)],
+             right=[(2.5, _Dyn(_tcp(g_pre + 0.02 * up, ROT_D), "b"), TONGUE_HOLD, "the boat over the tube's mouth", O_D),
+                    (1.5, _Dyn(_tcp(g_pre, ROT_D), "b"), TONGUE_HOLD, "the boat down, in line with the tube", O_D)])
+    tw = pl.phase(right=[(1.8, _Dyn(_tcp(g_pre, ROT_D), "b"), TONGUE_HOLD, "hold still: the boat seen in line", O_D)])
+    pl.window(tw + 0.3, tw + 1.8, "b",
+              lambda env: np.array([XA, 0.0, pre[2]]) - _seen(env, "boat") * [1.0, 0.0, 1.0], "boat")
+    g_in = g_pre + (sb - pre)
+    pl.phase(right=[(2.5, _Dyn(_tcp(g_in, ROT_D), "b"), TONGUE_HOLD, "slide the boat into the mouth", O_D),
+                    (0.5, _Dyn(_tcp(g_in, ROT_D), "b"), TONGUE_OPEN, "let go of the boat", O_D),
+                    (0.8, _Dyn(_tcp(g_in + 0.04 * up, ROT_D), "b"), TONGUE_OPEN, "up off the boat", O_D)])
+    # -- 7. right takes the rod and pushes the boat in, stroke by stroke, until it sits under the thermocouple (seen) ---
+    r_g0 = _rod_at(FEED[0], AXZ - 0.0015)
+    pl.phase(right=[(2.0, _on_rod(r_g0 + 0.09 * up), ROD_OPEN, "hand turned over the rod", O_T),
+                    (1.0, _on_rod(r_g0 + 0.03 * up), ROD_OPEN, "down over the rod", O_T),
+                    (1.0, _on_rod(r_g0), ROD_OPEN, "down round the rod", O_T),
+                    (0.6, _on_rod(r_g0), ROD_HOLD, "close on the rod", O_T)])
+    seq = []
+    cur = {"k": "r"}
+    keys = iter(f"r{i}" for i in range(1, 20))
+
+    def stroke(y1, label, dur):
+        seq.append((dur, _Dyn(_on_rod(_rod_at(y1)), cur["k"]), ROD_HOLD, label, O_T))
+
+    def regrip(y_from, y_to):
+        """Let go, move along, line up on the rod as seen while hovering 3 cm over it (the open fingers clear of it),
+        keep trimming on the way down, then close."""
+        k_old, k_new = cur["k"], next(keys)
+        cur["k"] = k_new
+        over = _on_rod(_rod_at(y_to) + 0.03 * up)
+        seq.extend([(0.6, _Dyn(_on_rod(_rod_at(y_from)), k_old), ROD_OPEN, "let go of the rod", O_T),
+                    (0.8, _Dyn(_on_rod(_rod_at(y_from) + 0.03 * up), k_old), ROD_OPEN, "up off the rod", O_T),
+                    (1.2, _Dyn(over, k_new), ROD_OPEN, "along the rod", O_T)])
+        t0 = pl.t + sum(w[0] for w in seq)
+        pl.window(t0 + 0.1, t0 + 2.4, k_new,
+                  lambda env, y=y_to, key=k_new: (_rod_seen_at(env, y) - _rod_at(y) - _ct["trim"].get(key, np.zeros(3)))
+                  * [1.0, 0.0, 1.0], "hook_rod")
+        seq.extend([(1.4, _Dyn(over, k_new), ROD_OPEN, "line up over the rod (seen)", O_T),
+                    (1.0, _Dyn(_on_rod(_rod_at(y_to)), k_new), ROD_OPEN, "down round the rod", O_T),
+                    (0.6, _Dyn(_on_rod(_rod_at(y_to)), k_new), ROD_HOLD, "close on the rod", O_T)])
+
+    tongue_end = BOAT_IN - TONGUE_L
+    touch = FEED[0] + (tongue_end - 0.004) - ROD_START[1]  # the hand, the pusher 4 mm from the tongue's end
+    last = H_IN - (ROD_START[1] + 2 * (FEED[1] - FEED[0]))  # the third stroke's length
+    seq.append((1.0, _on_rod(_rod_at(FEED[0])), ROD_HOLD, "lift the rod off its rests", O_T))
+    stroke(touch - 0.010, "the pusher up behind the boat", 1.5)
+    t0 = pl.t + sum(w[0] for w in seq)
+    stroke(touch - 0.010, "hold still: the rod's tip seen in line with the tube", 1.5)
+    pl.window(t0 + 0.2, t0 + 1.5, "r",
+              lambda env: np.array([XA, 0.0, TOP + AXZ]) - _rod_seen_at(env, tongue_end - 0.014) * [1.0, 0.0, 1.0],
+              "hook_rod")
+    stroke(touch, "the pusher to the boat's tongue", 1.0)
+    stroke(FEED[1], "push the boat in, slowly", 6.0)
+    regrip(FEED[1], FEED[0])
+    stroke(FEED[1], "push the boat on", 5.0)
+    regrip(FEED[1], FEED[0])
+    stroke(FEED[0] + last, "push on until the boat is under the thermocouple", 3.0)
+    k_push = cur["k"]
+    pl.phase(right=seq)
+    tw = pl.phase(right=[(2.0, _Dyn(_on_rod(_rod_at(FEED[0] + last)), k_push), ROD_HOLD,
+                          "hold still: the boat seen under the thermocouple", O_T)])
+    pl.window(tw + 0.3, tw + 2.0, k_push,
+              lambda env: np.array([0.0, HOT_Y - (_seen(env, "boat")[1]), 0.0]), "boat")
+    # -- 8. right pulls the rod back out, stroke by stroke, and lays it on its rests ------------------------------------
+    seq = []
+    stroke(FEED[0], "pull the rod back", 2.5)
+    regrip(FEED[0], FEED[1])
+    stroke(FEED[0], "pull the rod back", 4.0)
+    regrip(FEED[0], FEED[1])
+    stroke(FEED[0], "pull the rod out", 4.0)
+    k = cur["k"]
+    seq += [(1.0, _Dyn(_on_rod(_rod_at(FEED[0], AXZ - 0.0015)), k), ROD_HOLD, "down onto its rests", O_T),
+            (0.6, _Dyn(_on_rod(_rod_at(FEED[0], AXZ - 0.0015)), k), ROD_OPEN, "let go of the rod", O_T),
+            (1.0, _Dyn(_on_rod(_rod_at(FEED[0], AXZ - 0.0015)) + 0.04 * up, k), ROD_OPEN, "up off the rod", O_T)]
+    pl.phase(right=seq)
+    # -- 9. right puts the plate back on, in line with the tube (seen), fully home; then shuts the clamp over it --------
+    pre_k = k0 - [0.0, 0.025, 0.0]
+    pl.phase(right=[(2.5, _tcp(kr + 0.05 * up), PK_OPEN, "hand turned over the plate on its stand", O_T),
+                    (1.2, _tcp(kr + 0.002 * up), PK_OPEN, "down round the knob", O_T),
+                    (0.6, _tcp(kr + 0.002 * up), PK_HOLD, "close on the knob", O_T),
+                    (1.0, _tcp(kr + 0.04 * up), PK_HOLD, "lift the plate", O_T),
+                    (2.0, _tcp(pre_k + 0.035 * up), PK_HOLD, "the plate over the tube's end", O_T),
+                    (1.5, _Dyn(_tcp(pre_k), "c1"), PK_HOLD, "the plate in front of the tube's end", O_T)])
+    tw = pl.phase(right=[(2.0, _Dyn(_tcp(pre_k), "c1"), PK_HOLD, "hold still: the plate seen in line", O_T)])
+    pl.window(tw + 0.4, tw + 2.0, "c1",
+              lambda env: np.array([XA - _seen(env, "end_plate")[0], 0.0, TOP + AXZ - _seen(env, "end_plate")[2]]),
+              "end_plate")
+    home = k0 + [0.0, 0.0005, 0.0]
+    close_steps = [-1.40, -1.00, -0.60, -0.25, 0.0]
+    pl.phase(right=[(2.0, _Dyn(_tcp(home), "c1"), PK_HOLD, "push the plate home", O_T),
+                    (0.6, _Dyn(_tcp(home), "c1"), PK_HOLD, "hold it home", O_T),
+                    (0.5, _Dyn(_tcp(home), "c1"), PK_OPEN, "let go of the plate", O_T),
+                    (0.8, _Dyn(_tcp(home) - 0.02 * Y + 0.03 * up, "c1"), PK_OPEN, "back off the plate", O_T),
+                    (1.5, _tcp(_push_shut(-1.70) + 0.015 * Y + 0.02 * up, past=0.0), FINGER_CLOSED,
+                     "fingers shut, behind the clamp's arm", O_T),
+                    (0.8, _tcp(_push_shut(-1.70) + 0.004 * Y, past=0.0), FINGER_CLOSED, "fingertips to the arm", O_T),
+                    *[(0.7, _tcp(_push_shut(a), past=0.0), FINGER_CLOSED, "shut the clamp over the plate", O_T)
+                      for a in close_steps],
+                    (0.6, _tcp(_push_shut(0.0) + 0.002 * up, past=0.0), FINGER_CLOSED, "press it shut", O_T),
+                    (0.8, _tcp(_push_shut(0.0) + 0.05 * up, past=0.0), FINGER_CLOSED, "up off the clamp", O_T),
+                    (2.0, RIGHT_PARK, FINGER_CLOSED, "up and clear", O_T)])
+    # -- 10. left lets go of the tube and lowers the lid by its handle -----------------------------------------------------
+    shut_lid = [(0.6, _tcp(h), TUBE_OPEN, "let go of the tube", O_T),
+                (0.8, _tcp(h) - APPR_T * 0.025, TUBE_OPEN, "back off the tube along the hand", O_T),
+                (1.0, _tcp(h + 0.08 * up), TUBE_OPEN, "up off the tube", O_T),
+                (1.5, _tcp(clear), TUBE_OPEN, "back past the lid's end", O_T),
+                (2.0, _tcp(_lid(math.radians(68), LID_GRIP_B)[0] - _appr(_lid(math.radians(68), LID_GRIP_B)[1]) * 0.02,
+                           _lid(math.radians(68), LID_GRIP_B)[1], past=0.002), BAR_OPEN,
+                 "hand turned, under the lifted lid's handle", Orient(_lid(math.radians(68), LID_GRIP_B)[1])),
+                *_lid_moves([LID_OPEN, math.radians(70), LID_SWAP], LID_GRIP_B, "lower the lid",
+                            first="up to the lid's handle", pre=0.012),
+                *_lid_moves([LID_SWAP, math.radians(45), math.radians(30), math.radians(15), 0.0], LID_GRIP_A,
+                            "lower the lid (on down)", first="the hand round to hold the handle from the front")]
+    pa, Ra = _lid(0.0, LID_GRIP_A)
+    shut_lid += [(1.0, _tcp(pa - _appr(Ra) * 0.03 + 0.02 * up, Ra, past=0.002), BAR_OPEN, "away from the handle",
+                  Orient(Ra)),
+                 (1.5, _tcp(np.array([0.06, 0.12, TOP + 0.36]), Ra, past=0.0), BAR_OPEN, "out in front of the furnace",
+                  Orient(Ra)),
+                 (1.5, LEFT_PARK, BAR_OPEN, "hand turned at the park", O_T)]
+    pl.phase(left=shut_lid)
+    pl.phase(right=[(2.0, RIGHT_PARK, FINGER_CLOSED, "rest", O_T)], left=[(2.0, LEFT_PARK, FINGER_CLOSED, "rest", O_T)])
     return {"left": pl.L, "right": pl.R}
