@@ -1071,7 +1071,7 @@ ROD_OPEN, ROD_HOLD = -0.012, 0.0  # round the 6 mm rod, squeezed hard (a looser 
 TUBE_OPEN, TUBE_HOLD = -0.022, -0.0115  # round the 25.4 mm tube
 KNOB_OPEN, KNOB_HOLD = -0.016, -0.0040  # round a valve lever's 10 mm upright grip
 PK_OPEN, PK_HOLD = -0.018, -0.0050  # round the plate's 16 mm knob
-TAB_OPEN, TAB_HOLD = -0.012, 0.0  # across the clamp's 4 mm lever
+TAB_OPEN, TAB_HOLD = -0.014, 0.0  # across the clamp's 4 mm lever (squeezed)
 TONGUE_OPEN, TONGUE_HOLD = -0.012, 0.0  # on the boat's 4 mm thick tongue (squeezed)
 BAR_OPEN, BAR_HOLD = -0.016, -0.0010  # round the lid's 8 mm handle bar (squeezed)
 WIDE = -0.030
@@ -1172,6 +1172,17 @@ def _push_open(th):
     return np.array(CLAMP_PIVOT) + [0.0, 0.0, TOP] + axis_angle_matrix(X, th) @ np.array([0.0, _LEVER_OUT - 0.005, 0.016])
 
 
+ROT_K = axis_angle_matrix(Y, -math.radians(55.0)) @ _prev_grip(0.0)  # tipped 55 deg, closing along y (across the lever)
+_TAB = np.array([0.0, _hook_y - 0.002 - CLAMP_PIVOT[1], 0.016])  # the clamp lever's middle, from its hinge (shut)
+CLAMP_TO = -45.0  # degrees: the clamp turned up this far, its hook is clear of the plate (it slides out under it)
+
+
+def _tab(th):
+    """The clamp lever's middle and the hand holding it (fingers across it), the clamp turned th degrees about x."""
+    Rx = axis_angle_matrix(X, math.radians(th))
+    return np.array(CLAMP_PIVOT) + [0.0, 0.0, TOP] + Rx @ _TAB, Rx @ ROT_K
+
+
 def _push_shut(th):
     """Where a fingertip pushes the clamp shut (on top of its arm, by the hook), the clamp turned th about x."""
     return np.array(CLAMP_PIVOT) + [0.0, 0.0, TOP] + axis_angle_matrix(X, th) @ np.array([0.0, -0.026, 0.0045])
@@ -1243,8 +1254,9 @@ def demo():
     pl.phase(right=[(2.0, np.array([0.37, -0.27, TOP + 0.37]), KNOB_OPEN, "hand turned, up clear of the tube's end", O_T),
                     *vturn(ARGON_PIVOT, 0, -30, "turn the argon off"), *vturn(ARGON_PIVOT, -30, -60, "turn the argon off"),
                     *vturn(ARGON_PIVOT, -60, -92, "turn the argon off")],
-             left=[(2.5, _tcp(_vknob(BLEED_PIVOT, -math.pi / 2) + 0.03 * up, past=0.002), KNOB_OPEN,
-                    "hand turned over the bleed valve", O_T)])
+             left=[(2.0, np.array([0.37, 0.27, TOP + 0.37]), KNOB_OPEN, "hand turned, up clear of the bleed valve", O_T),
+                   (1.5, _tcp(_vknob(BLEED_PIVOT, -math.pi / 2) + 0.03 * up, past=0.002), KNOB_OPEN,
+                    "over the bleed valve's grip", O_T)])
     # -- 2. left opens the bleed a third and holds it, watching the gauge; in the green band, turns it shut -------------
     t_open = pl.phase(left=vturn(BLEED_PIVOT, -90, -60, "open the bleed (a third)", release=False))
     pl.gate(t_open + 0.5, t_open + 16.0, "bleed", lambda env: _gauge_kpa(env) <= P_OPEN_AT)
@@ -1262,14 +1274,18 @@ def demo():
     pl.phase(left=[(1.5, _tcp(h + 0.08 * up), TUBE_OPEN, "over the tube", O_T),
                    (1.0, _tcp(h), TUBE_OPEN, "down round the tube", O_T),
                    (0.6, _tcp(h), TUBE_HOLD, "hold the tube (it slides and rolls)", O_T)],
-             right=[(2.0, _tcp(_push_open(0.0) - 0.015 * Y + 0.03 * up, ROT_C, past=0.0), FINGER_CLOSED,
-                     "hand turned, fingers shut, by the clamp's lever", O_TC),
-                    (1.0, _tcp(_push_open(0.0) - 0.006 * Y, ROT_C, past=0.0), FINGER_CLOSED, "fingertips to the lever",
-                     O_TC)])
-    pl.phase(right=[*[(0.7, _tcp(_push_open(a), ROT_C, past=0.0), FINGER_CLOSED, "flip the clamp open", O_TC)
-                      for a in open_steps],
-                    (0.8, _tcp(_push_open(-1.75) - 0.03 * Y + 0.02 * up, ROT_C, past=0.0), FINGER_CLOSED,
-                     "back off the lever", O_TC)])
+             right=[(2.0, _tcp(_tab(0.0)[0] + 0.03 * up, _tab(0.0)[1], past=0.004), TAB_OPEN,
+                     "hand turned over the clamp's lever", Orient(_tab(0.0)[1])),
+                    (1.0, _tcp(_tab(0.0)[0], _tab(0.0)[1], past=0.004), TAB_OPEN, "down round the lever",
+                     Orient(_tab(0.0)[1]))])
+    pl.phase(right=[(0.5, _tcp(_tab(0.0)[0], _tab(0.0)[1], past=0.004), TAB_HOLD, "close on the lever",
+                     Orient(_tab(0.0)[1])),
+                    *[(0.7, _tcp(_tab(a)[0], _tab(a)[1], past=0.004), TAB_HOLD, "turn the clamp up, off the plate",
+                       Orient(_tab(a)[1])) for a in (-15.0, -30.0, CLAMP_TO)],
+                    (0.4, _tcp(_tab(CLAMP_TO)[0], _tab(CLAMP_TO)[1], past=0.004), TAB_OPEN, "let go of the lever",
+                     Orient(_tab(CLAMP_TO)[1])),
+                    (0.8, _tcp(_tab(CLAMP_TO)[0] - 0.03 * _appr(_tab(CLAMP_TO)[1]), _tab(CLAMP_TO)[1], past=0.004), TAB_OPEN,
+                     "back off the lever", Orient(_tab(CLAMP_TO)[1]))])
     # -- 4. right takes the plate off (the gauge in its green band, the argon shut) and stands it on its stand ---------
     k0 = PLATE_START + [0.0, -PLATE_T - KNOB_L / 2, 0.0]
     kr = PLATE_REST + [0.0, -PLATE_T - KNOB_L / 2, 0.0]
@@ -1400,15 +1416,18 @@ def demo():
                     (0.6, _Dyn(_tcp(home), "c1"), PK_HOLD, "hold it home", O_T),
                     (0.5, _Dyn(_tcp(home), "c1"), PK_OPEN, "let go of the plate", O_T),
                     (0.8, _Dyn(_tcp(home) - 0.02 * Y + 0.03 * up, "c1"), PK_OPEN, "back off the plate", O_T),
-                    (1.5, _tcp(_push_shut(-1.70) + 0.015 * Y + 0.02 * up, ROT_C, past=0.0), FINGER_CLOSED,
-                     "fingers shut, behind the clamp's arm", O_TC),
-                    (0.8, _tcp(_push_shut(-1.70) + 0.004 * Y, ROT_C, past=0.0), FINGER_CLOSED, "fingertips to the arm",
-                     O_TC),
-                    *[(0.7, _tcp(_push_shut(a), ROT_C, past=0.0), FINGER_CLOSED, "shut the clamp over the plate", O_TC)
-                      for a in close_steps],
-                    (0.6, _tcp(_push_shut(0.0) + 0.002 * up, ROT_C, past=0.0), FINGER_CLOSED, "press it shut", O_TC),
-                    (0.8, _tcp(_push_shut(0.0) + 0.05 * up, ROT_C, past=0.0), FINGER_CLOSED, "up off the clamp", O_TC),
-                    (2.0, RIGHT_PARK, FINGER_CLOSED, "up and clear", O_T)])
+                    (1.5, _tcp(_tab(CLAMP_TO)[0] - 0.03 * _appr(_tab(CLAMP_TO)[1]), _tab(CLAMP_TO)[1], past=0.004), TAB_OPEN,
+                     "hand turned to the clamp's lever", Orient(_tab(CLAMP_TO)[1])),
+                    (0.8, _tcp(_tab(CLAMP_TO)[0], _tab(CLAMP_TO)[1], past=0.004), TAB_OPEN, "down round the lever",
+                     Orient(_tab(CLAMP_TO)[1])),
+                    (0.5, _tcp(_tab(CLAMP_TO)[0], _tab(CLAMP_TO)[1], past=0.004), TAB_HOLD, "close on the lever",
+                     Orient(_tab(CLAMP_TO)[1])),
+                    *[(0.7, _tcp(_tab(a)[0], _tab(a)[1], past=0.004), TAB_HOLD, "turn the clamp down over the plate",
+                       Orient(_tab(a)[1])) for a in (-30.0, -15.0, 0.0, 3.0)],
+                    (0.4, _tcp(_tab(0.0)[0], _tab(0.0)[1], past=0.004), TAB_OPEN, "let go of the lever", Orient(_tab(0.0)[1])),
+                    (0.8, _tcp(_tab(0.0)[0] + 0.05 * up, _tab(0.0)[1], past=0.004), TAB_OPEN, "up off the clamp",
+                     Orient(_tab(0.0)[1])),
+                    (2.0, RIGHT_PARK, TAB_OPEN, "up and clear", O_T)])
     # -- 10. left lets go of the tube and lowers the lid by its handle -----------------------------------------------------
     shut_lid = [(0.6, _tcp(h), TUBE_OPEN, "let go of the tube", O_T),
                 (0.8, _tcp(h) - APPR_T * 0.025, TUBE_OPEN, "back off the tube along the hand", O_T),
