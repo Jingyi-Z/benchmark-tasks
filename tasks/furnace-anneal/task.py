@@ -422,6 +422,9 @@ PAD_T, PAD_W = 0.003, 0.050
 _pads = [((TUBE_Y0 + 0.006 + NC_Y1) / 2, NC_Y1 - TUBE_Y0 - 0.010), ((FIT_Y0 + FIT_Y1 - 0.006) / 2, FIT_Y1 - FIT_Y0 - 0.010)]
 PAD_Z = AXZ - COLLAR_R - PAD_T / 2 + 0.0008  # (its top a little into the collar: one solid with it)
 TUBE_BOXES = [((XA, (TUBE_Y0 + FIT_Y0) / 2, FLOOR_Z - 0.001), (0.012, FIT_Y0 - TUBE_Y0, 0.002), QUARTZ),
+              # the clamp's fixed lower jaw: a shelf under the flange's rim that the plate's rim stands on (the hinged
+              # clamp holds its top); with it the plate stays upright when the clamp is opened
+              ((XA, TUBE_Y0 - 0.004, AXZ + 0.0004 - FLANGE_R - 0.0003 - 0.002), (0.014, 0.016, 0.004), STAINLESS),
               *[((XA, y, PAD_Z), (PAD_W, l, PAD_T), STAINLESS) for y, l in _pads]]
 # (the clamp and the needle are light: the tube's weight must stay under its axis, or it rolls in its saddles)
 TUBE = part("quartz_tube", pos=(0.0, 0.0, TOP), mass=0.40, friction=0.3, boxes=TUBE_BOXES, meshes=TUBE_MESHES,
@@ -1119,7 +1122,7 @@ def _lid_grip_rot(phi, sgn, psi):
 
 
 LID_GRIP_A = _lid_grip_rot(120.0, -1, -55.0)  # holds the handle from shut to 55 degrees
-LID_GRIP_B = _lid_grip_rot(75.0, 1, 0.0)  # and from 55 degrees to (nearly) upright
+LID_GRIP_B = _lid_grip_rot(180.0, -1, -60.0)  # and from 55 degrees to (nearly) upright
 LID_SWAP = math.radians(55.0)
 LID_VIA = [np.array([0.17, 0.27, TOP + 0.50]),  # up over the furnace's end, then down in front of it to take its handle
            np.array([float(os.environ.get("FA_VX", "0.04")), float(os.environ.get("FA_VY", "0.10")),
