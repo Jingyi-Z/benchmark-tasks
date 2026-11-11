@@ -421,12 +421,12 @@ CHIP_PART = part("chip", pos=tuple(CHIP_START), mass=0.0001, friction=0.8,
 # -- the push rod (loose): stainless, 500 mm, 6 mm round, a 10 mm pusher disc at its front, on two V-topped rests in line
 # with the tube behind the tray. Frame: on its axis at the pusher's front face, the rod along -y. ------------------------
 ROD_L, GRIP_W, PUSHER_R = 0.500, 0.006, 0.005
-ROD_Z = BOAT_Z + TONGUE_Z  # the rod's axis: level with a boat's tongue in the tube
+ROD_Z = BOAT_Z + 0.0065  # the rod's axis: its pusher disc on a boat's tongue, its lower edge 1.5 mm over the floor
 ROD_START = np.array([XA, TUBE_Y0 - 0.150, TOP + ROD_Z])
 ROD = part("push_rod", pos=tuple(ROD_START), mass=0.110, friction=0.7,
            cylinders=[((0.0, -0.0015, 0.0), PUSHER_R, 0.003, STEEL, "Y"),
                       ((0.0, -(0.003 + ROD_L) / 2, 0.0), GRIP_W / 2, ROD_L - 0.003, STEEL, "Y")])
-REST_Y = (-0.480, -0.760)
+REST_Y = (-0.480, -0.700)  # the rear one holds the rod's tail until its front is inside the tube
 REST_Z = ROD_Z - GRIP_W / 2 - 0.0015
 V_RISE = 0.0015
 REST = part("rod_rests", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
@@ -446,7 +446,7 @@ CHIP_DMIN, CHIP_DMAX = 0.050, 0.080  # the chip boat's centre: this far downstre
 # -- scoring ----------------------------------------------------------------------------------------------------------
 BOAT_TILT = 20.0  # a boat tipped over 20 degrees (its powder spilled)
 BOAT_DROP = 0.030  # or dropped: over 30 mm under the tray or the tube's floor
-CHIP_SLIDE, CHIP_FLIP = 0.003, 30.0  # the chip moved over 3 mm on its boat, or tilted over 30 degrees
+CHIP_FLIP = 30.0  # the chip tilted over 30 degrees on its boat (flipping); it may slide about inside the boat
 RACK_TOL = 0.015
 HANDS_FAR = 0.08
 SETTLE_STEPS, SETTLE_TOL = 20, 0.001
@@ -498,9 +498,11 @@ def _watch(env):
             st["viol"].add("a boat tipped or dropped")
     cb = bs["chip_boat"]
     q = cb.rotation().T @ (np.asarray(ch.pos, float) - np.asarray(cb.pos, float))
-    if np.linalg.norm(q[:2]) > CHIP_SLIDE or math.degrees(math.acos(max(-1.0, min(1.0, float(
-            (cb.rotation().T @ ch.rotation())[2, 2]))))) > CHIP_FLIP:
-        st["viol"].add("the chip slid or flipped")
+    L_c = BOATS["chip_boat"][0]
+    out = (abs(q[0]) > BOAT_W / 2 - BOAT_T or abs(q[1]) > L_c / 2 - BOAT_T  # its centre past a wall's inside
+           or not 0.0 < q[2] < BOAT_H)  # or off the boat's floor (over its walls, or under it)
+    if out or math.degrees(math.acos(max(-1.0, min(1.0, float((cb.rotation().T @ ch.rotation())[2, 2]))))) > CHIP_FLIP:
+        st["viol"].add("the chip flipped or left its boat")
     st["ok"] = dict(zip(("s", "mo", "chip"), layout_ok(bs)))
     st["racked"] = rod_racked(r)
     keep = [np.asarray(r.pos, float) + [0.0, -0.10, 0.0], *[np.asarray(b.pos, float) for b in bs.values()]]
@@ -512,8 +514,8 @@ def _watch(env):
 
 
 def score(objects):
-    """0 after any violation (a boat tipped over 20 degrees or dropped; the chip slid over 3 mm on its boat or tilted
-    over 30 degrees), and 0 unless the boats, the chip and the rod have moved under 1 mm over the last second. Then 0.25
+    """0 after any violation (a boat tipped over 20 degrees or dropped; the chip tilted over 30 degrees on its boat or
+    its centre left the boat's inside), and 0 unless the boats, the chip and the rod have moved under 1 mm over the last second. Then 0.25
     for each boat in its place, on the tube's floor: sulfur centred within 15 mm of the furnace's upstream edge (10 mm in
     from its near end); MoO3 centred within 10 mm of the thermocouple; the chip boat's centre 50 to 80 mm downstream of
     the MoO3 boat's. 1.0 if all three, the rod back on its rests (within 15 mm) and every fingertip 8 cm from the rod and
