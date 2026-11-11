@@ -328,46 +328,60 @@ TUBE_MESHES = [m for y0, y1 in zip(_CUTS[:-1], _CUTS[1:]) for m in _ring_y(y0, y
                                                                           cz=AXZ)]
 TUBE_BOXES = [((XA, (TUBE_Y0 + TUBE_Y1) / 2, FLOOR_Z - 0.0015), (FLOOR_W, TUBE_Y1 - TUBE_Y0, 0.003), QUARTZ)]
 # the tube's end clamps: a block under each end outside the furnace, with a strap over it
-TUBE_HOLD = [((XA, y, (AXZ - TUBE_R) / 2), (0.030, 0.020, AXZ - TUBE_R), DARK) for y in (TUBE_Y0 + 0.020, TUBE_Y1 - 0.020)]
+TUBE_HOLD = [((XA, y, (AXZ - TUBE_R) / 2), (0.030, 0.012, AXZ - TUBE_R), DARK) for y in (TUBE_Y0 + 0.036, TUBE_Y1 - 0.036)]
 TUBE = part("quartz_tube", pos=(0.0, 0.0, TOP), fixed=True, friction=0.3, boxes=TUBE_BOXES + TUBE_HOLD,
             meshes=TUBE_MESHES)
 
-# -- the end caps, off for loading, each on a hook beside its end of the tube, still on its line: the argon inlet's cap
-# (its hose from the gas bottle's regulator) at the loading end, the exhaust's cap (its hose to an oil bubbler) at the far
-# end. Upstream is the end the gas comes in. Fixed. ----------------------------------------------------------------------
-HOSE_C = (0.30, 0.55, 0.85)
-EXH_C = (0.25, 0.26, 0.28)
+# -- the end caps (loose), off for loading, each lying in a cradle beside its end of the tube (nearer the robots), its
+# open end towards the tube: the argon inlet's cap at the loading end, the exhaust's cap at the far end. Upstream is the
+# end the gas comes in. Each is a stainless cup that slips over the tube's end (an O-ring seal, not modelled) with a hose
+# barb on its end plate and a flat tab behind it to hold it by, its face turned like the rod's ring. The gas bottle and
+# the oil bubbler stand on the bench (their hoses are not modelled). Frame: the cap's open end, on its axis. ------------
 BRASS = (0.78, 0.66, 0.30)
 ARGON_C = (0.25, 0.48, 0.30)  # the gas bottle (argon: green shoulder)
-CAP_R = 0.035
-CAP_NEAR = np.array([XA - 0.110, TUBE_Y0 - 0.010, AXZ - 0.020])  # the inlet cap's centre, hung face up on its hook
-CAP_FAR = np.array([XA - 0.110, TUBE_Y1 + 0.010, AXZ - 0.020])
-BOTTLE = (0.40, -0.66)
+BOTTLE = (0.40, -0.60)
 BUBBLER = (0.05, 0.62)
+CAP_RI, CAP_RO, CAP_DEPTH, CAP_PLATE = 0.027, 0.031, 0.025, 0.006
+TAB_L, TAB_R0, TAB_R1, TAB_T = 0.028, 0.008, 0.030, 0.005
+CAP_TURN = math.radians(40.0)
+CAP_U = np.array([math.cos(CAP_TURN), 0.0, -math.sin(CAP_TURN)])  # in the tab's plane, square to the cap's axis
+CAP_N = -np.array([math.sin(CAP_TURN), 0.0, math.cos(CAP_TURN)])  # the tab's face normal
+CRADLE_X = {"inlet_cap": XA + 0.200, "exhaust_cap": XA - 0.040}
+CAP_SIDE = {"inlet_cap": -1, "exhaust_cap": 1}  # which way its body runs from its open end, along y
+CAP_HOME = {"inlet_cap": TUBE_Y0 + CAP_DEPTH, "exhaust_cap": TUBE_Y1 - CAP_DEPTH}  # its open end, seated on the tube
 
 
-def _cap(c, colour):
-    return [*_disc_mesh(c, Z, CAP_R, 0.012, STAINLESS), _seg(c + [0.0, 0.0, 0.006], c + [0.0, 0.0, 0.030], 0.010, BRASS),
-            _box_mesh((c[0] - 0.050, c[1], (c[2] - 0.006) / 2), (0.012, 0.012, c[2] - 0.006), DARK, collide="hull"),
-            _seg((c[0] - 0.050, c[1], c[2] - 0.006), (c[0] - CAP_R + 0.004, c[1], c[2] - 0.006), 0.008, DARK)]
+def _cap_part(name, colour):
+    sd = CAP_SIDE[name]
+    y0, y1 = sorted((0.0, sd * CAP_DEPTH))
+    tab = _hex([sd * yy * Y - r * CAP_U + n * TAB_T / 2 * CAP_N
+                for yy in (CAP_DEPTH + CAP_PLATE - 0.001, CAP_DEPTH + CAP_PLATE + TAB_L) for r in (TAB_R0, TAB_R1)
+                for n in (-1, 1)], STAINLESS)
+    return part(name, pos=tuple(cap_start(name)), mass=0.120, friction=0.5,
+                meshes=[*_ring_y(y0, y1, CAP_RI, CAP_RO, 16, STAINLESS), tab],
+                cylinders=[((0.0, sd * (CAP_DEPTH + CAP_PLATE / 2), 0.0), CAP_RO, CAP_PLATE, STAINLESS, "Y"),
+                           ((0.0, sd * (CAP_DEPTH + CAP_PLATE + 0.0075), 0.0), 0.004, 0.015, colour, "Y")])
 
 
-CAP_MESHES = [
-    *_cap(CAP_NEAR, HOSE_C), *_cap(CAP_FAR, EXH_C),
-    # the argon bottle and its regulator; its hose to the inlet cap's barb
-    *_disc_mesh(np.array([BOTTLE[0], BOTTLE[1], 0.0]), Z, 0.040, 0.250, (0.55, 0.56, 0.58)),
-    *_disc_mesh(np.array([BOTTLE[0], BOTTLE[1], 0.250]), Z, 0.040, 0.050, ARGON_C),
-    _box_mesh((BOTTLE[0], BOTTLE[1], 0.315), (0.030, 0.030, 0.030), BRASS),
-    *_hose([(BOTTLE[0] - 0.015, BOTTLE[1], 0.315), (BOTTLE[0] - 0.06, BOTTLE[1] + 0.02, 0.30),
-            (BOTTLE[0] - 0.10, BOTTLE[1] + 0.04, 0.012), (0.10, BOTTLE[1] + 0.04, 0.012), (0.10, CAP_NEAR[1] - 0.07, 0.012),
-            (CAP_NEAR[0] - 0.02, CAP_NEAR[1] - 0.04, CAP_NEAR[2] + 0.02), (CAP_NEAR[0], CAP_NEAR[1], CAP_NEAR[2] + 0.030)],
-           0.008, HOSE_C),  # (along the bench, round the rod's rack)
-    # the oil bubbler (a glass bottle) and the exhaust hose from the far cap
-    *_disc_mesh(np.array([BUBBLER[0], BUBBLER[1], 0.0]), Z, 0.035, 0.160, QUARTZ),
-    *_hose([(CAP_FAR[0], CAP_FAR[1], CAP_FAR[2] + 0.030), (CAP_FAR[0], CAP_FAR[1] + 0.06, CAP_FAR[2] + 0.06),
-            (BUBBLER[0], BUBBLER[1], 0.20), (BUBBLER[0], BUBBLER[1], 0.12)], 0.008, EXH_C),
-]
-CAPS = part("end_caps", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5, meshes=CAP_MESHES)
+CRADLE_OUT = {"inlet_cap": 0.012, "exhaust_cap": 0.012}  # its open end this far out beyond its end of the tube
+
+
+def cap_start(name):
+    """A cap's frame in its cradle, beside the tube's line, out beyond its end of the tube."""
+    end = TUBE_Y0 if CAP_SIDE[name] < 0 else TUBE_Y1
+    return np.array([CRADLE_X[name], end + CAP_SIDE[name] * CRADLE_OUT[name], TOP + AXZ])
+
+
+CAP_PARTS = [_cap_part("inlet_cap", BRASS), _cap_part("exhaust_cap", DARK)]
+_RAIL_Z = AXZ - math.sqrt(CAP_RO ** 2 - 0.020 ** 2) - 0.0003  # the cradle's rails: the cup rests on them, 20 mm off its axis
+CRADLES = part("cap_cradles", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
+               boxes=[((cx + e * 0.020, cap_start(n)[1] + CAP_SIDE[n] * CAP_DEPTH / 2, _RAIL_Z / 2),
+                       (0.008, CAP_DEPTH, _RAIL_Z), DARK) for n, cx in CRADLE_X.items() for e in (-1, 1)])
+GAS = part("gas_supply", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
+           meshes=[*_disc_mesh(np.array([BOTTLE[0], BOTTLE[1], 0.0]), Z, 0.040, 0.250, (0.55, 0.56, 0.58)),
+                   *_disc_mesh(np.array([BOTTLE[0], BOTTLE[1], 0.250]), Z, 0.040, 0.050, ARGON_C),
+                   _box_mesh((BOTTLE[0], BOTTLE[1], 0.315), (0.030, 0.030, 0.030), BRASS),
+                   *_disc_mesh(np.array([BUBBLER[0], BUBBLER[1], 0.0]), Z, 0.035, 0.160, QUARTZ)])
 
 # -- the boats (loose), side by side on a tray beside the loading end (behind the tube's line), level with the tube's
 # floor: an alumina boat of sulfur powder, an alumina boat of MoO3 powder, and a short quartz boat carrying the 1 cm chip,
@@ -450,7 +464,7 @@ REST = part("rod_rack", pos=(0.0, 0.0, TOP), fixed=True, friction=0.3,
                           for dy in (-0.007, 0.007) for zo in (0.0, zt)], DARK)
                     for y in REST_Y for sx in (-1, 1)])
 
-OBJECTS = [FURNACE, TUBE, CAPS, *BOAT_PARTS, BOAT_TRAY, CHIP_PART, ROD, REST]
+OBJECTS = [FURNACE, TUBE, GAS, *CAP_PARTS, CRADLES, *BOAT_PARTS, BOAT_TRAY, CHIP_PART, ROD, REST]
 
 # -- the layout for MoS2 (scored): upstream (the gas inlet's end, the loading end) to downstream ------------------------
 S_AT, S_TOL = FY0 + 0.010, 0.015  # the sulfur boat's centre: at the furnace's upstream edge (its end wall; cool)
@@ -466,6 +480,8 @@ RACK_TOL = 0.015
 HANDS_FAR = 0.08
 SETTLE_STEPS, SETTLE_TOL = 20, 0.001
 NAMES = ("s_boat", "moo3_boat", "chip_boat")
+CAP_NAMES = ("inlet_cap", "exhaust_cap")
+CAP_TOL, CAP_TILT = 0.004, 5.0
 
 _state = {}
 _hist = []
@@ -496,6 +512,13 @@ def layout_ok(bs):
             in_tube(c) and in_tube(m) and CHIP_DMIN <= c[1] - m[1] <= CHIP_DMAX)
 
 
+def cap_seated(c, name):
+    """A cap pushed home on its end of the tube: square to it, centred, its end plate within 4 mm of the tube's end."""
+    p = np.asarray(c.pos, float)
+    return (abs(p[1] - CAP_HOME[name]) <= CAP_TOL and math.hypot(p[0] - XA, p[2] - (TOP + AXZ)) <= 0.003
+            and axis_off(c) <= CAP_TILT)
+
+
 def rod_racked(r):
     return float(np.linalg.norm(np.asarray(r.pos, float) - ROD_START)) <= RACK_TOL and axis_off(r) <= 5.0
 
@@ -520,9 +543,12 @@ def _watch(env):
         st["viol"].add("the chip flipped or left its boat")
     st["ok"] = dict(zip(("s", "mo", "chip"), layout_ok(bs)))
     st["racked"] = rod_racked(r)
-    keep = [np.asarray(r.pos, float) + [0.0, -0.10, 0.0], *[np.asarray(b.pos, float) for b in bs.values()]]
+    cs = {n: labkit._part_state(env, S[n]) for n in CAP_NAMES}
+    st["caps"] = {n: cap_seated(c, n) for n, c in cs.items()}
+    keep = [np.asarray(r.pos, float) + [0.0, -0.10, 0.0], *[np.asarray(b.pos, float) for b in bs.values()],
+            *[np.asarray(c.pos, float) for c in cs.values()]]
     st["far"] = all(np.linalg.norm(np.asarray(tp) - k) >= HANDS_FAR for tp in _tips(env) for k in keep)
-    _hist.append(np.concatenate([np.asarray(x.pos, float) for x in (*bs.values(), ch, r)]))
+    _hist.append(np.concatenate([np.asarray(x.pos, float) for x in (*bs.values(), ch, r, *cs.values())]))
     del _hist[:-(SETTLE_STEPS + 1)]
     st["settled"] = (len(_hist) > SETTLE_STEPS
                      and float(np.max(np.abs(np.asarray(_hist) - _hist[-1]))) < SETTLE_TOL)
@@ -530,19 +556,21 @@ def _watch(env):
 
 def score(objects):
     """0 after any violation (a boat tipped over 20 degrees or dropped; the chip tilted over 30 degrees on its boat or
-    its centre left the boat's inside), and 0 unless the boats, the chip and the rod have moved under 1 mm over the last second. Then 0.25
-    for each boat in its place, on the tube's floor: sulfur centred within 15 mm of the furnace's upstream edge (10 mm in
-    from its near end); MoO3 centred within 10 mm of the thermocouple; the chip boat's centre 50 to 80 mm downstream of
-    the MoO3 boat's. 1.0 if all three, the rod back on its rack (within 15 mm) and every fingertip 8 cm from the rod and
-    the boats."""
+    its centre left the boat's inside), and 0 unless the boats, the chip, the rod and the caps have moved under 1 mm over
+    the last second. Then 0.2 for each boat in its place, on the tube's floor: sulfur centred within 15 mm of the
+    furnace's upstream edge (10 mm in from its near end); MoO3 centred within 10 mm of the thermocouple; the chip boat's
+    centre 50 to 80 mm downstream of the MoO3 boat's. And 0.1 for each end cap seated: pushed home on its end of the
+    tube (its end plate within 4 mm of the tube's end), within 3 mm of the tube's axis and 5 degrees of square. 1.0 if
+    all three boats and both caps, the rod back on its rack (within 15 mm) and every fingertip 8 cm from the rod, the
+    boats and the caps."""
     st = _state
     if st.get("viol") or not st.get("settled", False):
         return 0.0
-    ok = st.get("ok", {})
-    n = sum(bool(v) for v in ok.values())
-    if n == 3 and st.get("racked") and st.get("far", True):
+    n = sum(bool(v) for v in st.get("ok", {}).values())
+    c = sum(bool(v) for v in st.get("caps", {}).values())
+    if n == 3 and c == 2 and st.get("racked") and st.get("far", True):
         return 1.0
-    return 0.25 * n
+    return round(0.2 * n + 0.1 * c, 3)
 
 
 SUCCESS_HOLD_S = 2.0
@@ -823,6 +851,10 @@ ROD_OPEN, ROD_HOLD = -0.012, 0.0  # across the rod's 5 mm ring, squeezed hard
 TONGUE_OPEN, TONGUE_HOLD = -0.012, -0.0015  # on a boat's 5 mm tongue: a light squeeze (a hard one shakes the boat)
 ROT_R = np.column_stack([RING_N, np.cross(RING_U, RING_N), RING_U])  # in from the robots' side, tipped 40 deg down,
 O_R = Orient(ROT_R)  # closing square across the ring's faces
+ROT_L = ROT_R @ np.diag([-1.0, -1.0, 1.0])  # the left hand's (the same, its fingers swapped: it reaches from the other side)
+O_L = Orient(ROT_L)
+CAP_IN = 0.030  # the open hand comes in onto a cap's tab (and backs off it) this far along its approach
+CAP_LIFT = 0.012  # a cap lifted this much out of its cradle (clear of its rails) to carry it over
 RING_IN = 0.040  # the open hand comes in onto the ring (and backs off it) this far along its approach
 RING_LIFT = 0.012  # the rod lifted this much off its rack (clear of its Vs) to carry it over
 ROT_D = axis_angle_matrix(Y, TONGUE_TURN) @ _prev_grip(math.pi / 2)  # in from the front, tipped 55 deg,
@@ -862,14 +894,60 @@ def _tongue(name, centre):
     return np.asarray(centre, float) + [0.0, -L / 2 - TONGUE_L / 2 - 0.003, TONGUE_Z]
 
 
+def _tab_at(name, p):
+    """The middle of cap ``name``'s tab, its open end at p."""
+    return (np.asarray(p, float) + CAP_SIDE[name] * (CAP_DEPTH + CAP_PLATE + TAB_L / 2) * Y
+            - (TAB_R0 + TAB_R1) / 2 * CAP_U)
+
+
+def _on_tab(name, p, R, back=0.0):
+    """TCP for the fingers across cap ``name``'s tab (``back`` short of it along the approach), its open end at p."""
+    return _tcp(_tab_at(name, p) - back * CAP_U, R, past=0.004)
+
+
+def _cap_moves(pl, name, R, O, key, t_start):
+    """Take cap ``name`` out of its cradle by its tab, line it up with the tube (as seen), push it home, let go: the
+    waypoints, and the line-up window (from t_start, when they begin)."""
+    up = np.array([0.0, 0.0, 1.0])
+    sd = CAP_SIDE[name]
+    p0 = cap_start(name)
+    end = TUBE_Y0 if sd < 0 else TUBE_Y1
+    p_line = np.array([XA, end + sd * 0.012, TOP + AXZ])  # in line, its open end 12 mm short of the tube's end
+    p_turn = np.array([p0[0], p_line[1], TOP + AXZ])  # (along its cradle's side first, then across to the line)
+    p_push = np.array([XA, CAP_HOME[name] - sd * 0.002, TOP + AXZ])  # (2 mm past home: pressed on)
+    lift = CAP_LIFT * up
+    a = [(2.0, _on_tab(name, p0, R, CAP_IN) + 0.03 * up, ROD_OPEN, f"hand turned to the {name}'s tab, over it", O),
+         (1.0, _on_tab(name, p0, R, CAP_IN), ROD_OPEN, "down beside the tab", O),
+         (1.0, _on_tab(name, p0, R), ROD_OPEN, "in round the tab", O),
+         (0.6, _on_tab(name, p0, R), ROD_HOLD, "close on the tab", O),
+         (1.0, _on_tab(name, p0, R) + lift, ROD_HOLD, "lift the cap out of its cradle", O),
+         (1.5, _on_tab(name, p_turn, R) + lift, ROD_HOLD, "along to the tube's end", O),
+         (2.0, _on_tab(name, p_line, R) + lift, ROD_HOLD, "over to the tube's line", O),
+         (1.0, _Dyn(_on_tab(name, p_line, R), key), ROD_HOLD, "down in line with the tube", O)]
+    tw = t_start + sum(w[0] for w in a)
+    a += [(1.8, _Dyn(_on_tab(name, p_line, R), key), ROD_HOLD, "hold still: the cap seen in line", O),
+          (2.5, _Dyn(_on_tab(name, p_push, R), key), ROD_HOLD, "push the cap home onto the tube", O),
+          (0.8, _Dyn(_on_tab(name, p_push, R), key), ROD_HOLD, "hold it home", O),
+          (0.6, _Dyn(_on_tab(name, p_push, R), key), ROD_OPEN, "let go of the tab", O),
+          (1.0, _Dyn(_on_tab(name, p_push, R, CAP_IN), key), ROD_OPEN, "back off the tab", O),
+          (1.0, _Dyn(_on_tab(name, p_push, R, CAP_IN) + 0.03 * up + sd * 0.025 * Y, key), ROD_OPEN,
+           "up and away from the cap", O)]
+    pl.window(tw + 0.3, tw + 1.8, key,
+              lambda env, n=name: np.array([XA, 0.0, TOP + AXZ]) - _seen(env, n) * [1.0, 0.0, 1.0], name)
+    return a
+
+
 def demo():
     up = np.array([0.0, 0.0, 1.0])
     a_d = _appr(ROT_D)
     pl = _Plan()
     from yam_arena.constants import LEFT_BASE_POS
     _READY_L = _ik.tcp_pose(np.array(_READY, float), np.array(LEFT_BASE_POS))
-    pl.phase(left=[(1.0, _READY_L[0] + 0.06 * up, ROD_OPEN, "straight up", Orient(_READY_L[1])),
-                   (2.0, LEFT_PARK, ROD_OPEN, "hand turned at the park", O_T)],
+    # the left hand caps the far (exhaust) end while the right one starts on the boats
+    left = [(1.0, _READY_L[0] + 0.06 * up, ROD_OPEN, "straight up", Orient(_READY_L[1]))]
+    left += _cap_moves(pl, "exhaust_cap", ROT_L, O_L, "cf", pl.t + 1.0)
+    left += [(2.0, LEFT_PARK, ROD_OPEN, "hand turned at the park", O_T)]
+    pl.phase(left=left,
              right=[(2.0, np.array([0.33, -0.27, TOP + 0.33]), TONGUE_OPEN, "hand turned, up clear of the tube's end",
                      O_D)])
     keys = iter(f"r{i}" for i in range(1, 99))
@@ -942,6 +1020,8 @@ def demo():
                         (0.6, _on_ring(on_rack), ROD_OPEN, "let go of the ring", O_R),
                         (1.0, _on_ring(on_rack, RING_IN), ROD_OPEN, "back off the ring", O_R),
                         (1.0, _on_ring(on_rack, RING_IN) + 0.05 * up, ROD_OPEN, "up, clear of the rod", O_R)])
+    # the right hand caps the loading (inlet) end, now that the boats are in
+    pl.phase(right=_cap_moves(pl, "inlet_cap", ROT_R, O_R, "cn", pl.t))
     pl.phase(right=[(2.0, RIGHT_PARK, ROD_OPEN, "up and clear", O_T)])
     pl.phase(right=[(3.0, RIGHT_PARK, ROD_OPEN, "rest", O_T)], left=[(3.0, LEFT_PARK, ROD_OPEN, "rest", O_T)])
     return {"left": pl.L, "right": pl.R}
