@@ -811,6 +811,7 @@ O_D = Orient(ROT_D)  # closing across a boat's round tongue
 LOAD_ORDER = ("chip_boat", "moo3_boat", "s_boat")  # the deepest first: boats cannot pass each other in the tube
 # (upstream is the loading end, where the argon comes in: the chip, furthest downstream, goes in first, sulfur last)
 TARGET = {"chip_boat": MO_AT + (CHIP_DMIN + CHIP_DMAX) / 2, "moo3_boat": MO_AT, "s_boat": S_AT}
+MOUTH_HI = 0.004  # carried in this much above the tube's floor (a held boat droops a little)
 MOUTH_OUT = 0.015  # a boat set in the mouth: its back end this far out of the tube (most of it, and its weight, inside)
 CARRY_UP = 0.030  # carried this high over the tray and the tube's end
 
@@ -855,7 +856,8 @@ def demo():
         tg = _tongue(name, on_tray)
         mouth = np.array([XA, TUBE_Y0 - MOUTH_OUT + L / 2, TOP + BOAT_Z + 0.0012])
         g_mouth = _tongue(name, mouth)
-        pre = g_mouth - [0.0, 0.010, 0.0]  # the boat's front 10 mm short of where it is set: lined up first
+        hi = np.array([0.0, 0.0, MOUTH_HI])
+        pre = g_mouth + hi - [0.0, L - MOUTH_OUT + 0.008, 0.0]  # lined up first: its front 8 mm short of the tube's end
         lift = tg + [0.0, 0.0, CARRY_UP]
         # -- pick the boat up by its tongue; carry it level, over the others and under the rod, to the tube's mouth -----
         k_b = f"b{bi}"
@@ -874,10 +876,11 @@ def demo():
         tw = pl.phase(right=[(1.8, _Dyn(_tcp(pre, ROT_D, past=0.006), k_b), TONGUE_HOLD,
                               "hold still: the boat seen in line", O_D)])
         pl.window(tw + 0.3, tw + 1.8, k_b,
-                  lambda env, n=name, z=pre[2] - TONGUE_Z: np.array([XA, 0.0, z]) - _seen(env, n) * [1.0, 0.0, 1.0],
+                  lambda env, n=name, z=mouth[2] + MOUTH_HI: np.array([XA, 0.0, z]) - _seen(env, n) * [1.0, 0.0, 1.0],
                   name)
         pl.phase(right=[
-            (1.5, _Dyn(_tcp(g_mouth, ROT_D, past=0.006), k_b), TONGUE_HOLD, "set it in the mouth", O_D),
+            (2.0, _Dyn(_tcp(g_mouth + hi, ROT_D, past=0.006), k_b), TONGUE_HOLD, "slide it into the mouth", O_D),
+            (0.8, _Dyn(_tcp(g_mouth, ROT_D, past=0.006), k_b), TONGUE_HOLD, "set it down on the tube's floor", O_D),
             (0.6, _Dyn(_tcp(g_mouth, ROT_D, past=0.006), k_b), TONGUE_OPEN, "let go of the boat", O_D),
             (0.8, _Dyn(_tcp(g_mouth - 0.035 * a_d, ROT_D, past=0.006), k_b), TONGUE_OPEN, "back off the boat", O_D),
             (0.8, _Dyn(_tcp(g_mouth - 0.035 * a_d + 0.05 * up, ROT_D, past=0.006), k_b), TONGUE_OPEN, "up and away", O_D)])
