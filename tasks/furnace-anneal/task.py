@@ -508,7 +508,7 @@ PLATE_STAND = part("plate_stand", pos=(0.0, 0.0, TOP), fixed=True, friction=0.6,
 # -- the boat (loose): an alumina boat 80 x 15 x 8 mm, open on top, its back end a 12 mm wall with a 14 mm tongue out
 # behind it at its floor, to hold it by and for the rod's pusher. In the tube it sits on the floor strip, 7.5 mm under
 # the axis. It starts on a tray in front of the loading end, in line with the tube. Frame: origin at the centre of its underside. ---------------------
-BOAT_L, BOAT_W, BOAT_H, BOAT_T, BACK_H = 0.080, 0.015, 0.008, 0.0015, 0.012
+BOAT_L, BOAT_W, BOAT_H, BOAT_T, BACK_H = 0.080, 0.015, 0.008, 0.0015, 0.008
 TONGUE_L, TONGUE_W, TONGUE_T = 0.020, 0.012, 0.004
 ALUMINA = (0.97, 0.96, 0.93)
 BOAT_Z = FLOOR_Z + 0.0003  # on the floor strip
@@ -1329,17 +1329,20 @@ def demo():
     # -- 5. right takes the plate off (the gauge in its green band, the argon shut) and stands it on its stand ---------
     k0 = PLATE_START + [0.0, -PLATE_T - KNOB_L / 2 - 0.003, 0.0]  # the fingers across the knob, 3 mm out from its middle
     kr = PLATE_REST + [0.0, -PLATE_T - KNOB_L / 2 - 0.003, 0.0]
-    pl.phase(right=[(1.5, _tcp(k0 + 0.04 * up, ROT_P), PK_OPEN, "hand turned over the plate's knob", O_P),
-                    (1.0, _tcp(k0, ROT_P), PK_OPEN, "down round the knob", O_P),
+    a_p = _appr(ROT_P)
+    pl.phase(right=[(1.5, _tcp(k0 - 0.03 * a_p + 0.03 * up, ROT_P), PK_OPEN, "hand turned, in front of the plate's knob", O_P),
+                    (0.8, _tcp(k0 - 0.03 * a_p, ROT_P), PK_OPEN, "down, in line with the knob", O_P),
+                    (1.0, _tcp(k0, ROT_P), PK_OPEN, "in round the knob", O_P),
                     (0.6, _tcp(k0, ROT_P), PK_HOLD, "close on the knob", O_P),
                     (1.5, _tcp(k0 - 0.018 * Y, ROT_P), PK_HOLD, "pull the plate off (the gauge in the green)", O_P),
                     (1.0, _tcp(k0 - 0.018 * Y + 0.035 * up, ROT_P), PK_HOLD, "lift the plate", O_P),
                     (2.0, _tcp(kr + 0.04 * up, ROT_P), PK_HOLD, "the plate over its stand", O_P),
                     (1.2, _tcp(kr + 0.002 * up, ROT_P), PK_HOLD, "the plate down in its stand", O_P),
                     (0.5, _tcp(kr + 0.002 * up, ROT_P), PK_OPEN, "let go of the plate", O_P),
-                    (0.8, _tcp(kr + 0.05 * up, ROT_P), PK_OPEN, "up off the plate", O_P)])
+                    (0.8, _tcp(kr + 0.002 * up - 0.03 * a_p, ROT_P), PK_OPEN, "back off the plate's knob", O_P),
+                    (0.8, _tcp(kr + 0.05 * up - 0.03 * a_p, ROT_P), PK_OPEN, "up off the plate", O_P)])
     # -- 6. right picks the boat up from its tray by its tongue and sets it in the tube's mouth, lined up by eye --------
-    tg = BOAT_START + [0.0, -BOAT_L / 2 - TONGUE_L / 2, TONGUE_T / 2]
+    tg = BOAT_START + [0.0, -BOAT_L / 2 - TONGUE_L / 2 - 0.003, TONGUE_T / 2]  # (3 mm back: the fingers clear its back)
     a_d = _appr(ROT_D)
     pick = [(2.0, _tcp(tg - 0.04 * a_d + 0.05 * up, ROT_D, past=0.006), TONGUE_OPEN, "hand turned over the boat's tongue",
              O_D),
@@ -1429,8 +1432,10 @@ def demo():
     pl.phase(right=seq)
     # -- 9. right puts the plate back on, in line with the tube (seen), fully home; then shuts the clamp over it --------
     pre_k = k0 - [0.0, 0.025, 0.0]
-    pl.phase(right=[(2.5, _tcp(kr + 0.05 * up, ROT_P), PK_OPEN, "hand turned over the plate on its stand", O_P),
-                    (1.2, _tcp(kr + 0.002 * up, ROT_P), PK_OPEN, "down round the knob", O_P),
+    pl.phase(right=[(2.5, _tcp(kr - 0.03 * a_p + 0.03 * up, ROT_P), PK_OPEN, "hand turned, in front of the plate on its stand",
+                     O_P),
+                    (0.8, _tcp(kr + 0.002 * up - 0.03 * a_p, ROT_P), PK_OPEN, "down, in line with the knob", O_P),
+                    (1.2, _tcp(kr + 0.002 * up, ROT_P), PK_OPEN, "in round the knob", O_P),
                     (0.6, _tcp(kr + 0.002 * up, ROT_P), PK_HOLD, "close on the knob", O_P),
                     (1.0, _tcp(kr + 0.04 * up, ROT_P), PK_HOLD, "lift the plate", O_P),
                     (2.0, _tcp(pre_k + 0.035 * up, ROT_P), PK_HOLD, "the plate over the tube's end", O_P),
