@@ -445,7 +445,7 @@ def _valve(name, pivot, lo, hi, start):
     j = Joint(name, kind="hinge", axis="Z", anchor=pivot, lower=lo, upper=hi, stiffness=0.0, damping=0.02,
               friction=0.03, initial=start, mass=0.01,
               boxes=[((pivot[0] + LEVER_L / 2, pivot[1], pivot[2] + 0.010), (LEVER_L, 0.010, 0.004), RED)],
-              cylinders=[((pivot[0] + LEVER_L - 0.004, pivot[1], pivot[2] + 0.019), 0.005, 0.014, RED, "Z")])
+              cylinders=[((pivot[0] + LEVER_L - 0.004, pivot[1], pivot[2] + 0.027), 0.005, 0.030, RED, "Z")])  # its grip
     post = [((pivot[0], pivot[1], (pivot[2] - 0.012) / 2), (0.012, 0.012, pivot[2] - 0.012), DARK),
             ((pivot[0], pivot[1], pivot[2]), (0.022, 0.020, 0.016), BRASS)]
     return j, post
@@ -500,7 +500,7 @@ PLATE_STAND = part("plate_stand", pos=(0.0, 0.0, TOP), fixed=True, friction=0.6,
 # behind it at its floor, to hold it by and for the rod's pusher. In the tube it sits on the floor strip, 7.5 mm under
 # the axis. It starts on a tray beside the loading end. Frame: origin at the centre of its underside. ---------------------
 BOAT_L, BOAT_W, BOAT_H, BOAT_T, BACK_H = 0.080, 0.015, 0.008, 0.0015, 0.012
-TONGUE_L, TONGUE_W, TONGUE_T = 0.014, 0.010, 0.003
+TONGUE_L, TONGUE_W, TONGUE_T = 0.016, 0.012, 0.004
 ALUMINA = (0.97, 0.96, 0.93)
 BOAT_Z = FLOOR_Z + 0.0003  # on the floor strip
 TRAY = np.array([XA - 0.080, -0.270, AXZ - 0.032])  # the tray's top centre
@@ -1065,11 +1065,11 @@ def _tcp(tip, R=ROT_T, past=0.004):
 
 ROD_OPEN, ROD_HOLD = -0.012, 0.0  # round the 6 mm rod, squeezed hard (a looser grip slips)
 TUBE_OPEN, TUBE_HOLD = -0.022, -0.0115  # round the 25.4 mm tube
-KNOB_OPEN, KNOB_HOLD = -0.014, -0.0035  # round a valve's 10 mm knob
+KNOB_OPEN, KNOB_HOLD = -0.016, -0.0040  # round a valve lever's 10 mm upright grip
 PK_OPEN, PK_HOLD = -0.018, -0.0050  # round the plate's 16 mm knob
 TAB_OPEN, TAB_HOLD = -0.012, 0.0  # across the clamp's 4 mm lever
-TONGUE_OPEN, TONGUE_HOLD = -0.014, -0.0012  # across the boat's 10 mm tongue
-BAR_OPEN, BAR_HOLD = -0.016, -0.0030  # round the lid's 8 mm handle bar
+TONGUE_OPEN, TONGUE_HOLD = -0.012, 0.0  # on the boat's 4 mm thick tongue (squeezed)
+BAR_OPEN, BAR_HOLD = -0.016, -0.0010  # round the lid's 8 mm handle bar (squeezed)
 WIDE = -0.030
 HOLD_Y = 0.290  # where the left hand holds the tube: past the furnace's end, before the far flange
 FEED = (-0.390, -0.270)  # each stroke on the rod: from here to here along y (reach behind, the near rest in front)
@@ -1117,7 +1117,7 @@ def _lid(theta, R0):
 def _vknob(pivot, th):
     """A valve lever's knob, the lever at th about z (0: along +x, open)."""
     k = LEVER_L - 0.004
-    return np.array([pivot[0] + k * math.cos(th), pivot[1] + k * math.sin(th), TOP + pivot[2] + 0.019])
+    return np.array([pivot[0] + k * math.cos(th), pivot[1] + k * math.sin(th), TOP + pivot[2] + 0.034])  # its grip's top
 
 
 _LEVER_OUT = _hook_y - 0.004 - CLAMP_PIVOT[1]  # the clamp lever's outside face (towards -y), from the hinge, shut
@@ -1125,12 +1125,12 @@ _LEVER_OUT = _hook_y - 0.004 - CLAMP_PIVOT[1]  # the clamp lever's outside face 
 
 def _push_open(th):
     """Where a fingertip pushes the clamp's lever open (on its outside face), the clamp turned th about x."""
-    return np.array(CLAMP_PIVOT) + [0.0, 0.0, TOP] + axis_angle_matrix(X, th) @ np.array([0.0, _LEVER_OUT - 0.007, 0.016])
+    return np.array(CLAMP_PIVOT) + [0.0, 0.0, TOP] + axis_angle_matrix(X, th) @ np.array([0.0, _LEVER_OUT - 0.003, 0.016])
 
 
 def _push_shut(th):
     """Where a fingertip pushes the clamp shut (on top of its arm, by the hook), the clamp turned th about x."""
-    return np.array(CLAMP_PIVOT) + [0.0, 0.0, TOP] + axis_angle_matrix(X, th) @ np.array([0.0, -0.026, 0.011])
+    return np.array(CLAMP_PIVOT) + [0.0, 0.0, TOP] + axis_angle_matrix(X, th) @ np.array([0.0, -0.026, 0.007])
 
 
 def _rod_at(y, z=AXZ):
@@ -1173,7 +1173,7 @@ def demo():
                (0.6, _tcp(p, R, past=0.002), BAR_HOLD, "close on the handle", Orient(R))]
         for th in thetas[1:]:
             p, R = _lid(th, R0)
-            out.append((1.0, _tcp(p, R, past=0.002), BAR_HOLD, label, Orient(R)))
+            out.append((1.4, _tcp(p, R, past=0.002), BAR_HOLD, label, Orient(R)))
         out += [(0.6, _tcp(p, R, past=0.002), BAR_OPEN, "let go of the lid", Orient(R)),
                 (0.8, _tcp(p - _appr(R) * pre, R, past=0.002), BAR_OPEN, "back off the handle", Orient(R))]
         return out
@@ -1184,7 +1184,7 @@ def demo():
                     (1.0, _tcp(a0, past=0.0), KNOB_OPEN, "down round the knob", O_T),
                     (0.5, _tcp(a0, past=0.0), KNOB_HOLD, "close on the knob", O_T),
                     *[(0.5, _tcp(_vknob(ARGON_PIVOT, -f * math.pi / 2), past=0.0), KNOB_HOLD, "shut the argon", O_T)
-                      for f in (1 / 3, 2 / 3, 1.0)],
+                      for f in (0.2, 0.4, 0.6, 0.8, 1.0)],
                     (0.5, _tcp(_vknob(ARGON_PIVOT, -math.pi / 2), past=0.0), KNOB_OPEN, "let go of the knob", O_T),
                     (0.8, _tcp(_vknob(ARGON_PIVOT, -math.pi / 2) + 0.04 * up, past=0.0), KNOB_OPEN, "up off the knob", O_T)],
              left=[(2.5, _tcp(b0 + 0.03 * up, past=0.0), KNOB_OPEN, "hand turned over the bleed valve's knob", O_T),
@@ -1235,10 +1235,11 @@ def demo():
                        first="the hand round to hold the handle from above")]
     p1, R1 = _lid(LID_OPEN, LID_GRIP_B)
     tg = BOAT_START + [0.0, -BOAT_L / 2 - TONGUE_L / 2, TONGUE_T / 2]
-    pick = [(2.0, _tcp(tg + 0.04 * up, ROT_D), TONGUE_OPEN, "hand turned over the boat's tongue", O_D),
-            (1.0, _tcp(tg, ROT_D), TONGUE_OPEN, "down round the tongue", O_D),
-            (0.6, _tcp(tg, ROT_D), TONGUE_HOLD, "close on the tongue", O_D),
-            (1.5, _tcp(tg + 0.035 * up, ROT_D), TONGUE_HOLD, "lift the boat, level", O_D)]
+    a_d = _appr(ROT_D)
+    pick = [(2.0, _tcp(tg - 0.04 * a_d, ROT_D, past=0.006), TONGUE_OPEN, "hand turned, level with the boat's tongue", O_D),
+            (1.0, _tcp(tg, ROT_D, past=0.006), TONGUE_OPEN, "in round the tongue", O_D),
+            (0.6, _tcp(tg, ROT_D, past=0.006), TONGUE_HOLD, "close on the tongue", O_D),
+            (1.5, _tcp(tg + 0.035 * up, ROT_D, past=0.006), TONGUE_HOLD, "lift the boat, level", O_D)]
     pl.phase(left=lid, right=pick)
     # -- 6. left holds the tube; right sets the boat in the tube's mouth, lined up with it by eye ------------------------
     sb = np.array([XA, BOAT_IN + BOAT_L / 2, TOP + BOAT_Z])  # the boat set in the mouth (its frame's origin)
@@ -1249,15 +1250,17 @@ def demo():
                    (1.5, _tcp(h + 0.08 * up), TUBE_OPEN, "over the tube", O_T),
                    (1.0, _tcp(h), TUBE_OPEN, "down round the tube", O_T),
                    (0.6, _tcp(h), TUBE_HOLD, "hold the tube (it slides and rolls)", O_T)],
-             right=[(2.5, _Dyn(_tcp(g_pre + 0.02 * up, ROT_D), "b"), TONGUE_HOLD, "the boat over the tube's mouth", O_D),
-                    (1.5, _Dyn(_tcp(g_pre, ROT_D), "b"), TONGUE_HOLD, "the boat down, in line with the tube", O_D)])
-    tw = pl.phase(right=[(1.8, _Dyn(_tcp(g_pre, ROT_D), "b"), TONGUE_HOLD, "hold still: the boat seen in line", O_D)])
+             right=[(2.5, _Dyn(_tcp(g_pre + 0.02 * up, ROT_D, past=0.006), "b"), TONGUE_HOLD, "the boat over the tube's mouth", O_D),
+                    (1.5, _Dyn(_tcp(g_pre, ROT_D, past=0.006), "b"), TONGUE_HOLD, "the boat down, in line with the tube", O_D)])
+    tw = pl.phase(right=[(1.8, _Dyn(_tcp(g_pre, ROT_D, past=0.006), "b"), TONGUE_HOLD, "hold still: the boat seen in line", O_D)])
     pl.window(tw + 0.3, tw + 1.8, "b",
               lambda env: np.array([XA, 0.0, pre[2]]) - _seen(env, "boat") * [1.0, 0.0, 1.0], "boat")
     g_in = g_pre + (sb - pre)
-    pl.phase(right=[(2.5, _Dyn(_tcp(g_in, ROT_D), "b"), TONGUE_HOLD, "slide the boat into the mouth", O_D),
-                    (0.5, _Dyn(_tcp(g_in, ROT_D), "b"), TONGUE_OPEN, "let go of the boat", O_D),
-                    (0.8, _Dyn(_tcp(g_in + 0.04 * up, ROT_D), "b"), TONGUE_OPEN, "up off the boat", O_D)])
+    pl.phase(right=[(2.5, _Dyn(_tcp(g_in, ROT_D, past=0.006), "b"), TONGUE_HOLD, "slide the boat into the mouth", O_D),
+                    (0.5, _Dyn(_tcp(g_in, ROT_D, past=0.006), "b"), TONGUE_OPEN, "let go of the boat", O_D),
+                    (0.8, _Dyn(_tcp(g_in - 0.035 * a_d, ROT_D, past=0.006), "b"), TONGUE_OPEN, "back off the boat", O_D),
+                    (0.8, _Dyn(_tcp(g_in - 0.035 * a_d + 0.04 * up, ROT_D, past=0.006), "b"), TONGUE_OPEN, "up and away",
+                     O_D)])
     # -- 7. right takes the rod and pushes the boat in, stroke by stroke, until it sits under the thermocouple (seen) ---
     r_g0 = _rod_at(FEED[0], AXZ - 0.0015)
     pl.phase(right=[(2.0, _on_rod(r_g0 + 0.09 * up), ROD_OPEN, "hand turned over the rod", O_T),
