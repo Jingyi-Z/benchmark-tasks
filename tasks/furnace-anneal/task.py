@@ -284,7 +284,7 @@ FURNACE = part("tube_furnace", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5, bo
 COLLAR_R, FLANGE_R, COLLAR_L = 0.019, 0.025, 0.035
 NC_Y1 = TUBE_Y0 + COLLAR_L  # the loading collar: TUBE_Y0 (its face, the tube's end) to NC_Y1
 FIT_Y0, FIT_Y1 = TUBE_Y1 - COLLAR_L, TUBE_Y1 + 0.006  # the far flange (closed)
-GAUGE_C = np.array([XA, (FIT_Y0 + FIT_Y1) / 2, AXZ + 0.105])  # the gauge's centre
+GAUGE_C = np.array([XA, FIT_Y1 + 0.045, AXZ + 0.085])  # the gauge's centre: on a tee out of the far blank, in view
 GAUGE_R = 0.042
 GAUGE_N = Z  # a back-mounted gauge on an upright stem: its face looks up (at the top camera)
 P_MIN, P_MAX = -10.0, 15.0  # kPa over the dial
@@ -344,7 +344,8 @@ TUBE_MESHES = [*_ring_y(TUBE_Y0, TUBE_Y0 + 0.006, TUBE_R, FLANGE_R, 12, STAINLES
                  for m in _ring_y(y0, y1, TUBE_IN, TUBE_R, 12, QUARTZ, cx=XA, cz=AXZ)]]
 TUBE_DRAWN = [
     *_disc_mesh(np.array([XA, FIT_Y1, AXZ]), Y, FLANGE_R, 0.006, STAINLESS, 16),  # the far flange's blank
-    _seg((XA, GAUGE_C[1], AXZ + COLLAR_R - 0.002), GAUGE_C - 0.010 * GAUGE_N, 0.009, STAINLESS),  # the gauge's stem
+    _seg((XA, FIT_Y1, AXZ), (XA, GAUGE_C[1] + 0.006, AXZ), 0.014, STAINLESS),  # the tee's nipple out of the blank
+    _seg((XA, GAUGE_C[1], AXZ), GAUGE_C - 0.010 * GAUGE_N, 0.009, STAINLESS),  # the gauge's stem, up off the tee
     _box_mesh((XA - COLLAR_R - 0.005, ARGON_PORT[1], AXZ), (0.012, 0.010, 0.010), STAINLESS),  # the argon port
     _box_mesh((XA - COLLAR_R - 0.005, BLEED_PORT[1], AXZ), (0.012, 0.010, 0.010), STAINLESS),  # the bleed port
     _box_mesh((XA, CLAMP_PIVOT[1], AXZ + COLLAR_R + 0.005), (0.014, 0.012, 0.012), STAINLESS),  # the clamp's hinge block
