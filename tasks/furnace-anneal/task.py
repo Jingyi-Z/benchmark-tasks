@@ -364,12 +364,12 @@ NEEDLE = Joint("needle", kind="hinge", axis="Z", anchor=tuple(_na),
 CLAMP_OPEN, CLAMP_UP = math.radians(80.0), math.radians(110.0)
 PLATE_T, PLATE_R = 0.006, FLANGE_R  # the blank plate: 6 mm stainless, as wide as the flange
 _cz = CLAMP_PIVOT[2]
-_hook_y = TUBE_Y0 - PLATE_T - 0.001  # the hook's inside face, 1 mm off the plate's outside
+_hook_y = TUBE_Y0 - PLATE_T - 0.0025  # the hook's inside face, 2.5 mm off the plate's outside
 CLAMP = Joint("clamp", kind="hinge", axis="X", anchor=CLAMP_PIVOT, lower=-CLAMP_UP, upper=0.0,
               stiffness=0.0, damping=0.02, friction=0.02, initial=0.0, mass=0.015,
               boxes=[((XA, (CLAMP_PIVOT[1] + _hook_y - 0.004) / 2, _cz + 0.002),
                       (0.012, CLAMP_PIVOT[1] - _hook_y + 0.004, 0.004), STAINLESS),  # the arm
-                     ((XA, _hook_y - 0.002, _cz - 0.008), (0.012, 0.004, 0.024), STAINLESS),  # the hook
+                     ((XA, _hook_y - 0.002, _cz - 0.006), (0.012, 0.004, 0.020), STAINLESS),  # the hook
                      ((XA, _hook_y - 0.002, _cz + 0.016), (0.014, 0.004, 0.024), DARK)])  # the lever, up off the hook
 # a smooth strip along the tube's floor, one piece (the boat would catch on the seams between the wall's lengths)
 FLOOR_Z = AXZ - 0.0075
@@ -388,7 +388,7 @@ ARGON_C = (0.25, 0.48, 0.30)  # the gas bottle (argon: green shoulder)
 VALVE_SHUT = math.radians(80.0)  # a valve counts as shut once its lever is turned this far
 ARGON_PIVOT = (XA - 0.075, -0.200, AXZ + 0.004)  # the inlet valve, in front of the loading end
 BLEED_PIVOT = (XA - 0.075, 0.375, AXZ + 0.004)  # the bleed valve, in front of the far end
-BOTTLE = (0.52, -0.30)  # the argon bottle, behind the loading end
+BOTTLE = (0.30, -0.64)  # the argon bottle, off to the side of the loading end
 
 
 def _valve(name, pivot, sign, lever_open):
@@ -412,7 +412,8 @@ LINE_MESHES = [
     *_disc_mesh(np.array([BOTTLE[0], BOTTLE[1], 0.0]), Z, 0.040, 0.250, (0.55, 0.56, 0.58)),
     *_disc_mesh(np.array([BOTTLE[0], BOTTLE[1], 0.250]), Z, 0.040, 0.050, ARGON_C),
     _box_mesh((BOTTLE[0], BOTTLE[1], 0.315), (0.030, 0.030, 0.030), BRASS),
-    *_hose([(BOTTLE[0] - 0.015, BOTTLE[1], 0.315), (BOTTLE[0] - 0.06, BOTTLE[1], 0.29), (BOTTLE[0] - 0.07, -0.215, 0.004),
+    *_hose([(BOTTLE[0] - 0.015, BOTTLE[1], 0.315), (BOTTLE[0] - 0.05, BOTTLE[1], 0.29), (BOTTLE[0] + 0.08, BOTTLE[1], 0.004),
+            (BOTTLE[0] + 0.08, -0.215, 0.004),
             (ARGON_PIVOT[0] + 0.010, -0.215, 0.004), (ARGON_PIVOT[0] + 0.010, ARGON_PIVOT[1] - 0.012, 0.03),
             (ARGON_PIVOT[0], ARGON_PIVOT[1] - 0.013, ARGON_PIVOT[2] - 0.004)], 0.006, HOSE_C),
     *_hose([(ARGON_PIVOT[0], ARGON_PIVOT[1] + 0.013, ARGON_PIVOT[2] - 0.004),
@@ -435,13 +436,12 @@ def _lever_knob(pivot, angle):
                      pivot[2] + 0.019])
 
 
-# -- the blank plate (loose): 6 mm stainless, an O-ring on its inside and a short spigot that centres it in the tube's
-# bore, a black knob on its outside to hold it by. Frame: origin on its axis at its inside face, the knob along -y. --------
+# -- the blank plate (loose): 6 mm stainless with an O-ring on its inside, a black knob on its outside to hold it by.
+# Frame: origin on its axis at its inside face, the knob along -y. ------------------------------------------------------
 KNOB_R, KNOB_L = 0.008, 0.022
-PLATE_START = np.array([XA, TUBE_Y0, TOP + AXZ])
+PLATE_START = np.array([XA, TUBE_Y0 - 0.0005, TOP + AXZ])
 PLATE = part("end_plate", pos=tuple(PLATE_START), mass=0.10, friction=0.4,
              cylinders=[((0.0, -PLATE_T / 2, 0.0), PLATE_R, PLATE_T, STAINLESS, "Y"),
-                        ((0.0, 0.0015, 0.0), 0.0070, 0.003, DARK, "Y"),
                         ((0.0, -PLATE_T - KNOB_L / 2, 0.0), KNOB_R, KNOB_L, DARK, "Y")])
 # its stand (fixed): a post with a V cradle the plate stands in, on edge, knob towards -y
 PLATE_REST = np.array([XA - 0.090, -0.380, TOP + AXZ - 0.020])  # the plate's centre on the stand
