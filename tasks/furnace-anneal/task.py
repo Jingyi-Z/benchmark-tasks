@@ -364,7 +364,7 @@ NEEDLE = Joint("needle", kind="hinge", axis="Z", anchor=tuple(_na),
 CLAMP_OPEN, CLAMP_UP = math.radians(80.0), math.radians(110.0)
 PLATE_T, PLATE_R = 0.006, FLANGE_R  # the blank plate: 6 mm stainless, as wide as the flange
 _cz = CLAMP_PIVOT[2]
-_hook_y = TUBE_Y0 - PLATE_T - 0.0025  # the hook's inside face, 2.5 mm off the plate's outside
+_hook_y = TUBE_Y0 - PLATE_T - 0.0012  # the hook's inside face, 1.2 mm off the plate's outside
 CLAMP = Joint("clamp", kind="hinge", axis="X", anchor=CLAMP_PIVOT, lower=-CLAMP_UP, upper=0.0,
               stiffness=0.0, damping=0.02, friction=0.02, initial=0.0, mass=0.015,
               boxes=[((XA, (CLAMP_PIVOT[1] + _hook_y - 0.004) / 2, _cz + 0.002),
@@ -373,7 +373,7 @@ CLAMP = Joint("clamp", kind="hinge", axis="X", anchor=CLAMP_PIVOT, lower=-CLAMP_
                      ((XA, _hook_y - 0.002, _cz + 0.016), (0.014, 0.004, 0.024), DARK)])  # the lever, up off the hook
 # a smooth strip along the tube's floor, one piece (the boat would catch on the seams between the wall's lengths)
 FLOOR_Z = AXZ - 0.0075
-TUBE_BOXES = [((XA, (TUBE_Y0 + FIT_Y0) / 2 + 0.001, FLOOR_Z - 0.001), (0.012, FIT_Y0 - TUBE_Y0 - 0.002, 0.002), QUARTZ)]
+TUBE_BOXES = [((XA, (TUBE_Y0 + FIT_Y0) / 2, FLOOR_Z - 0.001), (0.012, FIT_Y0 - TUBE_Y0, 0.002), QUARTZ)]
 TUBE = part("quartz_tube", pos=(0.0, 0.0, TOP), mass=0.40, friction=0.3, boxes=TUBE_BOXES, meshes=TUBE_MESHES,
             joints=[NEEDLE, CLAMP])
 
@@ -436,12 +436,15 @@ def _lever_knob(pivot, angle):
                      pivot[2] + 0.019])
 
 
-# -- the blank plate (loose): 6 mm stainless with an O-ring on its inside, a black knob on its outside to hold it by.
+# -- the blank plate (loose): 6 mm stainless with an O-ring and a centring spigot on its inside (in the tube's bore), a
+# black knob on its outside to hold it by.
 # Frame: origin on its axis at its inside face, the knob along -y. ------------------------------------------------------
 KNOB_R, KNOB_L = 0.008, 0.022
-PLATE_START = np.array([XA, TUBE_Y0 - 0.0005, TOP + AXZ])
+SPIGOT_R, SPIGOT_L = 0.0072, 0.006  # its centring spigot, in the bore: it rests on the floor strip
+PLATE_START = np.array([XA, TUBE_Y0 - 0.0003, TOP + AXZ])
 PLATE = part("end_plate", pos=tuple(PLATE_START), mass=0.10, friction=0.4,
              cylinders=[((0.0, -PLATE_T / 2, 0.0), PLATE_R, PLATE_T, STAINLESS, "Y"),
+                        ((0.0, SPIGOT_L / 2, -0.0003), SPIGOT_R, SPIGOT_L, DARK, "Y"),
                         ((0.0, -PLATE_T - KNOB_L / 2, 0.0), KNOB_R, KNOB_L, DARK, "Y")])
 # its stand (fixed): a post with a V cradle the plate stands in, on edge, knob towards -y
 PLATE_REST = np.array([XA - 0.090, -0.380, TOP + AXZ - 0.020])  # the plate's centre on the stand
