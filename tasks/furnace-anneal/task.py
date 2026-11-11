@@ -452,7 +452,7 @@ def _valve(name, pivot, lo, hi, start):
 
 
 ARGON_V, _ap = _valve("argon_valve", ARGON_PIVOT, -math.pi / 2, 0.0, 0.0)  # open; shut turned towards the right arm
-BLEED_V, _bp = _valve("bleed_valve", BLEED_PIVOT, 0.0, math.pi / 2, math.pi / 2)  # starts shut (across the line)
+BLEED_V, _bp = _valve("bleed_valve", BLEED_PIVOT, -math.pi / 2, 0.0, -math.pi / 2)  # starts shut (across the line)
 LINE_MESHES = [
     # the argon bottle with its regulator, the line along the bench to the inlet valve, and on to the collar's port
     *_disc_mesh(np.array([BOTTLE[0], BOTTLE[1], 0.0]), Z, 0.040, 0.250, (0.55, 0.56, 0.58)),
@@ -1162,17 +1162,19 @@ def _vknob(pivot, th):
     return np.array([pivot[0] + k * math.cos(th), pivot[1] + k * math.sin(th), TOP + pivot[2] + 0.034])  # its grip's top
 
 
+ROT_C = axis_angle_matrix(Y, -TILT) @ _prev_grip(0.0)  # tipped forward, the fingers closing along y: pushing along y
+O_TC = Orient(ROT_C)  # with the flat of a finger (its thin side)
 _LEVER_OUT = _hook_y - 0.004 - CLAMP_PIVOT[1]  # the clamp lever's outside face (towards -y), from the hinge, shut
 
 
 def _push_open(th):
     """Where a fingertip pushes the clamp's lever open (on its outside face), the clamp turned th about x."""
-    return np.array(CLAMP_PIVOT) + [0.0, 0.0, TOP] + axis_angle_matrix(X, th) @ np.array([0.0, _LEVER_OUT - 0.011, 0.016])
+    return np.array(CLAMP_PIVOT) + [0.0, 0.0, TOP] + axis_angle_matrix(X, th) @ np.array([0.0, _LEVER_OUT - 0.005, 0.016])
 
 
 def _push_shut(th):
     """Where a fingertip pushes the clamp shut (on top of its arm, by the hook), the clamp turned th about x."""
-    return np.array(CLAMP_PIVOT) + [0.0, 0.0, TOP] + axis_angle_matrix(X, th) @ np.array([0.0, -0.026, 0.007])
+    return np.array(CLAMP_PIVOT) + [0.0, 0.0, TOP] + axis_angle_matrix(X, th) @ np.array([0.0, -0.026, 0.0045])
 
 
 def _rod_at(y, z=AXZ):
@@ -1241,13 +1243,13 @@ def demo():
     pl.phase(right=[(2.0, np.array([0.37, -0.27, TOP + 0.37]), KNOB_OPEN, "hand turned, up clear of the tube's end", O_T),
                     *vturn(ARGON_PIVOT, 0, -30, "turn the argon off"), *vturn(ARGON_PIVOT, -30, -60, "turn the argon off"),
                     *vturn(ARGON_PIVOT, -60, -92, "turn the argon off")],
-             left=[(2.5, _tcp(_vknob(BLEED_PIVOT, math.pi / 2) + 0.03 * up, past=0.002), KNOB_OPEN,
+             left=[(2.5, _tcp(_vknob(BLEED_PIVOT, -math.pi / 2) + 0.03 * up, past=0.002), KNOB_OPEN,
                     "hand turned over the bleed valve", O_T)])
     # -- 2. left opens the bleed a third and holds it, watching the gauge; in the green band, turns it shut -------------
-    t_open = pl.phase(left=vturn(BLEED_PIVOT, 90, 60, "open the bleed (a third)", release=False))
+    t_open = pl.phase(left=vturn(BLEED_PIVOT, -90, -60, "open the bleed (a third)", release=False))
     pl.gate(t_open + 0.5, t_open + 16.0, "bleed", lambda env: _gauge_kpa(env) <= P_OPEN_AT)
-    back = [60, 70, 80, 90, 92]
-    rots = [axis_angle_matrix(Z, math.radians(t - 90)) @ ROT_T for t in back]
+    back = [-60, -70, -80, -90, -92]
+    rots = [axis_angle_matrix(Z, math.radians(t + 90)) @ ROT_T for t in back]
     pts = [_tcp(_vknob(BLEED_PIVOT, math.radians(t)), R, past=0.002) for t, R in zip(back, rots)]
     gr = _GateRot(rots, "bleed", 0.6)
     pl.phase(left=[(0.6, _GateSeq(pts, "bleed", 0.6), KNOB_HOLD, "bleed until the gauge is in the green; then shut it", gr)
@@ -1260,12 +1262,14 @@ def demo():
     pl.phase(left=[(1.5, _tcp(h + 0.08 * up), TUBE_OPEN, "over the tube", O_T),
                    (1.0, _tcp(h), TUBE_OPEN, "down round the tube", O_T),
                    (0.6, _tcp(h), TUBE_HOLD, "hold the tube (it slides and rolls)", O_T)],
-             right=[(2.0, _tcp(_push_open(0.0) - 0.015 * Y + 0.03 * up, past=0.0), FINGER_CLOSED,
-                     "hand turned, fingers shut, by the clamp's lever", O_T),
-                    (1.0, _tcp(_push_open(0.0) - 0.006 * Y, past=0.0), FINGER_CLOSED, "fingertips to the lever", O_T)])
-    pl.phase(right=[*[(0.7, _tcp(_push_open(a), past=0.0), FINGER_CLOSED, "flip the clamp open", O_T) for a in open_steps],
-                    (0.8, _tcp(_push_open(-1.75) - 0.03 * Y + 0.02 * up, past=0.0), FINGER_CLOSED, "back off the lever",
-                     O_T)])
+             right=[(2.0, _tcp(_push_open(0.0) - 0.015 * Y + 0.03 * up, ROT_C, past=0.0), FINGER_CLOSED,
+                     "hand turned, fingers shut, by the clamp's lever", O_TC),
+                    (1.0, _tcp(_push_open(0.0) - 0.006 * Y, ROT_C, past=0.0), FINGER_CLOSED, "fingertips to the lever",
+                     O_TC)])
+    pl.phase(right=[*[(0.7, _tcp(_push_open(a), ROT_C, past=0.0), FINGER_CLOSED, "flip the clamp open", O_TC)
+                      for a in open_steps],
+                    (0.8, _tcp(_push_open(-1.75) - 0.03 * Y + 0.02 * up, ROT_C, past=0.0), FINGER_CLOSED,
+                     "back off the lever", O_TC)])
     # -- 4. right takes the plate off (the gauge in its green band, the argon shut) and stands it on its stand ---------
     k0 = PLATE_START + [0.0, -PLATE_T - KNOB_L / 2, 0.0]
     kr = PLATE_REST + [0.0, -PLATE_T - KNOB_L / 2, 0.0]
@@ -1396,13 +1400,14 @@ def demo():
                     (0.6, _Dyn(_tcp(home), "c1"), PK_HOLD, "hold it home", O_T),
                     (0.5, _Dyn(_tcp(home), "c1"), PK_OPEN, "let go of the plate", O_T),
                     (0.8, _Dyn(_tcp(home) - 0.02 * Y + 0.03 * up, "c1"), PK_OPEN, "back off the plate", O_T),
-                    (1.5, _tcp(_push_shut(-1.70) + 0.015 * Y + 0.02 * up, past=0.0), FINGER_CLOSED,
-                     "fingers shut, behind the clamp's arm", O_T),
-                    (0.8, _tcp(_push_shut(-1.70) + 0.004 * Y, past=0.0), FINGER_CLOSED, "fingertips to the arm", O_T),
-                    *[(0.7, _tcp(_push_shut(a), past=0.0), FINGER_CLOSED, "shut the clamp over the plate", O_T)
+                    (1.5, _tcp(_push_shut(-1.70) + 0.015 * Y + 0.02 * up, ROT_C, past=0.0), FINGER_CLOSED,
+                     "fingers shut, behind the clamp's arm", O_TC),
+                    (0.8, _tcp(_push_shut(-1.70) + 0.004 * Y, ROT_C, past=0.0), FINGER_CLOSED, "fingertips to the arm",
+                     O_TC),
+                    *[(0.7, _tcp(_push_shut(a), ROT_C, past=0.0), FINGER_CLOSED, "shut the clamp over the plate", O_TC)
                       for a in close_steps],
-                    (0.6, _tcp(_push_shut(0.0) + 0.002 * up, past=0.0), FINGER_CLOSED, "press it shut", O_T),
-                    (0.8, _tcp(_push_shut(0.0) + 0.05 * up, past=0.0), FINGER_CLOSED, "up off the clamp", O_T),
+                    (0.6, _tcp(_push_shut(0.0) + 0.002 * up, ROT_C, past=0.0), FINGER_CLOSED, "press it shut", O_TC),
+                    (0.8, _tcp(_push_shut(0.0) + 0.05 * up, ROT_C, past=0.0), FINGER_CLOSED, "up off the clamp", O_TC),
                     (2.0, RIGHT_PARK, FINGER_CLOSED, "up and clear", O_T)])
     # -- 10. left lets go of the tube and lowers the lid by its handle -----------------------------------------------------
     shut_lid = [(0.6, _tcp(h), TUBE_OPEN, "let go of the tube", O_T),
