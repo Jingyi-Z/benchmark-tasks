@@ -559,7 +559,7 @@ PLANCHECK_BOXES = [
 # the green band in a few seconds; over-pressured, P_BURST, in 12 s). Shutting the argon holds the pressure; the bleed
 # valve lets it out (in proportion to how far it is opened). The plate may be taken off only with the argon shut and the
 # gauge in its green band; once off, the tube is at atmospheric.
-P0, P_RATE = 7.0, 0.4  # kPa, kPa/s
+P0, P_RATE = 6.0, 0.4  # kPa, kPa/s (the argon fully open; less as its valve is turned towards shut)
 BLEED_K = 0.6  # 1/s: the bleed, fully open, lets the pressure fall by this fraction each second
 SEAT_ON, SEAT_OFF = 0.002, 0.004  # the plate seals within 2 mm of its seat; it is off (opened) past 4 mm
 
@@ -630,6 +630,10 @@ def valve_shut(g, name):
     return abs(g.joints.get(name, 0.0)) >= VALVE_SHUT
 
 
+def argon_open(g):
+    return 0.0 if valve_shut(g, "argon_valve") else 1.0 - abs(g.joints.get("argon_valve", 0.0)) / (math.pi / 2)
+
+
 def bleed_open(g):
     return min(1.0, abs(math.pi / 2 - abs(g.joints.get("bleed_valve", 0.0))) / (math.pi / 2))
 
@@ -642,14 +646,14 @@ def _gas_step(env):
     argon = not valve_shut(g, "argon_valve")
     p = _gas.get("p", P0)
     if plate_out(pl) < SEAT_OFF and _gas.get("opened") is None:
-        p += (P_RATE if argon else 0.0) * DT
+        p += P_RATE * argon_open(g) * DT
         p -= BLEED_K * bleed_open(g) * max(p, 0.0) * DT
     else:
         if _gas.get("opened") is None:
             _gas["opened"] = (p, argon)  # the pressure, and whether the argon still ran, when the plate came off
         p = 0.0 if not plate_on(pl) else p  # open to the room; back on after loading, at atmospheric
         if plate_on(pl):
-            p += (P_RATE if argon else 0.0) * DT
+            p += P_RATE * argon_open(g) * DT
     _gas["p"] = p
     _drive(env, "quartz_tube", NEEDLE, -dial_angle(p))
 
@@ -1136,6 +1140,22 @@ class _GateSeq:
         return np.asarray(self.targets[k], dtype=dtype or float)
 
 
+class _GateRot(float):
+    """A waypoint rotation that, like _GateSeq, waits at the first until the gate latches, then steps through the rest."""
+
+    def __new__(cls, rots, key, dt):
+        obj = float.__new__(cls, 0.0)
+        obj.rots, obj.key, obj.dt = [np.asarray(r, float) for r in rots], key, dt
+        return obj
+
+    @property
+    def rot(self):
+        t0 = _ct["gate"].get(self.key)
+        if t0 is None:
+            return self.rots[0]
+        return self.rots[min(len(self.rots) - 1, 1 + int((getattr(_demo, "_plan_clock", 0.0) - t0) / self.dt))]
+
+
 def _vknob(pivot, th):
     """A valve lever's knob, the lever at th about z (0: along +x, open)."""
     k = LEVER_L - 0.004
@@ -1200,28 +1220,40 @@ def demo():
                 (0.8, _tcp(p - _appr(R) * pre, R, past=0.002), BAR_OPEN, "back off the handle", Orient(R))]
         return out
 
-    # -- 1. right pushes the argon valve shut (the tube is over its green band and still filling); left goes to the bleed ---
-    ap = [_tcp(_vpush(ARGON_PIVOT, -f * math.pi / 2, 1), past=0.0) for f in (0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.1)]
-    b_side = _tcp(_vpush(BLEED_PIVOT, math.pi / 2, 1), past=0.0)
-    pl.phase(right=[(2.0, np.array([0.37, -0.27, TOP + 0.37]), FINGER_CLOSED, "hand turned, up clear of the tube's end",
-                     O_T),
-                    (1.5, ap[0] + 0.03 * up, FINGER_CLOSED, "over the argon valve, fingers shut", O_T),
-                    (1.0, ap[0] + 0.004 * Y, FINGER_CLOSED, "fingertips down beside its lever", O_T),
-                    *[(0.5, x, FINGER_CLOSED, "push the argon valve shut", O_T) for x in ap],
-                    (0.8, ap[-1] - 0.004 * Y + 0.04 * up, FINGER_CLOSED, "up off the lever", O_T)],
-             left=[(2.5, b_side + 0.03 * up, FINGER_CLOSED, "hand turned, fingers shut, over the bleed valve", O_T),
-                   (1.0, b_side - 0.004 * X, FINGER_CLOSED, "fingertips down beside its lever", O_T)])
-    # -- 2. left bleeds the tube down into the green band (watching the gauge), then pushes the bleed shut -------------
-    bo = [_tcp(_vpush(BLEED_PIVOT, a, 1), past=0.0) for a in (math.pi / 2, 3 * math.pi / 8, math.pi / 4)]
-    bs = [_tcp(_vpush(BLEED_PIVOT, a, -1), past=0.0) for a in (math.pi / 4, 3 * math.pi / 8, math.pi / 2, 0.6 * math.pi)]
-    t_open = pl.phase(left=[*[(0.6, x, FINGER_CLOSED, "open the bleed (half)", O_T) for x in bo],
-                            (0.6, bo[-1] + 0.03 * up, FINGER_CLOSED, "up off the lever", O_T),
-                            (1.0, bs[0] + 0.03 * up, FINGER_CLOSED, "over to its other side", O_T)])
-    pl.gate(t_open + 1.8, t_open + 14.0, "bleed", lambda env: _gauge_kpa(env) <= P_OPEN_AT)
-    seq_b = [bs[0] + 0.03 * up, bs[0] + 0.006 * (X - Y), *bs]
-    pl.phase(left=[(0.5, _GateSeq(seq_b, "bleed", 0.5), FINGER_CLOSED, "bleed until the gauge is in the green; then shut it",
-                    O_T) for _ in range(28)]
-             + [(0.8, bs[-1] + 0.04 * up, FINGER_CLOSED, "up off the lever", O_T)])
+    # -- 1. right turns the argon valve shut, a third of a turn at a time (the wrist turning with the lever; the tube is
+    # over its green band and still filling); left takes the bleed valve's grip ------------------------------------------
+    def vturn(pivot, a, b, label, n=3, release=True):
+        """Take the lever's grip at a (degrees) and turn it to b, the wrist turning with it."""
+        k0 = _vknob(pivot, math.radians(a))
+        out = [(1.0, _tcp(k0 + 0.03 * up, past=0.002), KNOB_OPEN, "over the valve's grip", O_T),
+               (0.8, _tcp(k0, past=0.002), KNOB_OPEN, "down round the grip", O_T),
+               (0.5, _tcp(k0, past=0.002), KNOB_HOLD, "close on the grip", O_T)]
+        for t in np.linspace(a, b, n + 1)[1:]:
+            R = axis_angle_matrix(Z, math.radians(t - a)) @ ROT_T
+            out.append((0.6, _tcp(_vknob(pivot, math.radians(t)), R, past=0.002), KNOB_HOLD, label, Orient(R)))
+        if release:
+            R = axis_angle_matrix(Z, math.radians(b - a)) @ ROT_T
+            kb = _vknob(pivot, math.radians(b))
+            out += [(0.4, _tcp(kb, R, past=0.002), KNOB_OPEN, "let go of the grip", Orient(R)),
+                    (0.6, _tcp(kb + 0.03 * up, R, past=0.002), KNOB_OPEN, "up off the grip", Orient(R))]
+        return out
+
+    pl.phase(right=[(2.0, np.array([0.37, -0.27, TOP + 0.37]), KNOB_OPEN, "hand turned, up clear of the tube's end", O_T),
+                    *vturn(ARGON_PIVOT, 0, -30, "turn the argon off"), *vturn(ARGON_PIVOT, -30, -60, "turn the argon off"),
+                    *vturn(ARGON_PIVOT, -60, -92, "turn the argon off")],
+             left=[(2.5, _tcp(_vknob(BLEED_PIVOT, math.pi / 2) + 0.03 * up, past=0.002), KNOB_OPEN,
+                    "hand turned over the bleed valve", O_T)])
+    # -- 2. left opens the bleed a third and holds it, watching the gauge; in the green band, turns it shut -------------
+    t_open = pl.phase(left=vturn(BLEED_PIVOT, 90, 60, "open the bleed (a third)", release=False))
+    pl.gate(t_open + 0.5, t_open + 16.0, "bleed", lambda env: _gauge_kpa(env) <= P_OPEN_AT)
+    back = [60, 70, 80, 90, 92]
+    rots = [axis_angle_matrix(Z, math.radians(t - 90)) @ ROT_T for t in back]
+    pts = [_tcp(_vknob(BLEED_PIVOT, math.radians(t)), R, past=0.002) for t, R in zip(back, rots)]
+    gr = _GateRot(rots, "bleed", 0.6)
+    pl.phase(left=[(0.6, _GateSeq(pts, "bleed", 0.6), KNOB_HOLD, "bleed until the gauge is in the green; then shut it", gr)
+                   for _ in range(30)]
+             + [(0.4, pts[-1], KNOB_OPEN, "let go of the grip", Orient(rots[-1])),
+                (0.6, pts[-1] + 0.03 * up, KNOB_OPEN, "up off the grip", Orient(rots[-1]))])
     # -- 3. left holds the tube; right flips the clamp open ---------------------------------------------------------------
     h = _rod_at(HOLD_Y)
     open_steps = [-0.30, -0.70, -1.10, -1.50, -1.75]
