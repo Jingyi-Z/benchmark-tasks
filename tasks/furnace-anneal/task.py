@@ -232,14 +232,19 @@ TC_C = (0.70, 0.71, 0.73)
 GREEN = (0.15, 0.70, 0.25)
 DESK_C = (0.36, 0.37, 0.40)
 _mid_y, _len_y = (FY0 + FY1) / 2, FY1 - FY0
-SCREEN = (_mid_y + 0.055, DESK + 0.060, 0.130, 0.072)  # the controller's display: centre y, z, width, height
+# the controller: a sloped console on the base's front, its display tilted up towards the operator (and the camera)
+CON_N = np.array([-0.6, 0.0, 0.8])  # the console face's normal
+CON_U = np.array([0.8, 0.0, 0.6])  # up the face
+CON_R = -Y  # across it, left to right as the robots see it
+CON_C = np.array([FX0 - 0.035, _mid_y, DESK + 0.060])  # the face's centre
+CON_W, CON_H = 0.190, 0.090
+DESK_X0 = CON_C[0] - CON_H / 2 * CON_U[0] - 0.012  # the desk's front edge, under the console
 FURNACE_BOXES = [
     # the desk
-    (((FX0 + FX1) / 2, _mid_y, DESK / 2), (FX1 - FX0 + 0.030, _len_y + 0.030, DESK), DESK_C),
+    (((DESK_X0 + FX1 + 0.015) / 2, _mid_y, DESK / 2), (FX1 + 0.015 - DESK_X0, _len_y + 0.030, DESK), DESK_C),
     # base with the controller panel and its display
     (((FX0 + FX1) / 2, _mid_y, (DESK + BASE_Z) / 2), (FX1 - FX0, _len_y, BASE_Z - DESK), WHITE_F),
     ((FX0 - 0.0005, _mid_y, (DESK + BASE_Z) / 2), (0.001, _len_y - 0.02, BASE_Z - DESK - 0.016), PANEL_C),
-    ((FX0 - 0.0012, SCREEN[0], SCREEN[1]), (0.001, SCREEN[2], SCREEN[3]), SCREEN_C),
     # the heated lower half: front and back blocks either side of the tube's gap, ends, a floor
     (((FX0 + XA - SLOT) / 2, _mid_y, (BASE_Z + AXZ) / 2), (XA - SLOT - FX0, _len_y, AXZ - BASE_Z), WHITE_F),
     (((XA + SLOT + FX1) / 2, _mid_y, (BASE_Z + AXZ) / 2), (FX1 - XA - SLOT, _len_y, AXZ - BASE_Z), WHITE_F),
@@ -254,10 +259,43 @@ FURNACE_CYLS = [((XA + 0.020, HOT_Y, AXZ - 0.004), 0.0028, 0.004, TC_C, "X")]  #
 SADDLES = [m for y in (FY0, FY1 - 0.020) for m in _ring_y(y, y + 0.020, TUBE_R + 0.0006, TUBE_R + 0.008, 8, INSUL_C,
                                                         cx=XA, cz=AXZ, a0=math.radians(200), a1=math.radians(340))]
 SEG.update({"C": "adef", "°": "abgf"})
+def _face_box(c, du, dr, su, sr, t, colour):
+    """A thin drawn box on the console's face: centre c + du up + dr across, size su x sr, t thick."""
+    o = c + du * CON_U + dr * CON_R
+    return _hex([o + (i - 0.5) * sr * CON_R + (j - 0.5) * su * CON_U + k * t * CON_N for i in (0, 1) for j in (0, 1)
+                 for k in (0, 1)], colour, collide="none")
+
+
+def _console():
+    """The console (a wedge, collides) with its display: "28°C" in red seven-segment digits (the furnace is cold)."""
+    lo, hi = CON_C - CON_H / 2 * CON_U, CON_C + CON_H / 2 * CON_U
+    w2 = CON_W / 2
+    wedge = _hex([(x, _mid_y + sy * w2, z) for x, z in ((lo[0], lo[2]), (hi[0], hi[2]), (FX0 + 0.005, lo[2]),
+                                                       (FX0 + 0.005, hi[2])) for sy in (-1, 1)][::1], PANEL_C)
+    base = _box_mesh(((lo[0] + FX0) / 2 + 0.0025, _mid_y, (DESK + lo[2]) / 2), (FX0 + 0.005 - lo[0], CON_W, lo[2] - DESK),
+                     PANEL_C, collide="hull")
+    out = [wedge, base, _face_box(CON_C, 0.004, 0.0, 0.068, 0.170, 0.0008, SCREEN_C)]
+    h = 0.050
+    w, tk = 0.55 * h, 0.12 * h
+    segs = {"a": (h / 2, 0, tk, w), "g": (0, 0, tk, w), "d": (-h / 2, 0, tk, w), "f": (h / 4, -w / 2, h / 2, tk),
+            "b": (h / 4, w / 2, h / 2, tk), "e": (-h / 4, -w / 2, h / 2, tk), "c": (-h / 4, w / 2, h / 2, tk)}
+    text = "28°C"
+    step = w + 0.30 * h
+    for n, ch in enumerate(text):
+        x0 = (n - (len(text) - 1) / 2) * step
+        sc = 0.5 if ch == "°" else 1.0
+        for sg in SEG.get(ch, ""):
+            du, dr, su, sr = segs[sg]
+            if ch == "°":
+                du, dr, su, sr = h / 4 + du * sc, dr * sc, su * sc if su > tk else tk, sr * sc if sr > tk else tk
+            out.append(_face_box(CON_C, 0.004 + du, x0 + dr, su, sr, 0.0016, LED_C))
+    return out
+
+
 _coils = [((XA + s * (SLOT - 0.003), y, AXZ - 0.012), (0.003, 0.004, 0.012)) for s in (-1, 1)
           for y in np.arange(FY0 + 0.03, FY1 - 0.03, 0.012)]
 FURNACE_MESHES = [*SADDLES, _boxes_mesh(_coils, COIL_C),
-                  _digits("28°C", FX0 - 0.0018, SCREEN[0] + 0.050, SCREEN[1], 0.042, LED_C)]  # the furnace is cold
+                  *_console()]
 
 # the lid: front and back blocks either side of the tube's gap, the top over it; a handle bar at the middle of its front
 LID_HANDLE_Y, LID_HANDLE_Z, LID_HANDLE_OUT = _mid_y, AXZ + 0.060, 0.012  # the handle's bar: 12 mm out from the front
@@ -398,7 +436,7 @@ ARGON_C = (0.25, 0.48, 0.30)  # the gas bottle (argon: green shoulder)
 VALVE_SHUT = math.radians(80.0)  # a valve counts as shut once its lever is turned this far
 ARGON_PIVOT = (XA - 0.075, -0.200, AXZ + 0.004)  # the inlet valve, in front of the loading end
 BLEED_PIVOT = (XA - 0.075, 0.375, AXZ + 0.004)  # the bleed valve, in front of the far end
-BOTTLE = (0.30, -0.64)  # the argon bottle, off to the side of the loading end
+BOTTLE = (0.42, -0.62)  # the argon bottle, off to the side of the loading end
 
 
 def _valve(name, pivot, sign, lever_open):
