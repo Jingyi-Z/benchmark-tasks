@@ -429,7 +429,7 @@ ROD = part("push_rod", pos=tuple(ROD_START), mass=0.055, friction=0.7,
 REST_Y = (-0.480, -0.700)  # the rear one holds the rod's tail until its front is inside the tube
 V_RISE = 0.006  # each rest's V: 6 mm deep over 10 mm each side (about 30 degrees), so the rod lies in it, not on it
 REST_Z = ROD_Z - 0.0002 - GRIP_W / 2 * math.hypot(1.0, (V_RISE - 0.0002) / 0.010)  # the rod's axis at ROD_Z in the V
-REST = part("rod_rests", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
+REST = part("rod_rests", pos=(0.0, 0.0, TOP), fixed=True, friction=0.05,  # PTFE-lined Vs: the rod slides easily
             boxes=[((XA, y, REST_Z / 2), (0.020, 0.014, REST_Z), DARK) for y in REST_Y],
             meshes=[_hex([(XA + sx * xo, y + dy, REST_Z + zo) for xo, zt in ((0.0, 0.0002), (0.010, V_RISE))
                           for dy in (-0.007, 0.007) for zo in (0.0, zt)], DARK)
@@ -922,7 +922,7 @@ def demo():
         hand_of = lambda pusher, grip_pusher, grip_hand: grip_hand + (pusher - grip_pusher)  # noqa: E731
         seq.append((1.0, _on_rod(_rod_at(FEED[0])), ROD_HOLD, "lift the rod off its rests", O_T))
         touch = hand_of(tongue_end - 0.004, ROD_START[1], FEED[0])  # the hand, the pusher 4 mm from the tongue's end
-        stroke(touch - 0.010, "the pusher up behind the boat", 1.5)
+        stroke(touch - 0.010, "the pusher up behind the boat", 3.0)
         t0 = pl.t + sum(w[0] for w in seq)
         stroke(touch - 0.010, "hold still: the rod's tip seen in line with the tube", 1.5)
         pl.window(t0 + 0.2, t0 + 1.5, k0,
