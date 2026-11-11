@@ -420,12 +420,12 @@ CHIP_START = boat_start("chip_boat") + [0.0, 0.0, BOAT_T + CHIP_T / 2]
 CHIP_PART = part("chip", pos=tuple(CHIP_START), mass=0.0004, friction=0.8,  # (4x a real chip: steadier contact)
                  boxes=[((0.0, 0.0, 0.0), (CHIP, CHIP, CHIP_T), CHIP_C)])
 
-# -- the push rod (loose): fused quartz, 8 mm round, a 12 mm knob fused on its front (the pusher) and a flat ring (36 mm
-# across, 3 mm thick) fused on its back end, to hold it by, its face turned 40 degrees from upright (towards the robots);
+# -- the push rod (loose): fused quartz tube, 8 mm OD, a 12 mm knob fused on its front (the pusher) and a flat ring
+# (40 mm across, 5 mm thick) fused on its back end, to hold it by, its face turned 40 degrees from upright (towards the robots);
 # on a rack of two V rests beside the tube's line, nearer the robots. Frame: on its axis at the pusher's front face, the
 # rod along -y. ----------------------------------------------------------------------------------------------------------
 ROD_L, GRIP_W, PUSHER_R = 0.218, 0.008, 0.006
-RING_RO, RING_RI, RING_T = 0.018, 0.010, 0.003
+RING_RO, RING_RI, RING_T = 0.020, 0.008, 0.005
 RING_Y = -(ROD_L + RING_RO - 0.001)  # the ring's centre, from the frame (on the rod's axis, behind its end)
 RING_TURN = math.radians(40.0)
 RING_U = np.array([math.cos(RING_TURN), 0.0, -math.sin(RING_TURN)])  # in the ring's plane, square to the rod
@@ -437,7 +437,7 @@ ROD_START = np.array([RACK_X, TUBE_Y0 - MOUTH_OUT_SET - 0.077, TOP + ROD_Z])  # 
 _RING = [_hex([sx * RING_T / 2 * RING_N + [0.0, RING_Y + r * math.cos(a), 0.0] + r * math.sin(a) * RING_U
                for sx in (-1, 1) for r in (RING_RI, RING_RO) for a in (2 * math.pi * i / 12, 2 * math.pi * (i + 1) / 12)],
               QUARTZ) for i in range(12)]
-ROD = part("push_rod", pos=tuple(ROD_START), mass=0.028, friction=0.7,
+ROD = part("push_rod", pos=tuple(ROD_START), mass=0.015,  # (a tube: 8 mm OD, 6 mm ID) friction=0.7,
            cylinders=[((0.0, -0.002, 0.0), PUSHER_R, 0.004, QUARTZ, "Y"),
                       ((0.0, -(0.004 + ROD_L) / 2, 0.0), GRIP_W / 2, ROD_L - 0.004, QUARTZ, "Y")],
            meshes=_RING)
@@ -819,7 +819,7 @@ def _tcp(tip, R=ROT_T, past=0.004):
     return np.asarray(tip, float) + a * past - a * TIP_ABOVE_TCP
 
 
-ROD_OPEN, ROD_HOLD = -0.012, 0.0  # across the rod's 3 mm ring, squeezed hard
+ROD_OPEN, ROD_HOLD = -0.012, 0.0  # across the rod's 5 mm ring, squeezed hard
 TONGUE_OPEN, TONGUE_HOLD = -0.012, -0.0015  # on a boat's 5 mm tongue: a light squeeze (a hard one shakes the boat)
 ROT_R = np.column_stack([RING_N, np.cross(RING_U, RING_N), RING_U])  # in from the robots' side, tipped 40 deg down,
 O_R = Orient(ROT_R)  # closing square across the ring's faces
