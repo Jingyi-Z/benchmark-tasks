@@ -374,7 +374,13 @@ CLAMP = Joint("clamp", kind="hinge", axis="X", anchor=CLAMP_PIVOT, lower=-CLAMP_
                      ((XA, _hook_y - 0.002, _cz + 0.016), (0.014, 0.004, 0.024), DARK)])  # the lever, up off the hook
 # a smooth strip along the tube's floor, one piece (the boat would catch on the seams between the wall's lengths)
 FLOOR_Z = AXZ - 0.0075
-TUBE_BOXES = [((XA, (TUBE_Y0 + FIT_Y0) / 2, FLOOR_Z - 0.001), (0.012, FIT_Y0 - TUBE_Y0, 0.002), QUARTZ)]
+# under each collar a flat foot, which stands on a support (the tube rests on the two supports, flat on flat, so it cannot
+# roll; the furnace's saddles just clear it)
+PAD_T, PAD_W = 0.003, 0.032
+_pads = [((TUBE_Y0 + 0.006 + NC_Y1) / 2, NC_Y1 - TUBE_Y0 - 0.010), ((FIT_Y0 + FIT_Y1 - 0.006) / 2, FIT_Y1 - FIT_Y0 - 0.010)]
+PAD_Z = AXZ - COLLAR_R - PAD_T / 2 + 0.0008  # (its top a little into the collar: one solid with it)
+TUBE_BOXES = [((XA, (TUBE_Y0 + FIT_Y0) / 2, FLOOR_Z - 0.001), (0.012, FIT_Y0 - TUBE_Y0, 0.002), QUARTZ),
+              *[((XA, y, PAD_Z), (PAD_W, l, PAD_T), STAINLESS) for y, l in _pads]]
 # (the clamp and the needle are light: the tube's weight must stay under its axis, or it rolls in its saddles)
 TUBE = part("quartz_tube", pos=(0.0, 0.0, TOP), mass=0.40, friction=0.3, boxes=TUBE_BOXES, meshes=TUBE_MESHES,
             joints=[NEEDLE, CLAMP])
@@ -507,7 +513,12 @@ REST = part("rod_rests", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
                           for dy in (-0.007, 0.007) for zo in (0.0, zt)], DARK)
                     for y in REST_Y for sx in (-1, 1)])
 
-OBJECTS = [FURNACE, TUBE, GAS, PLATE, PLATE_STAND, BOAT, BOAT_TRAY, *CHIPS, ROD, REST]
+_stz = PAD_Z - PAD_T / 2  # the supports' tops
+SUPPORTS = part("tube_supports", pos=(0.0, 0.0, TOP), fixed=True, friction=0.8,
+                boxes=[b for y, l in _pads for b in (((XA, y, _stz - 0.003), (PAD_W + 0.008, l + 0.004, 0.006), DARK),
+                                                     ((XA, y, (_stz - 0.006) / 2), (0.014, 0.014, _stz - 0.006), DARK))])
+
+OBJECTS = [FURNACE, TUBE, GAS, PLATE, PLATE_STAND, BOAT, BOAT_TRAY, *CHIPS, ROD, REST, SUPPORTS]
 PLANCHECK_BOXES = [
     ("furnace", (((FX0 + FX1) / 2), _mid_y, TOP + LID_Z1 / 2), (FX1 - FX0, _len_y, LID_Z1)),
 ]
