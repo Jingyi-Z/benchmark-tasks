@@ -7,8 +7,8 @@ The task, in the order a microscopist works:
    the left; let the arm close over the slide's right end. (Two hands: the arm springs shut when let go.)
 2. Bring the specimen under the objective with the stage's x and y drive knobs.
 3. Focus: raise the stage with a coarse focus knob to near focus, never letting the slide come within 0.5 mm of the
-   objective, then finish with the fine focus knob until the micrometer's 10 um divisions are sharp (within the 10x
-   objective's depth of field, 10 um).
+   objective, then finish with the fine focus knob until the chip's alignment mark is sharp on the camera monitor
+   (within the 10x objective's depth of field, 10 um).
 
 Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jitter=0 -E control_hz=20 \\
            --instruction "<see task.json>" --scorer task_score ...
@@ -37,12 +37,17 @@ GREY = (0.35, 0.36, 0.38)
 BLACK = (0.06, 0.06, 0.07)
 STEEL = (0.70, 0.71, 0.73)
 GLASS = (0.80, 0.90, 0.95)
-INK = (0.05, 0.05, 0.06)  # the stage micrometer's chrome lines (drawn only: too thin to touch)
+INK = (0.05, 0.05, 0.06)  # the chip's alignment mark (drawn only: too thin to touch)
+SPECIMEN = (0.55, 0.20, 0.45)
+SHARP, SOFT, BLUR = (0.04, 0.03, 0.05), (0.22, 0.12, 0.25), (0.40, 0.22, 0.38)  # the mark on the monitor, by focus
+VIEW_CHIP, VIEW_GLASS = (0.62, 0.30, 0.55), (0.92, 0.92, 0.86)  # the monitor's field of view: over the chip, or not
+SCREEN = (0.03, 0.03, 0.04)
 WHITE = (0.97, 0.97, 0.97)
 RED = (0.85, 0.12, 0.12)
 LIGHT = (1.0, 0.98, 0.80)  # the illuminator's spot of light
 VISUAL_ONLY.add(LIGHT)
-VISUAL_ONLY.add(INK)
+for _c in (INK, SHARP, SOFT, BLUR, VIEW_CHIP, VIEW_GLASS):
+    VISUAL_ONLY.add(_c)
 SPOT_R = 0.012  # the light spot: 24 mm across, on the objective's axis, so it shows round the objective from above
 
 # -- the microscope (fixed). Frame: origin on the table under the stand, x away from the robots, y to their left. -----
@@ -57,7 +62,7 @@ OBJ_R, OBJ_TIP = 0.012, 0.120  # the 10x objective: 24 mm across, front lens 12 
 WD = 0.0052  # working distance: in focus when the slide's top is 5.2 mm below the front lens
 START_OFF = 0.012  # the stage starts 12 mm below focus
 SLIDE_W, SLIDE_L, SLIDE_T = 0.026, 0.076, 0.002  # x by y by thickness (drawn 2 mm thick; a real slide is 1 mm)
-SPEC_Y = -0.010  # the micrometer's crosshair sits 10 mm right of the slide's centre; the label is on the left end
+SPEC_Y = -0.010  # the chip (and its alignment mark) sits 10 mm right of the slide's centre; the label on the left end
 PLATE_TOP0 = OBJ_TIP - WD - START_OFF - SLIDE_T  # top of the stage (x carriage) at the start
 STAGE_MAX = START_OFF + WD - 0.0002  # the focus stops just short of the slide touching the objective
 
@@ -208,16 +213,45 @@ SLIDE = part(
     "slide", pos=(*REST_XY, TOP + REST[2]), mass=0.006, friction=0.6,
     boxes=[
         ((0.0, 0.0, SLIDE_T / 2), (SLIDE_W, SLIDE_L, SLIDE_T), GLASS),
-        # stage micrometer: a crosshair 8 mm across with a 1 mm scale (10 um divisions) along its x line
-        ((0.0, SPEC_Y, SLIDE_T + 0.0002), (0.008, 0.0004, 0.0004), INK),
-        ((0.0, SPEC_Y, SLIDE_T + 0.0002), (0.0004, 0.008, 0.0004), INK),
-        *[((0.0015 + 0.0001 * k, SPEC_Y + 0.0006, SLIDE_T + 0.0002), (0.00004, 0.0008 if k % 5 else 0.0012, 0.0004), INK)
-          for k in range(11)],
+        # the chip: purple, 10 mm square, with an alignment mark at its centre (a cross 1.6 mm across, 40 um lines,
+        # in four corner boxes)
+        ((0.0, SPEC_Y, SLIDE_T + 0.0002), (0.010, 0.010, 0.0004), SPECIMEN),
+        ((0.0, SPEC_Y, SLIDE_T + 0.00045), (0.0016, 0.00004, 0.0001), INK),
+        ((0.0, SPEC_Y, SLIDE_T + 0.00045), (0.00004, 0.0016, 0.0001), INK),
+        *[((sx * 0.0005, SPEC_Y + sy * 0.0005, SLIDE_T + 0.00045), (0.0004, 0.0004, 0.0001), INK)
+          for sx in (-1, 1) for sy in (-1, 1)],
         ((0.0, 0.025, SLIDE_T + 0.0002), (0.024, 0.020, 0.0004), WHITE),  # label
     ],
 )
 
-OBJECTS = [MICROSCOPE, SLIDE_REST, SLIDE]
+# -- the camera monitor (fixed): the microscope camera's live 10x view, on a screen to the left of the microscope,
+# facing the robots. The field of view (2.2 mm across) fills a 90 mm circle on it: 41 mm on the screen per mm on the
+# slide. Its colour shows whether the chip is under the objective; the alignment mark moves with the stage and is
+# drawn sharp, soft or blurred by how far the slide is from focus (within 10 um, 0.1 mm, 1 mm; beyond that it is lost
+# in the blur). Away from the robots on the slide is up on the screen; to their left is to the left.
+MON_XY, MON_Z = (0.38, 0.27), 0.17  # the screen's centre, above the table
+MON_W, MON_H = 0.18, 0.12
+FOV_R, SCR_PER_M = 0.045, 0.045 / 0.0011
+MARK_LEVELS = ((SHARP, 0.0012), (SOFT, 0.004), (BLUR, 0.010))  # colour, line width on the screen
+_face = -0.006  # the screen's face, in front of the bezel (towards the robots)
+MONITOR_BOXES = [
+    ((0.0, 0.0, MON_Z), (0.010, MON_W + 0.012, MON_H + 0.012), DARK),  # bezel
+    ((0.02, 0.0, MON_Z / 2 - 0.03), (0.012, 0.012, MON_Z - 0.06), GREY),  # stand
+    ((0.02, 0.0, 0.004), (0.10, 0.10, 0.008), GREY),  # foot
+    ((_face + 0.0005, 0.0, MON_Z), (0.001, MON_W, MON_H), SCREEN),
+]
+MARK_BOX0 = len(MONITOR_BOXES)  # then, per level, the mark's two bars (along y, along z) and four corner squares
+for _col, _w in MARK_LEVELS:
+    MONITOR_BOXES += [((_face - 0.0010, 0.0, MON_Z), (0.0005, 0.066, _w), _col),
+                      ((_face - 0.0010, 0.0, MON_Z), (0.0005, _w, 0.066), _col),
+                      *[((_face - 0.0010, sy * 0.0205, MON_Z + sz * 0.0205), (0.0005, 0.016 + _w, 0.016 + _w), _col)
+                        for sy in (-1, 1) for sz in (-1, 1)]]
+MARK_PER_LEVEL = 6
+MONITOR = part("monitor", pos=(*MON_XY, TOP), fixed=True, boxes=MONITOR_BOXES,
+               cylinders=[((_face - 0.0004, 0.0, MON_Z), FOV_R, 0.0003, VIEW_GLASS, "X"),
+                          ((_face - 0.0006, 0.0, MON_Z), FOV_R, 0.0003, VIEW_CHIP, "X")])
+
+OBJECTS = [MICROSCOPE, SLIDE_REST, SLIDE, MONITOR]
 
 
 # -- drives: the stage follows its knobs ------------------------------------------------------------------------------
@@ -236,11 +270,75 @@ def stage_gap(qz: float) -> float:
 
 
 _trial = {"min_gap": None}
+_scr = {"prims": None, "shown": None}
 
 
 @on_reset
 def _clear(env):
     _trial["min_gap"] = None
+    _scr["shown"] = None
+
+
+def _screen_prims(env):
+    """The monitor's field-of-view discs and mark boxes as USD prims, with each box's resting translation."""
+    if _scr["prims"] is None:
+        import omni.usd
+        from pxr import UsdGeom
+
+        stage = omni.usd.get_context().get_stage()
+        path = env.unwrapped.scene["monitor"].cfg.prim_path.replace("env_[^/]+", "env_0").replace("env_.*", "env_0")
+        body = f"{path}/body"
+        marks = []
+        for lv in range(len(MARK_LEVELS)):
+            row = []
+            for k in range(MARK_PER_LEVEL):
+                prim = stage.GetPrimAtPath(f"{body}/box_{MARK_BOX0 + lv * MARK_PER_LEVEL + k}")
+                op = UsdGeom.Xformable(prim).GetOrderedXformOps()[0]
+                row.append((prim, op, op.Get()))
+            marks.append(row)
+        _scr["prims"] = {"glass": stage.GetPrimAtPath(f"{body}/cyl_0"), "chip": stage.GetPrimAtPath(f"{body}/cyl_1"),
+                         "marks": marks}
+    return _scr["prims"]
+
+
+def screen_view(j: dict, slide):
+    """What the monitor shows: (field: 'chip' or 'glass', mark level 0 sharp / 1 soft / 2 blurred / None, mark offset
+    on the screen (horizontal, vertical) in m)."""
+    if not _loaded(j, slide):
+        return "glass", None, (0.0, 0.0)
+    p = slide.to_world((0.0, SPEC_Y, 0.0))
+    dx, dy = p[0] - OBJ_AXIS[0], p[1] - OBJ_AXIS[1]
+    field = "chip" if max(abs(dx), abs(dy)) < 0.005 - 0.0011 else "glass"
+    if field != "chip" or math.hypot(dx, dy) > 0.0011:
+        return field, None, (0.0, 0.0)
+    e = focus_error(j)
+    level = 0 if e <= FOCUS_TOL else 1 if e <= NEAR_TOL else 2 if e <= 0.001 else None
+    return field, level, (round(dy * SCR_PER_M, 3), round(dx * SCR_PER_M, 3))
+
+
+def _show_screen(env, view):
+    """Draw the monitor's view (only when it changes): the field's colour, and one level of the mark, moved."""
+    if view == _scr["shown"]:
+        return
+    _scr["shown"] = view
+    try:
+        from pxr import Gf, UsdGeom
+
+        pr = _screen_prims(env)
+        field, level, (oy, oz) = view
+        for name in ("glass", "chip"):
+            img = UsdGeom.Imageable(pr[name])
+            img.MakeVisible() if name == field else img.MakeInvisible()
+        for lv, row in enumerate(pr["marks"]):
+            for prim, op, base in row:
+                img = UsdGeom.Imageable(prim)
+                if lv == level:
+                    op.Set(Gf.Vec3d(base[0], base[1] + oy, base[2] + oz))
+                    img.MakeVisible()
+                else:
+                    img.MakeInvisible()
+    except Exception:
+        pass
 
 
 @on_step
@@ -259,6 +357,7 @@ def _drive(env):
     ids = [names.index(j.joint_name) for j in (STAGE_X_J, STAGE_Y, STAGE)]
     qx, qy, qz = carriages(s.joints)
     asset.set_joint_position_target(torch.tensor([[qx, qy, qz]], device=asset.device), joint_ids=ids)
+    _show_screen(env, screen_view(s.joints, sl))
 
 
 # -- scoring ----------------------------------------------------------------------------------------------------------
@@ -293,7 +392,7 @@ def focus_error(j: dict) -> float:
 def score(objects):
     """0 unless the slide is loaded: flat in the holder within 3 mm of its centre, label to the left, holder arm closed
     over it. 0 also if, once loaded, the slide ever came within 0.5 mm of the objective. 0.25 loaded; 0.5 loaded and
-    the crosshair within 1.1 mm of the objective's axis (in the field of view); 0.75 also within 0.1 mm of focus (slide
+    the alignment mark within 1.1 mm of the objective's axis (in the field of view); 0.75 also within 0.1 mm of focus (slide
     top 5.2 mm below the front lens); 1.0 within 10 um of focus (the depth of field)."""
     m, sl = objects["microscope"], objects["slide"]
     if not _loaded(m.joints, sl):
@@ -452,13 +551,13 @@ FINE_WIDE = -0.02  # part-open round the 26 mm fine knob
 
 
 def x_target(j: dict, slide) -> float:
-    """x drive angle that puts the crosshair on the objective's axis, from where the crosshair is seen now."""
+    """x drive angle that puts the alignment mark on the objective's axis, from where the mark is seen now (on the monitor)."""
     p = slide.to_world((0.0, SPEC_Y, 0.0))
     return j["xdrive"] + 2 * math.pi * (p[0] - OBJ_AXIS[0]) / X_LEAD
 
 
 def y_target(j: dict, slide) -> float:
-    """y drive angle that puts the crosshair on the objective's axis line, from where the crosshair is seen now."""
+    """y drive angle that puts the alignment mark on the objective's axis line, from where the mark is seen now (on the monitor)."""
     p = slide.to_world((0.0, SPEC_Y, 0.0))
     return j["ydrive"] + 2 * math.pi * (p[1] - OBJ_AXIS[1]) / Y_LEAD
 
@@ -487,6 +586,8 @@ PLANCHECK_BOXES = [
     ("head", W(PILLAR_X + PILLAR[0] / 2 - HEAD[0] / 2, 0.0, HEAD_TOP - HEAD[2] / 2), HEAD),
     ("stage at load", W(STAGE_X + QX0, QY0, PLATE_TOP0 - 0.003), (0.10, 0.13, 0.006)),
     ("slide rest", (*REST_XY, TOP + REST[2] / 2), REST),
+    ("monitor", (MON_XY[0], MON_XY[1], TOP + MON_Z), (0.010, MON_W + 0.012, MON_H + 0.012)),
+    ("monitor stand", (MON_XY[0] + 0.02, MON_XY[1], TOP + MON_Z / 2), (0.10, 0.10, MON_Z)),
 ]
 
 

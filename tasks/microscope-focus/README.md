@@ -1,11 +1,11 @@
-# Load a stage micrometer, centre it and focus an upright microscope
+# Load a slide, centre a chip's alignment mark and focus an upright microscope
 
 An upright light microscope with a mechanical stage: a spring slide holder, x and y drive knobs at the stage's front
-left and coarse and fine focus knobs on both sides. A stage micrometer slide (a crosshair and a 1 mm scale in 10 um divisions)
-lies on a rest beside it. The robots load the slide (one hand holds the holder's lever open while the other lays the
-slide in), bring the crosshair into the 10x objective's field of view with the drive knobs, raise the stage with a
+left and coarse and fine focus knobs on both sides. A slide with a purple chip carrying an alignment mark lies on a rest beside it, and a
+camera monitor to the left shows the microscope's live 10x view. The robots load the slide (one hand holds the holder's lever open while the other lays the
+slide in), bring the alignment mark into the 10x objective's field of view with the drive knobs, raise the stage with a
 coarse knob to near the working distance (slide top 5.2 mm below the front lens) without ever bringing the slide within
-0.5 mm of the lens, then finish with a fine knob until the slide is within the 10 um depth of field.
+0.5 mm of the lens, then finish with a fine knob until the mark is sharp on the monitor (within the 10 um depth of field).
 
 ## Files
 
@@ -17,6 +17,9 @@ coarse knob to near the working distance (slide top 5.2 mm below the front lens)
   - The scripted demo turns the drive knobs, then the coarse and fine focus knobs, with closed loops on the knob
     angles read off their index marks (the `Servo` class); `task.py` lets a demo waypoint carry a full gripper rotation for the side grips (the `Orient` class), so
     yam_arena itself is unchanged.
+  - The camera monitor draws the 10x view from the stage's position: its field purple over the chip and pale over
+    glass, and the alignment mark moved with the stage and drawn sharp (within 10 um of focus), soft (0.1 mm) or
+    blurred (1 mm), by showing one of three drawn copies of the mark (USD visibility and translation each step).
   - The illuminator's light is a thin pale yellow disc on the objective's axis, part of the focus slide (it rises
     with the stage) and drawn only, with no collider (labkit's `VISUAL_ONLY` colours).
 - `labkit.py`: parts built from several shapes, with hinges and slides, including joints chained on other joints
@@ -36,14 +39,14 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
 Scripted demo: the same command with `--policy yam_scripted` (about 87 s of motion; 2,000 steps are enough).
 
 The score is `task_score` in the log, computed by `score()` in `task.py` from the slide's pose in the holder, the
-crosshair's offset from the objective's axis, the stage height's distance from focus, and the smallest gap from the
+alignment mark's offset from the objective's axis, the stage height's distance from focus, and the smallest gap from the
 slide to the front lens during the trial (recorded every control step).
 
 ## Scoring a real trial
 
-- Centring: with a camera on the eyepiece port at 10x (2.2 mm field of view), the crosshair is in the image.
-- Focus: without touching the coarse knob, turn the fine knob to the best focus of the 10 um divisions and read the
-  travel off its graduations. Within 10 um is 1.0; within 0.1 mm is 0.75.
+- Centring: the alignment mark is in the camera image on the monitor at 10x (2.2 mm field of view).
+- Focus: without touching the coarse knob, turn the fine knob to the mark's best focus on the monitor and read the travel
+  off its graduations. Within 10 um is 1.0; within 0.1 mm is 0.75.
 - Crash: a side video against a millimetre scale shows the smallest gap between the slide and the front lens; under
   0.5 mm at any time scores 0.
 
