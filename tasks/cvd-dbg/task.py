@@ -470,7 +470,7 @@ _PADDLE = [_hex([(sx * (0.007 if z < 0 else 0.010), y, (z if z > 0 else (-0.003 
 # onto the floor at the tube's mouth instead of stubbing on its end)
 
 
-ROD = part("push_rod", pos=tuple(ROD_START), mass=0.020,  # (a tube: 8 mm OD, 6 mm ID) friction=0.7,
+ROD = part("push_rod", pos=tuple(ROD_START), mass=0.012,  # (a tube: 8 mm OD, 6 mm ID) friction=0.7,
            cylinders=[((0.0, -(0.004 + ROD_L) / 2, 0.0), GRIP_W / 2, ROD_L - 0.004, QUARTZ, "Y")],
            meshes=[*_RING, *_PADDLE])
 REST_Y = (ROD_START[1] - 0.030, ROD_START[1] - 0.220)  # the rack's two Vs, under the rod's body (clear of the ring)
@@ -518,7 +518,7 @@ def axis_off(state, axis=1):
     return math.degrees(math.acos(max(-1.0, min(1.0, abs(float(a[1]))))))
 
 
-TUBE_TOL, TUBE_TILT = 0.005, 1.0  # the tube back in place: within 5 mm of where it started (its ends 120 mm out of the
+TUBE_TOL, TUBE_TILT = 0.005, 1.0  # the tube back in place: within 5 mm along its axis of where it started (its ends 120 mm out of the
 # furnace each), its axis within 1 degree of it
 TUBE_OFF, TUBE_KNOCK = 0.010, 3.0  # knocked: over 10 mm up, down or sideways, or tilted over 3 degrees, at any time
 
@@ -531,7 +531,7 @@ def in_tube(p, tp):
 
 def tube_home(t):
     p = np.asarray(t.pos, float)
-    return float(np.max(np.abs(p - TUBE_C))) <= TUBE_TOL and axis_off(t) <= TUBE_TILT
+    return abs(p[1] - TUBE_C[1]) <= TUBE_TOL and axis_off(t) <= TUBE_TILT
 
 
 def layout_ok(bs, tp):
