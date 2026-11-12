@@ -473,17 +473,16 @@ _PADDLE = [_hex([(sx * (0.007 if z < 0 else 0.010), y, (z if z > 0 else (-0.003 
 
 
 ROD = part("push_rod", pos=tuple(ROD_START), mass=0.015, friction=1.0,  # (a tube: 8 mm OD, 6 mm ID)
-           cylinders=[((0.0, -(0.004 + ROD_L) / 2, 0.0), GRIP_W / 2, ROD_L - 0.004, QUARTZ, "Y")],
-           meshes=[*_RING, *_PADDLE])
+           boxes=[((0.0, -(0.004 + ROD_L) / 2, 0.0), (GRIP_W, ROD_L - 0.004, GRIP_W), QUARTZ)],  # (square: it cannot
+           meshes=[*_RING, *_PADDLE])  # roll in its channel under the handle's offset weight)
 REST_Y = (ROD_START[1] - 0.030, ROD_START[1] - 0.250)  # its two rests, in line with the tube, under the parked rod's body
-V_RISE, V_HALF = 0.009, 0.010  # each rest's V: 9 mm over 10 mm each side (the rod's weight wedged in it holds it from
-# rolling under the handle's offset weight); the handle, all above the rod's axis, clears the V's sides as it slides over
-REST_Z = ROD_Z - 0.0002 - GRIP_W / 2 * math.hypot(1.0, (V_RISE - 0.0002) / V_HALF)  # the rod's axis at ROD_Z in the V
+CH_W, CH_WALL, CH_UP = 0.010, 0.003, 0.003  # each rest: a channel 10 mm wide, its walls 3 mm up the rod's sides (all
+REST_Z = ROD_Z - GRIP_W / 2 - 0.0002  # under the rod's axis, so the handle slides over them); its floor under the rod
 REST = part("rod_rack", pos=(0.0, 0.0, TOP), fixed=True, friction=0.3,
-            boxes=[((RACK_X, y, REST_Z / 2), (2 * V_HALF, 0.014, REST_Z), DARK) for y in REST_Y],
-            meshes=[_hex([(RACK_X + sx * xo, y + dy, REST_Z + zo) for xo, zt in ((0.0, 0.0002), (V_HALF, V_RISE))
-                          for dy in (-0.007, 0.007) for zo in (0.0, zt)], DARK)
-                    for y in REST_Y for sx in (-1, 1)])
+            boxes=[b for y in REST_Y for b in (
+                ((RACK_X, y, REST_Z / 2), (CH_W + 2 * CH_WALL, 0.014, REST_Z), DARK),
+                *[((RACK_X + sx * (CH_W + CH_WALL) / 2, y, REST_Z + CH_UP / 2), (CH_WALL, 0.014, CH_UP), DARK)
+                  for sx in (-1, 1)])])
 
 OBJECTS = [FURNACE, TUBE, TUBE_STAND, GAS, *CAP_PARTS, CRADLES, *BOAT_PARTS, BOAT_TRAY, CHIP_PART, ROD, REST]
 
