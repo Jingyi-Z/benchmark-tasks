@@ -1,0 +1,20 @@
+{
+  "title": "Lock out a gas line with a padlock and bleed it to zero",
+  "category": "Impact on jobs",
+  "keywords": [
+    "bimanual",
+    "lockout",
+    "padlock",
+    "valve",
+    "gauge"
+  ],
+  "instruction": "Lock out the gas line at its valve with the padlock, then bleed off the gas downstream of it so the gauge reads zero.",
+  "context": "Before anyone works on a gas line, maintenance staff shut its isolating valve, padlock it shut, then release the gas trapped downstream and check the gauge reads zero; bleeding before the valve is shut vents the live supply. Threading the open padlock's shackle through the handle and tab takes one hand to hold the lock and the other to press it shut.",
+  "setup": "Station table (top 0.7475 m). Robot base frame: x forward, y to the robots' left. Gas line, fixed: a yellow steel pipe 3.2 cm across and 40 cm long along y, its axis 6 cm above the table at x 0.30, from y -0.22 to 0.18, on two dark 4 x 3 cm steel supports; the supply comes in from -y. Isolating valve: a brass ball-valve body, a 6 cm cube on the pipe centred at (0.30, -0.02). Its handle: a 13 x 2.2 cm steel bar 5 mm thick on a stem above the valve (underside 10.5 cm above the table), turning about the vertical between two stops: open, along +y over the pipe (start), and shut, a quarter turn anticlockwise seen from above, pointing at the robots (-x); a red rubber sleeve (2.6 x 5.5 cm, 1.2 cm thick) on its outer 7.5 to 13 cm and a 14 mm square lock hole 4.5 cm from the pivot. Lockout tab, fixed to the valve body: a yellow steel plate 3.6 cm square, 4 mm thick, 4 mm under the shut handle, its 14 mm square hole directly under the shut handle's, at (0.255, -0.02). Downstream on the pipe's top: a dial gauge 7.5 cm from the valve at (0.30, 0.055), a 50 mm dial facing up 9.5 cm above the table, 0 to 250 kPa over 270 degrees with red ticks at 0 to 10 kPa, reading 200 kPa at the start; and a bleed valve 14 cm from the valve at (0.30, 0.12): a brass 16 mm body on a tee with a vent elbow pointing away from the robots and a blue 5 x 1 cm lever pointing at the robots (shut); a quarter turn clockwise seen from above, to along +y, opens it. Padlock, loose, 120 g, standing open on a dark block (3.6 x 5.6 cm, 5 cm tall) at (0.17, -0.20): a steel body 20 x 40 x 35 mm with a red cover and a red-and-white danger tag on its faces; a 6 mm steel shackle, legs 24 mm apart along y, the short leg at +y, spring-loaded up and raised 28 mm (the short leg's end 20 mm above the body); pressed down until shut it latches and stays shut.",
+  "scoring": "Measured once everything has been still for 1 s; 0 if not. 0 if the bleed valve was ever opened (past 20 degrees) while the isolating valve was open (more than 5 degrees from its stop), or the isolating valve is not shut at the end. Otherwise: 0.25 if the isolating valve is shut; 0.5 if it is also padlocked: the padlock latched, its short leg through both the handle's hole and the tab's hole (its axis within 5 mm of the holes' centre at both) and its body below the tab; 0.75 if the bleed valve was also opened after the padlock latched and the gauge reads zero (under 2 kPa); 1.0 if also every fingertip is 8 cm or more from the padlock and from the bleed lever's end.",
+  "run_limit": "2,400 steps (2 minutes at 20 Hz)",
+  "reset_notes": "Unlock the padlock with its key and stand it open on its block; shut the bleed valve, open the isolating valve, and let the supply bring the gauge back to 200 kPa.",
+  "fidelity": "Rigid bodies in PhysX at 240 Hz. The gas is a simple model: the line reads the supply's 200 kPa while the valve is open, and bleeds off through the bleed valve once it is shut. The padlock's latch is a lock on its shackle's slide once pressed shut; there is no key. The tag is drawn on the lock's body, not hung on a tie. Valve handles turn on ideal hinges with hard stops.",
+  "scores": "",
+  "media": ""
+}
