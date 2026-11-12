@@ -3,7 +3,10 @@
 Two 2 inch wafers have just come out of gold evaporation, gold over patterned photoresist. They lie pattern side down
 in a small PFA lift-off cassette on a PTFE tray. On the bench stand four 800 ml beakers in a row, each with a label card
 in front of it and a label on its side: ACE (acetone for ordinary resist strip), LIFT-OFF (acetone kept for lift-off
-only), IPA and DI WATER. The two acetone beakers look the same and hold the same liquid. A PTFE drip dish rests on its
+only, standing in a running ultrasonic bath), IPA and DI WATER. The two acetone beakers look the same and hold the
+same liquid. The film (5 nm Ti / 30 nm Au on 1.4 um image-reversal resist) lifts off in about 60 s in the bath. In the simulation the film is drawn
+in 16 patches that come away one by one while the cassette is in the running bath; taken out early, or left to dry
+before IPA, patches stay on as residue and the lift-off counts as failed. A PTFE drip dish rests on its
 stand, and the bench's 4 L solvent waste bottle has a funnel.
 
 The task follows the usual wet-bench practice for lift-off:
@@ -17,6 +20,10 @@ The task follows the usual wet-bench practice for lift-off:
   on its stand.
 
 One hand carries the cassette while the other keeps the dish under it, so the task needs both arms.
+
+Real trials run in a ventilated wet bench or fume hood rated for flammable solvents, with everything standing in a
+spill tray lined with absorbent paper. Afterwards the wafers are checked under a microscope against the mask's pattern,
+and any drip or spill outside the beakers, the dish or the funnel scores 0.
 
 ## Files
 
@@ -35,7 +42,7 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
     inspect-robots run --embodiment yam_arena --policy dream \
         -E task=$PWD/task.py -E object_jitter=0 -E control_hz=20 \
         --instruction "$(python -c 'import json;print(json.load(open("task.json"))["instruction"])')" \
-        --scorer task_score --max-steps 2400 --store-frames --log-dir logs
+        --scorer task_score --max-steps 3600 --store-frames --log-dir logs
 
 Scripted demo: the same command with `--policy yam_scripted`.
 - The right hand takes the cassette by its handle, with the hand tilted 40 degrees back. It lifts the cassette clear of
