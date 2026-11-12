@@ -685,8 +685,25 @@ def _r_roll(k):
     return O_R, R
 
 
+def _seen_delta():
+    """How the held wafer is seen turned, against where the right hand's grip should hold it: the rotation from its
+    expected attitude on edge to the one seen (identity until it is seen)."""
+    if "w" not in _seen or "wp" not in _seen:
+        return np.eye(3)
+    r_pred = T_UP @ Rz(PICK_H).T @ _seen["wp"][1]
+    return _seen["w"][1] @ r_pred.T
+
+
+def _top_edge_tips():
+    """The left tweezers' tips at the wafer's top edge, from where the wafer is seen and how it is seen turned."""
+    d = _seen_delta()
+    p = _seen["w"][0] if "w" in _seen else C_EDGE
+    return p + d @ (O_L - C_EDGE), d
+
+
 def _l_turn(k):
-    return O_L, axis_angle_matrix(TURN_AX, TURN_ANG * k / TURN_STEPS) @ L_R0
+    o, d = _top_edge_tips()
+    return o, axis_angle_matrix(TURN_AX, TURN_ANG * k / TURN_STEPS) @ d @ L_R0
 
 
 def demo():
@@ -743,7 +760,11 @@ def demo():
     ]
     _seen["w_t"] = t_offer + 2.6  # the wafer, seen on edge and steady
     seen = lambda: _seen.get("w", (C_EDGE, None))[0]  # noqa: E731
-    at_top = lambda back: (lambda: (seen() - C_EDGE + O_L - L_R0 @ X * back, L_R0))  # noqa: E731
+    def at_top(back):  # aimed at the top edge as seen (where the wafer is, and how it is turned)
+        def f():
+            o, d = _top_edge_tips()
+            return o - d @ L_R0 @ X * back, d @ L_R0
+        return f
     stage = C_EDGE + [0.0, 0.12, 0.02]
     left += [
         _wp(3.0, "l", _const(stage, Rz(-math.pi / 2)), TW_HOLD, "tilt them, blades flat, beside the wafer"),
