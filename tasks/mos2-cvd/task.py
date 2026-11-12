@@ -341,7 +341,8 @@ BRASS = (0.78, 0.66, 0.30)
 ARGON_C = (0.25, 0.48, 0.30)  # the gas bottle (argon: green shoulder)
 BOTTLE = (0.40, -0.60)
 BUBBLER = (0.05, 0.62)
-CAP_RI, CAP_RO, CAP_DEPTH, CAP_PLATE = 0.027, 0.031, 0.025, 0.006
+CAP_RI, CAP_RO, CAP_DEPTH, CAP_PLATE = 0.027, 0.031, 0.018, 0.006
+CAP_FLARE, CAP_FLARE_L = 0.030, 0.005  # its mouth chamfered: 60 mm across at its rim, down to 54 mm over 5 mm (a lead-in)
 TAB_L, TAB_R0, TAB_R1, TAB_T = 0.028, 0.008, 0.030, 0.005
 CAP_TURN = math.radians(40.0)
 CAP_U = np.array([math.cos(CAP_TURN), 0.0, -math.sin(CAP_TURN)])  # in the tab's plane, square to the cap's axis
@@ -358,7 +359,9 @@ def _cap_part(name, colour):
                 for yy in (CAP_DEPTH + CAP_PLATE - 0.001, CAP_DEPTH + CAP_PLATE + TAB_L) for r in (TAB_R0, TAB_R1)
                 for n in (-1, 1)], STAINLESS)
     return part(name, pos=tuple(cap_start(name)), mass=0.120, friction=0.5,
-                meshes=[*_ring_y(y0, y1, CAP_RI, CAP_RO, 16, STAINLESS), tab],
+                meshes=[*(_ring_y(0.0, sd * CAP_FLARE_L, CAP_FLARE, CAP_RO, 16, STAINLESS, r_in1=CAP_RI) if sd > 0 else
+                         _ring_y(-CAP_FLARE_L, 0.0, CAP_RI, CAP_RO, 16, STAINLESS, r_in1=CAP_FLARE)),
+                        *_ring_y(*sorted((sd * CAP_FLARE_L, sd * CAP_DEPTH)), CAP_RI, CAP_RO, 16, STAINLESS), tab],
                 cylinders=[((0.0, sd * (CAP_DEPTH + CAP_PLATE / 2), 0.0), CAP_RO, CAP_PLATE, STAINLESS, "Y"),
                            ((0.0, sd * (CAP_DEPTH + CAP_PLATE + 0.0075), 0.0), 0.004, 0.015, colour, "Y")])
 
