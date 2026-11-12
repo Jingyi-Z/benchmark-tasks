@@ -453,7 +453,7 @@ RING_RO, RING_RI, RING_T = 0.020, 0.008, 0.005
 BLOCK_L, BLOCK_W = 0.038, 0.032  # the grip: a solid block in the old ring's place and plane, 38 x 32 x 5 mm (the
 # fingers' pads on a whole face, not across a hole)
 RING_Y = -(ROD_L + RING_RO - 0.001)  # the ring's centre, from the frame (on the rod's axis, behind its end)
-RING_TURN = math.radians(20.0)  # (nearer flat: the rod's weight turns it less in the grip)
+RING_TURN = math.radians(40.0)
 RING_U = np.array([math.cos(RING_TURN), 0.0, -math.sin(RING_TURN)])  # in the ring's plane, square to the rod
 RING_N = -np.array([math.sin(RING_TURN), 0.0, math.cos(RING_TURN)])  # the ring's face normal
 ROD_Z = BOAT_Z + 0.0075  # the rod's axis in use: its pusher on a boat's tongue, its lower edge 1.5 mm over the tube's floor
@@ -1059,7 +1059,7 @@ def demo():
         on_rack, k_r = _ring_at(ROD_START[1], RACK_X), next(keys)
         p_line = tongue_end - 0.008  # the pusher, in line, before going in
         in_line = _ring_at(p_line)
-        seq = [(2.0, _on_ring(on_rack, RING_IN) + 0.01 * up, ROD_OPEN, "hand turned to the rod's ring, over it", O_R),
+        seq = [(2.0, _on_ring(on_rack, RING_IN) + 0.03 * up, ROD_OPEN, "hand turned to the rod's ring, over it", O_R),
                (1.0, _on_ring(on_rack, RING_IN), ROD_OPEN, "down beside the ring", O_R),
                (1.0, _on_ring(on_rack), ROD_OPEN, "in round the ring", O_R),
                (0.6, _on_ring(on_rack), ROD_HOLD, "close on the ring", O_R),
@@ -1100,7 +1100,7 @@ def demo():
                         (1.0, _on_ring(on_rack), ROD_HOLD, "down onto its rack", O_R),
                         (0.6, _on_ring(on_rack), ROD_OPEN, "let go of the ring", O_R),
                         (1.0, _on_ring(on_rack, RING_IN), ROD_OPEN, "back off the ring", O_R),
-                        (1.0, _on_ring(on_rack, RING_IN) + 0.01 * up, ROD_OPEN, "up, clear of the rod", O_R)])
+                        (1.0, _on_ring(on_rack, RING_IN) + 0.03 * up, ROD_OPEN, "up, clear of the rod", O_R)])
     # the left hand slides the tube back, centred again (as seen: its ends against the furnace), and lets go of it
     pl.phase(left=[(3.5, _Dyn(on_tube(g0), "tb"), TUBE_HOLD, "slide the tube back, centred in the furnace", O_T)],
              right=[(2.0, RIGHT_PARK, ROD_OPEN, "up and clear of the tube's end", O_T)])
