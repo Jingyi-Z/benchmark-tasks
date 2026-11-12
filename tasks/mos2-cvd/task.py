@@ -454,10 +454,12 @@ ROD_START = np.array([RACK_X, TUBE_Y0 - MOUTH_OUT_SET - 0.077, TOP + ROD_Z])  # 
 # setting a boat in the mouth)
 _RING = [_hex([sn * RING_T / 2 * RING_N + [0.0, RING_Y + dy, 0.0] + du * RING_U
                for sn in (-1, 1) for dy in (-BLOCK_L / 2, BLOCK_L / 2) for du in (-BLOCK_W / 2, BLOCK_W / 2)], QUARTZ)]
-# the pusher: a flat quartz paddle 4 mm thick, 12 mm tall, 14 mm wide at its foot and 20 mm at its top (it keeps a
+# the pusher: a flat quartz paddle 4 mm thick, 9 to 11.5 mm tall, 14 mm wide at its foot and 20 mm at its top (it keeps a
 # boat's tongue on its face when the rod's tip wanders sideways, and clears the tube's wall)
-_PADDLE = [_hex([(sx * (0.007 if z < 0 else 0.010), y, z) for y in (0.0, -0.004) for z in (-0.006, 0.006)
-                 for sx in (-1, 1)], QUARTZ)]
+_PADDLE = [_hex([(sx * (0.007 if z < 0 else 0.010), y, (z if z > 0 else (-0.003 if y == 0.0 else -0.0055)))
+                 for y in (0.0, -0.004) for z in (-0.006, 0.006) for sx in (-1, 1)], QUARTZ)]
+# (its foot bevelled up at the front, 4.5 mm over the tube's floor there: if the rod's tip sags as it goes in, it rides
+# onto the floor at the tube's mouth instead of stubbing on its end)
 
 
 ROD = part("push_rod", pos=tuple(ROD_START), mass=0.015,  # (a tube: 8 mm OD, 6 mm ID) friction=0.7,
