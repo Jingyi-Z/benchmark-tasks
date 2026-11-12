@@ -404,7 +404,8 @@ def _show_film(env, tiles):
         from pxr import Usd, UsdGeom
 
         stage = omni.usd.get_context().get_stage()
-        root = stage.GetPrimAtPath(env.unwrapped.scene["cassette"].cfg.prim_path.replace("env_.*", "env_0"))
+        path = env.unwrapped.scene["cassette"].cfg.prim_path
+        root = stage.GetPrimAtPath(path.replace("env_[^/]+", "env_0").replace("env_.*", "env_0"))
         names = {n: k for k in range(FILM_TILES) for n in _tile_names(k)}
         for prim in (Usd.PrimRange(root) if root.IsValid() else []):
             k = names.get(prim.GetName())

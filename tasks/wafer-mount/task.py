@@ -397,7 +397,7 @@ def flat_ok(w) -> bool:
     return abs(math.atan2(math.sin(d), math.cos(d))) <= FLAT_TOL
 
 
-TW_TOUCH = 0.0008  # a tweezer blade within 0.8 mm of a wafer's pattern side, inside the edge exclusion: pattern touched
+TW_TOUCH = 0.0003  # a tweezer blade within 0.3 mm of a wafer's pattern side, inside the edge exclusion: pattern touched
 _BLADE_PTS = [np.array([u * BLADE_L / 2, v * BLADE_W / 2, t * BLADE_T / 2]) for u in (-1, 0, 1) for v in (-1, 0, 1)
                for t in (-1, 1)]
 _EX = np.array([_c, 0.0, -_s])  # the blades' long axis (bent 45 degrees forward and down), in a tweezers' frame
@@ -540,7 +540,7 @@ DOWN_X = Orient(_prev_grip(math.pi / 2))
 TW_WIDE = -0.014
 TW_HOLD = -0.0050
 TW_PINCH = -0.0010  # squeezed hard: the pinch must hold the wafer on edge against its weight's twist
-PINCH_IN = 0.002  # the tips 2 mm inside the edge, well inside the 5 mm edge exclusion
+PINCH_IN = 0.003  # the tips 3 mm inside the edge, inside the 5 mm edge exclusion
 BLADE_Z = 0.0022  # the tips' midpoint above the wafer's underside, as taken in a carrier
 V0 = np.array([WAFER_R - PINCH_IN, 0.0, WAFER_T / 2 - (BLADE_Z - 0.0016)])  # lower blade ~1 mm under it  # the wafer's centre from the tips, held
 # blades flat along +x (tweezer heading 0)
