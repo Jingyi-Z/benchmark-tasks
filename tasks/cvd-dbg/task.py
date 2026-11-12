@@ -1132,7 +1132,7 @@ def _dbg_print(env):
     S = labkit._SPECS
     f = lambda n: np.round(np.asarray(labkit._part_state(env, S[n]).pos, float) * 1000).astype(int).tolist()
     r = labkit._part_state(env, S["push_rod"])
-    if k % 20 == 0 and (640 <= k <= 1150 or 1400 <= k <= 1700):
+    if k % 20 == 0 and (1380 <= k <= 1520 or 1850 <= k <= 2300):
         from yam_arena import runtime as _rt
         b = env.unwrapped
         o = b.scene.env_origins[0].cpu().numpy()
@@ -1146,7 +1146,9 @@ def _dbg_print(env):
                 rows.append((float(np.linalg.norm(q - (p0 + tq * d))), n[0] + ":" + ln, np.round(q * 1000).astype(int).tolist()))
         rows.sort()
         tq = np.round(np.asarray(_tips(env), float)[2:] * 1000).astype(int).tolist()
-        print(f"LINKDBG k={k} t={getattr(_demo, '_plan_clock', 0.0):.1f} rod={f('push_rod')} axis={axis_off(r):.1f} tipsR={tq} near={[(round(a*1000), b2) for a, b2, c in rows[:2]]}",
+        Rr = r.rotation()
+        roll = math.degrees(math.atan2(Rr[2, 0], Rr[0, 0]))
+        print(f"LINKDBG k={k} t={getattr(_demo, '_plan_clock', 0.0):.1f} rod={f('push_rod')} axis={axis_off(r):.1f} roll={roll:.1f} tipsR={tq} near={[(round(a*1000), b2) for a, b2, c in rows[:2]]}",
               flush=True)
     if k % 100 == 0 or (st.get("viol") and not st.get("_vp")):
         if st.get("viol"):
