@@ -1131,10 +1131,21 @@ def _dbg_print(env):
     S = labkit._SPECS
     f = lambda n: np.round(np.asarray(labkit._part_state(env, S[n]).pos, float) * 1000).astype(int).tolist()
     r = labkit._part_state(env, S["push_rod"])
-    if k % 10 == 0 and (250 <= k <= 600 or 1400 <= k <= 1700):
-        tips = np.round(np.asarray(_tips(env), float) * 1000).astype(int).tolist()
-        print(f"RODDBG k={k} t={getattr(_demo, '_plan_clock', 0.0):.1f} rod={f('push_rod')} axis={axis_off(r):.1f} tube={f('quartz_tube')} "
-              f"tips={tips}", flush=True)
+    if k % 5 == 0 and 260 <= k <= 345:
+        from yam_arena import runtime as _rt
+        b = env.unwrapped
+        o = b.scene.env_origins[0].cpu().numpy()
+        p0 = np.asarray(r.pos, float)
+        d = r.rotation()[:, 1]
+        rows = []
+        for n in ("left_robot", "right_robot"):
+            for ln, T4 in _rt.link_poses(b.scene[n]).items():
+                q = np.asarray(T4[:3, 3], float) - o
+                tq = float(np.clip(np.dot(q - p0, d), -(ROD_L + 0.05), 0.0))
+                rows.append((float(np.linalg.norm(q - (p0 + tq * d))), n[0] + ":" + ln, np.round(q * 1000).astype(int).tolist()))
+        rows.sort()
+        print(f"LINKDBG k={k} rod={f('push_rod')} axis={axis_off(r):.1f} near={[(round(a*1000), b2, c) for a, b2, c in rows[:4]]}",
+              flush=True)
     if k % 100 == 0 or (st.get("viol") and not st.get("_vp")):
         if st.get("viol"):
             st["_vp"] = True
