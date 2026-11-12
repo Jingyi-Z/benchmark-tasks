@@ -186,7 +186,7 @@ def _jid(asset, j):
 @on_reset
 def _reset(env):
     _st.clear()
-    _st.update(p=P_LINE, vented_live=False, latched=False, latch_t=None, bled_after=False, t=0.0, set_hard=False,
+    _st.update(p=P_LINE, vented_live=False, latched=False, armed=False, latch_t=None, bled_after=False, t=0.0, set_hard=False,
                settled=False, far=True, hist=[])
 
 
@@ -216,7 +216,9 @@ def _gas(env):
     a.set_joint_position_target(torch.tensor([[-_st["p"] * NEEDLE_PER_KPA]], device=a.device),
                                 joint_ids=_jid(a, NEEDLE))
     # the latch: pressed shut, the shackle stays shut (a pawl): its spring's target goes to shut and its limit closes
-    if not _st["latched"] and lock.joints["shackle"] <= LATCH_AT:
+    if lock.joints["shackle"] >= OPEN_RAISE / 2:
+        _st["armed"] = True  # the latch only catches a shackle pressed down from open (not its state before the reset)
+    if not _st["latched"] and _st["armed"] and lock.joints["shackle"] <= LATCH_AT:
         _st["latched"] = True
     if _st["latched"] and not _st["set_hard"]:
         pl = b.scene["padlock"]
