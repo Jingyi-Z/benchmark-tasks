@@ -267,10 +267,10 @@ FURNACE_BOXES = [
     *[((XA, y, (BASE_Z + AXZ - TUBE_R - 0.004) / 2), (2 * SLOT, 0.020, AXZ - TUBE_R - 0.004 - BASE_Z), WHITE_F)
       for y in (FY0 + 0.010, FY1 - 0.010)],
     # the thermocouple: in through the back wall, its tip beside the tube at the hot zone's centre
-    ((((XA + SLOT - 0.002) + FX1) / 2 - 0.02, HOT_Y, AXZ - 0.004), ((FX1 - 0.04) - (XA + SLOT - 0.002), 0.003, 0.003),
+    ((((XA + SLOT + 0.001) + FX1) / 2 - 0.02, HOT_Y, AXZ - 0.004), ((FX1 - 0.04) - (XA + SLOT + 0.001), 0.003, 0.003),
      TC_C),
 ]
-FURNACE_CYLS = [((XA + SLOT - 0.002, HOT_Y, AXZ - 0.004), 0.0028, 0.004, TC_C, "X")]  # the junction bead
+FURNACE_CYLS = [((XA + SLOT + 0.001, HOT_Y, AXZ - 0.004), 0.0028, 0.004, TC_C, "X")]  # the junction bead
 SADDLES = [m for y in (FY0, FY1 - 0.020) for m in _ring_y(y, y + 0.020, TUBE_R + 0.0006, TUBE_R + 0.008, 8, INSUL_C,
                                                         cx=XA, cz=AXZ, a0=math.radians(200), a1=math.radians(340),
                                                         collide="none")]
