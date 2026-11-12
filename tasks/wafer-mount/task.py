@@ -35,7 +35,7 @@ from yam_arena.urdf import axis_angle_matrix  # noqa: E402
 SCENE = "station"
 TOP = TABLE_TOP[SCENE]
 
-SI_BACK = (0.58, 0.59, 0.62)  # the wafers' lapped back and polished rim: plain grey
+SI_BACK = (0.26, 0.27, 0.31)  # the wafers' polished back and rim: dark silicon grey (stands out on the pale carriers and chuck)
 DIE = (0.20, 0.22, 0.42)  # the patterned area: dark blue-violet
 STREET = (0.62, 0.60, 0.48)  # the scribe streets between the dies: pale gold
 STEEL = (0.72, 0.73, 0.75)
@@ -53,7 +53,7 @@ GREEN = (0.10, 0.55, 0.20)
 # primary 32.5 mm long, secondary 18 mm. -------------------------------------------------------------------------------
 WAFER_R, WAFER_T = 0.0508, 0.0010
 PRI_L, SEC_L = 0.0325, 0.018
-EDGE_EXCL = 0.006  # the pattern stops 6 mm inside the rim (edge exclusion): an 88 mm field
+EDGE_EXCL = 0.010  # the pattern stops 10 mm inside the rim (edge exclusion): an 80 mm field
 COLLIDE_R = WAFER_R - 0.0031
 
 
@@ -540,7 +540,7 @@ DOWN_X = Orient(_prev_grip(math.pi / 2))
 TW_WIDE = -0.014
 TW_HOLD = -0.0050
 TW_PINCH = -0.0010  # squeezed hard: the pinch must hold the wafer on edge against its weight's twist
-PINCH_IN = 0.004  # the tips 4 mm inside the edge, inside the 6 mm edge exclusion
+PINCH_IN = 0.008  # the tips 8 mm inside the edge, inside the edge exclusion
 BLADE_Z = 0.0022  # the tips' midpoint above the wafer's underside, as taken in a carrier
 V0 = np.array([WAFER_R - PINCH_IN, 0.0, WAFER_T / 2 - (BLADE_Z - 0.0016)])  # lower blade ~1 mm under it  # the wafer's centre from the tips, held
 # blades flat along +x (tweezer heading 0)
@@ -685,25 +685,8 @@ def _r_roll(k):
     return O_R, R
 
 
-def _seen_delta():
-    """How the held wafer is seen turned, against where the right hand's grip should hold it: the rotation from its
-    expected attitude on edge to the one seen (identity until it is seen)."""
-    if "w" not in _seen or "wp" not in _seen:
-        return np.eye(3)
-    r_pred = T_UP @ Rz(PICK_H).T @ _seen["wp"][1]
-    return _seen["w"][1] @ r_pred.T
-
-
-def _top_edge_tips():
-    """The left tweezers' tips at the wafer's top edge, from where the wafer is seen and how it is seen turned."""
-    d = _seen_delta()
-    p = _seen["w"][0] if "w" in _seen else C_EDGE
-    return p + d @ (O_L - C_EDGE), d
-
-
 def _l_turn(k):
-    o, d = _top_edge_tips()
-    return o, axis_angle_matrix(TURN_AX, TURN_ANG * k / TURN_STEPS) @ d @ L_R0
+    return O_L, axis_angle_matrix(TURN_AX, TURN_ANG * k / TURN_STEPS) @ L_R0
 
 
 def demo():
@@ -760,11 +743,21 @@ def demo():
     ]
     _seen["w_t"] = t_offer + 2.6  # the wafer, seen on edge and steady
     seen = lambda: _seen.get("w", (C_EDGE, None))[0]  # noqa: E731
-    def at_top(back):  # aimed at the top edge as seen (where the wafer is, and how it is turned)
-        def f():
-            o, d = _top_edge_tips()
-            return o - d @ L_R0 @ X * back, d @ L_R0
-        return f
+
+    def _ol():  # the top edge, as seen: the wafer's centre, and its face's tilt (not its turn in its own plane: round)
+        c, Rs = _seen.get("w", (C_EDGE, None))
+        if Rs is None:
+            return O_L
+        n_p = (axis_angle_matrix(U, ROLL) @ _seen.get("wp", (W0, np.eye(3)))[1])[:, 2]
+        n_s = Rs[:, 2] * (1.0 if float(np.dot(Rs[:, 2], n_p)) >= 0 else -1.0)
+        v, cth = np.cross(n_p, n_s), float(np.dot(n_p, n_s))
+        sv = float(np.linalg.norm(v))
+        if sv < 1e-6:
+            return c + O_L - C_EDGE
+        K = np.array([[0.0, -v[2], v[1]], [v[2], 0.0, -v[0]], [-v[1], v[0], 0.0]])
+        D = np.eye(3) + K + K @ K * ((1.0 - cth) / sv ** 2)
+        return c + D @ (O_L - C_EDGE)
+    at_top = lambda back: (lambda: (_ol() - L_R0 @ X * back, L_R0))  # noqa: E731
     stage = C_EDGE + [0.0, 0.12, 0.02]
     left += [
         _wp(3.0, "l", _const(stage, Rz(-math.pi / 2)), TW_HOLD, "tilt them, blades flat, beside the wafer"),
@@ -796,10 +789,10 @@ def demo():
     r_rest = right[-1]
 
     # left: hold it while the right hand lets go, then turn it over, carry it over the chuck and lay it down
-    held = (lambda: (seen() - C_EDGE + O_L, L_R0))  # noqa: E731
+    held = (lambda: (_ol(), L_R0))  # noqa: E731
     left.append(_wp(max(0.3, t_taken + 3.5 - _dur(left)), "l", held, TW_PINCH,
                     "hold it while the right hand lets go and backs out", False))
-    lift = lambda k: (lambda: (seen() - C_EDGE + O_L, _l_turn(k)[1]))  # noqa: E731
+    lift = lambda k: (lambda: (_ol(), _l_turn(k)[1]))  # noqa: E731
     for k in range(1, TURN_STEPS + 1):
         left.append(_wp(0.8, "l", lift(k), TW_PINCH, "turn it over: it lies flat, pattern side down", False))
     over = PLACE_C + [0.0, 0.0, 0.06]
