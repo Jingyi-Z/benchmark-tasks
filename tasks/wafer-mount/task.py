@@ -53,7 +53,7 @@ GREEN = (0.10, 0.55, 0.20)
 # primary 32.5 mm long, secondary 18 mm. -------------------------------------------------------------------------------
 WAFER_R, WAFER_T = 0.0508, 0.0010
 PRI_L, SEC_L = 0.0325, 0.018
-EDGE_EXCL = 0.005  # the pattern stops 5 mm inside the rim (edge exclusion): a 90 mm field
+EDGE_EXCL = 0.006  # the pattern stops 6 mm inside the rim (edge exclusion): an 88 mm field
 COLLIDE_R = WAFER_R - 0.0031
 
 
@@ -454,7 +454,7 @@ def vacuum_on(objects) -> bool:
 
 
 def score(objects):
-    """0 if a wafer's pattern (inside its 5 mm edge exclusion) was ever touched by the gripper or the tweezers, a wafer was ever held by the gripper itself or dropped,
+    """0 if a wafer's pattern (inside its 6 mm edge exclusion) was ever touched by the gripper or the tweezers, a wafer was ever held by the gripper itself or dropped,
     another wafer is on the mounter, or the wafers have not all been still (under 1 mm of movement) for the last
     second. Otherwise, with the n-type (100) wafer on the chuck pattern side down (within 3 degrees), its centre
     within 2 mm of the chuck's centre: 1.0 if its primary flat faces the frame's flat side within 2 degrees, the
@@ -540,7 +540,7 @@ DOWN_X = Orient(_prev_grip(math.pi / 2))
 TW_WIDE = -0.014
 TW_HOLD = -0.0050
 TW_PINCH = -0.0010  # squeezed hard: the pinch must hold the wafer on edge against its weight's twist
-PINCH_IN = 0.0035  # the tips 3.5 mm inside the edge, inside the 5 mm edge exclusion
+PINCH_IN = 0.004  # the tips 4 mm inside the edge, inside the 6 mm edge exclusion
 BLADE_Z = 0.0022  # the tips' midpoint above the wafer's underside, as taken in a carrier
 V0 = np.array([WAFER_R - PINCH_IN, 0.0, WAFER_T / 2 - (BLADE_Z - 0.0016)])  # lower blade ~1 mm under it  # the wafer's centre from the tips, held
 # blades flat along +x (tweezer heading 0)
