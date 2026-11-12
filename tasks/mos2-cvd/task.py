@@ -434,12 +434,14 @@ CHIP_START = boat_start("chip_boat") + [0.0, 0.0, BOAT_T + CHIP_T / 2]
 CHIP_PART = part("chip", pos=tuple(CHIP_START), mass=0.0004, friction=0.8,  # (4x a real chip: steadier contact)
                  boxes=[((0.0, 0.0, 0.0), (CHIP, CHIP, CHIP_T), CHIP_C)])
 
-# -- the push rod (loose): fused quartz tube, 8 mm OD, a flat paddle fused on its front (the pusher) and a flat ring
-# (40 mm across, 5 mm thick) fused on its back end, to hold it by, its face turned 40 degrees from upright (towards the robots);
+# -- the push rod (loose): fused quartz tube, 8 mm OD, a flat paddle fused on its front (the pusher) and a flat grip block
+# (38 x 32 x 5 mm) fused on its back end, to hold it by, its face turned 40 degrees from upright (towards the robots);
 # on a rack of two V rests beside the tube's line, nearer the robots. Frame: on its axis at the pusher's front face, the
 # rod along -y. ----------------------------------------------------------------------------------------------------------
 ROD_L, GRIP_W, PUSHER_R = 0.218, 0.008, 0.006
 RING_RO, RING_RI, RING_T = 0.020, 0.008, 0.005
+BLOCK_L, BLOCK_W = 0.038, 0.032  # the grip: a solid block in the old ring's place and plane, 38 x 32 x 5 mm (the
+# fingers' pads on a whole face, not across a hole)
 RING_Y = -(ROD_L + RING_RO - 0.001)  # the ring's centre, from the frame (on the rod's axis, behind its end)
 RING_TURN = math.radians(40.0)
 RING_U = np.array([math.cos(RING_TURN), 0.0, -math.sin(RING_TURN)])  # in the ring's plane, square to the rod
@@ -448,9 +450,8 @@ ROD_Z = BOAT_Z + 0.0075  # the rod's axis in use: its pusher on a boat's tongue,
 RACK_X = XA - 0.060
 ROD_START = np.array([RACK_X, TUBE_Y0 - MOUTH_OUT_SET - 0.077, TOP + ROD_Z])  # racked (its pusher clear of the hand
 # setting a boat in the mouth)
-_RING = [_hex([sx * RING_T / 2 * RING_N + [0.0, RING_Y + r * math.cos(a), 0.0] + r * math.sin(a) * RING_U
-               for sx in (-1, 1) for r in (RING_RI, RING_RO) for a in (2 * math.pi * i / 12, 2 * math.pi * (i + 1) / 12)],
-              QUARTZ) for i in range(12)]
+_RING = [_hex([sn * RING_T / 2 * RING_N + [0.0, RING_Y + dy, 0.0] + du * RING_U
+               for sn in (-1, 1) for dy in (-BLOCK_L / 2, BLOCK_L / 2) for du in (-BLOCK_W / 2, BLOCK_W / 2)], QUARTZ)]
 # the pusher: a flat quartz paddle 4 mm thick, 12 mm tall, 14 mm wide at its foot and 20 mm at its top (it keeps a
 # boat's tongue on its face when the rod's tip wanders sideways, and clears the tube's wall)
 _PADDLE = [_hex([(sx * (0.007 if z < 0 else 0.010), y, z) for y in (0.0, -0.004) for z in (-0.006, 0.006)

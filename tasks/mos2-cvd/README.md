@@ -2,9 +2,9 @@
 
 A split-tube furnace holds a 2 inch quartz tube with both end caps off, each in a cradle beside its end. Argon
 comes in at the near end, so the near end is upstream. Three boats wait on a tray beside the near end: sulfur
-powder, MoO3 powder, and a quartz boat with a SiO2/Si chip face up. A quartz push rod with a ring on its back end
+powder, MoO3 powder, and a quartz boat with a SiO2/Si chip face up. A quartz push rod with a flat grip block on its back end
 lies on a rack beside the tube's line. The right hand sets each boat in the tube's mouth by its tongue, takes the
-rod by its ring and pushes the boat into place, then racks the rod. Meanwhile the left hand caps the far (exhaust)
+rod by its block and pushes the boat into place, then racks the rod. Meanwhile the left hand caps the far (exhaust)
 end; the right hand caps the near (inlet) end last. The layout is scored:
 
 - sulfur at the furnace's upstream edge, where it stays cool enough to evaporate slowly;
