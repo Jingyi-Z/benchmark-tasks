@@ -351,6 +351,7 @@ OTHER_NEAR = 0.06  # any other wafer's centre within 6 cm of the chuck's centre:
 _state = {}
 SETTLE_STEPS, SETTLE_TOL = 20, 0.001
 _hist = []
+_dbg = [0, None]
 
 
 @on_reset
@@ -447,6 +448,16 @@ def _watch(env):
     del _hist[:-(SETTLE_STEPS + 1)]
     _state["settled"] = (len(_hist) > SETTLE_STEPS
                          and float(np.max(np.abs(np.asarray(_hist) - _hist[-1]))) < SETTLE_TOL)
+    _dbg[0] += 1  # -- debug (bench variant only) --
+    fl = tuple(bool(_state.get(x)) for x in ("touched", "handled", "dropped"))
+    if fl != _dbg[1] or _dbg[0] % 50 == 0:
+        _dbg[1] = fl
+        w = labkit._part_state(env, S[TARGET])
+        p = np.asarray(w.pos, float)
+        jw = [round(float(labkit._part_state(env, S[n]).joints.get("jaw", 0.0)) * 1000, 2) for n in ("tweezers_r", "tweezers_l")]
+        print(f"WMDBG k={_dbg[0]} touched={fl[0]} handled={fl[1]} dropped={fl[2]} settled={_state['settled']} "
+              f"pos_mm={np.round(p * 1000, 1).tolist()} face={face_down_deg(w):.1f} flat={math.degrees(flat_dir(w)):.1f} "
+              f"jaw_mm={jw} vac={vac:.3f}", flush=True)
 
 
 def vacuum_on(objects) -> bool:
