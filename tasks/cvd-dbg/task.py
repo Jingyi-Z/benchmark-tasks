@@ -328,7 +328,8 @@ FURNACE = part("tube_furnace", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5, bo
 # 0.49 kg, open at both ends (its end caps are off for loading). Its wall in 45 mm lengths, 12-sided, and a smooth strip
 # along its floor that the boats slide on. Frame: on its axis, at its middle. ---------------------------------------------
 FLOOR_W = 0.020
-FLOOR_Z = AXZ - math.sqrt(TUBE_IN ** 2 - (FLOOR_W / 2) ** 2) + 0.0006  # the strip's top: as wide as a boat
+FLOOR_Z = AXZ - math.sqrt(TUBE_IN ** 2 - (FLOOR_W / 2) ** 2) + 0.0020  # the strip's top: as wide as a boat, and 2 mm
+# over the wall at its edges (a boat slides on it alone, never catching on the wall's facets)
 TUBE_C = np.array([XA, (TUBE_Y0 + TUBE_Y1) / 2, TOP + AXZ])  # the tube's frame at the start (centred)
 _HL = (TUBE_Y1 - TUBE_Y0) / 2
 _CUTS = list(np.arange(-_HL, _HL, 0.045)) + [_HL]
@@ -476,7 +477,7 @@ ROD = part("push_rod", pos=tuple(ROD_START), mass=0.015, friction=1.0,  # (a tub
            boxes=[((0.0, -(0.004 + ROD_L) / 2, 0.0), (GRIP_W, ROD_L - 0.004, GRIP_W), QUARTZ)],  # (square: it cannot
            meshes=[*_RING, *_PADDLE])  # roll in its channel under the handle's offset weight)
 REST_Y = (ROD_START[1] - 0.030, ROD_START[1] - 0.250)  # its two rests, in line with the tube, under the parked rod's body
-CH_W, CH_WALL, CH_UP = 0.010, 0.003, 0.003  # each rest: a channel 10 mm wide, its walls 3 mm up the rod's sides (all
+CH_W, CH_WALL, CH_UP = 0.014, 0.003, 0.0015  # each rest: a flat channel 14 mm wide, its walls 1.5 mm up the rod's sides (all
 REST_Z = ROD_Z - GRIP_W / 2 - 0.0002  # under the rod's axis, so the handle slides over them); its floor under the rod
 REST = part("rod_rack", pos=(0.0, 0.0, TOP), fixed=True, friction=0.3,
             boxes=[b for y in REST_Y for b in (
@@ -1131,7 +1132,7 @@ def _dbg_print(env):
     S = labkit._SPECS
     f = lambda n: np.round(np.asarray(labkit._part_state(env, S[n]).pos, float) * 1000).astype(int).tolist()
     r = labkit._part_state(env, S["push_rod"])
-    if k % 50 == 0 and k >= 1400:
+    if k % 20 == 0 and 1150 <= k <= 1500:
         from yam_arena import runtime as _rt
         b = env.unwrapped
         o = b.scene.env_origins[0].cpu().numpy()
