@@ -341,8 +341,8 @@ BRASS = (0.78, 0.66, 0.30)
 ARGON_C = (0.25, 0.48, 0.30)  # the gas bottle (argon: green shoulder)
 BOTTLE = (0.40, -0.60)
 BUBBLER = (0.05, 0.62)
-CAP_RI, CAP_RO, CAP_DEPTH, CAP_PLATE = 0.027, 0.031, 0.018, 0.006
-CAP_FLARE, CAP_FLARE_L = 0.030, 0.005  # its mouth chamfered: 60 mm across at its rim, down to 54 mm over 5 mm (a lead-in)
+CAP_RI, CAP_RO, CAP_DEPTH, CAP_PLATE = 0.029, 0.033, 0.018, 0.006  # (a loose fit: 58 mm bore on the 50.8 mm tube)
+CAP_FLARE, CAP_FLARE_L = 0.032, 0.005  # its mouth chamfered: 64 mm across at its rim, down to 58 mm over 5 mm (a lead-in)
 TAB_L, TAB_R0, TAB_R1, TAB_T = 0.028, -0.011, 0.011, 0.005  # (on the cap's axis: a push through the grip turns it not)
 CAP_TURN = math.radians(40.0)
 CAP_U = np.array([math.cos(CAP_TURN), 0.0, -math.sin(CAP_TURN)])  # in the tab's plane, square to the cap's axis
@@ -489,7 +489,7 @@ HANDS_FAR = 0.08
 SETTLE_STEPS, SETTLE_TOL = 20, 0.001
 NAMES = ("s_boat", "moo3_boat", "chip_boat")
 CAP_NAMES = ("inlet_cap", "exhaust_cap")
-CAP_TOL, CAP_TILT = 0.004, 5.0
+CAP_TOL, CAP_TILT, CAP_OFF = 0.005, 8.0, 0.005
 
 _state = {}
 _hist = []
@@ -521,9 +521,10 @@ def layout_ok(bs):
 
 
 def cap_seated(c, name):
-    """A cap pushed home on its end of the tube: square to it, centred, its end plate within 4 mm of the tube's end."""
+    """A cap pushed home on its end of the tube: its end plate within 5 mm of the tube's end, its axis within 5 mm of the
+    tube's and 8 degrees of square (it fits loosely: it hangs a few mm low)."""
     p = np.asarray(c.pos, float)
-    return (abs(p[1] - CAP_HOME[name]) <= CAP_TOL and math.hypot(p[0] - XA, p[2] - (TOP + AXZ)) <= 0.003
+    return (abs(p[1] - CAP_HOME[name]) <= CAP_TOL and math.hypot(p[0] - XA, p[2] - (TOP + AXZ)) <= CAP_OFF
             and axis_off(c) <= CAP_TILT)
 
 
@@ -568,7 +569,7 @@ def score(objects):
     the last second. Then 0.2 for each boat in its place, on the tube's floor: sulfur centred within 15 mm of the
     furnace's upstream edge (10 mm in from its near end); MoO3 centred within 10 mm of the thermocouple; the chip boat's
     centre 50 to 80 mm downstream of the MoO3 boat's. And 0.1 for each end cap seated: pushed home on its end of the
-    tube (its end plate within 4 mm of the tube's end), within 3 mm of the tube's axis and 5 degrees of square. 1.0 if
+    tube (its end plate within 5 mm of the tube's end), within 5 mm of the tube's axis and 8 degrees of square. 1.0 if
     all three boats and both caps, the rod back on its rack (within 15 mm) and every fingertip 8 cm from the rod, the
     boats and the caps."""
     st = _state
