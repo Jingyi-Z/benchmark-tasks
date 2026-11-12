@@ -1131,7 +1131,7 @@ def _dbg_print(env):
     S = labkit._SPECS
     f = lambda n: np.round(np.asarray(labkit._part_state(env, S[n]).pos, float) * 1000).astype(int).tolist()
     r = labkit._part_state(env, S["push_rod"])
-    if k % 10 == 0 and (1400 <= k <= 1700 or 2700 <= k <= 3000):
+    if k % 10 == 0 and (250 <= k <= 600 or 1400 <= k <= 1700):
         tips = np.round(np.asarray(_tips(env), float) * 1000).astype(int).tolist()
         print(f"RODDBG k={k} t={getattr(_demo, '_plan_clock', 0.0):.1f} rod={f('push_rod')} axis={axis_off(r):.1f} tube={f('quartz_tube')} "
               f"tips={tips}", flush=True)
