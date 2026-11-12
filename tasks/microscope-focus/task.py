@@ -386,8 +386,9 @@ def _servo_step(env):
     if not active:
         return
     j = labkit._part_state(env, labkit._SPECS["microscope"]).joints
+    sl = labkit._part_state(env, labkit._SPECS["slide"])
     for sv in active:
-        tgt = sv.target(j) if callable(sv.target) else sv.target
+        tgt = sv.target(j, sl) if callable(sv.target) else sv.target
         err = tgt - j[sv.joint]
         sv.cmd += float(np.clip(SERVO_GAIN * err, -SERVO_MAX, SERVO_MAX))
 
@@ -450,9 +451,22 @@ FF_OUT = (FF_GRIP[0], FF_GRIP[1] - 0.04, FF_GRIP[2])
 FINE_WIDE = -0.02  # part-open round the 26 mm fine knob
 
 
-def fine_target(j: dict) -> float:
-    """Fine knob angle that brings the stage to focus, given the coarse knob's angle (both read off their marks)."""
-    return (F_LEAD / FINE_LEAD) * (F_TARGET - j["focus"])
+def x_target(j: dict, slide) -> float:
+    """x drive angle that puts the crosshair on the objective's axis, from where the crosshair is seen now."""
+    p = slide.to_world((0.0, SPEC_Y, 0.0))
+    return j["xdrive"] + 2 * math.pi * (p[0] - OBJ_AXIS[0]) / X_LEAD
+
+
+def y_target(j: dict, slide) -> float:
+    """y drive angle that puts the crosshair on the objective's axis line, from where the crosshair is seen now."""
+    p = slide.to_world((0.0, SPEC_Y, 0.0))
+    return j["ydrive"] + 2 * math.pi * (p[1] - OBJ_AXIS[1]) / Y_LEAD
+
+
+def fine_target(j: dict, slide=None) -> float:
+    """Fine knob angle that brings the slide into focus, from how far the stage now sits from focus (seen as image
+    sharpness; turning the fine knob negative raises the stage)."""
+    return j["fine"] - 2 * math.pi * (START_OFF - j["stage"]) / FINE_LEAD
 F_TURN = -2 * math.pi * START_OFF / F_LEAD
 F_TARGET = F_TURN  # focus knob angle for the working distance
 X_TARGET = -2 * math.pi * (QX_FOCUS - QX0) / X_LEAD  # drive knob angles that centre the specimen
@@ -545,9 +559,9 @@ def demo():
     # Left arm: the stage drives, once the jaw has closed over the slide.
     left.append(Waypoint(max(0.3, _dur(right) - _dur(left)), (*W(*YKNOB, 0.0)[:2], DK_HOVER + 0.03), KNOB_WIDE,
                          "wait for the jaw to close"))
-    _knob_turn(left, W(*YKNOB, 0.0)[:2], "y knob", "ydrive", Y_TARGET, servo=True)
+    _knob_turn(left, W(*YKNOB, 0.0)[:2], "y knob", "ydrive", y_target, servo=True)
     _knob_turn(left, W(*XKNOB, 0.0)[:2], "x knob", "xdrive", X_TARGET, servo=False)
-    _knob_turn(left, W(*XKNOB, 0.0)[:2], "x knob", "xdrive", X_TARGET, servo=True)
+    _knob_turn(left, W(*XKNOB, 0.0)[:2], "x knob", "xdrive", x_target, servo=True)
     left.append(Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "park"))
     right.append(Waypoint(max(0.3, _dur(left) - 2.0 - _dur(right)), RIGHT_ASIDE, FINGER_OPEN,
                           "wait while the left arm drives the stage"))
