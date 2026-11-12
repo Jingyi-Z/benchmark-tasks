@@ -453,7 +453,7 @@ CHIP_PART = part("chip", pos=tuple(CHIP_START), mass=0.0004, friction=0.8,  # (4
 # rod along -y. ----------------------------------------------------------------------------------------------------------
 ROD_L, GRIP_W, PUSHER_R = 0.293, 0.008, 0.006
 RING_T = 0.005  # the T-handle's plate: 5 mm thick
-TH_UP, TH_DOWN, TH_W = 0.045, 0.006, 0.026  # it reaches 45 mm up the slope from the rod's axis (6 mm below), 26 mm wide
+TH_UP, TH_W = 0.045, 0.026  # the handle: a 5 mm plate square to the rod, 26 mm wide, standing 45 mm up over the rod's end
 RING_Y = -(ROD_L + RING_T / 2)  # the plate's mid-plane, from the frame (behind the rod's end)
 RING_TURN = math.radians(40.0)
 RING_U = np.array([math.cos(RING_TURN), 0.0, -math.sin(RING_TURN)])  # down the handle's slope (the hand's approach)
@@ -463,8 +463,8 @@ RACK_X = XA  # the rod lies in line with the tube, behind its loading end, on tw
 # them, never lifted
 ROD_START = np.array([RACK_X, TUBE_Y0 - 0.060, TOP + ROD_Z])  # its pusher 60 mm behind the centred tube's loading end
 # (clear of a boat set in the mouth, and of the inlet cap)
-_RING = [_hex([dn * RING_N + [0.0, RING_Y + dy, 0.0] + du * RING_U  # (all of it above the rod's axis: it passes over
-               for dn in (-TH_W, 0.0) for dy in (-RING_T / 2, RING_T / 2) for du in (-TH_UP, 0.0)], QUARTZ)]  # the rests)
+_RING = [_hex([(sx * TH_W / 2, RING_Y + dy, z) for sx in (-1, 1) for dy in (-RING_T / 2, RING_T / 2)  # (all above
+               for z in (0.002, 0.002 + TH_UP)], QUARTZ)]  # the rod's axis, and centred over it: its weight cannot turn it)
 # the pusher: a flat quartz paddle 4 mm thick, 9 to 11.5 mm tall, 14 mm wide at its foot and 20 mm at its top (it keeps a
 # boat's tongue on its face when the rod's tip wanders sideways, and clears the tube's wall)
 _PADDLE = [_hex([(sx * (0.007 if z < 0 else 0.010), y, (z if z > 0 else (-0.003 if y == 0.0 else -0.0055)))
@@ -941,8 +941,8 @@ TH_TIPS = 0.012  # the fingertips stop this far up the handle from the rod's axi
 
 def _on_ring(c, back=0.0):
     """TCP for the fingers across the T-handle whose plate crosses the rod's axis at c (``back`` short of it)."""
-    tip = np.asarray(c, float) - (TH_TIPS + back) * RING_U - TH_W / 2 * RING_N
-    return _tcp(tip, ROT_R, past=0.0)
+    tip = np.asarray(c, float) + [0.008, 0.0, 0.004] - back * RING_U  # (the tips beside the rod's top, the pads up the
+    return _tcp(tip, ROT_R, past=0.0)  # plate)
 
 
 def _tongue(name, centre):
@@ -1132,7 +1132,7 @@ def _dbg_print(env):
     S = labkit._SPECS
     f = lambda n: np.round(np.asarray(labkit._part_state(env, S[n]).pos, float) * 1000).astype(int).tolist()
     r = labkit._part_state(env, S["push_rod"])
-    if k % 20 == 0 and 2400 <= k <= 2750:
+    if k % 50 == 0 and k >= 600:
         from yam_arena import runtime as _rt
         b = env.unwrapped
         o = b.scene.env_origins[0].cpu().numpy()
