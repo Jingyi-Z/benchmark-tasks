@@ -540,7 +540,7 @@ DOWN_X = Orient(_prev_grip(math.pi / 2))
 TW_WIDE = -0.014
 TW_HOLD = -0.0050
 TW_PINCH = -0.0010  # squeezed hard: the pinch must hold the wafer on edge against its weight's twist
-PINCH_IN = 0.004  # the tips 4 mm inside the edge, inside the 5 mm edge exclusion
+PINCH_IN = 0.003  # the tips 3 mm inside the edge, inside the 5 mm edge exclusion
 BLADE_Z = 0.0022  # the tips' midpoint above the wafer's underside, as taken in a carrier
 V0 = np.array([WAFER_R - PINCH_IN, 0.0, WAFER_T / 2 - (BLADE_Z - 0.0016)])  # lower blade ~1 mm under it  # the wafer's centre from the tips, held
 # blades flat along +x (tweezer heading 0)
