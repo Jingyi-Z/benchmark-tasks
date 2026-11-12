@@ -1118,11 +1118,16 @@ def demo():
 def _dbg_print(env):
     st = _state
     k = st.get("step", 0)
+    S = labkit._SPECS
+    f = lambda n: np.round(np.asarray(labkit._part_state(env, S[n]).pos, float) * 1000).astype(int).tolist()
+    r = labkit._part_state(env, S["push_rod"])
+    if k % 10 == 0 and (1250 <= k <= 1750 or 2450 <= k <= 2950):
+        tips = np.round(np.asarray(_tips(env), float) * 1000).astype(int).tolist()
+        print(f"RODDBG k={k} t={getattr(_demo, '_plan_clock', 0.0):.1f} rod={f('push_rod')} axis={axis_off(r):.1f} "
+              f"tips={tips}", flush=True)
     if k % 100 == 0 or (st.get("viol") and not st.get("_vp")):
         if st.get("viol"):
             st["_vp"] = True
-        S = labkit._SPECS
-        f = lambda n: np.round(np.asarray(labkit._part_state(env, S[n]).pos, float) * 1000).astype(int).tolist()
         t = labkit._part_state(env, S["quartz_tube"])
         print(f"CVDDBG k={k} viol={sorted(st.get('viol', []))} tube={f('quartz_tube')} tilt={axis_off(t):.2f} "
               f"s={f('s_boat')} mo={f('moo3_boat')} ch={f('chip_boat')} caps={f('inlet_cap')},{f('exhaust_cap')} "
