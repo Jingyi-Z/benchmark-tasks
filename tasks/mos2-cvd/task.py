@@ -453,7 +453,7 @@ RING_RO, RING_RI, RING_T = 0.020, 0.008, 0.005
 BLOCK_L, BLOCK_W = 0.038, 0.032  # the grip: a solid block in the old ring's place and plane, 38 x 32 x 5 mm (the
 # fingers' pads on a whole face, not across a hole)
 RING_Y = -(ROD_L + RING_RO - 0.001)  # the ring's centre, from the frame (on the rod's axis, behind its end)
-RING_TURN = math.radians(40.0)
+RING_TURN = math.radians(20.0)  # (nearer flat: the rod's weight turns it less in the grip)
 RING_U = np.array([math.cos(RING_TURN), 0.0, -math.sin(RING_TURN)])  # in the ring's plane, square to the rod
 RING_N = -np.array([math.sin(RING_TURN), 0.0, math.cos(RING_TURN)])  # the ring's face normal
 ROD_Z = BOAT_Z + 0.0075  # the rod's axis in use: its pusher on a boat's tongue, its lower edge 1.5 mm over the tube's floor
@@ -470,11 +470,11 @@ _PADDLE = [_hex([(sx * (0.007 if z < 0 else 0.010), y, (z if z > 0 else (-0.003 
 # onto the floor at the tube's mouth instead of stubbing on its end)
 
 
-ROD = part("push_rod", pos=tuple(ROD_START), mass=0.012,  # (a tube: 8 mm OD, 6 mm ID) friction=0.7,
+ROD = part("push_rod", pos=tuple(ROD_START), mass=0.012, friction=1.2,  # (a tube: 8 mm OD, 6 mm ID)
            cylinders=[((0.0, -(0.004 + ROD_L) / 2, 0.0), GRIP_W / 2, ROD_L - 0.004, QUARTZ, "Y")],
            meshes=[*_RING, *_PADDLE])
 REST_Y = (ROD_START[1] - 0.030, ROD_START[1] - 0.220)  # the rack's two Vs, under the rod's body (clear of the ring)
-V_RISE = 0.006  # each rest's V: 6 mm deep over 10 mm each side (about 30 degrees), so the rod lies in it, not on it
+V_RISE = 0.009  # each rest's V: 9 mm deep over 10 mm each side (about 30 degrees), so the rod lies in it, not on it
 REST_Z = ROD_Z - 0.0002 - GRIP_W / 2 * math.hypot(1.0, (V_RISE - 0.0002) / 0.010)  # the rod's axis at ROD_Z in the V
 REST = part("rod_rack", pos=(0.0, 0.0, TOP), fixed=True, friction=0.3,
             boxes=[((RACK_X, y, REST_Z / 2), (0.020, 0.014, REST_Z), DARK) for y in REST_Y],
@@ -897,6 +897,10 @@ ROT_R = np.column_stack([RING_N, np.cross(RING_U, RING_N), RING_U])  # in from t
 O_R = Orient(ROT_R)  # closing square across the ring's faces
 ROT_L = ROT_R @ np.diag([-1.0, -1.0, 1.0])  # the left hand's (the same, its fingers swapped: it reaches from the other side)
 O_L = Orient(ROT_L)
+ROT_CR = np.column_stack([CAP_N, np.cross(CAP_U, CAP_N), CAP_U])  # on a cap's tab: in from the robots' side, tipped
+O_CR = Orient(ROT_CR)  # 40 deg down, closing square across the tab's faces
+ROT_CL = ROT_CR @ np.diag([-1.0, -1.0, 1.0])
+O_CL = Orient(ROT_CL)
 CAP_IN = 0.030  # the open hand comes in onto a cap's tab (and backs off it) this far along its approach
 CAP_SAG = {"inlet_cap": 0.008, "exhaust_cap": 0.0}  # (seen in the sim: the right hand's cap hung 10 mm low)
 CAP_LIFT = 0.012  # a cap lifted this much out of its cradle (clear of its rails) to carry it over
@@ -1055,7 +1059,7 @@ def demo():
         on_rack, k_r = _ring_at(ROD_START[1], RACK_X), next(keys)
         p_line = tongue_end - 0.008  # the pusher, in line, before going in
         in_line = _ring_at(p_line)
-        seq = [(2.0, _on_ring(on_rack, RING_IN) + 0.03 * up, ROD_OPEN, "hand turned to the rod's ring, over it", O_R),
+        seq = [(2.0, _on_ring(on_rack, RING_IN) + 0.01 * up, ROD_OPEN, "hand turned to the rod's ring, over it", O_R),
                (1.0, _on_ring(on_rack, RING_IN), ROD_OPEN, "down beside the ring", O_R),
                (1.0, _on_ring(on_rack), ROD_OPEN, "in round the ring", O_R),
                (0.6, _on_ring(on_rack), ROD_HOLD, "close on the ring", O_R),
@@ -1096,7 +1100,7 @@ def demo():
                         (1.0, _on_ring(on_rack), ROD_HOLD, "down onto its rack", O_R),
                         (0.6, _on_ring(on_rack), ROD_OPEN, "let go of the ring", O_R),
                         (1.0, _on_ring(on_rack, RING_IN), ROD_OPEN, "back off the ring", O_R),
-                        (1.0, _on_ring(on_rack, RING_IN) + 0.03 * up, ROD_OPEN, "up, clear of the rod", O_R)])
+                        (1.0, _on_ring(on_rack, RING_IN) + 0.01 * up, ROD_OPEN, "up, clear of the rod", O_R)])
     # the left hand slides the tube back, centred again (as seen: its ends against the furnace), and lets go of it
     pl.phase(left=[(3.5, _Dyn(on_tube(g0), "tb"), TUBE_HOLD, "slide the tube back, centred in the furnace", O_T)],
              right=[(2.0, RIGHT_PARK, ROD_OPEN, "up and clear of the tube's end", O_T)])
@@ -1107,8 +1111,8 @@ def demo():
                    (1.0, _Dyn(on_tube(g0) - 0.05 * a_t + 0.10 * up, "tb"), TUBE_OPEN, "up, well clear of the tube", O_T)])
     # both hands cap their ends: the right the loading (inlet) end, the left the far (exhaust) end
     t_c = pl.t
-    pl.phase(right=_cap_moves(pl, "inlet_cap", ROT_R, O_R, "cn", t_c),
-             left=_cap_moves(pl, "exhaust_cap", ROT_L, O_L, "cf", t_c))
+    pl.phase(right=_cap_moves(pl, "inlet_cap", ROT_CR, O_CR, "cn", t_c),
+             left=_cap_moves(pl, "exhaust_cap", ROT_CL, O_CL, "cf", t_c))
     pl.phase(right=[(2.0, RIGHT_PARK, ROD_OPEN, "up and clear", O_T)],
              left=[(2.0, LEFT_PARK, ROD_OPEN, "hand turned at the park", O_T)])
     pl.phase(right=[(3.0, RIGHT_PARK, ROD_OPEN, "rest", O_T)], left=[(3.0, LEFT_PARK, ROD_OPEN, "rest", O_T)])
