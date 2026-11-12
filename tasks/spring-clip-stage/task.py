@@ -13,11 +13,13 @@ Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jit
 """
 
 import math
+
+import numpy as np
 import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from labkit import Joint, part  # noqa: E402
+from labkit import Joint, on_reset, on_step, part  # noqa: E402
 from yam_arena.constants import FINGER_CLOSED, FINGER_OPEN  # noqa: E402
 from yam_arena.demo import Waypoint  # noqa: E402
 from yam_arena.task_file import TABLE_TOP  # noqa: E402
@@ -119,27 +121,89 @@ def _centred(c) -> bool:
     return math.hypot(c.pos[0] - SX, c.pos[1] - SY) <= CENTRE_TOL and _yaw_err_deg(c) <= YAW_TOL_DEG
 
 
+CONTACT_TOL = 0.001  # m: the jaw's underside within 1 mm of the carrier's top where it crosses the carrier's near edge
+RELEASE_DIST = 0.030  # m: every fingertip at least 3 cm from the clip's bar (tab to jaw tip) once it is let go
+STILL_STEPS, STILL_TOL = 20, 0.001  # at rest: the carrier moved under 1 mm over the last 1 s (20 steps at 20 Hz)
+_released = {"ok": False, "hist": [], "still": False}
+
+
+def _tips(env):
+    from yam_arena import runtime as _rt
+
+    b = env.unwrapped
+    o = b.scene.env_origins[0].cpu().numpy()
+    out = []
+    for n in ("left_robot", "right_robot"):
+        robot = b.scene[n]
+        mid = _rt.pad_tips_world(robot) - o
+        g = _rt.link_poses(robot)["gripper"]
+        ids = robot.find_joints(["joint7"], preserve_order=True)[0]
+        half = abs(float(robot.data.joint_pos.torch[0, ids].cpu().numpy()[0]))
+        out += [mid + half * g[:3, 0], mid - half * g[:3, 0]]
+    return out
+
+
+@on_reset
+def _reset_release(env):
+    _released["ok"], _released["hist"], _released["still"] = False, [], False
+
+
+@on_step
+def _watch_release(env):
+    """Whether the clip is let go: every fingertip at least 3 cm from its bar (the tab's outer end to the jaw's tip)."""
+    a = np.array([SX + PIVOT_X - TAB[0], SY, TOP + PIVOT_Z])
+    b = np.array([SX + JAW_TIP_X, SY, TOP + PIVOT_Z])
+    d = b - a
+    far = True
+    for t in _tips(env):
+        t = np.asarray(t, float)
+        u = min(1.0, max(0.0, float((t - a) @ d / (d @ d))))
+        far = far and float(np.linalg.norm(t - (a + u * d))) >= RELEASE_DIST
+    _released["ok"] = far
+    import labkit
+
+    h = _released["hist"]
+    h.append(np.array(labkit._part_state(env, labkit._SPECS["carrier"]).pos, float))
+    del h[:-STILL_STEPS]
+    _released["still"] = len(h) == STILL_STEPS and max(float(np.linalg.norm(p - h[-1])) for p in h) < STILL_TOL
+
+
+def _jaw_gap(objects) -> float:
+    """The jaw's underside height over the carrier's top, where the jaw crosses the carrier's near edge (m)."""
+    c = objects["carrier"]
+    th = objects["stage"].joints["clip"]
+    x_near = (c.pos[0] - SX) - CARRIER / 2  # (the carrier is square to the stage within 10 degrees here)
+    z_under = PIVOT_Z - (x_near - PIVOT_X) * math.tan(th) - BAR_T / (2.0 * math.cos(th))
+    return z_under - (c.pos[2] - TOP + CARRIER_H / 2)
+
+
 def _clamped(objects) -> bool:
+    """Let go, and the jaw resting on the carrier: the clip's angle in its clamped range (-0.20 to -0.08 rad), the
+    jaw's underside within 1 mm of the carrier's top at the carrier's near edge, and every fingertip 3 cm from the clip."""
     lo, hi = CLAMPED
-    return lo <= objects["stage"].joints["clip"] <= hi
+    return (lo <= objects["stage"].joints["clip"] <= hi and abs(_jaw_gap(objects)) <= CONTACT_TOL
+            and _released["ok"])
 
 
 def score(objects):
     """0.25: the carrier lies flat (chip up, within 5 degrees) on the stage top. 0.5: also centred on the target square
     within 3 mm and in pin-1 orientation (its red dot at the corner by the stage's red mark, within 10 degrees). 1.0: also
-    clamped: the clip has been let go and its jaw rests on the carrier (clip angle -0.20 to -0.08 rad). Otherwise 0."""
+    clamped: the clip has been let go (every fingertip 3 cm or more from it), its jaw rests on the carrier (clip angle
+    -0.20 to -0.08 rad, the jaw's underside within 1 mm of the carrier's top at its near edge) and the carrier is at rest
+    (moved under 1 mm over the last 1 s).
+    Otherwise 0."""
     c = objects["carrier"]
     if not _on_stage(c):
         return 0.0
     if not _centred(c):
         return 0.25
-    if not _clamped(objects):
+    if not (_clamped(objects) and _released["still"]):
         return 0.5
     return 1.0
 
 
 def success(objects):
-    return score(objects) == 1.0 and objects["carrier"].resting()
+    return score(objects) == 1.0
 
 
 def distance(objects):
