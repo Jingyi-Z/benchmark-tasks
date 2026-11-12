@@ -35,7 +35,7 @@ from yam_arena.urdf import axis_angle_matrix  # noqa: E402
 SCENE = "station"
 TOP = TABLE_TOP[SCENE]
 
-SI_BACK = (0.58, 0.59, 0.62)  # the wafers' lapped back and polished rim: plain grey
+SI_BACK = (0.26, 0.27, 0.31)  # the wafers' polished back and rim: dark silicon grey (stands out on the pale carriers and chuck)
 DIE = (0.20, 0.22, 0.42)  # the patterned area: dark blue-violet
 STREET = (0.62, 0.60, 0.48)  # the scribe streets between the dies: pale gold
 STEEL = (0.72, 0.73, 0.75)
