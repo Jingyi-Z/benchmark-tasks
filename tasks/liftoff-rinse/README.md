@@ -4,7 +4,9 @@ Two 2 inch wafers have just come out of gold evaporation, gold over patterned ph
 in a small PFA lift-off cassette on a PTFE tray. On the bench stand four 800 ml beakers in a row, each with a label card
 in front of it and a label on its side: ACE (acetone for ordinary resist strip), LIFT-OFF (acetone kept for lift-off
 only, standing in a running ultrasonic bath), IPA and DI WATER. The two acetone beakers look the same and hold the
-same liquid. The film (5 nm Ti / 30 nm Au on 1.4 um image-reversal resist) lifts off in about 60 s in the bath. A PTFE drip dish rests on its
+same liquid. The film (5 nm Ti / 30 nm Au on 1.4 um image-reversal resist) lifts off in about 60 s in the bath. In the simulation the film is drawn
+in 16 patches that come away one by one while the cassette is in the running bath; taken out early, or left to dry
+before IPA, patches stay on as residue and the lift-off counts as failed. A PTFE drip dish rests on its
 stand, and the bench's 4 L solvent waste bottle has a funnel.
 
 The task follows the usual wet-bench practice for lift-off:

@@ -214,17 +214,36 @@ SI = (0.55, 0.56, 0.60)
 _pc = C_XY / 2 - 0.004  # the posts' centres from the middle
 
 
+def _sector_mesh(r0, r1, a0, a1, z0, z1, colour, n=6):
+    """A drawn-only closed annular sector between radii r0 and r1, angles a0 and a1, heights z0 and z1."""
+    arc = [a0 + (a1 - a0) * k / n for k in range(n + 1)]
+    ring = [(r1 * math.cos(a), r1 * math.sin(a)) for a in arc] + [(r0 * math.cos(a), r0 * math.sin(a)) for a in arc[::-1]]
+    m = len(ring)
+    pts = [(x, y, z1) for x, y in ring] + [(x, y, z0) for x, y in ring]
+    tris = []
+    for k in range(n):  # top and bottom, quad by quad between the arcs
+        a, b, c, d = k, k + 1, m - 2 - k, m - 1 - k
+        tris += [(a, b, c), (a, c, d), (m + a, m + c, m + b), (m + a, m + d, m + c)]
+    for k in range(m):  # sides
+        j = (k + 1) % m
+        tris += [(k, m + k, m + j), (k, m + j, j)]
+    return labkit.Mesh(points=np.array(pts, float), tris=np.array(tris), color=colour, collide="none")
+
+
+FILM_SECTORS, FILM_RINGS = 8, 2  # each wafer's gold film is drawn as 16 tiles, so it can lift off a patch at a time
+FILM_TILES = FILM_SECTORS * FILM_RINGS
+_FILM_ORDER = np.random.default_rng(7).permutation(FILM_TILES)  # the order the patches come away in
+
+
 def _wafer_mesh(z):
-    """A wafer lying flat at height z: grey silicon back on top, gold film with darker streets on its underside."""
-    out = [_cyl_mesh(W_R, z, z + W_T / 2, SI), _cyl_mesh(W_R, z - W_T / 2, z, GOLD)]
-    lines = []
-    for k in range(-4, 5):
-        u = 0.0045 * k
-        half = math.sqrt(max((W_R - 0.003) ** 2 - u * u, 0.0))
-        lines += [((u, 0.0, z - W_T / 2 - 0.0001), (0.0005, 2 * half, 0.0001)),
-                  ((0.0, u, z - W_T / 2 - 0.0001), (2 * half, 0.0005, 0.0001))]
-    out.append(_boxes_mesh(lines, STREET))
-    # the pattern's gold pads (2 mm squares, one per 4.5 mm die), just proud of the film: all that stays after lift-off
+    """A wafer lying flat at height z: grey silicon back on top; on its underside the gold film in 16 tiles over the
+    pattern's gold pads (2 mm squares, one per 4.5 mm die), which are all that stay after lift-off."""
+    out = [_cyl_mesh(W_R, z, z + W_T / 2, SI)]
+    for k in range(FILM_TILES):
+        ring, sec = divmod(k, FILM_SECTORS)
+        r0, r1 = (0.0, W_R * 0.6) if ring == 0 else (W_R * 0.6, W_R)
+        a0 = 2 * math.pi * sec / FILM_SECTORS
+        out.append(_sector_mesh(r0, r1, a0, a0 + 2 * math.pi / FILM_SECTORS, z - W_T / 2, z, GOLD))
     pads = [((0.0045 * i + 0.00225, 0.0045 * j + 0.00225, z - W_T / 2 - 0.00005), (0.002, 0.002, 0.0001))
             for i in range(-5, 5) for j in range(-5, 5)
             if math.hypot(0.0045 * i + 0.00225, 0.0045 * j + 0.00225) < W_R - 0.005]
@@ -232,7 +251,12 @@ def _wafer_mesh(z):
     return out
 
 
-FILM_MESHES = {f"mesh_{4 * k + i}" for k in range(len(SLOT_Z)) for i in (1, 2)}  # each wafer's film and streets
+_PER_WAFER = FILM_TILES + 2  # meshes per wafer: silicon, the film's tiles, the pads
+
+
+def _tile_names(k):
+    """The cassette's mesh prims for film tile k on every wafer."""
+    return {f"mesh_{w * _PER_WAFER + 1 + k}" for w in range(len(SLOT_Z))}
 
 
 GRIP_Z = C_H + HANDLE_H - BAR_R  # the handle bar's axis above the cassette's feet
@@ -326,8 +350,9 @@ _hist = []
 @on_reset
 def _reset_state(env):
     _state.update(contaminated=False, tipped=False, touched=False, spilled=False, wet=False, dish_wet=False,
-                  poured=False, far=True, settled=False, dish_home=False, visits=[], cur=None, t=0.0, lifted=False)
-    _show_film(env, True)
+                  poured=False, far=True, settled=False, dish_home=False, visits=[], cur=None, t=0.0, lift=0.0,
+                  redeposited=False, film=None)
+    _show_film(env, set(range(FILM_TILES)))
     _hist.clear()
 
 
@@ -365,20 +390,50 @@ def tilt_deg(R):
     return math.degrees(math.acos(max(-1.0, min(1.0, float(R[2, 2])))))
 
 
-def _show_film(env, visible):
-    """Show or hide the wafers' continuous gold film (drawn only; the pads underneath stay)."""
+LIFT_S = 60.0  # s in the running ultrasonic bath for the film over the resist to come off completely
+REDEPOSIT = FILM_TILES // 4  # patches that dry back on if the wafers dry before IPA
+
+
+def _show_film(env, tiles):
+    """Draw only these film tiles on every wafer (the rest have lifted off); drawn only, so nothing else changes."""
+    if _state.get("film") == tiles:
+        return
+    _state["film"] = set(tiles)
     try:
         import omni.usd
         from pxr import Usd, UsdGeom
 
         stage = omni.usd.get_context().get_stage()
         root = stage.GetPrimAtPath(env.unwrapped.scene["cassette"].cfg.prim_path.replace("env_.*", "env_0"))
+        names = {n: k for k in range(FILM_TILES) for n in _tile_names(k)}
         for prim in (Usd.PrimRange(root) if root.IsValid() else []):
-            if prim.GetName() in FILM_MESHES and prim.IsA(UsdGeom.Mesh):
+            k = names.get(prim.GetName())
+            if k is not None and prim.IsA(UsdGeom.Mesh):
                 img = UsdGeom.Imageable(prim)
-                img.MakeVisible() if visible else img.MakeInvisible()
+                img.MakeVisible() if k in tiles else img.MakeInvisible()
     except Exception:
         pass
+
+
+def _update_film(env):
+    """Lift-off: the film comes away a patch at a time while the cassette is in the running ultrasonic bath, fully in
+    60 s; if the wafers then dry before they reach IPA, a quarter of it dries back on (residue)."""
+    v, t = _state["visits"], _state["t"]
+    if _state["cur"] == "beaker_liftoff":
+        _state["lift"] = min(1.0, _state["lift"] + DT / LIFT_S)
+    if (_state["lift"] > 0.0 and _state["cur"] is None and v and v[-1][0] == "beaker_liftoff"
+            and t - v[-1][2] > DRY_LIMIT):
+        _state["redeposited"] = True
+    gone = int(_state["lift"] * FILM_TILES + 1e-6)
+    tiles = {int(k) for k in _FILM_ORDER[gone:]}
+    if _state["redeposited"]:
+        tiles |= {int(k) for k in _FILM_ORDER[:REDEPOSIT]}
+    _show_film(env, tiles)
+
+
+def clean() -> bool:
+    """The wafers' gold has lifted off completely, with no residue."""
+    return _state.get("lift", 0.0) >= 1.0 - 1e-6 and not _state.get("redeposited")
 
 
 @on_step
@@ -422,11 +477,7 @@ def _watch(env):
             _state["poured"] = True
         elif not over_funnel and dt > DISH_SPILL:
             _state["spilled"] = True
-    if not _state.get("lifted"):
-        soaked = sum((v[2] if v[2] is not None else t) - v[1] for v in _state["visits"] if v[0] == "beaker_liftoff")
-        if soaked >= SOAK["beaker_liftoff"]:
-            _state["lifted"] = True  # the gold over the resist has lifted off: only the pattern's pads stay
-            _show_film(env, False)
+    _update_film(env)
     if tilt_deg(R) > TILT_MAX:
         _state["tipped"] = True
     tips = _tips(env)
@@ -460,7 +511,7 @@ def lip_over_funnel(d) -> bool:
 
 
 def progress():
-    """How far the bath sequence went right: 0 nothing; 1 soaked in LIFT-OFF first; 2 then into IPA within the dry
+    """How far the bath sequence went right: 0 nothing; 1 into LIFT-OFF first and the gold lifted off cleanly; 2 then into IPA within the dry
     limit and soaked; 3 then into DI WATER and soaked, and still in it."""
     v = _state.get("visits", [])
     t_now = _state.get("t", 0.0)
@@ -469,7 +520,7 @@ def progress():
         if len(v) <= k or v[k][0] != name:
             break
         t_out = v[k][2] if v[k][2] is not None else t_now
-        if t_out - v[k][1] < SOAK[name]:
+        if (not clean()) if k == 0 else (t_out - v[k][1] < SOAK[name]):
             break
         if k == 1 and v[1][1] - (v[0][2] or t_now) > DRY_LIMIT:
             break
@@ -484,7 +535,8 @@ def score(objects):
     not over a beaker's mouth and not over the drip dish), the wet dish was tipped past 30 degrees anywhere but over the
     funnel, the cassette tipped over 30 degrees, a wafer was touched by the gripper, or the cassette and dish have not
     been still (under 1 mm) for the last second. Otherwise by how far the baths went right, in order: 0.25 for a first
-    soak of at least 60 s in LIFT-OFF (in the running ultrasonic bath); 0.5 if it then went into IPA within 15 s of leaving LIFT-OFF and soaked at least
+    bath in LIFT-OFF that lifted the gold off cleanly (60 s in the running ultrasonic bath, and no residue: the wafers
+    never dried before IPA); 0.5 if it then went into IPA within 15 s of leaving LIFT-OFF and soaked at least
     5 s; 0.75 if it then went into DI WATER, soaked at least 5 s and stands in it at the end, with no other bath visited;
     1.0 if, in addition, the dish was emptied into the funnel (tipped past 60 degrees, its pouring lip over the funnel's
     mouth) after its last catch, is
