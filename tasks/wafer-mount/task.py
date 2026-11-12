@@ -454,7 +454,7 @@ def vacuum_on(objects) -> bool:
 
 
 def score(objects):
-    """0 if a wafer's pattern (inside its 15 mm edge exclusion) was ever touched by the gripper or the tweezers, a wafer was ever held by the gripper itself or dropped,
+    """0 if a wafer's pattern (inside its 5 mm edge exclusion) was ever touched by the gripper or the tweezers, a wafer was ever held by the gripper itself or dropped,
     another wafer is on the mounter, or the wafers have not all been still (under 1 mm of movement) for the last
     second. Otherwise, with the n-type (100) wafer on the chuck pattern side down (within 3 degrees), its centre
     within 2 mm of the chuck's centre: 1.0 if its primary flat faces the frame's flat side within 2 degrees, the
