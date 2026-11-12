@@ -861,6 +861,7 @@ O_R = Orient(ROT_R)  # closing square across the ring's faces
 ROT_L = ROT_R @ np.diag([-1.0, -1.0, 1.0])  # the left hand's (the same, its fingers swapped: it reaches from the other side)
 O_L = Orient(ROT_L)
 CAP_IN = 0.030  # the open hand comes in onto a cap's tab (and backs off it) this far along its approach
+CAP_SAG = {"inlet_cap": 0.008, "exhaust_cap": 0.0}  # (seen in the sim: the right hand's cap hung 10 mm low)
 CAP_LIFT = 0.012  # a cap lifted this much out of its cradle (clear of its rails) to carry it over
 RING_IN = 0.040  # the open hand comes in onto the ring (and backs off it) this far along its approach
 RING_LIFT = 0.012  # the rod lifted this much off its rack (clear of its Vs) to carry it over
@@ -923,6 +924,7 @@ def _cap_moves(pl, name, R, O, key, t_start):
     p_turn = np.array([p0[0], p_line[1], TOP + AXZ])  # (along its cradle's side first, then across to the line)
     p_push = np.array([XA, CAP_HOME[name] - sd * 0.002, TOP + AXZ])  # (2 mm past home: pressed on)
     lift = CAP_LIFT * up
+    sag = CAP_SAG[name] * up  # (a cap hangs off its tab: the hand aims this much high; the line-up window does the rest)
     a = [(2.0, _on_tab(name, p0, R, CAP_IN) + 0.03 * up, ROD_OPEN, f"hand turned to the {name}'s tab, over it", O),
          (1.0, _on_tab(name, p0, R, CAP_IN), ROD_OPEN, "down beside the tab", O),
          (1.0, _on_tab(name, p0, R), ROD_OPEN, "in round the tab", O),
@@ -930,16 +932,16 @@ def _cap_moves(pl, name, R, O, key, t_start):
          (1.0, _on_tab(name, p0, R) + lift, ROD_HOLD, "lift the cap out of its cradle", O),
          (1.5, _on_tab(name, p_turn, R) + lift, ROD_HOLD, "along to the tube's end", O),
          (2.0, _on_tab(name, p_line, R) + lift, ROD_HOLD, "over to the tube's line", O),
-         (1.0, _Dyn(_on_tab(name, p_line, R), key), ROD_HOLD, "down in line with the tube", O)]
+         (1.0, _Dyn(_on_tab(name, p_line, R) + sag, key), ROD_HOLD, "down in line with the tube", O)]
     tw = t_start + sum(w[0] for w in a)
-    a += [(1.8, _Dyn(_on_tab(name, p_line, R), key), ROD_HOLD, "hold still: the cap seen in line", O),
-          (2.5, _Dyn(_on_tab(name, p_push, R), key), ROD_HOLD, "push the cap home onto the tube", O),
-          (0.8, _Dyn(_on_tab(name, p_push, R), key), ROD_HOLD, "hold it home", O),
-          (0.6, _Dyn(_on_tab(name, p_push, R), key), ROD_OPEN, "let go of the tab", O),
-          (1.0, _Dyn(_on_tab(name, p_push, R, CAP_IN), key), ROD_OPEN, "back off the tab", O),
-          (1.0, _Dyn(_on_tab(name, p_push, R, CAP_IN) + 0.03 * up + sd * 0.025 * Y, key), ROD_OPEN,
+    a += [(3.0, _Dyn(_on_tab(name, p_line, R) + sag, key), ROD_HOLD, "hold still: the cap seen in line", O),
+          (2.5, _Dyn(_on_tab(name, p_push, R) + sag, key), ROD_HOLD, "push the cap home onto the tube", O),
+          (0.8, _Dyn(_on_tab(name, p_push, R) + sag, key), ROD_HOLD, "hold it home", O),
+          (0.6, _Dyn(_on_tab(name, p_push, R) + sag, key), ROD_OPEN, "let go of the tab", O),
+          (1.0, _Dyn(_on_tab(name, p_push, R, CAP_IN) + sag, key), ROD_OPEN, "back off the tab", O),
+          (1.0, _Dyn(_on_tab(name, p_push, R, CAP_IN) + sag + 0.03 * up + sd * 0.025 * Y, key), ROD_OPEN,
            "up and away from the cap", O)]
-    pl.window(tw + 0.3, tw + 1.8, key,
+    pl.window(tw + 0.3, tw + 3.0, key,
               lambda env, n=name: np.array([XA, 0.0, TOP + AXZ]) - _seen(env, n) * [1.0, 0.0, 1.0], name)
     return a
 
