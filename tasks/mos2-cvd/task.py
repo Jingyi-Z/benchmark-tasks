@@ -334,7 +334,7 @@ _HL = (TUBE_Y1 - TUBE_Y0) / 2
 _CUTS = list(np.arange(-_HL, _HL, 0.045)) + [_HL]
 TUBE_MESHES = [m for y0, y1 in zip(_CUTS[:-1], _CUTS[1:]) for m in _ring_y(y0, y1, TUBE_IN, TUBE_R, 12, QUARTZ)]
 TUBE_BOXES = [((0.0, 0.0, FLOOR_Z - AXZ - 0.0015), (FLOOR_W, 2 * _HL, 0.003), QUARTZ)]
-TUBE = part("quartz_tube", pos=tuple(TUBE_C), mass=0.49, friction=0.3, boxes=TUBE_BOXES, meshes=TUBE_MESHES)
+TUBE = part("quartz_tube", pos=tuple(TUBE_C), mass=0.49, friction=0.5, boxes=TUBE_BOXES, meshes=TUBE_MESHES)
 # its two supports (fixed): a block under the tube just outside each end of the furnace
 TUBE_STAND = part("tube_stands", pos=(0.0, 0.0, TOP), fixed=True, friction=0.3,
                   boxes=[((XA, y, (AXZ - TUBE_R) / 2), (0.030, 0.012, AXZ - TUBE_R), DARK) for y in (FY0 - 0.030,
@@ -914,7 +914,7 @@ assert abs(math.atan2(-ROT_D[2, 0], ROT_D[0, 0]) - TONGUE_TURN) < 1e-6  # the pa
 LOAD_ORDER = ("chip_boat", "moo3_boat", "s_boat")  # the deepest first: boats cannot pass each other in the tube
 # (upstream is the loading end, where the argon comes in: the substrate, furthest downstream, goes in first, precursor 1 last)
 TARGET = {"chip_boat": -0.0075, "moo3_boat": MO_AT, "s_boat": S_AT}  # (against the furnace, with the tube slid back)
-TUBE_OPEN, TUBE_HOLD = -0.040, -0.021  # round the 50.8 mm tube (pads 80 mm apart), and squeezed on it
+TUBE_OPEN, TUBE_HOLD = -0.040, -0.016  # round the 50.8 mm tube (pads 80 mm apart), and squeezed hard on it
 GRIP_Y = FY1 + 0.060  # the left hand on the tube's far end, outside the furnace (at the start)
 # (the substrate's boat goes as deep as the rod reaches; precursor 2's then pushes it on, by its tongue, to 67.5 mm downstream)
 MOUTH_HI = 0.004  # carried in this much above the tube's floor (a held boat droops a little)
@@ -1048,7 +1048,8 @@ def demo():
         tw = pl.phase(right=[(1.8, _Dyn(_tcp(pre, ROT_D, past=0.006), k_b), TONGUE_HOLD,
                               "hold still: the boat seen in line", O_D)])
         pl.window(tw + 0.3, tw + 1.8, k_b,
-                  lambda env, n=name, z=mouth[2] + MOUTH_HI: np.array([XA, 0.0, z]) - _seen(env, n) * [1.0, 0.0, 1.0],
+                  lambda env, n=name, z=mouth[2] + MOUTH_HI, yl=mouth[1] - (L - MOUTH_OUT + 0.008):
+                  np.array([XA, yl + _seen(env, "quartz_tube")[1] - TUBE_C[1] - SHIFT, z] - _seen(env, n)),
                   name)
         pl.phase(right=[
             (2.0, _Dyn(_tcp(g_mouth + hi, ROT_D, past=0.006), k_b), TONGUE_HOLD, "slide it into the mouth", O_D),
