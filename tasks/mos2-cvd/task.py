@@ -445,14 +445,14 @@ CHIP_PART = part("chip", pos=tuple(CHIP_START), mass=0.0004, friction=0.8,  # (4
                  boxes=[((0.0, 0.0, 0.0), (CHIP, CHIP, CHIP_T), CHIP_C)])
 
 # -- the push rod (loose): fused quartz tube, 8 mm OD, a flat paddle fused on its front (the pusher) and a flat T-handle
-# fused across its back end, to hold it by: a 5 mm plate square to the rod, 58 x 30 mm, rising from the rod 50 mm up and
+# fused across its back end, to hold it by: a 5 mm plate square to the rod, 51 x 26 mm, rising from the rod 45 mm up and
 # back towards the robots (40 degrees from flat). The hand takes it across its two faces, so a push goes straight into
 # the pads and the rod's weight cannot turn it in the grip;
 # on a rack of two V rests beside the tube's line, nearer the robots. Frame: on its axis at the pusher's front face, the
 # rod along -y. ----------------------------------------------------------------------------------------------------------
 ROD_L, GRIP_W, PUSHER_R = 0.293, 0.008, 0.006
 RING_T = 0.005  # the T-handle's plate: 5 mm thick
-TH_UP, TH_DOWN, TH_W = 0.050, 0.008, 0.030  # it reaches 50 mm up the slope from the rod's axis (8 mm below), 30 mm wide
+TH_UP, TH_DOWN, TH_W = 0.045, 0.006, 0.026  # it reaches 45 mm up the slope from the rod's axis (6 mm below), 26 mm wide
 RING_Y = -(ROD_L + RING_T / 2)  # the plate's mid-plane, from the frame (behind the rod's end)
 RING_TURN = math.radians(40.0)
 RING_U = np.array([math.cos(RING_TURN), 0.0, -math.sin(RING_TURN)])  # down the handle's slope (the hand's approach)
@@ -474,7 +474,8 @@ _PADDLE = [_hex([(sx * (0.007 if z < 0 else 0.010), y, (z if z > 0 else (-0.003 
 ROD = part("push_rod", pos=tuple(ROD_START), mass=0.015, friction=1.0,  # (a tube: 8 mm OD, 6 mm ID)
            cylinders=[((0.0, -(0.004 + ROD_L) / 2, 0.0), GRIP_W / 2, ROD_L - 0.004, QUARTZ, "Y")],
            meshes=[*_RING, *_PADDLE])
-REST_Y = (ROD_START[1] - 0.030, ROD_START[1] - 0.220)  # the rack's two Vs, under the rod's body (clear of the ring)
+REST_Y = (ROD_START[1] - 0.030, ROD_START[1] - 0.260)  # the rack's two Vs, under the rod's body: the far one near the
+# handle, well behind the rod's centre of mass (a touch on its front cannot tip it off)
 V_RISE = 0.009  # each rest's V: 9 mm deep over 10 mm each side (about 30 degrees), so the rod lies in it, not on it
 REST_Z = ROD_Z - 0.0002 - GRIP_W / 2 * math.hypot(1.0, (V_RISE - 0.0002) / 0.010)  # the rod's axis at ROD_Z in the V
 REST = part("rod_rack", pos=(0.0, 0.0, TOP), fixed=True, friction=0.3,
