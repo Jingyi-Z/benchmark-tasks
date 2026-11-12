@@ -476,8 +476,9 @@ ROD = part("push_rod", pos=tuple(ROD_START), mass=0.015, friction=1.0,  # (a tub
            cylinders=[((0.0, -(0.004 + ROD_L) / 2, 0.0), GRIP_W / 2, ROD_L - 0.004, QUARTZ, "Y")],
            meshes=[*_RING, *_PADDLE])
 REST_Y = (ROD_START[1] - 0.030, ROD_START[1] - 0.250)  # its two rests, in line with the tube, under the parked rod's body
-V_RISE, V_HALF = 0.002, 0.006  # each rest's V: shallow, 2 mm over 6 mm each side; its edges stay under the rod's axis, so
-REST_Z = ROD_Z - 0.0002 - GRIP_W / 2 * math.hypot(1.0, (V_RISE - 0.0002) / V_HALF)  # the handle slides over them
+V_RISE, V_HALF = 0.009, 0.010  # each rest's V: 9 mm over 10 mm each side (the rod's weight wedged in it holds it from
+# rolling under the handle's offset weight); the handle, all above the rod's axis, clears the V's sides as it slides over
+REST_Z = ROD_Z - 0.0002 - GRIP_W / 2 * math.hypot(1.0, (V_RISE - 0.0002) / V_HALF)  # the rod's axis at ROD_Z in the V
 REST = part("rod_rack", pos=(0.0, 0.0, TOP), fixed=True, friction=0.3,
             boxes=[((RACK_X, y, REST_Z / 2), (2 * V_HALF, 0.014, REST_Z), DARK) for y in REST_Y],
             meshes=[_hex([(RACK_X + sx * xo, y + dy, REST_Z + zo) for xo, zt in ((0.0, 0.0002), (V_HALF, V_RISE))
