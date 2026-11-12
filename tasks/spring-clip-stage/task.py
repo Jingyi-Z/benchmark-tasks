@@ -123,7 +123,8 @@ def _centred(c) -> bool:
 
 CONTACT_TOL = 0.001  # m: the jaw's underside within 1 mm of the carrier's top where it crosses the carrier's near edge
 RELEASE_DIST = 0.030  # m: every fingertip at least 3 cm from the clip's bar (tab to jaw tip) once it is let go
-_released = {"ok": False}
+STILL_STEPS, STILL_TOL = 20, 0.001  # at rest: the carrier moved under 1 mm over the last 1 s (20 steps at 20 Hz)
+_released = {"ok": False, "hist": [], "still": False}
 
 
 def _tips(env):
@@ -144,7 +145,7 @@ def _tips(env):
 
 @on_reset
 def _reset_release(env):
-    _released["ok"] = False
+    _released["ok"], _released["hist"], _released["still"] = False, [], False
 
 
 @on_step
@@ -159,6 +160,12 @@ def _watch_release(env):
         u = min(1.0, max(0.0, float((t - a) @ d / (d @ d))))
         far = far and float(np.linalg.norm(t - (a + u * d))) >= RELEASE_DIST
     _released["ok"] = far
+    import labkit
+
+    h = _released["hist"]
+    h.append(np.array(labkit._part_state(env, labkit._SPECS["carrier"]).pos, float))
+    del h[:-STILL_STEPS]
+    _released["still"] = len(h) == STILL_STEPS and max(float(np.linalg.norm(p - h[-1])) for p in h) < STILL_TOL
 
 
 def _jaw_gap(objects) -> float:
@@ -182,20 +189,21 @@ def score(objects):
     """0.25: the carrier lies flat (chip up, within 5 degrees) on the stage top. 0.5: also centred on the target square
     within 3 mm and in pin-1 orientation (its red dot at the corner by the stage's red mark, within 10 degrees). 1.0: also
     clamped: the clip has been let go (every fingertip 3 cm or more from it), its jaw rests on the carrier (clip angle
-    -0.20 to -0.08 rad, the jaw's underside within 1 mm of the carrier's top at its near edge) and the carrier is at rest.
+    -0.20 to -0.08 rad, the jaw's underside within 1 mm of the carrier's top at its near edge) and the carrier is at rest
+    (moved under 1 mm over the last 1 s).
     Otherwise 0."""
     c = objects["carrier"]
     if not _on_stage(c):
         return 0.0
     if not _centred(c):
         return 0.25
-    if not (_clamped(objects) and c.resting()):
+    if not (_clamped(objects) and _released["still"]):
         return 0.5
     return 1.0
 
 
 def success(objects):
-    return score(objects) == 1.0 and objects["carrier"].resting()
+    return score(objects) == 1.0
 
 
 def distance(objects):
