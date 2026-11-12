@@ -153,7 +153,8 @@ GAUGE_TOP = 0.030
 NEEDLE_PER_KPA = math.radians(270.0) / 100.0
 NEEDLE = Joint(
     "needle", kind="hinge", axis="Z", anchor=(GX, GY, GAUGE_TOP + 0.001), lower=-4.8, upper=0.1,
-    initial=-(101.3 - 8.0) * NEEDLE_PER_KPA, target=-(101.3 - 8.0) * NEEDLE_PER_KPA,  # reading the box: -93 kPa stiffness=0.02, damping=0.0008, mass=0.001,
+    initial=-(101.3 - 8.0) * NEEDLE_PER_KPA, target=-(101.3 - 8.0) * NEEDLE_PER_KPA,  # reading the box: -93 kPa
+    stiffness=0.02, damping=0.0008, mass=0.001,
     boxes=[((GX, GY + 0.009, GAUGE_TOP + 0.0012), (0.0025, 0.020, 0.0008), RED)],
 )
 _ticks = []
