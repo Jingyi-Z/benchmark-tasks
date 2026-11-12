@@ -224,7 +224,15 @@ def _wafer_mesh(z):
         lines += [((u, 0.0, z - W_T / 2 - 0.0001), (0.0005, 2 * half, 0.0001)),
                   ((0.0, u, z - W_T / 2 - 0.0001), (2 * half, 0.0005, 0.0001))]
     out.append(_boxes_mesh(lines, STREET))
+    # the pattern's gold pads (2 mm squares, one per 4.5 mm die), just proud of the film: all that stays after lift-off
+    pads = [((0.0045 * i + 0.00225, 0.0045 * j + 0.00225, z - W_T / 2 - 0.00005), (0.002, 0.002, 0.0001))
+            for i in range(-5, 5) for j in range(-5, 5)
+            if math.hypot(0.0045 * i + 0.00225, 0.0045 * j + 0.00225) < W_R - 0.005]
+    out.append(_boxes_mesh(pads, GOLD))
     return out
+
+
+FILM_MESHES = {f"mesh_{4 * k + i}" for k in range(len(SLOT_Z)) for i in (1, 2)}  # each wafer's film and streets
 
 
 GRIP_Z = C_H + HANDLE_H - BAR_R  # the handle bar's axis above the cassette's feet
@@ -318,7 +326,8 @@ _hist = []
 @on_reset
 def _reset_state(env):
     _state.update(contaminated=False, tipped=False, touched=False, spilled=False, wet=False, dish_wet=False,
-                  poured=False, far=True, settled=False, dish_home=False, visits=[], cur=None, t=0.0)
+                  poured=False, far=True, settled=False, dish_home=False, visits=[], cur=None, t=0.0, lifted=False)
+    _show_film(env, True)
     _hist.clear()
 
 
@@ -354,6 +363,22 @@ def over_mouth(pos):
 
 def tilt_deg(R):
     return math.degrees(math.acos(max(-1.0, min(1.0, float(R[2, 2])))))
+
+
+def _show_film(env, visible):
+    """Show or hide the wafers' continuous gold film (drawn only; the pads underneath stay)."""
+    try:
+        import omni.usd
+        from pxr import Usd, UsdGeom
+
+        stage = omni.usd.get_context().get_stage()
+        root = stage.GetPrimAtPath(env.unwrapped.scene["cassette"].cfg.prim_path.replace("env_.*", "env_0"))
+        for prim in (Usd.PrimRange(root) if root.IsValid() else []):
+            if prim.GetName() in FILM_MESHES and prim.IsA(UsdGeom.Mesh):
+                img = UsdGeom.Imageable(prim)
+                img.MakeVisible() if visible else img.MakeInvisible()
+    except Exception:
+        pass
 
 
 @on_step
@@ -397,6 +422,11 @@ def _watch(env):
             _state["poured"] = True
         elif not over_funnel and dt > DISH_SPILL:
             _state["spilled"] = True
+    if not _state.get("lifted"):
+        soaked = sum((v[2] if v[2] is not None else t) - v[1] for v in _state["visits"] if v[0] == "beaker_liftoff")
+        if soaked >= SOAK["beaker_liftoff"]:
+            _state["lifted"] = True  # the gold over the resist has lifted off: only the pattern's pads stay
+            _show_film(env, False)
     if tilt_deg(R) > TILT_MAX:
         _state["tipped"] = True
     tips = _tips(env)
