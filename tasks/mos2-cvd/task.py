@@ -996,7 +996,9 @@ def demo():
     # close to the furnace; it holds the tube there while the right hand loads the boats
     a_t = _appr(ROT_T)
     g0 = np.array([XA, GRIP_Y, TOP + AXZ])
-    on_tube = lambda g: _tcp(g, ROT_T, past=0.012)  # the fingertips 12 mm past the tube's axis: the pads across it
+    on_tube = lambda g: _tcp(g, ROT_T, past=0.012) - 0.004 * up  # the fingertips 12 mm past the tube's axis: the
+    # pads across it (aimed 4 mm low: the closing pads draw the tube up into the hand, and a raised far end tips the
+    # tube's floor down at the loading end)
     left = [(1.0, _READY_L[0] + 0.06 * up, TUBE_OPEN, "straight up", Orient(_READY_L[1])),
             (2.0, on_tube(g0) - 0.06 * a_t, TUBE_OPEN, "hand turned over the tube's far end", O_T),
             (1.0, on_tube(g0) - 0.02 * a_t, TUBE_OPEN, "down beside the tube", O_T),

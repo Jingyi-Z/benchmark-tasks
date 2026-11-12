@@ -996,7 +996,9 @@ def demo():
     # close to the furnace; it holds the tube there while the right hand loads the boats
     a_t = _appr(ROT_T)
     g0 = np.array([XA, GRIP_Y, TOP + AXZ])
-    on_tube = lambda g: _tcp(g, ROT_T, past=0.012)  # the fingertips 12 mm past the tube's axis: the pads across it
+    on_tube = lambda g: _tcp(g, ROT_T, past=0.012) - 0.004 * up  # the fingertips 12 mm past the tube's axis: the
+    # pads across it (aimed 4 mm low: the closing pads draw the tube up into the hand, and a raised far end tips the
+    # tube's floor down at the loading end)
     left = [(1.0, _READY_L[0] + 0.06 * up, TUBE_OPEN, "straight up", Orient(_READY_L[1])),
             (2.0, on_tube(g0) - 0.06 * a_t, TUBE_OPEN, "hand turned over the tube's far end", O_T),
             (1.0, on_tube(g0) - 0.02 * a_t, TUBE_OPEN, "down beside the tube", O_T),
@@ -1121,9 +1123,9 @@ def _dbg_print(env):
     S = labkit._SPECS
     f = lambda n: np.round(np.asarray(labkit._part_state(env, S[n]).pos, float) * 1000).astype(int).tolist()
     r = labkit._part_state(env, S["push_rod"])
-    if k % 10 == 0 and (1250 <= k <= 1750 or 2450 <= k <= 2950):
+    if k % 10 == 0 and (120 <= k <= 420 or 1350 <= k <= 1650):
         tips = np.round(np.asarray(_tips(env), float) * 1000).astype(int).tolist()
-        print(f"RODDBG k={k} t={getattr(_demo, '_plan_clock', 0.0):.1f} rod={f('push_rod')} axis={axis_off(r):.1f} "
+        print(f"RODDBG k={k} t={getattr(_demo, '_plan_clock', 0.0):.1f} rod={f('push_rod')} axis={axis_off(r):.1f} tube={f('quartz_tube')} "
               f"tips={tips}", flush=True)
     if k % 100 == 0 or (st.get("viol") and not st.get("_vp")):
         if st.get("viol"):
