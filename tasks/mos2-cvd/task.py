@@ -964,7 +964,8 @@ def _cap_moves(pl, name, R, O, key, t_start):
     p_push = np.array([XA, CAP_HOME[name] - sd * 0.0005, TOP + AXZ])  # (just home: pressed harder, the loose tube slides)
     lift = CAP_LIFT * up
     sag = CAP_SAG[name] * up  # (a cap hangs off its tab: the hand aims this much high; the line-up window does the rest)
-    a = [(2.0, _on_tab(name, p0, R, CAP_IN) + 0.03 * up, ROD_OPEN, f"hand turned to the {name}'s tab, over it", O),
+    a = [(2.0, _on_tab(name, p0, R, CAP_IN) + 0.06 * up, ROD_OPEN, f"hand turned to the {name}'s tab, high over it", O),
+         (1.0, _on_tab(name, p0, R, CAP_IN) + 0.03 * up, ROD_OPEN, f"over the {name}'s tab", O),
          (1.0, _on_tab(name, p0, R, CAP_IN), ROD_OPEN, "down beside the tab", O),
          (1.0, _on_tab(name, p0, R), ROD_OPEN, "in round the tab", O),
          (0.6, _on_tab(name, p0, R), ROD_HOLD, "close on the tab", O),
@@ -1092,11 +1093,11 @@ def demo():
     # the left hand slides the tube back, centred again (as seen: its ends against the furnace), and lets go of it
     pl.phase(left=[(3.5, _Dyn(on_tube(g0), "tb"), TUBE_HOLD, "slide the tube back, centred in the furnace", O_T)],
              right=[(2.0, RIGHT_PARK, ROD_OPEN, "up and clear of the tube's end", O_T)])
-    tw = pl.phase(left=[(2.0, _Dyn(on_tube(g0), "tb"), TUBE_HOLD, "hold still: the tube seen centred", O_T)])
-    pl.window(tw + 0.3, tw + 2.0, "tb", lambda env: (TUBE_C - _seen(env, "quartz_tube")) * [0.0, 1.0, 0.0], "quartz_tube")
+    tw = pl.phase(left=[(4.0, _Dyn(on_tube(g0), "tb"), TUBE_HOLD, "hold still: the tube seen centred", O_T)])
+    pl.window(tw + 0.3, tw + 4.0, "tb", lambda env: (TUBE_C - _seen(env, "quartz_tube")) * [0.0, 1.0, 0.0], "quartz_tube")
     pl.phase(left=[(0.8, _Dyn(on_tube(g0), "tb"), TUBE_OPEN, "let go of the tube", O_T),
                    (1.0, _Dyn(on_tube(g0) - 0.05 * a_t, "tb"), TUBE_OPEN, "back off the tube", O_T),
-                   (1.0, _Dyn(on_tube(g0) - 0.05 * a_t + 0.05 * up, "tb"), TUBE_OPEN, "up, clear of the tube", O_T)])
+                   (1.0, _Dyn(on_tube(g0) - 0.05 * a_t + 0.10 * up, "tb"), TUBE_OPEN, "up, well clear of the tube", O_T)])
     # both hands cap their ends: the right the loading (inlet) end, the left the far (exhaust) end
     t_c = pl.t
     pl.phase(right=_cap_moves(pl, "inlet_cap", ROT_R, O_R, "cn", t_c),
