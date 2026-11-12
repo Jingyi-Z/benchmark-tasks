@@ -37,5 +37,5 @@ the boats (outside the tube), the rod and the caps. Run one trial per process. T
 
 ## Runtime and seeds
 
-- 4,800 control steps (240 s of simulated time) per trial. The scripted demo takes about 3,800.
+- 4,800 control steps (240 s of simulated time) per trial. The scripted demo takes about 4,100.
 - One fixed starting layout: run with `-E object_jitter=0`. No other randomness.

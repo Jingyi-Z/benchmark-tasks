@@ -434,7 +434,7 @@ CHIP_START = boat_start("chip_boat") + [0.0, 0.0, BOAT_T + CHIP_T / 2]
 CHIP_PART = part("chip", pos=tuple(CHIP_START), mass=0.0004, friction=0.8,  # (4x a real chip: steadier contact)
                  boxes=[((0.0, 0.0, 0.0), (CHIP, CHIP, CHIP_T), CHIP_C)])
 
-# -- the push rod (loose): fused quartz tube, 8 mm OD, a V-notched fork fused on its front (the pusher) and a flat ring
+# -- the push rod (loose): fused quartz tube, 8 mm OD, a flat paddle fused on its front (the pusher) and a flat ring
 # (40 mm across, 5 mm thick) fused on its back end, to hold it by, its face turned 40 degrees from upright (towards the robots);
 # on a rack of two V rests beside the tube's line, nearer the robots. Frame: on its axis at the pusher's front face, the
 # rod along -y. ----------------------------------------------------------------------------------------------------------
@@ -451,14 +451,10 @@ ROD_START = np.array([RACK_X, TUBE_Y0 - MOUTH_OUT_SET - 0.077, TOP + ROD_Z])  # 
 _RING = [_hex([sx * RING_T / 2 * RING_N + [0.0, RING_Y + r * math.cos(a), 0.0] + r * math.sin(a) * RING_U
                for sx in (-1, 1) for r in (RING_RI, RING_RO) for a in (2 * math.pi * i / 12, 2 * math.pi * (i + 1) / 12)],
               QUARTZ) for i in range(12)]
-# the pusher: a quartz fork, 20 mm wide, 12 mm tall and 10 mm deep, with a V notch up its face (17 mm wide at its
-# mouth, 3 mm at its root) that takes a boat's tongue and keeps it centred: pushing a loose boat with a hand-held rod is
-# unstable, and a flat face lets the tongue slide off it sideways. Its two cheeks reach 6 mm past the frame.
-V_MOUTH, V_ROOT, V_DEPTH, FORK_W = 0.0085, 0.0015, 0.010, 0.010  # (half widths)
-_PADDLE = [_hex([(sx * (V_ROOT + (V_MOUTH - V_ROOT) * f if k == 0 else FORK_W), y, z)
-                 for f, y in ((0.0, V_DEPTH * -0.4), (1.0, V_DEPTH * 0.6)) for z in (-0.006, 0.006) for k in (0, 1)],
-                QUARTZ) for sx in (-1, 1)]
-V_CONTACT = V_DEPTH * (-0.4 + 0.6 * 0 + (0.0035 - V_ROOT) / (V_MOUTH - V_ROOT))  # where a tongue's end wedges in the V
+# the pusher: a flat quartz paddle 4 mm thick, 12 mm tall, 14 mm wide at its foot and 20 mm at its top (it keeps a
+# boat's tongue on its face when the rod's tip wanders sideways, and clears the tube's wall)
+_PADDLE = [_hex([(sx * (0.007 if z < 0 else 0.010), y, z) for y in (0.0, -0.004) for z in (-0.006, 0.006)
+                 for sx in (-1, 1)], QUARTZ)]
 
 
 ROD = part("push_rod", pos=tuple(ROD_START), mass=0.015,  # (a tube: 8 mm OD, 6 mm ID) friction=0.7,
@@ -816,7 +812,7 @@ def _ctrack(env):
             continue  # only while what is watched holds still
         e = np.asarray(fn(env), float)
         tr = _ct["trim"].get(key, np.zeros(3))
-        _ct["trim"][key] = np.clip(tr + np.clip(0.2 * e, -0.0003, 0.0003), -0.012, 0.012)
+        _ct["trim"][key] = np.clip(tr + np.clip(0.2 * e, -0.0003, 0.0003), -0.020, 0.020)
 
 
 class _Dyn:
@@ -856,6 +852,7 @@ def _tcp(tip, R=ROT_T, past=0.004):
     return np.asarray(tip, float) + a * past - a * TIP_ABOVE_TCP
 
 
+STROKE = 0.050  # the rod pushes a boat in strokes of at most this
 ROD_OPEN, ROD_HOLD = -0.012, 0.0  # across the rod's 5 mm ring, squeezed hard
 TONGUE_OPEN, TONGUE_HOLD = -0.012, -0.0015  # on a boat's 5 mm tongue: a light squeeze (a hard one shakes the boat)
 ROT_R = np.column_stack([RING_N, np.cross(RING_U, RING_N), RING_U])  # in from the robots' side, tipped 40 deg down,
@@ -997,7 +994,7 @@ def demo():
         # -- take the rod by its ring off its rack; push the boat to its place in one stroke; pull the rod back out and
         # put it back on its rack ---------------------------------------------------------------------------------------
         tongue_end = TUBE_Y0 - MOUTH_OUT - TONGUE_L
-        p_goal = TARGET[name] - L / 2 - TONGUE_L - V_CONTACT  # the rod's frame there: the boat centred at its target
+        p_goal = TARGET[name] - L / 2 - TONGUE_L  # the pusher there: the boat centred at its target
         on_rack, k_r = _ring_at(ROD_START[1], RACK_X), next(keys)
         p_line = tongue_end - 0.008  # the pusher, in line, before going in
         in_line = _ring_at(p_line)
@@ -1013,10 +1010,23 @@ def demo():
         pl.window(tw + 0.3, tw + 1.8, k_r,
                   lambda env: np.array([XA, 0.0, TOP + ROD_Z]) - _rod_seen_at(env, tongue_end - 0.010) * [1.0, 0.0, 1.0],
                   "push_rod")
-        touch = _ring_at(tongue_end - 0.003 - V_CONTACT)
-        pl.phase(right=[(1.5, _Dyn(_on_ring(touch), k_r), ROD_HOLD, "the pusher up to the boat's tongue", O_R),
-                        (max(1.5, 40.0 * (p_goal - tongue_end)), _Dyn(_on_ring(_ring_at(p_goal)), k_r), ROD_HOLD,
-                         "push the boat in, slowly", O_R)])
+        touch = _ring_at(tongue_end - 0.003)
+        pl.phase(right=[(1.5, _Dyn(_on_ring(touch), k_r), ROD_HOLD, "the pusher up to the boat's tongue", O_R)])
+        # in strokes of about 50 mm, the rod's tip re-centred on the tube's axis (as seen) between them: a hand-held rod
+        # turns a little in the grip as it pushes, and over one long stroke its tip walks off the boat's tongue
+        n_st = max(1, int(math.ceil((p_goal - tongue_end) / STROKE)))
+        y_prev = tongue_end - 0.003
+        for i in range(1, n_st + 1):
+            y_i = tongue_end - 0.003 + (p_goal - tongue_end + 0.003) * i / n_st
+            pl.phase(right=[(max(1.0, 40.0 * (y_i - y_prev)), _Dyn(_on_ring(_ring_at(y_i)), k_r), ROD_HOLD,
+                             f"push the boat in, slowly (stroke {i} of {n_st})", O_R)])
+            y_prev = y_i
+            if i < n_st:
+                tw = pl.phase(right=[(1.6, _Dyn(_on_ring(_ring_at(y_i)), k_r), ROD_HOLD,
+                                      "hold still: the rod's tip seen, re-centred", O_R)])
+                pl.window(tw + 0.3, tw + 1.6, k_r,
+                          lambda env, y=y_i: (np.array([XA, 0.0, TOP + ROD_Z]) - _rod_seen_at(env, y - 0.002))
+                          * [1.0, 0.0, 1.0], "push_rod")
         tw = pl.phase(right=[(2.0, _Dyn(_on_ring(_ring_at(p_goal)), k_r), ROD_HOLD, "hold still: the rod seen at its depth",
                               O_R)])
         pl.window(tw + 0.3, tw + 2.0, k_r,  # (the boat is out of sight in the tube: judged by the rod's depth)
