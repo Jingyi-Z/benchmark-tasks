@@ -941,7 +941,7 @@ TH_TIPS = 0.012  # the fingertips stop this far up the handle from the rod's axi
 
 def _on_ring(c, back=0.0):
     """TCP for the fingers across the T-handle whose plate crosses the rod's axis at c (``back`` short of it)."""
-    tip = np.asarray(c, float) + [0.008, 0.0, 0.004] - back * RING_U  # (the tips beside the rod's top, the pads up the
+    tip = np.asarray(c, float) + [0.008, 0.0, 0.016] - back * RING_U  # (the tips 12 mm over the rod's top, the pads up the
     return _tcp(tip, ROT_R, past=0.0)  # plate)
 
 
