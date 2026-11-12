@@ -1,6 +1,7 @@
 """Laying out a 2 inch tube furnace for two-precursor thermal CVD (as for a 2D semiconductor), after a lab's procedure.
 
-A split-tube furnace stands in front of the robots, its lid open, a quartz tube across it. Its end caps are off for
+A split-tube furnace stands in front of the robots, its lid open, a loose quartz tube across it, centred (120 mm out at
+each end). For loading, the left hand slides the tube 75 mm towards the far end and holds it, and slides it back after. Its end caps are off for
 loading, each in a cradle beside its end of the tube: the argon inlet's cap at the loading end, the exhaust's at the far
 end. On a tray in front of the loading end, under the push rod's line: an alumina boat of precursor 1 (a yellow powder),
 an alumina boat of precursor 2 (a white powder) and a quartz boat with a 1 cm silicon substrate, face up. Precursor 1
@@ -602,7 +603,9 @@ def score(objects):
     boat's centre 50 to 80 mm downstream of precursor 2's. And 0.1 for each end cap seated: pushed home on its end of the
     tube (its end plate within 5 mm of the tube's end), within 5 mm of the tube's axis and 8 degrees of square. 1.0 if
     all three boats and both caps, the rod back on its rack (within 15 mm) and every fingertip 8 cm from the rod, the
-    boats and the caps."""
+    boats and the caps, and 3 cm from the tube's outside; and the tube back where it started (within 5 mm and 1 degree).
+    0 also if the tube was ever knocked over 10 mm up, down or sideways or tilted over 3 degrees. The boats are placed
+    against the furnace; the caps against the tube, wherever it is."""
     st = _state
     if st.get("viol") or not st.get("settled", False):
         return 0.0
