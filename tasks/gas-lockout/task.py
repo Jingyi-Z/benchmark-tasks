@@ -216,6 +216,9 @@ def _gas(env):
     a.set_joint_position_target(torch.tensor([[-_st["p"] * NEEDLE_PER_KPA]], device=a.device),
                                 joint_ids=_jid(a, NEEDLE))
     # the latch: pressed shut, the shackle stays shut (a pawl): its spring's target goes to shut and its limit closes
+    if not _st["latched"]:  # the shackle's spring holds it open (its drive target is not set at reset otherwise)
+        pl = b.scene["padlock"]
+        pl.set_joint_position_target(torch.full((1, 1), OPEN_RAISE, device=pl.device), joint_ids=_jid(pl, SHACKLE))
     if lock.joints["shackle"] >= OPEN_RAISE / 2:
         _st["armed"] = True  # the latch only catches a shackle pressed down from open (not its state before the reset)
     if not _st["latched"] and _st["armed"] and lock.joints["shackle"] <= LATCH_AT:
