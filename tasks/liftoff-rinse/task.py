@@ -1,5 +1,5 @@
 """On a wet bench: a small PFA wafer cassette holding two 2 inch wafers that have just come out of gold evaporation
-(gold over patterned photoresist), standing on a PTFE tray; a row of four 600 ml glass beakers, each with a printed
+(gold over patterned photoresist), standing on a PTFE tray; a row of four 800 ml glass beakers, each with a printed
 label card on the bench in front of it and a label on its side: ACE (acetone for ordinary resist strip), LIFT-OFF
 (acetone kept for gold lift-off only), IPA and DI WATER; a PTFE drip dish on its stand; and the bench's 4 L solvent
 waste bottle with a funnel. The two acetone beakers look the same and hold the same liquid. The wafers lie in the
@@ -178,6 +178,18 @@ BEAKERS = {  # name: (xy, side label, card lines)
     "beaker_di": ((ROW_X, 0.04), "DI WATER", ("DI",)),
 }
 BEAKER_PARTS = [_beaker(n, xy, t) for n, (xy, t, _) in BEAKERS.items()]
+
+# -- the ultrasonic bath (fixed): a benchtop ultrasonic cleaner's stainless tank (108 x 104 mm, 80 mm tall), running (40
+# kHz, room temperature), with the LIFT-OFF beaker standing in its water; its controls on the front panel. -------------
+US_X, US_Y, US_H, US_T = 0.054, 0.052, 0.080, 0.002  # half lengths, height, wall
+STEEL_C, PANEL_C, LED_C = (0.74, 0.75, 0.77), (0.20, 0.21, 0.23), (0.15, 0.85, 0.30)
+_lift_xy = BEAKERS["beaker_liftoff"][0]
+US_BATH = part("ultrasonic_bath", pos=(*_lift_xy, TOP), fixed=True, friction=0.6,
+               boxes=[*[((e * (US_X - US_T / 2), 0.0, US_H / 2), (US_T, 2 * US_Y, US_H), STEEL_C) for e in (-1, 1)],
+                      *[((0.0, e * (US_Y - US_T / 2), US_H / 2), (2 * US_X - 2 * US_T, US_T, US_H), STEEL_C)
+                        for e in (-1, 1)]],
+               meshes=[_boxes_mesh([((-US_X - 0.0006, 0.0, US_H - 0.020), (0.001, 0.070, 0.022))], PANEL_C),
+                       _boxes_mesh([((-US_X - 0.0012, 0.022, US_H - 0.020), (0.001, 0.006, 0.006))], LED_C)])
 ORDER = ("beaker_liftoff", "beaker_ipa", "beaker_di")
 
 # -- the label cards (fixed): laminated white cards, 90 x 70 mm, lying on the bench in front of each beaker with its
@@ -276,7 +288,7 @@ JUG = part(
             _boxes_mesh(_wrap_text("WASTE", 0.0026, JUG_R + 0.0012, 0.110), INK)],
 )
 
-OBJECTS = [*BEAKER_PARTS, *CARDS, TRAY, CASSETTE, STAND, DISH, JUG]
+OBJECTS = [*BEAKER_PARTS, US_BATH, *CARDS, TRAY, CASSETTE, STAND, DISH, JUG]
 PLANCHECK_BOXES = [  # for the offline plan check only: world-frame, axis-aligned
     *[(n, (xy[0], xy[1], TOP + B_H / 2), (2 * B_OUT, 2 * B_OUT, B_H)) for n, (xy, _, _) in BEAKERS.items()],
     ("dish_stand", (*STAND_XY, TOP + STAND_H / 2), (0.06, 0.06, STAND_H)),
@@ -284,7 +296,8 @@ PLANCHECK_BOXES = [  # for the offline plan check only: world-frame, axis-aligne
 ]
 
 # -- scoring ----------------------------------------------------------------------------------------------------------
-SOAK = {"beaker_liftoff": 12.0, "beaker_ipa": 5.0, "beaker_di": 5.0}  # minimum soaks, s (shortened for the 2 min run)
+SOAK = {"beaker_liftoff": 60.0, "beaker_ipa": 5.0, "beaker_di": 5.0}  # minimum soaks, s: lift-off takes 60 s in the
+# ultrasonic bath for this film (5 nm Ti / 30 nm Au on 1.4 um image-reversal resist); the rinses are shortened
 DRY_LIMIT = 15.0  # s: out of liquid between LIFT-OFF and IPA, or the acetone dries on the wafers
 IN_XY = 0.030  # the cassette counts as in a beaker with its centre within 30 mm of the beaker's axis
 IN_Z = 0.030  # and its feet within 30 mm of the beaker's floor (the wafers then under the liquid)
@@ -293,7 +306,8 @@ CATCH = 0.035  # or into the drip dish while its centre is within 35 mm of the d
 TILT_MAX = 30.0  # degrees: tipped (the patterns no longer face down)
 TOUCH = 0.004  # a pad tip within 4 mm of a wafer: touched
 DISH_SPILL = 30.0  # degrees: a wet dish tipped further away from the funnel spills
-POUR_TILT, POUR_XY = 60.0, 0.050  # emptied into the funnel: tipped past 60 degrees, centre within 50 mm of its axis
+POUR_TILT = 60.0  # emptied into the funnel: tipped past 60 degrees, its lowest rim point (where it pours) over the
+MOUTH_IN, LIP_ABOVE = 0.005, 0.060  # funnel's mouth: at least 5 mm inside its rim, and no more than 60 mm above it
 HANDS_FAR = 0.08  # both hands' pad tips this far from the handle bar and the dish's tab at the end
 DT = 0.05
 SETTLE_STEPS, SETTLE_TOL = 20, 0.001
@@ -376,7 +390,7 @@ def _watch(env):
             else:
                 _state["spilled"] = True
     dt = tilt_deg(dR)
-    over_funnel = math.hypot(dp[0] - JUG_XY[0], dp[1] - JUG_XY[1]) <= POUR_XY and dp[2] > TOP + FUN_TOP - 0.02
+    over_funnel = lip_over_funnel(d)
     if _state["dish_wet"]:
         if over_funnel and dt > POUR_TILT:
             _state["dish_wet"] = False
@@ -404,6 +418,17 @@ def _watch(env):
                          and float(np.max(np.abs(np.asarray(_hist) - _hist[-1]))) < SETTLE_TOL)
 
 
+_RIM = [np.array([D_R * math.cos(a), D_R * math.sin(a), D_H]) for a in np.linspace(0.0, 2 * math.pi, 48, endpoint=False)]
+
+
+def lip_over_funnel(d) -> bool:
+    """The dish's lowest rim point, where it pours, over the funnel's mouth: at least 5 mm inside the funnel's rim, from
+    10 mm below to 60 mm above it."""
+    lip = min((d.to_world(q) for q in _RIM), key=lambda w: w[2])
+    return (math.hypot(lip[0] - JUG_XY[0], lip[1] - JUG_XY[1]) <= FUN_R - MOUTH_IN
+            and TOP + FUN_TOP - 0.010 <= lip[2] <= TOP + FUN_TOP + LIP_ABOVE)
+
+
 def progress():
     """How far the bath sequence went right: 0 nothing; 1 soaked in LIFT-OFF first; 2 then into IPA within the dry
     limit and soaked; 3 then into DI WATER and soaked, and still in it."""
@@ -429,9 +454,10 @@ def score(objects):
     not over a beaker's mouth and not over the drip dish), the wet dish was tipped past 30 degrees anywhere but over the
     funnel, the cassette tipped over 30 degrees, a wafer was touched by the gripper, or the cassette and dish have not
     been still (under 1 mm) for the last second. Otherwise by how far the baths went right, in order: 0.25 for a first
-    soak of at least 12 s in LIFT-OFF; 0.5 if it then went into IPA within 15 s of leaving LIFT-OFF and soaked at least
+    soak of at least 60 s in LIFT-OFF (in the running ultrasonic bath); 0.5 if it then went into IPA within 15 s of leaving LIFT-OFF and soaked at least
     5 s; 0.75 if it then went into DI WATER, soaked at least 5 s and stands in it at the end, with no other bath visited;
-    1.0 if, in addition, the dish was emptied into the funnel (tipped past 60 degrees over it) after its last catch, is
+    1.0 if, in addition, the dish was emptied into the funnel (tipped past 60 degrees, its pouring lip over the funnel's
+    mouth) after its last catch, is
     back on its stand, and both hands' fingertips are 8 cm from the cassette's handle bar and the dish's tab."""
     if any(_state.get(k) for k in ("contaminated", "tipped", "touched", "spilled")):
         return 0.0
@@ -459,10 +485,10 @@ def distance(objects):
 
 
 # -- scripted demo ----------------------------------------------------------------------------------------------------
-# Right hand: takes the cassette by its handle bar (hand tilted 30 degrees back), lifts it clear of the rims, soaks it
+# Right hand: takes the cassette by its handle bar (hand tilted 40 degrees back), lifts it clear of the rims, soaks it
 # in LIFT-OFF, then carries it to IPA and to DI WATER, lets go and moves away. Left hand: takes the drip dish by its
 # tab and keeps it under the cassette wherever the cassette is out of the liquid between two beakers (sliding it along
-# just above the rims, out of the way of each descent), then pours it into the waste funnel and puts it back. The demo
+# follows a fixed timeline and reads only what a camera sees: the cassette's pose, to trim the right hand's aim.
 # follows a fixed timeline; it reads nothing but the scene layout.
 _prev_action7 = _demo.ArmPlan.action7
 if not getattr(_prev_action7, "_clock", False):
@@ -628,20 +654,3 @@ def demo():
     ph(2.0, None, (tuple(np.array(_ltcp(dish(STAND_XY, STAND_H), 0.08)) + up + [0, 0, 0.05]), FINGER_OPEN, "park", lr))
     ph(2.0)
     return {"left": L, "right": R}
-
-
-# --- debug (not for submission) ---
-_dbgr = {"n": 0}
-@on_step
-def _dbg_lo(env):
-    _dbgr["n"] += 1
-    if _dbgr["n"] % 10:
-        return
-    S = labkit._SPECS
-    c = labkit._part_state(env, S["cassette"]); d = labkit._part_state(env, S["drip_dish"])
-    fl = "".join(k[0].upper() if _state.get(k) else "." for k in
-                 ("contaminated", "tipped", "touched", "spilled", "wet", "dish_wet", "poured", "dish_home", "far", "settled"))
-    open("/home/ubuntu/dbg_lo.txt", "a").write(
-        f"{_dbgr['n']} t={_state['t']:.1f} cas={np.round((np.asarray(c.pos) - [0, 0, TOP]) * 1000, 1).tolist()} "
-        f"ct={tilt_deg(c.rotation()):.1f} dish={np.round((np.asarray(d.pos) - [0, 0, TOP]) * 1000, 1).tolist()} "
-        f"dt={tilt_deg(d.rotation()):.1f} tr={np.round(_ct['trim']*1000,1).tolist()} cur={_state['cur']} {fl} k={progress()} s={score(None)}\n")
