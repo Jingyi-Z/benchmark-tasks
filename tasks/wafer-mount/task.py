@@ -53,7 +53,7 @@ GREEN = (0.10, 0.55, 0.20)
 # primary 32.5 mm long, secondary 18 mm. -------------------------------------------------------------------------------
 WAFER_R, WAFER_T = 0.0508, 0.0010
 PRI_L, SEC_L = 0.0325, 0.018
-EDGE_EXCL = 0.005  # the pattern stops 5 mm inside the rim (edge exclusion)
+EDGE_EXCL = 0.015  # the pattern stops 15 mm inside the rim (edge exclusion): a 70 mm field, from a 3-inch mask
 COLLIDE_R = WAFER_R - 0.0031
 
 
@@ -372,12 +372,30 @@ def flat_ok(w) -> bool:
     return abs(math.atan2(math.sin(d), math.cos(d))) <= FLAT_TOL
 
 
+TW_TOUCH = 0.0008  # a tweezer blade within 0.8 mm of a wafer's pattern side, inside the edge exclusion: pattern touched
+_BLADE_PTS = [np.array([u * BLADE_L / 2, v * BLADE_W / 2, t * BLADE_T / 2]) for u in (-1, 0, 1) for v in (-1, 0, 1)
+               for t in (-1, 1)]
+_EX = np.array([_c, 0.0, -_s])  # the blades' long axis (bent 45 degrees forward and down), in a tweezers' frame
+_EZ = np.array([_s, 0.0, _c])
+
+
+def _blade_points(tw):
+    """Points over both blades of a pair of tweezers (a 3 x 3 grid on each face), in world coordinates."""
+    out = []
+    for sx in (-SEP / 2, SEP / 2 + tw.joints.get("jaw", 0.0)):
+        c = np.array([_ax + sx + _c * BLADE_L / 2, 0.0, _az - _s * BLADE_L / 2])
+        for q in _BLADE_PTS:
+            out.append(tw.to_world(c + q[0] * _EX + [0.0, q[1], 0.0] + q[2] * _EZ))
+    return out
+
+
 @on_step
 def _watch(env):
     """Latch the violations: a wafer's pattern touched by the gripper, a wafer held by the gripper itself, a wafer
     dropped (on the table, or below its carrier's ledge or the chuck without being on either)."""
     S = labkit._SPECS
     tips = _tips(env)
+    blades = [q for n in ("tweezers_r", "tweezers_l") for q in _blade_points(labkit._part_state(env, S[n]))]
     track = []
     for n in WAFER_NAMES:
         w = labkit._part_state(env, S[n])
@@ -385,6 +403,10 @@ def _watch(env):
         R = w.rotation()
         if p[2] < REST_Z - 0.0015:  # below a carrier's ledge: fallen in, or on the table
             _state["dropped"] = True
+        for b in blades:
+            q = R.T @ (np.asarray(b, float) - p)
+            if math.hypot(q[0], q[1]) < WAFER_R - EDGE_EXCL and -0.0005 < q[2] - WAFER_T / 2 < TW_TOUCH:
+                _state["touched"] = True  # tweezers on the pattern, inside the edge exclusion
         for tip in tips:
             q = R.T @ (np.asarray(tip, float) - p)
             r = math.hypot(q[0], q[1])
@@ -407,7 +429,7 @@ def vacuum_on(objects) -> bool:
 
 
 def score(objects):
-    """0 if a wafer's pattern was ever touched by the gripper, a wafer was ever held by the gripper itself or dropped,
+    """0 if a wafer's pattern (inside its 15 mm edge exclusion) was ever touched by the gripper or the tweezers, a wafer was ever held by the gripper itself or dropped,
     another wafer is on the mounter, or the wafers have not all been still (under 1 mm of movement) for the last
     second. Otherwise, with the n-type (100) wafer on the chuck pattern side down (within 3 degrees), its centre
     within 2 mm of the chuck's centre: 1.0 if its primary flat faces the frame's flat side within 2 degrees, the
@@ -493,7 +515,7 @@ DOWN_X = Orient(_prev_grip(math.pi / 2))
 TW_WIDE = -0.014
 TW_HOLD = -0.0050
 TW_PINCH = -0.0010  # squeezed hard: the pinch must hold the wafer on edge against its weight's twist
-PINCH_IN = 0.012  # the tips 12 mm inside the edge: a 100 mm wafer needs a deep pinch not to twist out
+PINCH_IN = 0.012  # the tips 12 mm inside the edge (inside the 15 mm edge exclusion): a 100 mm wafer needs a deep pinch
 BLADE_Z = 0.0022  # the tips' midpoint above the wafer's underside, as taken in a carrier
 V0 = np.array([WAFER_R - PINCH_IN, 0.0, WAFER_T / 2 - (BLADE_Z - 0.0016)])  # lower blade ~1 mm under it  # the wafer's centre from the tips, held
 # blades flat along +x (tweezer heading 0)
