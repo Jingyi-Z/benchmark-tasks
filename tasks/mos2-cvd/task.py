@@ -1002,10 +1002,14 @@ def demo():
             (1.0, on_tube(g0) - 0.02 * a_t, TUBE_OPEN, "down beside the tube", O_T),
             (1.0, on_tube(g0), TUBE_OPEN, "round the tube", O_T),
             (0.8, on_tube(g0), TUBE_HOLD, "close on the tube", O_T),
-            (3.0, on_tube(g0 + SHIFT * Y), TUBE_HOLD, "slide the tube 75 mm towards the far end", O_T)]
+            (3.0, _Dyn(on_tube(g0 + SHIFT * Y), "ts"), TUBE_HOLD, "slide the tube 75 mm towards the far end", O_T)]
     pl.phase(left=left,
              right=[(2.0, np.array([0.33, -0.27, TOP + 0.33]), TONGUE_OPEN, "hand turned, up clear of the tube's end",
                      O_D)])
+    tw = pl.phase(left=[(3.0, _Dyn(on_tube(g0 + SHIFT * Y), "ts"), TUBE_HOLD, "hold still: the tube seen 75 mm over",
+                         O_T)])  # (the pads creep a little on the round tube: made up from where the tube is seen)
+    pl.window(tw + 0.3, tw + 3.0, "ts",
+              lambda env: (TUBE_C + SHIFT * Y - _seen(env, "quartz_tube")) * [0.0, 1.0, 0.0], "quartz_tube")
     keys = iter(f"r{i}" for i in range(1, 99))
     for bi, name in enumerate(LOAD_ORDER):
         L = BOATS[name][0]
@@ -1081,7 +1085,8 @@ def demo():
         tw = pl.phase(right=[(2.0, _Dyn(_on_ring(_ring_at(p_goal)), k_r), ROD_HOLD, "hold still: the rod seen at its depth",
                               O_R)])
         pl.window(tw + 0.3, tw + 2.0, k_r,  # (the boat is out of sight in the tube: judged by the rod's depth)
-                  lambda env, g=p_goal: np.array([0.0, g - _seen(env, "push_rod")[1], 0.0]), "push_rod")
+                  lambda env, g=p_goal: np.array([0.0, g + _seen(env, "quartz_tube")[1] - TUBE_C[1] - SHIFT
+                                                  - _seen(env, "push_rod")[1], 0.0]), "push_rod")
         pl.phase(right=[(max(1.5, 25.0 * (p_goal - p_line)), _Dyn(_on_ring(in_line), k_r), ROD_HOLD, "pull the rod back out",
                          O_R),
                         (1.0, _on_ring(in_line + RING_LIFT * up), ROD_HOLD, "lift it clear", O_R),
