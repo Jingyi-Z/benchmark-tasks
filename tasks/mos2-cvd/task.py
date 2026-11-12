@@ -334,7 +334,7 @@ _HL = (TUBE_Y1 - TUBE_Y0) / 2
 _CUTS = list(np.arange(-_HL, _HL, 0.045)) + [_HL]
 TUBE_MESHES = [m for y0, y1 in zip(_CUTS[:-1], _CUTS[1:]) for m in _ring_y(y0, y1, TUBE_IN, TUBE_R, 12, QUARTZ)]
 TUBE_BOXES = [((0.0, 0.0, FLOOR_Z - AXZ - 0.0015), (FLOOR_W, 2 * _HL, 0.003), QUARTZ)]
-TUBE = part("quartz_tube", pos=tuple(TUBE_C), mass=0.49, friction=0.5, boxes=TUBE_BOXES, meshes=TUBE_MESHES)
+TUBE = part("quartz_tube", pos=tuple(TUBE_C), mass=0.49, friction=0.3, boxes=TUBE_BOXES, meshes=TUBE_MESHES)
 # its two supports (fixed): a block under the tube just outside each end of the furnace
 TUBE_STAND = part("tube_stands", pos=(0.0, 0.0, TOP), fixed=True, friction=0.3,
                   boxes=[((XA, y, (AXZ - TUBE_R) / 2), (0.030, 0.012, AXZ - TUBE_R), DARK) for y in (FY0 - 0.030,

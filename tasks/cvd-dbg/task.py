@@ -334,7 +334,7 @@ _HL = (TUBE_Y1 - TUBE_Y0) / 2
 _CUTS = list(np.arange(-_HL, _HL, 0.045)) + [_HL]
 TUBE_MESHES = [m for y0, y1 in zip(_CUTS[:-1], _CUTS[1:]) for m in _ring_y(y0, y1, TUBE_IN, TUBE_R, 12, QUARTZ)]
 TUBE_BOXES = [((0.0, 0.0, FLOOR_Z - AXZ - 0.0015), (FLOOR_W, 2 * _HL, 0.003), QUARTZ)]
-TUBE = part("quartz_tube", pos=tuple(TUBE_C), mass=0.49, friction=0.5, boxes=TUBE_BOXES, meshes=TUBE_MESHES)
+TUBE = part("quartz_tube", pos=tuple(TUBE_C), mass=0.49, friction=0.3, boxes=TUBE_BOXES, meshes=TUBE_MESHES)
 # its two supports (fixed): a block under the tube just outside each end of the furnace
 TUBE_STAND = part("tube_stands", pos=(0.0, 0.0, TOP), fixed=True, friction=0.3,
                   boxes=[((XA, y, (AXZ - TUBE_R) / 2), (0.030, 0.012, AXZ - TUBE_R), DARK) for y in (FY0 - 0.030,
@@ -1133,7 +1133,7 @@ def _dbg_print(env):
     S = labkit._SPECS
     f = lambda n: np.round(np.asarray(labkit._part_state(env, S[n]).pos, float) * 1000).astype(int).tolist()
     r = labkit._part_state(env, S["push_rod"])
-    if k % 20 == 0 and (260 <= k <= 400 or 1400 <= k <= 1700):
+    if k % 20 == 0 and (640 <= k <= 1150 or 1400 <= k <= 1700):
         from yam_arena import runtime as _rt
         b = env.unwrapped
         o = b.scene.env_origins[0].cpu().numpy()
@@ -1146,7 +1146,8 @@ def _dbg_print(env):
                 tq = float(np.clip(np.dot(q - p0, d), -(ROD_L + 0.05), 0.0))
                 rows.append((float(np.linalg.norm(q - (p0 + tq * d))), n[0] + ":" + ln, np.round(q * 1000).astype(int).tolist()))
         rows.sort()
-        print(f"LINKDBG k={k} rod={f('push_rod')} axis={axis_off(r):.1f} near={[(round(a*1000), b2, c) for a, b2, c in rows[:4]]}",
+        tq = np.round(np.asarray(_tips(env), float)[2:] * 1000).astype(int).tolist()
+        print(f"LINKDBG k={k} t={getattr(_demo, '_plan_clock', 0.0):.1f} rod={f('push_rod')} axis={axis_off(r):.1f} tipsR={tq} near={[(round(a*1000), b2) for a, b2, c in rows[:2]]}",
               flush=True)
     if k % 100 == 0 or (st.get("viol") and not st.get("_vp")):
         if st.get("viol"):
