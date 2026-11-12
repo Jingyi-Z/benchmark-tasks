@@ -1,21 +1,21 @@
-# Load a tube furnace for MoS2 growth by thermal CVD and cap the tube
+# Load a tube furnace for two-precursor thermal CVD and cap the tube
 
 A split-tube furnace holds a 2 inch quartz tube with both end caps off, each in a cradle beside its end. Argon
-comes in at the near end, so the near end is upstream. Three boats wait on a tray beside the near end: sulfur
-powder, MoO3 powder, and a quartz boat with a SiO2/Si chip face up. A quartz push rod with a flat grip block on its back end
+comes in at the near end, so the near end is upstream. Three boats wait on a tray beside the near end:
+precursor 1 (a yellow powder), precursor 2 (a white powder), and a quartz boat with a silicon substrate face up. A quartz push rod with a flat grip block on its back end
 lies on a rack beside the tube's line. The right hand sets each boat in the tube's mouth by its tongue, takes the
 rod by its block and pushes the boat into place, then racks the rod. Meanwhile the left hand caps the far (exhaust)
 end; the right hand caps the near (inlet) end last. The layout is scored:
 
-- sulfur at the furnace's upstream edge, where it stays cool enough to evaporate slowly;
-- MoO3 under the thermocouple, in the hot zone;
-- the chip 50 to 80 mm downstream of the MoO3 boat, centre to centre;
+- precursor 1 at the furnace's upstream edge, where it stays cool enough to evaporate slowly;
+- precursor 2 under the thermocouple, in the hot zone;
+- the substrate 50 to 80 mm downstream of precursor 2, centre to centre;
 - both caps pushed home and square.
 
 ## Files
 
 - `task.py`: scene, scoring and scripted demo (yam_arena task file). The furnace, tube, tray, rod rack and cap
-  cradles are fixed; the three boats, the chip, the rod and both caps are loose. An `on_step` hook latches the
+  cradles are fixed; the three boats, the substrate, the rod and both caps are loose. An `on_step` hook latches the
   violations, follows the end state and checks that everything has been still for the last second.
 - `labkit.py`: parts built from several shapes. It hooks `yam_arena.scene` and the embodiment from the task's
   import, so no change to yam_arena is needed.
