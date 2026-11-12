@@ -444,24 +444,25 @@ CHIP_START = boat_start("chip_boat") + [0.0, 0.0, BOAT_T + CHIP_T / 2]
 CHIP_PART = part("chip", pos=tuple(CHIP_START), mass=0.0004, friction=0.8,  # (4x a real chip: steadier contact)
                  boxes=[((0.0, 0.0, 0.0), (CHIP, CHIP, CHIP_T), CHIP_C)])
 
-# -- the push rod (loose): fused quartz tube, 8 mm OD, a flat paddle fused on its front (the pusher) and a flat grip block
-# (38 x 32 x 5 mm) fused on its back end, to hold it by, its face turned 40 degrees from upright (towards the robots);
+# -- the push rod (loose): fused quartz tube, 8 mm OD, a flat paddle fused on its front (the pusher) and a flat T-handle
+# fused across its back end, to hold it by: a 5 mm plate square to the rod, 58 x 30 mm, rising from the rod 50 mm up and
+# back towards the robots (40 degrees from flat). The hand takes it across its two faces, so a push goes straight into
+# the pads and the rod's weight cannot turn it in the grip;
 # on a rack of two V rests beside the tube's line, nearer the robots. Frame: on its axis at the pusher's front face, the
 # rod along -y. ----------------------------------------------------------------------------------------------------------
 ROD_L, GRIP_W, PUSHER_R = 0.293, 0.008, 0.006
-RING_RO, RING_RI, RING_T = 0.020, 0.008, 0.005
-BLOCK_L, BLOCK_W = 0.038, 0.032  # the grip: a solid block in the old ring's place and plane, 38 x 32 x 5 mm (the
-# fingers' pads on a whole face, not across a hole)
-RING_Y = -(ROD_L + RING_RO - 0.001)  # the ring's centre, from the frame (on the rod's axis, behind its end)
+RING_T = 0.005  # the T-handle's plate: 5 mm thick
+TH_UP, TH_DOWN, TH_W = 0.050, 0.008, 0.030  # it reaches 50 mm up the slope from the rod's axis (8 mm below), 30 mm wide
+RING_Y = -(ROD_L + RING_T / 2)  # the plate's mid-plane, from the frame (behind the rod's end)
 RING_TURN = math.radians(40.0)
-RING_U = np.array([math.cos(RING_TURN), 0.0, -math.sin(RING_TURN)])  # in the ring's plane, square to the rod
-RING_N = -np.array([math.sin(RING_TURN), 0.0, math.cos(RING_TURN)])  # the ring's face normal
+RING_U = np.array([math.cos(RING_TURN), 0.0, -math.sin(RING_TURN)])  # down the handle's slope (the hand's approach)
+RING_N = -np.array([math.sin(RING_TURN), 0.0, math.cos(RING_TURN)])  # across the handle, square to the slope
 ROD_Z = BOAT_Z + 0.0075  # the rod's axis in use: its pusher on a boat's tongue, its lower edge 1.5 mm over the tube's floor
 RACK_X = XA - 0.060
 ROD_START = np.array([RACK_X, LOAD_Y0 - MOUTH_OUT_SET - 0.077, TOP + ROD_Z])  # racked (its pusher clear of the hand
 # setting a boat in the mouth)
-_RING = [_hex([sn * RING_T / 2 * RING_N + [0.0, RING_Y + dy, 0.0] + du * RING_U
-               for sn in (-1, 1) for dy in (-BLOCK_L / 2, BLOCK_L / 2) for du in (-BLOCK_W / 2, BLOCK_W / 2)], QUARTZ)]
+_RING = [_hex([dn * RING_N + [0.0, RING_Y + dy, 0.0] + du * RING_U
+               for dn in (-TH_W / 2, TH_W / 2) for dy in (-RING_T / 2, RING_T / 2) for du in (-TH_UP, TH_DOWN)], QUARTZ)]
 # the pusher: a flat quartz paddle 4 mm thick, 9 to 11.5 mm tall, 14 mm wide at its foot and 20 mm at its top (it keeps a
 # boat's tongue on its face when the rod's tip wanders sideways, and clears the tube's wall)
 _PADDLE = [_hex([(sx * (0.007 if z < 0 else 0.010), y, (z if z > 0 else (-0.003 if y == 0.0 else -0.0055)))
@@ -470,7 +471,7 @@ _PADDLE = [_hex([(sx * (0.007 if z < 0 else 0.010), y, (z if z > 0 else (-0.003 
 # onto the floor at the tube's mouth instead of stubbing on its end)
 
 
-ROD = part("push_rod", pos=tuple(ROD_START), mass=0.012, friction=1.2,  # (a tube: 8 mm OD, 6 mm ID)
+ROD = part("push_rod", pos=tuple(ROD_START), mass=0.015, friction=1.0,  # (a tube: 8 mm OD, 6 mm ID)
            cylinders=[((0.0, -(0.004 + ROD_L) / 2, 0.0), GRIP_W / 2, ROD_L - 0.004, QUARTZ, "Y")],
            meshes=[*_RING, *_PADDLE])
 REST_Y = (ROD_START[1] - 0.030, ROD_START[1] - 0.220)  # the rack's two Vs, under the rod's body (clear of the ring)
@@ -893,8 +894,8 @@ def _tcp(tip, R=ROT_T, past=0.004):
 STROKE = 0.050  # the rod pushes a boat in strokes of at most this
 ROD_OPEN, ROD_HOLD = -0.012, 0.0  # across the rod's 5 mm ring, squeezed hard
 TONGUE_OPEN, TONGUE_HOLD = -0.012, -0.0015  # on a boat's 5 mm tongue: a light squeeze (a hard one shakes the boat)
-ROT_R = np.column_stack([RING_N, np.cross(RING_U, RING_N), RING_U])  # in from the robots' side, tipped 40 deg down,
-O_R = Orient(ROT_R)  # closing square across the ring's faces
+ROT_R = np.column_stack([-Y, np.cross(RING_U, -Y), RING_U])  # on the T-handle: in from the robots' side down its slope,
+O_R = Orient(ROT_R)  # the fingers closing along the rod across the plate's two faces
 ROT_L = ROT_R @ np.diag([-1.0, -1.0, 1.0])  # the left hand's (the same, its fingers swapped: it reaches from the other side)
 O_L = Orient(ROT_L)
 ROT_CR = np.column_stack([CAP_N, np.cross(CAP_U, CAP_N), CAP_U])  # on a cap's tab: in from the robots' side, tipped
@@ -904,7 +905,7 @@ O_CL = Orient(ROT_CL)
 CAP_IN = 0.030  # the open hand comes in onto a cap's tab (and backs off it) this far along its approach
 CAP_SAG = {"inlet_cap": 0.008, "exhaust_cap": 0.0}  # (seen in the sim: the right hand's cap hung 10 mm low)
 CAP_LIFT = 0.012  # a cap lifted this much out of its cradle (clear of its rails) to carry it over
-RING_IN = 0.040  # the open hand comes in onto the ring (and backs off it) this far along its approach
+RING_IN = 0.050  # the open hand comes in onto the handle (and backs off it) this far along its approach
 RING_LIFT = 0.012  # the rod lifted this much off its rack (clear of its Vs) to carry it over
 ROT_D = axis_angle_matrix(Y, TONGUE_TURN) @ _prev_grip(math.pi / 2)  # in from the front, tipped 55 deg,
 O_D = Orient(ROT_D)  # closing square across a boat's tongue
@@ -933,10 +934,13 @@ def _rod_seen_at(env, y):
     return p + d * ((y - p[1]) / d[1])
 
 
+TH_TIPS = 0.012  # the fingertips stop this far up the handle from the rod's axis (clear of the rod)
+
+
 def _on_ring(c, back=0.0):
-    """TCP for the fingers across the ring centred at c, on the part of it nearest the robots (``back`` short of it)."""
-    band = np.asarray(c, float) - (RING_RI + RING_RO) / 2 * RING_U
-    return _tcp(band - back * RING_U, ROT_R, past=0.004)
+    """TCP for the fingers across the T-handle whose plate crosses the rod's axis at c (``back`` short of it)."""
+    tip = np.asarray(c, float) - (TH_TIPS + back) * RING_U
+    return _tcp(tip, ROT_R, past=0.0)
 
 
 def _tongue(name, centre):
