@@ -225,17 +225,19 @@ LOCK_WIN = (math.radians(22.0), math.radians(45.0))  # turned into the lock: 22 
 OPEN_WIN = math.radians(10.0)  # set on within 10 degrees of the OPEN mark
 TOP_TOUCH = 0.006  # a pad tip within 6 mm above the wafer's top, more than 3 mm inside its rim: the top was touched
 HANDLED = 0.002  # a pad tip within 2 mm outside the wafer's rim and 8 mm of its height: held by the gripper
+EDGE_EXCL = 0.010  # the pattern lies inside a 30.8 mm circle: the tweezers may touch the top only in the 10 mm rim zone
+TW_TOUCH = 0.0008  # a tweezer blade within 0.8 mm of the wafer's top, inside the pattern circle: the pattern touched
 HOT_TOUCH = 0.004  # a pad tip within 4 mm of the hotplate's top plate, over it: the gripper touched the hot plate
 HANDS_FAR = 0.08  # both pad tips this far from the case's axis at the end
 
-_state = {"touched": False, "handled": False, "dropped": False, "hot": False, "armed": False}
+_state = {"tw_touched": False, "touched": False, "handled": False, "dropped": False, "hot": False, "armed": False}
 SETTLE_STEPS, SETTLE_TOL = 20, 0.001  # settled: the wafer and both case pieces moved under 1 mm in the last 1 s (20 Hz)
 _hist = []
 
 
 @on_reset
 def _reset_state(env):
-    _state.update(touched=False, handled=False, dropped=False, hot=False, armed=False, far=True, settled=False)
+    _state.update(tw_touched=False, touched=False, handled=False, dropped=False, hot=False, armed=False, far=True, settled=False)
     _hist.clear()
 
 
@@ -273,6 +275,22 @@ def seated(lid, cover) -> bool:
             and lid.tilt_deg() <= FLAT_DEG)
 
 
+_BLADE_PTS = [np.array([u * BLADE_L / 2, v * BLADE_W / 2, t * BLADE_T / 2]) for u in (-1, 0, 1) for v in (-1, 0, 1)
+               for t in (-1, 1)]
+_EX = np.array([_c, 0.0, -_s])  # the blades' long axis (bent 45 degrees forward and down), in the tweezers' frame
+_EZ = np.array([_s, 0.0, _c])
+
+
+def _blade_points(tw):
+    """Points over both tweezer blades (a 3 x 3 grid on each face), in world coordinates."""
+    out = []
+    for sx in (-SEP / 2, SEP / 2 + tw.joints.get("jaw", 0.0)):
+        c = np.array([_ax + sx + _c * BLADE_L / 2, 0.0, _az - _s * BLADE_L / 2])
+        for q in _BLADE_PTS:
+            out.append(tw.to_world(c + q[0] * _EX + [0.0, q[1], 0.0] + q[2] * _EZ))
+    return out
+
+
 def in_pocket(lid, w) -> bool:
     lc = lid.to_local(w.pos)
     return np.hypot(lc[0], lc[1]) <= POCKET_TOL and abs(lc[2] - REST_Z) <= 0.001 and w.tilt_deg() <= FLAT_DEG
@@ -290,6 +308,10 @@ def _watch(env):
     top = p[2] + WAFER_T
     if w.tilt_deg() > 40.0 or p[2] < TOP + 0.003:
         _state["dropped"] = True
+    for q in _blade_points(labkit._part_state(env, S["tweezers"])):
+        lq = w.to_local(q)
+        if np.hypot(lq[0], lq[1]) < WAFER_R - EDGE_EXCL and -0.0005 < lq[2] - WAFER_T < TW_TOUCH:
+            _state["tw_touched"] = True  # the tweezers on the pattern, inside the 10 mm rim zone
     tips = _tips(env)
     for tip in tips:
         r = np.hypot(*(tip[:2] - p[:2]))
@@ -317,7 +339,8 @@ def locked(lid, cover) -> bool:
 
 
 def score(objects):
-    """0 if the wafer's top was ever touched, the wafer was ever held by the gripper itself, it was dropped (tilted past
+    """0 if the tweezers ever touched the wafer's top inside its pattern circle (more than 10 mm in from its rim), the
+    wafer's top was ever touched by the gripper, the wafer was ever held by the gripper itself, it was dropped (tilted past
     40 degrees, or on the table), or the gripper touched the hotplate's top. Otherwise, with the wafer lying flat
     in the case's lid on its ledge, its centre within 2.5 mm of the case's axis: 1.0 if the domed bottom is
     seated on the lid and locked (set on at the OPEN mark, within 10 degrees, and turned 22 to 45 degrees
@@ -325,7 +348,7 @@ def score(objects):
     locked, or a hand is still at the case; 0.25 if the wafer is in the lid but the bottom is not seated. 0 if
     the wafer is not in the lid, or if the wafer and the case's two pieces have not all been still (under 1 mm of
     movement) for the last second."""
-    if _state["touched"] or _state["handled"] or _state["dropped"] or _state["hot"]:
+    if _state["tw_touched"] or _state["touched"] or _state["handled"] or _state["dropped"] or _state["hot"]:
         return 0.0
     if not _state.get("settled", False):
         return 0.0
