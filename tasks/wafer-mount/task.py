@@ -53,7 +53,7 @@ GREEN = (0.10, 0.55, 0.20)
 # primary 32.5 mm long, secondary 18 mm. -------------------------------------------------------------------------------
 WAFER_R, WAFER_T = 0.0508, 0.0010
 PRI_L, SEC_L = 0.0325, 0.018
-EDGE_EXCL = 0.015  # the pattern stops 15 mm inside the rim (edge exclusion): a 70 mm field, from a 3-inch mask
+EDGE_EXCL = 0.005  # the pattern stops 5 mm inside the rim (edge exclusion): a 90 mm field
 COLLIDE_R = WAFER_R - 0.0031
 
 
@@ -116,13 +116,38 @@ def _pattern():
     return out
 
 
+RIM_N, RIM_IN, RIM_GAP = 48, WAFER_R - 0.0050, 0.0006
+
+
+def _rim_boxes(sec_deg):
+    """Collision boxes filling the band from 5 mm to 0.6 mm inside the rim, cut short at the flats."""
+    chords = [(0.0, _chord_d(PRI_L))] + ([(math.radians(sec_deg), _chord_d(SEC_L))] if sec_deg is not None else [])
+    w = math.pi * RIM_IN / RIM_N * 1.05  # half the tangential width
+    out = []
+    for i in range(RIM_N):
+        a = 2 * math.pi * (i + 0.5) / RIM_N
+        r_o = WAFER_R - RIM_GAP
+        for t, d in chords:
+            c = math.cos(a - t)
+            if c > 1e-6:
+                r_o = min(r_o, (d - 0.0003 - w * abs(math.sin(a - t))) / c)
+        if r_o - RIM_IN < 0.001:
+            continue
+        r = (r_o + RIM_IN) / 2
+        out.append(((r * math.cos(a), r * math.sin(a), 0.0), (r_o - RIM_IN, 2 * w, WAFER_T * 0.9), SI_BACK, a))
+    return out
+
+
 def _wafer(name, sec_deg, xy, yaw_deg, z):
     # It collides as 16 thin strips crossing its centre, their ends 3 mm inside its rim (inside the flats too), hidden
     # in the drawn wafer: a thin convex mesh collider sinks slowly through thin supports in PhysX, and a primitive disc
     # gives tweezer blades a single contact point, so a wafer held by one edge twists out of them; flat strip faces
     # give the blades a contact patch.
+    # A ring of short boxes then fills the band out to 0.6 mm inside the rim (short of the flats), so tweezers pinching
+    # the outer 4 mm grip flat faces.
     strips = [((0.0, 0.0, 0.0), (2 * COLLIDE_R, 0.010, WAFER_T * 0.9), SI_BACK, math.pi * k / 16) for k in range(16)]
-    return part(name, pos=(*xy, z), yaw=math.radians(yaw_deg), mass=0.010, friction=1.1, boxes=strips,
+    return part(name, pos=(*xy, z), yaw=math.radians(yaw_deg), mass=0.010, friction=1.1,
+                boxes=strips + _rim_boxes(sec_deg),
                 meshes=[_prism(_outline(sec_deg), -WAFER_T / 2, WAFER_T / 2, SI_BACK, "none"), *_pattern()])
 
 
@@ -515,7 +540,7 @@ DOWN_X = Orient(_prev_grip(math.pi / 2))
 TW_WIDE = -0.014
 TW_HOLD = -0.0050
 TW_PINCH = -0.0010  # squeezed hard: the pinch must hold the wafer on edge against its weight's twist
-PINCH_IN = 0.012  # the tips 12 mm inside the edge (inside the 15 mm edge exclusion): a 100 mm wafer needs a deep pinch
+PINCH_IN = 0.004  # the tips 4 mm inside the edge, inside the 5 mm edge exclusion
 BLADE_Z = 0.0022  # the tips' midpoint above the wafer's underside, as taken in a carrier
 V0 = np.array([WAFER_R - PINCH_IN, 0.0, WAFER_T / 2 - (BLADE_Z - 0.0016)])  # lower blade ~1 mm under it  # the wafer's centre from the tips, held
 # blades flat along +x (tweezer heading 0)
