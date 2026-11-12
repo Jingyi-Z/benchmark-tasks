@@ -1,5 +1,5 @@
 """On the station table: a 24 cm vacuum desiccator holding a dish of a moisture-sensitive powder, under vacuum; its
-vacuum line running past a dial gauge beside the stopcock to a pump controller box with a pump switch, in front of
+vacuum line running from its stopcock to a pump controller box, a dial gauge on the box's side of the stopcock, with a pump switch, in front of
 the right arm; and a
 sample vial standing on the bench to the left.
 
@@ -7,11 +7,10 @@ The desiccator: a white polypropylene bowl base, 24 cm across its flange and 7 c
 inside and a dark ring marked on the plate; and a clear dome, 6.5 cm tall, sitting on the flange (an O-ring seals it),
 with a solid clear knob on top to lift it by. On the base's right side, on a 2.5 cm port, a red stopcock: its 4 cm
 lever pointing at the robots is shut; turned a quarter turn anticlockwise (seen from above, pointing right) it is open
-to the vacuum line. The line runs past a dial gauge on a tee just beyond the stopcock (it reads the line: the box's
-pressure while the stopcock is open) to the controller box, which carries a rocker switch for the pump: red end down is
-on, black end down is off. The pump
-starts off, and its line is then open to the room, so opening the stopcock lets air in, faster the further it is
-turned. With the pump on and the stopcock open, the box is pumped down.
+to the vacuum line, a hose to the pump in its controller box, which carries a rocker switch for the pump: red end down
+is on, black end down is off. A dial gauge beside the stopcock is on a tee on the port, between the box and the
+stopcock, so it always reads the box's own pressure. The pump (oil-free diaphragm) starts off, and its air-admittance
+valve then opens its line to the room, so opening the stopcock lets air in, faster the further it is turned. With the pump on and the stopcock open, the box is pumped down.
 
 Under vacuum the air holds the dome down with far more force than a robot can pull. Venting faster than 12 kPa a second
 blows the powder in the dish about: at full vacuum that happens once the stopcock is past about 40 degrees.
@@ -141,19 +140,21 @@ LID = part(
                ((0.0, 0.0, DOME_H + KNOB_H / 2), KNOB_R, KNOB_H, CLEAR)],  # the knob
 )
 
-# -- the vacuum line (fixed): a hose from the stopcock's barb past a dial gauge on a short stand beside the stopcock, on to
-# a controller box with the pump's switch --------------------------------------------------------------------------------
+# -- the vacuum line (fixed): a hose from the stopcock's barb to the pump's controller box, and a dial gauge on a short stand
+# beside the stopcock, piped from a tee on the port (the box's side of the stopcock). The controller box carries the pump's
+# switch --------------------------------------------------------------------------------
 LINE_XY = (0.17, -0.36)  # the pump's controller box, in front of the right arm and clear of the held dome
 BOX = (0.080, 0.050, 0.080)  # the controller box: the line's manifold and the pump switch
-GAUGE_XY = (0.245, -0.275)  # the gauge, world: on a tee just past the stopcock's hose barb, where the right wrist camera
+GAUGE_XY = (0.245, -0.275)  # the gauge, world: beside the stopcock, where the right wrist camera
 #   sees it while that hand works the lever (low, so the fingers on the lever pass over it)
 GX, GY = GAUGE_XY[0] - LINE_XY[0], GAUGE_XY[1] - LINE_XY[1]  # in the line's frame
 GAUGE_R = 0.025  # a 50 mm dial
 GAUGE_TOP = 0.030
 NEEDLE_PER_KPA = math.radians(270.0) / 100.0
 NEEDLE = Joint(
-    "needle", kind="hinge", axis="Z", anchor=(GX, GY, GAUGE_TOP + 0.001), lower=-4.8, upper=0.1, initial=0.0,
-    target=0.0, stiffness=0.02, damping=0.0008, mass=0.001,
+    "needle", kind="hinge", axis="Z", anchor=(GX, GY, GAUGE_TOP + 0.001), lower=-4.8, upper=0.1,
+    initial=-(101.3 - 8.0) * NEEDLE_PER_KPA, target=-(101.3 - 8.0) * NEEDLE_PER_KPA,  # reading the box: -93 kPa
+    stiffness=0.02, damping=0.0008, mass=0.001,
     boxes=[((GX, GY + 0.009, GAUGE_TOP + 0.0012), (0.0025, 0.020, 0.0008), RED)],
 )
 _ticks = []
@@ -173,6 +174,7 @@ ROCKER = Joint(
 )
 ON_ANGLE = 0.10  # the rocker counts as on past this (rad)
 _barb = np.array((BX + STOP_XY[0], BY + STOP_XY[1] - 0.025)) - np.array(LINE_XY)  # the barb's end, box frame
+_tee = np.array((BX + STOP_XY[0] + 0.012, BY + STOP_XY[1] + 0.012)) - np.array(LINE_XY)  # the port's gauge tee
 _stand = np.array((GX, GY))
 _inlet = np.array((0.0, BOX[1] / 2))
 
@@ -187,8 +189,8 @@ LINE = part(
     boxes=[((0.0, 0.0, BOX[2] / 2), BOX, STEEL),  # manifold
            ((GX, GY, (GAUGE_TOP - 0.008) / 2), (0.012, 0.012, GAUGE_TOP - 0.008), STEEL),  # the gauge's stand
            *_ticks,
-           _hose(_barb, _stand, 0.008),  # hose from the barb to the gauge's tee, under the dial
-           _hose(_stand, _inlet, 0.008),  # on to the controller box
+           _hose(_tee, _stand, 0.008),  # the gauge's hose, from the tee on the port (the box's side of the stopcock)
+           _hose(_barb, _inlet, 0.008),  # the vacuum line: from the stopcock's barb to the controller box
            ((0.0, -BOX[1] / 2 - 0.025, 0.008), (0.010, 0.050, 0.010), HOSE)],  # on to the pump
     cylinders=[((GX, GY, GAUGE_TOP - 0.004), GAUGE_R, 0.008, DARK),
                ((GX, GY, GAUGE_TOP + 0.0001), GAUGE_R - 0.002, 0.0002, WHITE)],
@@ -214,8 +216,7 @@ OBJECTS = [BASE, LID, LINE, DISH, VIAL]
 # -- the air -----------------------------------------------------------------------------------------------------------
 # The pump starts off, and its line is then open to the room (its air-admittance valve). With the stopcock open, air
 # flows in through the line while the pump is off (faster the further the stopcock is turned, a quarter turn fully
-# open), and the box is pumped down while it is on. The gauge reads the line: the box's pressure while the stopcock is
-# open, else the pump's (on) or the room's (off).
+# open), and the box is pumped down while it is on. The gauge is on the box's side of the stopcock: it reads the box.
 ATM = 101.3  # kPa
 P0 = 8.0
 VENT_K = 60.0  # kPa/s, stopcock fully open at full vacuum
@@ -225,7 +226,7 @@ LEAK = 0.002
 GENTLE = 12.0
 HOLD_MAX = 400.0  # N on a seated dome under vacuum (capped; the real load is about 3 kN)
 SEAL_TILT, SEAL_Z, SEAL_XY = 1.5, 0.0015, 0.008  # the flange is 16 mm wide: 8 mm off still covers the O-ring
-_trial = {"p": P0, "gauge": ATM, "max_rate": 0.0, "blown": False, "ids": None}
+_trial = {"p": P0, "gauge": P0, "max_rate": 0.0, "blown": False, "ids": None}
 
 
 def lid_sealed(lid, base) -> bool:
@@ -246,7 +247,7 @@ def pump_on(line) -> bool:
 
 @on_reset
 def _reset(env):
-    _trial.update(p=P0, gauge=ATM, max_rate=0.0, blown=False)
+    _trial.update(p=P0, gauge=P0, max_rate=0.0, blown=False)
 
 
 def _wrench(asset, force):
@@ -283,10 +284,7 @@ def _air(env):
             p += rate * dt
         p = min(ATM, p + LEAK * dt)
     _trial["p"] = p
-    if s["base"].joints["stopcock"] >= math.radians(5.0):
-        _trial["gauge"] = p
-    else:
-        _trial["gauge"] = P_PUMP if on else ATM
+    _trial["gauge"] = p  # (on the box's side of the stopcock)
     _trial["max_rate"] = max(_trial["max_rate"], rate)
     blow = rate > GENTLE
     _trial["blown"] = _trial["blown"] or blow
@@ -418,7 +416,7 @@ def _vent_step():
         seen.pop(0)
     t0, g0 = seen[0]
     rate = (g - g0) / (t - t0) if t - t0 > 0.2 else 0.0
-    if rate < VENT_AIM:  # the dial reads 0 until the stopcock is cracked open, then the box, rising as it fills
+    if rate < VENT_AIM:  # the dial reads the box: steady until the stopcock is cracked open, then rising as it fills
         _vent["phi"] = min(STOP_OPEN, _vent["phi"] + math.radians(VENT_DEG_S) * dt)
 
 
