@@ -35,7 +35,7 @@ from yam_arena.urdf import axis_angle_matrix  # noqa: E402
 SCENE = "station"
 TOP = TABLE_TOP[SCENE]
 
-SI_BACK = (0.58, 0.59, 0.62)  # the wafers' lapped back and polished rim: plain grey
+SI_BACK = (0.26, 0.27, 0.31)  # the wafers' polished back and rim: dark silicon grey (stands out on the pale carriers and chuck)
 DIE = (0.20, 0.22, 0.42)  # the patterned area: dark blue-violet
 STREET = (0.62, 0.60, 0.48)  # the scribe streets between the dies: pale gold
 STEEL = (0.72, 0.73, 0.75)
@@ -53,7 +53,7 @@ GREEN = (0.10, 0.55, 0.20)
 # primary 32.5 mm long, secondary 18 mm. -------------------------------------------------------------------------------
 WAFER_R, WAFER_T = 0.0508, 0.0010
 PRI_L, SEC_L = 0.0325, 0.018
-EDGE_EXCL = 0.005  # the pattern stops 5 mm inside the rim (edge exclusion)
+EDGE_EXCL = 0.010  # the pattern stops 10 mm inside the rim (edge exclusion): an 80 mm field
 COLLIDE_R = WAFER_R - 0.0031
 
 
@@ -116,13 +116,38 @@ def _pattern():
     return out
 
 
+RIM_N, RIM_IN, RIM_GAP = 48, WAFER_R - 0.0050, 0.0006
+
+
+def _rim_boxes(sec_deg):
+    """Collision boxes filling the band from 5 mm to 0.6 mm inside the rim, cut short at the flats."""
+    chords = [(0.0, _chord_d(PRI_L))] + ([(math.radians(sec_deg), _chord_d(SEC_L))] if sec_deg is not None else [])
+    w = math.pi * RIM_IN / RIM_N * 1.05  # half the tangential width
+    out = []
+    for i in range(RIM_N):
+        a = 2 * math.pi * (i + 0.5) / RIM_N
+        r_o = WAFER_R - RIM_GAP
+        for t, d in chords:
+            c = math.cos(a - t)
+            if c > 1e-6:
+                r_o = min(r_o, (d - 0.0003 - w * abs(math.sin(a - t))) / c)
+        if r_o - RIM_IN < 0.001:
+            continue
+        r = (r_o + RIM_IN) / 2
+        out.append(((r * math.cos(a), r * math.sin(a), 0.0), (r_o - RIM_IN, 2 * w, WAFER_T * 0.9), SI_BACK, a))
+    return out
+
+
 def _wafer(name, sec_deg, xy, yaw_deg, z):
     # It collides as 16 thin strips crossing its centre, their ends 3 mm inside its rim (inside the flats too), hidden
     # in the drawn wafer: a thin convex mesh collider sinks slowly through thin supports in PhysX, and a primitive disc
     # gives tweezer blades a single contact point, so a wafer held by one edge twists out of them; flat strip faces
     # give the blades a contact patch.
+    # A ring of short boxes then fills the band out to 0.6 mm inside the rim (short of the flats), so tweezers pinching
+    # the outer 4 mm grip flat faces.
     strips = [((0.0, 0.0, 0.0), (2 * COLLIDE_R, 0.010, WAFER_T * 0.9), SI_BACK, math.pi * k / 16) for k in range(16)]
-    return part(name, pos=(*xy, z), yaw=math.radians(yaw_deg), mass=0.010, friction=1.1, boxes=strips,
+    return part(name, pos=(*xy, z), yaw=math.radians(yaw_deg), mass=0.010, friction=1.1,
+                boxes=strips + _rim_boxes(sec_deg),
                 meshes=[_prism(_outline(sec_deg), -WAFER_T / 2, WAFER_T / 2, SI_BACK, "none"), *_pattern()])
 
 
@@ -372,12 +397,30 @@ def flat_ok(w) -> bool:
     return abs(math.atan2(math.sin(d), math.cos(d))) <= FLAT_TOL
 
 
+TW_TOUCH = 0.0003  # a tweezer blade within 0.3 mm of a wafer's pattern side, inside the edge exclusion: pattern touched
+_BLADE_PTS = [np.array([u * BLADE_L / 2, v * BLADE_W / 2, t * BLADE_T / 2]) for u in (-1, 0, 1) for v in (-1, 0, 1)
+               for t in (-1, 1)]
+_EX = np.array([_c, 0.0, -_s])  # the blades' long axis (bent 45 degrees forward and down), in a tweezers' frame
+_EZ = np.array([_s, 0.0, _c])
+
+
+def _blade_points(tw):
+    """Points over both blades of a pair of tweezers (a 3 x 3 grid on each face), in world coordinates."""
+    out = []
+    for sx in (-SEP / 2, SEP / 2 + tw.joints.get("jaw", 0.0)):
+        c = np.array([_ax + sx + _c * BLADE_L / 2, 0.0, _az - _s * BLADE_L / 2])
+        for q in _BLADE_PTS:
+            out.append(tw.to_world(c + q[0] * _EX + [0.0, q[1], 0.0] + q[2] * _EZ))
+    return out
+
+
 @on_step
 def _watch(env):
     """Latch the violations: a wafer's pattern touched by the gripper, a wafer held by the gripper itself, a wafer
     dropped (on the table, or below its carrier's ledge or the chuck without being on either)."""
     S = labkit._SPECS
     tips = _tips(env)
+    blades = [q for n in ("tweezers_r", "tweezers_l") for q in _blade_points(labkit._part_state(env, S[n]))]
     track = []
     for n in WAFER_NAMES:
         w = labkit._part_state(env, S[n])
@@ -385,6 +428,10 @@ def _watch(env):
         R = w.rotation()
         if p[2] < REST_Z - 0.0015:  # below a carrier's ledge: fallen in, or on the table
             _state["dropped"] = True
+        for b in blades:
+            q = R.T @ (np.asarray(b, float) - p)
+            if math.hypot(q[0], q[1]) < WAFER_R - EDGE_EXCL and -0.0005 < q[2] - WAFER_T / 2 < TW_TOUCH:
+                _state["touched"] = True  # tweezers on the pattern, inside the edge exclusion
         for tip in tips:
             q = R.T @ (np.asarray(tip, float) - p)
             r = math.hypot(q[0], q[1])
@@ -407,7 +454,7 @@ def vacuum_on(objects) -> bool:
 
 
 def score(objects):
-    """0 if a wafer's pattern was ever touched by the gripper, a wafer was ever held by the gripper itself or dropped,
+    """0 if a wafer's pattern (inside its 6 mm edge exclusion) was ever touched by the gripper or the tweezers, a wafer was ever held by the gripper itself or dropped,
     another wafer is on the mounter, or the wafers have not all been still (under 1 mm of movement) for the last
     second. Otherwise, with the n-type (100) wafer on the chuck pattern side down (within 3 degrees), its centre
     within 2 mm of the chuck's centre: 1.0 if its primary flat faces the frame's flat side within 2 degrees, the
@@ -493,7 +540,7 @@ DOWN_X = Orient(_prev_grip(math.pi / 2))
 TW_WIDE = -0.014
 TW_HOLD = -0.0050
 TW_PINCH = -0.0010  # squeezed hard: the pinch must hold the wafer on edge against its weight's twist
-PINCH_IN = 0.012  # the tips 12 mm inside the edge: a 100 mm wafer needs a deep pinch not to twist out
+PINCH_IN = 0.008  # the tips 8 mm inside the edge, inside the edge exclusion
 BLADE_Z = 0.0022  # the tips' midpoint above the wafer's underside, as taken in a carrier
 V0 = np.array([WAFER_R - PINCH_IN, 0.0, WAFER_T / 2 - (BLADE_Z - 0.0016)])  # lower blade ~1 mm under it  # the wafer's centre from the tips, held
 # blades flat along +x (tweezer heading 0)
@@ -696,7 +743,21 @@ def demo():
     ]
     _seen["w_t"] = t_offer + 2.6  # the wafer, seen on edge and steady
     seen = lambda: _seen.get("w", (C_EDGE, None))[0]  # noqa: E731
-    at_top = lambda back: (lambda: (seen() - C_EDGE + O_L - L_R0 @ X * back, L_R0))  # noqa: E731
+
+    def _ol():  # the top edge, as seen: the wafer's centre, and its face's tilt (not its turn in its own plane: round)
+        c, Rs = _seen.get("w", (C_EDGE, None))
+        if Rs is None:
+            return O_L
+        n_p = (axis_angle_matrix(U, ROLL) @ _seen.get("wp", (W0, np.eye(3)))[1])[:, 2]
+        n_s = Rs[:, 2] * (1.0 if float(np.dot(Rs[:, 2], n_p)) >= 0 else -1.0)
+        v, cth = np.cross(n_p, n_s), float(np.dot(n_p, n_s))
+        sv = float(np.linalg.norm(v))
+        if sv < 1e-6:
+            return c + O_L - C_EDGE
+        K = np.array([[0.0, -v[2], v[1]], [v[2], 0.0, -v[0]], [-v[1], v[0], 0.0]])
+        D = np.eye(3) + K + K @ K * ((1.0 - cth) / sv ** 2)
+        return c + D @ (O_L - C_EDGE)
+    at_top = lambda back: (lambda: (_ol() - L_R0 @ X * back, L_R0))  # noqa: E731
     stage = C_EDGE + [0.0, 0.12, 0.02]
     left += [
         _wp(3.0, "l", _const(stage, Rz(-math.pi / 2)), TW_HOLD, "tilt them, blades flat, beside the wafer"),
@@ -728,10 +789,10 @@ def demo():
     r_rest = right[-1]
 
     # left: hold it while the right hand lets go, then turn it over, carry it over the chuck and lay it down
-    held = (lambda: (seen() - C_EDGE + O_L, L_R0))  # noqa: E731
+    held = (lambda: (_ol(), L_R0))  # noqa: E731
     left.append(_wp(max(0.3, t_taken + 3.5 - _dur(left)), "l", held, TW_PINCH,
                     "hold it while the right hand lets go and backs out", False))
-    lift = lambda k: (lambda: (seen() - C_EDGE + O_L, _l_turn(k)[1]))  # noqa: E731
+    lift = lambda k: (lambda: (_ol(), _l_turn(k)[1]))  # noqa: E731
     for k in range(1, TURN_STEPS + 1):
         left.append(_wp(0.8, "l", lift(k), TW_PINCH, "turn it over: it lies flat, pattern side down", False))
     over = PLACE_C + [0.0, 0.0, 0.06]

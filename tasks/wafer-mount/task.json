@@ -1,14 +1,21 @@
 {
   "title": "Mount the n-type (100) wafer on a dicing-tape mounter, told apart from look-alikes only by its flats",
-  "category": "Impact on jobs",
-  "keywords": ["cleanroom", "wafer flats", "dicing", "tweezers", "bimanual", "hand-over"],
+  "category": "Other",
+  "keywords": [
+    "cleanroom",
+    "wafer flats",
+    "dicing",
+    "tweezers",
+    "bimanual",
+    "hand-over"
+  ],
   "instruction": "Using the tweezers, mount the n-type (100) wafer on the tape mounter's chuck so its back can be taped, centred with its primary flat towards the frame's flat side, and turn the wafer vacuum on.",
   "context": "Unlabelled wafers are told apart by their SEMI flats, and dicing tape goes on a wafer's back, so it is laid face down; a pair of tweezers cannot both turn a wafer over and set it down.",
-  "setup": "Station table. Four 100 mm silicon wafers (drawn 1 mm thick, 10 g), pattern side up, unlabelled, each in an open polypropylene single-wafer carrier (120 mm across, ledge 8 mm above the bench, a 22 mm tweezer slot facing front right) in a 2 x 2 grid at x 0.24 and 0.375 m, y -0.10 and -0.235 m. All have a 32.5 mm primary flat; secondary 18 mm flats: none (front right), 90 degrees counterclockwise (back left), 45 degrees (back right), 180 degrees (front left, the n-type (100) one). Two pairs of stainless angled wafer tweezers (85 mm arms, 12 mm blades bent 45 degrees) stand tips down in grey cups at (0.11, -0.215) and (0.12, 0.25). Tape-frame mounter (fixed): 240 x 240 mm housing centred at (0.30, 0.14), top 40 mm high, an aluminium chuck plate with centring grooves for 2 to 5 inch wafers, straight alignment grooves and a 20 x 4 mm tweezer recess on its left (+y) side; a steel film frame (150 mm inner, 200 mm outer, flat side to the left) on three locating pins. WAFER VACUUM toggle at (0.205, 0.04) on the housing, tilted back (OFF).",
-  "scoring": "Measured at the end, once all wafers and the toggle have been still (under 1 mm) for 1 s; 0 if not. 0 if a fingertip ever came within 4 mm of a wafer's pattern side inside its 5 mm edge exclusion, a fingertip ever touched a wafer's rim (held by the gripper), a wafer fell below its carrier's ledge or onto the bench, or another wafer's centre is within 6 cm of the chuck's centre. Otherwise, with the n-type (100) wafer on the chuck pattern side down (within 3 degrees), centre within 2 mm of the chuck's centre: 0.25; 0.5 if its primary flat also faces the frame's flat side within 2 degrees; 0.75 if the wafer vacuum is also ON (toggle tilted forward past 11 degrees); 1.0 if both hands' fingertips and both tweezers' tips are also 8 cm from the chuck's centre. 0 if it is not on the chuck that way.",
+  "setup": "Station table. Four 100 mm silicon wafers (drawn 1 mm thick, 10 g), pattern side up, each patterned only inside an 80 mm circle at its centre (a 10 mm edge exclusion), unlabelled, each in an open polypropylene single-wafer carrier (120 mm across, ledge 8 mm above the bench, a 22 mm tweezer slot facing front right) in a 2 x 2 grid at x 0.24 and 0.375 m, y -0.10 and -0.235 m. All have a 32.5 mm primary flat; secondary 18 mm flats: none (front right), 90 degrees counterclockwise (back left), 45 degrees (back right), 180 degrees (front left, the n-type (100) one). Two pairs of stainless angled wafer tweezers (85 mm arms, 12 mm blades bent 45 degrees) stand tips down in grey cups at (0.11, -0.215) and (0.12, 0.25). Tape-frame mounter (fixed): 240 x 240 mm housing centred at (0.30, 0.14), top 40 mm high, an aluminium chuck plate with centring grooves for 2 to 5 inch wafers, straight alignment grooves and a 20 x 4 mm tweezer recess on its left (+y) side; a steel film frame (150 mm inner, 200 mm outer, flat side to the left) on three locating pins. WAFER VACUUM toggle at (0.205, 0.04) on the housing, tilted back (OFF).",
+  "scoring": "Measured at the end, once all wafers and the toggle have been still (under 1 mm) for 1 s; 0 if not. 0 if a tweezer blade ever came within 0.3 mm of a wafer's pattern side, or a fingertip within 4 mm of it, more than 10 mm inside its rim (on the pattern; tweezers may touch only the 10 mm edge exclusion), a fingertip ever touched a wafer's rim (held by the gripper), a wafer fell below its carrier's ledge or onto the bench, or another wafer's centre is within 6 cm of the chuck's centre. Otherwise, with the n-type (100) wafer on the chuck pattern side down (within 3 degrees), centre within 2 mm of the chuck's centre: 0.25; 0.5 if its primary flat also faces the frame's flat side within 2 degrees; 0.75 if the wafer vacuum is also ON (toggle tilted forward past 11 degrees); 1.0 if both hands' fingertips and both tweezers' tips are also 8 cm from the chuck's centre. 0 if it is not on the chuck that way.",
   "run_limit": "2,400 steps (2 minutes at 20 Hz)",
   "reset_notes": "One fixed layout; nothing is consumed. The tape itself is not part of the task.",
   "fidelity": "Wafers drawn 1 mm thick with real masses; they collide as 16 thin strips just inside the rim, so the flats are visual only. Tweezers are two rigid halves on a sprung slide. The vacuum and tape are not simulated: vacuum is a toggle state, scored only.",
   "scores": "Dream-1 run: 0.0; demo: 1.0",
-  "media": "M-PD3GRX"
+  "media": "M-ZNWJLA"
 }
