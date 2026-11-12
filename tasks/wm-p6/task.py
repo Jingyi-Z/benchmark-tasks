@@ -754,7 +754,21 @@ def demo():
     ]
     _seen["w_t"] = t_offer + 2.6  # the wafer, seen on edge and steady
     seen = lambda: _seen.get("w", (C_EDGE, None))[0]  # noqa: E731
-    at_top = lambda back: (lambda: (seen() - C_EDGE + O_L - L_R0 @ X * back, L_R0))  # noqa: E731
+
+    def _ol():  # the top edge, as seen: the wafer's centre, and its face's tilt (not its turn in its own plane: round)
+        c, Rs = _seen.get("w", (C_EDGE, None))
+        if Rs is None:
+            return O_L
+        n_p = (axis_angle_matrix(U, ROLL) @ _seen.get("wp", (W0, np.eye(3)))[1])[:, 2]
+        n_s = Rs[:, 2] * (1.0 if float(np.dot(Rs[:, 2], n_p)) >= 0 else -1.0)
+        v, cth = np.cross(n_p, n_s), float(np.dot(n_p, n_s))
+        sv = float(np.linalg.norm(v))
+        if sv < 1e-6:
+            return c + O_L - C_EDGE
+        K = np.array([[0.0, -v[2], v[1]], [v[2], 0.0, -v[0]], [-v[1], v[0], 0.0]])
+        D = np.eye(3) + K + K @ K * ((1.0 - cth) / sv ** 2)
+        return c + D @ (O_L - C_EDGE)
+    at_top = lambda back: (lambda: (_ol() - L_R0 @ X * back, L_R0))  # noqa: E731
     stage = C_EDGE + [0.0, 0.12, 0.02]
     left += [
         _wp(3.0, "l", _const(stage, Rz(-math.pi / 2)), TW_HOLD, "tilt them, blades flat, beside the wafer"),
@@ -786,10 +800,10 @@ def demo():
     r_rest = right[-1]
 
     # left: hold it while the right hand lets go, then turn it over, carry it over the chuck and lay it down
-    held = (lambda: (seen() - C_EDGE + O_L, L_R0))  # noqa: E731
+    held = (lambda: (_ol(), L_R0))  # noqa: E731
     left.append(_wp(max(0.3, t_taken + 3.5 - _dur(left)), "l", held, TW_PINCH,
                     "hold it while the right hand lets go and backs out", False))
-    lift = lambda k: (lambda: (seen() - C_EDGE + O_L, _l_turn(k)[1]))  # noqa: E731
+    lift = lambda k: (lambda: (_ol(), _l_turn(k)[1]))  # noqa: E731
     for k in range(1, TURN_STEPS + 1):
         left.append(_wp(0.8, "l", lift(k), TW_PINCH, "turn it over: it lies flat, pattern side down", False))
     over = PLACE_C + [0.0, 0.0, 0.06]
