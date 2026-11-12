@@ -7,7 +7,7 @@ The task, in the order a microscopist works:
    the left; let the arm close over the slide's right end. (Two hands: the arm springs shut when let go.)
 2. Bring the specimen under the objective with the stage's x and y drive knobs.
 3. Focus: raise the stage with a coarse focus knob to near focus, never letting the slide come within 0.5 mm of the
-   objective, then finish with the fine focus knob until the chip's alignment mark is sharp on the camera monitor
+   objective, then finish with the fine focus knob until the chip's alignment mark is sharp on the camera monitor (a tablet on the table)
    (within the 10x objective's depth of field, 10 um).
 
 Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jitter=0 -E control_hz=20 \\
@@ -224,32 +224,33 @@ SLIDE = part(
     ],
 )
 
-# -- the camera monitor (fixed): the microscope camera's live 10x view, on a screen to the left of the microscope,
-# facing the robots. The field of view (2.2 mm across) fills a 90 mm circle on it: 41 mm on the screen per mm on the
-# slide. Its colour shows whether the chip is under the objective; the alignment mark moves with the stage and is
-# drawn sharp, soft or blurred by how far the slide is from focus (within 10 um, 0.1 mm, 1 mm; beyond that it is lost
-# in the blur). Away from the robots on the slide is up on the screen; to their left is to the left.
-MON_XY, MON_Z = (0.38, 0.27), 0.17  # the screen's centre, above the table
-MON_W, MON_H = 0.18, 0.12
-FOV_R, SCR_PER_M = 0.045, 0.045 / 0.0011
+# -- the camera monitor (fixed): a tablet lying flat on the table in front of the microscope, between the robots, its
+# screen up, showing the microscope camera's live 10x view over the whole screen (18 x 12 cm, 6 x 4 mm of the slide:
+# 30 mm on the screen per mm). The screen's colour shows whether the chip is under the objective; the alignment mark
+# moves with the stage and is drawn sharp, soft or blurred by how far the slide is from focus (within 10 um, 0.1 mm,
+# 1 mm; beyond that it is lost in the blur). The screen's centre is the objective's axis; away from the robots on the
+# slide is away on the screen (its far edge is up in the robots' view), and to their left is to the left.
+MON_XY = (0.09, 0.0)  # the screen's centre on the table
+MON_W, MON_H, MON_T = 0.18, 0.12, 0.012  # across (y), along (x), thickness
+SCR_PER_M = 0.030 / 0.001
 MARK_LEVELS = ((SHARP, 0.0012), (SOFT, 0.004), (BLUR, 0.010))  # colour, line width on the screen
-_face = -0.006  # the screen's face, in front of the bezel (towards the robots)
+_face = MON_T + 0.0010  # the screen's face, on top of the tablet
+_ARM, _CORNER, _SQ = 1.6e-3 * SCR_PER_M, 0.5e-3 * SCR_PER_M, 0.4e-3 * SCR_PER_M
 MONITOR_BOXES = [
-    ((0.0, 0.0, MON_Z), (0.010, MON_W + 0.012, MON_H + 0.012), DARK),  # bezel
-    ((0.02, 0.0, MON_Z / 2 - 0.03), (0.012, 0.012, MON_Z - 0.06), GREY),  # stand
-    ((0.02, 0.0, 0.004), (0.10, 0.10, 0.008), GREY),  # foot
-    ((_face + 0.0005, 0.0, MON_Z), (0.001, MON_W, MON_H), SCREEN),
+    ((0.0, 0.0, MON_T / 2), (MON_H + 0.012, MON_W + 0.012, MON_T), DARK),  # tablet body and bezel
+    ((0.0, 0.0, MON_T + 0.0005), (MON_H, MON_W, 0.001), SCREEN),
+    ((0.0, 0.0, _face + 0.0002), (MON_H, MON_W, 0.0003), VIEW_GLASS),  # the view over bare glass
+    ((0.0, 0.0, _face + 0.0004), (MON_H, MON_W, 0.0003), VIEW_CHIP),  # the view over the chip
 ]
-MARK_BOX0 = len(MONITOR_BOXES)  # then, per level, the mark's two bars (along y, along z) and four corner squares
+VIEW_BOX0 = 2
+MARK_BOX0 = len(MONITOR_BOXES)  # then, per level, the mark's two bars (across, along) and four corner squares
 for _col, _w in MARK_LEVELS:
-    MONITOR_BOXES += [((_face - 0.0010, 0.0, MON_Z), (0.0005, 0.066, _w), _col),
-                      ((_face - 0.0010, 0.0, MON_Z), (0.0005, _w, 0.066), _col),
-                      *[((_face - 0.0010, sy * 0.0205, MON_Z + sz * 0.0205), (0.0005, 0.016 + _w, 0.016 + _w), _col)
-                        for sy in (-1, 1) for sz in (-1, 1)]]
+    MONITOR_BOXES += [((0.0, 0.0, _face + 0.0008), (_w, _ARM, 0.0003), _col),
+                      ((0.0, 0.0, _face + 0.0008), (_ARM, _w, 0.0003), _col),
+                      *[((sx * _CORNER, sy * _CORNER, _face + 0.0008), (_SQ + _w, _SQ + _w, 0.0003), _col)
+                        for sx in (-1, 1) for sy in (-1, 1)]]
 MARK_PER_LEVEL = 6
-MONITOR = part("monitor", pos=(*MON_XY, TOP), fixed=True, boxes=MONITOR_BOXES,
-               cylinders=[((_face - 0.0004, 0.0, MON_Z), FOV_R, 0.0003, VIEW_GLASS, "X"),
-                          ((_face - 0.0006, 0.0, MON_Z), FOV_R, 0.0003, VIEW_CHIP, "X")])
+MONITOR = part("monitor", pos=(*MON_XY, TOP), fixed=True, boxes=MONITOR_BOXES)
 
 OBJECTS = [MICROSCOPE, SLIDE_REST, SLIDE, MONITOR]
 
@@ -280,7 +281,7 @@ def _clear(env):
 
 
 def _screen_prims(env):
-    """The monitor's field-of-view discs and mark boxes as USD prims, with each box's resting translation."""
+    """The monitor's two view layers and mark boxes as USD prims, with each mark box's resting translation."""
     if _scr["prims"] is None:
         import omni.usd
         from pxr import UsdGeom
@@ -296,14 +297,15 @@ def _screen_prims(env):
                 op = UsdGeom.Xformable(prim).GetOrderedXformOps()[0]
                 row.append((prim, op, op.Get()))
             marks.append(row)
-        _scr["prims"] = {"glass": stage.GetPrimAtPath(f"{body}/cyl_0"), "chip": stage.GetPrimAtPath(f"{body}/cyl_1"),
+        _scr["prims"] = {"glass": stage.GetPrimAtPath(f"{body}/box_{VIEW_BOX0}"),
+                         "chip": stage.GetPrimAtPath(f"{body}/box_{VIEW_BOX0 + 1}"),
                          "marks": marks}
     return _scr["prims"]
 
 
 def screen_view(j: dict, slide):
     """What the monitor shows: (field: 'chip' or 'glass', mark level 0 sharp / 1 soft / 2 blurred / None, mark offset
-    on the screen (horizontal, vertical) in m)."""
+    on the screen (along x, across y) in m)."""
     if not _loaded(j, slide):
         return "glass", None, (0.0, 0.0)
     p = slide.to_world((0.0, SPEC_Y, 0.0))
@@ -313,7 +315,7 @@ def screen_view(j: dict, slide):
         return field, None, (0.0, 0.0)
     e = focus_error(j)
     level = 0 if e <= FOCUS_TOL else 1 if e <= NEAR_TOL else 2 if e <= 0.001 else None
-    return field, level, (round(dy * SCR_PER_M, 3), round(dx * SCR_PER_M, 3))
+    return field, level, (round(dx * SCR_PER_M, 3), round(dy * SCR_PER_M, 3))
 
 
 def _show_screen(env, view):
@@ -325,7 +327,7 @@ def _show_screen(env, view):
         from pxr import Gf, UsdGeom
 
         pr = _screen_prims(env)
-        field, level, (oy, oz) = view
+        field, level, (ox, oy) = view
         for name in ("glass", "chip"):
             img = UsdGeom.Imageable(pr[name])
             img.MakeVisible() if name == field else img.MakeInvisible()
@@ -333,7 +335,7 @@ def _show_screen(env, view):
             for prim, op, base in row:
                 img = UsdGeom.Imageable(prim)
                 if lv == level:
-                    op.Set(Gf.Vec3d(base[0], base[1] + oy, base[2] + oz))
+                    op.Set(Gf.Vec3d(base[0] + ox, base[1] + oy, base[2]))
                     img.MakeVisible()
                 else:
                     img.MakeInvisible()
@@ -586,8 +588,7 @@ PLANCHECK_BOXES = [
     ("head", W(PILLAR_X + PILLAR[0] / 2 - HEAD[0] / 2, 0.0, HEAD_TOP - HEAD[2] / 2), HEAD),
     ("stage at load", W(STAGE_X + QX0, QY0, PLATE_TOP0 - 0.003), (0.10, 0.13, 0.006)),
     ("slide rest", (*REST_XY, TOP + REST[2] / 2), REST),
-    ("monitor", (MON_XY[0], MON_XY[1], TOP + MON_Z), (0.010, MON_W + 0.012, MON_H + 0.012)),
-    ("monitor stand", (MON_XY[0] + 0.02, MON_XY[1], TOP + MON_Z / 2), (0.10, 0.10, MON_Z)),
+    ("monitor", (MON_XY[0], MON_XY[1], TOP + MON_T / 2), (MON_H + 0.012, MON_W + 0.012, MON_T)),
 ]
 
 

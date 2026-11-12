@@ -17,6 +17,6 @@
   "run_limit": "2,400 steps (2 minutes at 20 Hz)",
   "reset_notes": "Nothing is consumed. Lower the stage 12 mm below focus, drive it 85 mm towards the robots and centre it left to right, take the slide out and lay it on its rest, label to the left.",
   "fidelity": "Rigid bodies in PhysX at 240 Hz. Knobs turn on damped hinges; the stage follows them through stiff drives, geared faster than a real stage (x 170, y 40 mm per turn, coarse focus 24, fine 1 mm per turn). The slide is drawn 2 mm thick (real 1 mm). No optics: the monitor draws the 10x view from the stage's position, its blur in steps by the distance from focus; focus is scored from the stage height.",
-  "scores": "Dream-1 run: TBD; demo: TBD",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
   "media": "M-QEJAZN"
 }
