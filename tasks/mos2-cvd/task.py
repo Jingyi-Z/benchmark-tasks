@@ -473,7 +473,7 @@ _PADDLE = [_hex([(sx * (0.007 if z < 0 else 0.010), y, (z if z > 0 else (-0.003 
 # onto the floor at the tube's mouth instead of stubbing on its end)
 
 
-ROD = part("push_rod", pos=tuple(ROD_START), mass=0.015, friction=1.0,  # (a tube: 8 mm OD, 6 mm ID)
+ROD = part("push_rod", pos=tuple(ROD_START), mass=0.015, friction=0.3,  # (a tube: 8 mm OD, 6 mm ID)
            boxes=[((0.0, -(0.004 + ROD_L) / 2, 0.0), (GRIP_W, ROD_L - 0.004, GRIP_W), QUARTZ)],  # (square: it cannot
            meshes=[*_RING, *_PADDLE])  # roll in its channel under the handle's offset weight)
 REST_Y = (ROD_START[1] - 0.030, ROD_START[1] - 0.250)  # its two rests, in line with the tube, under the parked rod's body
