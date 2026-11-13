@@ -18,5 +18,5 @@
   "reset_notes": "Put the boats back on the tray, the rod on its rack and the caps in their cradles; the powders and the substrate are reused.",
   "fidelity": "Rigid-body sim. Furnace, tray, rack, cradles and the tube's blocks are fixed; the tube, boats, substrate, rod and caps are loose with real sizes and masses, except the substrate at 0.4 g (4x real). Powder is a solid layer, so spills are scored by tilt. No heat, gas or growth: the layout is scored from positions. Caps slip on (no O-ring). Lid fixed open; controller and gas lines not modelled. Quartz renders opaque: a boat in the tube shows only by the rod's depth.",
   "scores": "Dream-1 run: 0.0; demo: 1.0",
-  "media": ""
+  "media": "M-9LQCCC"
 }
