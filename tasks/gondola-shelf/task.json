@@ -16,5 +16,5 @@
   "reset_notes": "Lift the white shelf off the brackets back onto its two front risers, tilt each steel bracket nose-up ~25 degrees to unhook it from level 3, and stand both brackets upright in their side cradles. Nothing is consumed.",
   "fidelity": "Rigid-body PhysX simulation with primitive box colliders. The upright, cradles and shelf risers are fixed; both steel brackets and the flanged shelf are free rigid bodies with the masses in the setup. Slots, hooks and tongues are modelled to the sizes given in the setup. Sheet-metal flex is absent.",
   "scores": "Dream-1 run: 0.0; demo: 1.0",
-  "media": ""
+  "media": "M-URFUTD"
 }
