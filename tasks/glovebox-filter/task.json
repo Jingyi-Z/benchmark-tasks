@@ -16,5 +16,5 @@
   "reset_notes": "Nothing is consumed. Slide the old filter back into its housing and put the new one back on its stand; swing the box up, squeezing its sides to pass the stops, and let it rest open on them.",
   "fidelity": "Rigid bodies and joints in PhysX. Each flexible side wall is its upper half sliding inward on a spring (300 N/m, 10 mm of travel; 3 N, softer than a real box's 10 to 20 N), and each stop lug a rigid block; a forced stop is scored, not broken. The box's damper and the filter cover's clips are left out, and each filter is a rigid block with a pull tab. The dash's cheeks end below the slot so held filters can be carried in from the side.",
   "scores": "Dream-1 run: 0.0; demo: 1.0",
-  "media": ""
+  "media": "M-XQHB6N"
 }
