@@ -311,12 +311,16 @@ def _console():
 
 _coils = [((XA + s * (SLOT - 0.003), y, AXZ - 0.016), (0.003, 0.004, 0.016)) for s in (-1, 1)
           for y in np.arange(EDGE_Y, FY1 - 0.040, 0.012)]
-FURNACE_MESHES = [*SADDLES, _boxes_mesh(_coils, COIL_C), *_console()]
+FURNACE_MESHES = [*SADDLES, _boxes_mesh(_coils, COIL_C)]  # (its controller is off the bench: not modelled)
 # the lid, standing open (held by its stop): front and back blocks either side of the tube's gap, the top over it
 _lid_boxes = [
     (((FX0 + XA - SLOT) / 2, _mid_y, (AXZ + LID_Z1) / 2), (XA - SLOT - FX0, _len_y, LID_Z1 - AXZ), WHITE_F),
     (((XA + SLOT + FX1) / 2, _mid_y, (AXZ + LID_Z1) / 2), (FX1 - XA - SLOT, _len_y, LID_Z1 - AXZ), WHITE_F),
     ((XA, _mid_y, (AXZ + 0.040 + LID_Z1) / 2), (2 * SLOT, _len_y, LID_Z1 - AXZ - 0.040), WHITE_F),
+    # its handle, on the lid's front (up, with the lid open): a 120 mm steel bar on two 25 mm standoffs
+    *[((FX0 - 0.0125, _mid_y + sy * 0.050, AXZ + 0.70 * (LID_Z1 - AXZ)), (0.025, 0.010, 0.010), STAINLESS)
+      for sy in (-1, 1)],
+    ((FX0 - 0.030, _mid_y, AXZ + 0.70 * (LID_Z1 - AXZ)), (0.010, 0.120, 0.012), STAINLESS),
 ]
 LID_OPEN = math.radians(100.0)  # opened just past upright, leaning back off the left hand
 LID = Joint("lid", kind="hinge", axis="Y", anchor=(HINGE[0], _mid_y, HINGE[1]), lower=0.0, upper=LID_OPEN + 0.02,
@@ -344,12 +348,9 @@ TUBE_STAND = part("tube_stands", pos=(0.0, 0.0, TOP), fixed=True, friction=0.3,
 # -- the end caps (loose), off for loading, each lying in a cradle beside its end of the tube (nearer the robots), its
 # open end towards the tube: the argon inlet's cap at the loading end, the exhaust's cap at the far end. Upstream is the
 # end the gas comes in. Each is a stainless cup that slips over the tube's end (an O-ring seal, not modelled) with a hose
-# barb on its end plate and a flat tab behind it to hold it by, its face turned like the rod's ring. The gas bottle and
-# the oil bubbler stand on the bench (their hoses are not modelled). Frame: the cap's open end, on its axis. ------------
+# barb on its end plate and a flat tab behind it to hold it by, its face turned like the rod's ring. The gas lines are
+# not modelled. Frame: the cap's open end, on its axis. -----------------------------------------------------------------
 BRASS = (0.78, 0.66, 0.30)
-ARGON_C = (0.25, 0.48, 0.30)  # the gas bottle (argon: green shoulder)
-BOTTLE = (0.40, -0.60)
-BUBBLER = (0.05, 0.62)
 CAP_RI, CAP_RO, CAP_DEPTH, CAP_PLATE = 0.029, 0.033, 0.018, 0.006  # (a loose fit: 58 mm bore on the 50.8 mm tube)
 CAP_FLARE, CAP_FLARE_L = 0.032, 0.005  # its mouth chamfered: 64 mm across at its rim, down to 58 mm over 5 mm (a lead-in)
 TAB_L, TAB_R0, TAB_R1, TAB_T = 0.028, -0.011, 0.011, 0.005  # (on the cap's axis: a push through the grip turns it not)
@@ -388,12 +389,6 @@ _RAIL_Z = AXZ - math.sqrt(CAP_RO ** 2 - 0.020 ** 2) - 0.0003  # the cradle's rai
 CRADLES = part("cap_cradles", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
                boxes=[((cx + e * 0.020, cap_start(n)[1] + CAP_SIDE[n] * CAP_DEPTH / 2, _RAIL_Z / 2),
                        (0.008, CAP_DEPTH, _RAIL_Z), DARK) for n, cx in CRADLE_X.items() for e in (-1, 1)])
-GAS = part("gas_supply", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5,
-           meshes=[*_disc_mesh(np.array([BOTTLE[0], BOTTLE[1], 0.0]), Z, 0.040, 0.250, (0.55, 0.56, 0.58)),
-                   *_disc_mesh(np.array([BOTTLE[0], BOTTLE[1], 0.250]), Z, 0.040, 0.050, ARGON_C),
-                   _box_mesh((BOTTLE[0], BOTTLE[1], 0.315), (0.030, 0.030, 0.030), BRASS),
-                   *_disc_mesh(np.array([BUBBLER[0], BUBBLER[1], 0.0]), Z, 0.035, 0.160, QUARTZ)])
-
 # -- the boats (loose), side by side on a tray beside the loading end (behind the tube's line), level with the tube's
 # floor: an alumina boat of precursor 1, an alumina boat of precursor 2, and a short quartz boat carrying the 1 cm substrate,
 # face up. Each has a square tongue out of its back end, to hold it by and for the rod's pusher. Frame: the centre of its
@@ -486,7 +481,7 @@ REST = part("rod_rack", pos=(0.0, 0.0, TOP), fixed=True, friction=0.3,
                 *[((RACK_X + sx * (CH_W + CH_WALL) / 2, y, REST_Z + CH_UP / 2), (CH_WALL, 0.014, CH_UP), DARK)
                   for sx in (-1, 1)])])
 
-OBJECTS = [FURNACE, TUBE, TUBE_STAND, GAS, *CAP_PARTS, CRADLES, *BOAT_PARTS, BOAT_TRAY, CHIP_PART, ROD, REST]
+OBJECTS = [FURNACE, TUBE, TUBE_STAND, *CAP_PARTS, CRADLES, *BOAT_PARTS, BOAT_TRAY, CHIP_PART, ROD, REST]
 
 # -- the layout (scored): upstream (the gas inlet's end, the loading end) to downstream ------------------------
 S_AT, S_TOL = FY0 + 0.010, 0.015  # precursor 1's boat's centre: at the furnace's upstream edge (cool)
