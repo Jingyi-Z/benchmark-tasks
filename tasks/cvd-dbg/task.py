@@ -916,7 +916,8 @@ LOAD_ORDER = ("chip_boat", "moo3_boat", "s_boat")  # the deepest first: boats ca
 # (upstream is the loading end, where the argon comes in: the substrate, furthest downstream, goes in first, precursor 1 last)
 TARGET = {"chip_boat": -0.0075, "moo3_boat": MO_AT, "s_boat": S_AT}  # (against the furnace, with the tube slid back)
 TUBE_OPEN, TUBE_HOLD = -0.040, -0.016  # round the 50.8 mm tube (pads 80 mm apart), and squeezed hard on it
-GRIP_Y = FY1 + 0.060  # the left hand on the tube's far end, outside the furnace (at the start)
+GRIP_Y = FY1 + 0.080  # the left hand on the tube's far end, outside the furnace (at the start), its lower finger
+# well clear of the tube's support when it slides the tube back
 # (the substrate's boat goes as deep as the rod reaches; precursor 2's then pushes it on, by its tongue, to 67.5 mm downstream)
 MOUTH_HI = 0.004  # carried in this much above the tube's floor (a held boat droops a little)
 MOUTH_OUT = MOUTH_OUT_SET  # a boat set in the mouth: its back end this far out (most of it, and its weight, inside)
