@@ -338,8 +338,8 @@ TUBE_BOXES = [((0.0, 0.0, FLOOR_Z - AXZ - 0.0015), (FLOOR_W, 2 * _HL, 0.003), QU
 TUBE = part("quartz_tube", pos=tuple(TUBE_C), mass=0.49, friction=0.3, boxes=TUBE_BOXES, meshes=TUBE_MESHES)
 # its two supports (fixed): a block under the tube just outside each end of the furnace
 TUBE_STAND = part("tube_stands", pos=(0.0, 0.0, TOP), fixed=True, friction=0.3,
-                  boxes=[((XA, y, (AXZ - TUBE_R) / 2), (0.030, 0.012, AXZ - TUBE_R), DARK) for y in (FY0 - 0.030,
-                                                                                                    FY1 + 0.030)])
+                  boxes=[((XA, y, (AXZ - TUBE_R) / 2), (0.030, 0.012, AXZ - TUBE_R), DARK) for y in (FY0 - 0.012,
+                                                                                                    FY1 + 0.012)])
 
 # -- the end caps (loose), off for loading, each lying in a cradle beside its end of the tube (nearer the robots), its
 # open end towards the tube: the argon inlet's cap at the loading end, the exhaust's cap at the far end. Upstream is the
@@ -917,8 +917,7 @@ LOAD_ORDER = ("chip_boat", "moo3_boat", "s_boat")  # the deepest first: boats ca
 # (upstream is the loading end, where the argon comes in: the substrate, furthest downstream, goes in first, precursor 1 last)
 TARGET = {"chip_boat": -0.0075, "moo3_boat": MO_AT, "s_boat": S_AT}  # (against the furnace, with the tube slid back)
 TUBE_OPEN, TUBE_HOLD = -0.040, -0.016  # round the 50.8 mm tube (pads 80 mm apart), and squeezed hard on it
-GRIP_Y = FY1 + 0.080  # the left hand on the tube's far end, outside the furnace (at the start), its lower finger
-# well clear of the tube's support when it slides the tube back
+GRIP_Y = FY1 + 0.060  # the left hand on the tube's far end, outside the furnace (at the start)
 # (the substrate's boat goes as deep as the rod reaches; precursor 2's then pushes it on, by its tongue, to 67.5 mm downstream)
 MOUTH_HI = 0.004  # carried in this much above the tube's floor (a held boat droops a little)
 MOUTH_OUT = MOUTH_OUT_SET  # a boat set in the mouth: its back end this far out (most of it, and its weight, inside)
