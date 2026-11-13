@@ -1014,13 +1014,13 @@ def demo():
             (1.0, on_tube(g0) - 0.02 * a_t, TUBE_OPEN, "down beside the tube", O_T),
             (1.0, on_tube(g0), TUBE_OPEN, "round the tube", O_T),
             (0.8, on_tube(g0), TUBE_HOLD, "close on the tube", O_T),
-            (3.0, _Dyn(on_tube(g0 + SHIFT * Y), "ts"), TUBE_HOLD, "slide the tube 75 mm towards the far end", O_T)]
+            (5.0, _Dyn(on_tube(g0 + SHIFT * Y), "ts"), TUBE_HOLD, "slide the tube 75 mm towards the far end", O_T)]
     pl.phase(left=left,
              right=[(2.0, np.array([0.33, -0.27, TOP + 0.33]), TONGUE_OPEN, "hand turned, up clear of the tube's end",
                      O_D)])
-    tw = pl.phase(left=[(3.0, _Dyn(on_tube(g0 + SHIFT * Y), "ts"), TUBE_HOLD, "hold still: the tube seen 75 mm over",
+    tw = pl.phase(left=[(4.0, _Dyn(on_tube(g0 + SHIFT * Y), "ts"), TUBE_HOLD, "hold still: the tube seen 75 mm over",
                          O_T)])  # (the pads creep a little on the round tube: made up from where the tube is seen)
-    pl.window(tw + 0.3, tw + 3.0, "ts",
+    pl.window(tw + 0.3, tw + 4.0, "ts",
               lambda env: (TUBE_C + SHIFT * Y - _seen(env, "quartz_tube")) * [0.0, 1.0, 0.0], "quartz_tube")
     keys = iter(f"r{i}" for i in range(1, 99))
     for bi, name in enumerate(LOAD_ORDER):
@@ -1107,10 +1107,10 @@ def demo():
                         (1.0, _on_ring(on_rack, RING_IN), ROD_OPEN, "back off the handle", O_R),
                         (1.0, _on_ring(on_rack, RING_IN) + 0.03 * up, ROD_OPEN, "up, clear of the rod", O_R)])
     # the left hand slides the tube back, centred again (as seen: its ends against the furnace), and lets go of it
-    pl.phase(left=[(3.5, _Dyn(on_tube(g0), "tb"), TUBE_HOLD, "slide the tube back, centred in the furnace", O_T)],
+    pl.phase(left=[(6.0, _Dyn(on_tube(g0), "tb"), TUBE_HOLD, "slide the tube back, centred in the furnace", O_T)],
              right=[(2.0, RIGHT_PARK, ROD_OPEN, "up and clear of the tube's end", O_T)])
-    tw = pl.phase(left=[(4.0, _Dyn(on_tube(g0), "tb"), TUBE_HOLD, "hold still: the tube seen centred", O_T)])
-    pl.window(tw + 0.3, tw + 4.0, "tb", lambda env: (TUBE_C - _seen(env, "quartz_tube")) * [0.0, 1.0, 0.0], "quartz_tube")
+    tw = pl.phase(left=[(5.0, _Dyn(on_tube(g0), "tb"), TUBE_HOLD, "hold still: the tube seen centred", O_T)])
+    pl.window(tw + 0.3, tw + 5.0, "tb", lambda env: (TUBE_C - _seen(env, "quartz_tube")) * [0.0, 1.0, 0.0], "quartz_tube")
     pl.phase(left=[(0.8, _Dyn(on_tube(g0), "tb"), TUBE_OPEN, "let go of the tube", O_T),
                    (1.0, _Dyn(on_tube(g0) - 0.05 * a_t, "tb"), TUBE_OPEN, "back off the tube", O_T),
                    (1.0, _Dyn(on_tube(g0) - 0.05 * a_t + 0.10 * up, "tb"), TUBE_OPEN, "up, well clear of the tube", O_T)])
@@ -1159,3 +1159,14 @@ def _dbg_print(env):
               f"rod={f('push_rod')} ok={st.get('ok')} capsok={st.get('caps')} tube_ok={st.get('tube')} "
               f"racked={st.get('racked')} far={st.get('far')} off={st.get('off_tube')} settled={st.get('settled')}",
               flush=True)
+
+
+@on_step
+def _dbg_tube(env):
+    k = _state.get("step", 0)
+    t = getattr(_demo, "_plan_clock", 0.0)
+    if k % 10 == 0 and (5 <= t <= 22 or 182 <= t <= 200):
+        tp = np.round(_seen(env, "quartz_tube") * 1000, 1).tolist()
+        tl = np.round(np.asarray(_tips(env), float)[:2] * 1000).astype(int).tolist()
+        tr = {kk: np.round(v * 1000, 1).tolist() for kk, v in _ct["trim"].items() if kk in ("ts", "tb")}
+        print(f"TUBEDBG k={k} t={t:.1f} tube={tp} tipsL={tl} trim={tr}", flush=True)
