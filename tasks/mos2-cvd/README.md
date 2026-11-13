@@ -1,6 +1,6 @@
-# Load a tube furnace for two-precursor thermal CVD and cap the tube
+# Push three sample boats to their zones in a tube furnace with a rod while holding the loose tube, then cap both ends
 
-A split-tube furnace holds a 2 inch quartz tube with both end caps off, each in a cradle beside its end. Argon
+A split-tube furnace, its lid open, holds a 2 inch quartz tube with both end caps off, each in a cradle beside its end. Argon
 comes in at the near end, so the near end is upstream. Three boats wait on a tray beside the near end:
 precursor 1 (a yellow powder), precursor 2 (a white powder), and a quartz boat with a silicon substrate face up. A quartz push rod with a flat T-handle across its back end
 lies in two channel rests in line with the tube, behind its near end. The tube lies loose in the furnace's saddles,
@@ -40,7 +40,7 @@ the boats (outside the tube), the rod, the caps and the tube. Run one trial per 
 
 ## Runtime and seeds
 
-- 4,800 control steps (240 s of simulated time) per trial. The scripted demo takes about 4,150.
+- 4,800 control steps (240 s of simulated time) per trial. The scripted demo takes about 4,450.
 - One fixed starting layout: run with `-E object_jitter=0`. No other randomness.
 
 ## Scoring a real trial
