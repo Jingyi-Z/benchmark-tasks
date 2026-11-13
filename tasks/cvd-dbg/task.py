@@ -461,7 +461,8 @@ RING_N = -np.array([math.sin(RING_TURN), 0.0, math.cos(RING_TURN)])  # across th
 ROD_Z = BOAT_Z + 0.0075  # the rod's axis in use: its pusher on a boat's tongue, its lower edge 1.5 mm over the tube's floor
 RACK_X = XA  # the rod lies in line with the tube, behind its loading end, on two low rests: it is slid in and out along
 # them, never lifted
-ROD_START = np.array([RACK_X, TUBE_Y0 - 0.060, TOP + ROD_Z])  # its pusher 60 mm behind the centred tube's loading end
+ROD_START = np.array([RACK_X, TUBE_Y0 - 0.100, TOP + ROD_Z])  # its pusher 100 mm behind the centred tube's loading end
+# (clear of the inlet cap as it is lined up)
 # (clear of a boat set in the mouth, and of the inlet cap)
 _RING = [_hex([(sx * TH_W / 2, RING_Y + dy, z) for sx in (-1, 1) for dy in (-RING_T / 2, RING_T / 2)  # (all above
                for z in (0.002, 0.002 + TH_UP)], QUARTZ)]  # the rod's axis, and centred over it: its weight cannot turn it)
