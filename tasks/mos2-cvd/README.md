@@ -3,7 +3,7 @@
 A split-tube furnace holds a 2 inch quartz tube with both end caps off, each in a cradle beside its end. Argon
 comes in at the near end, so the near end is upstream. Three boats wait on a tray beside the near end:
 precursor 1 (a yellow powder), precursor 2 (a white powder), and a quartz boat with a silicon substrate face up. A quartz push rod with a flat T-handle across its back end
-lies on a rack beside the tube's line. The tube lies loose in the furnace's saddles,
+lies in two channel rests in line with the tube, behind its near end. The tube lies loose in the furnace's saddles,
 centred. The left hand takes it by its far end, slides it 75 mm towards the far side so the near end stands close to the
 furnace, and holds it there. The right hand sets each boat in the tube's mouth by its tongue, takes the rod by its T-handle
 and pushes the boat in, then racks the rod. The left hand slides the tube back, centred, and lets go; then each hand caps
