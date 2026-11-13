@@ -317,16 +317,29 @@ _lid_boxes = [
     (((FX0 + XA - SLOT) / 2, _mid_y, (AXZ + LID_Z1) / 2), (XA - SLOT - FX0, _len_y, LID_Z1 - AXZ), WHITE_F),
     (((XA + SLOT + FX1) / 2, _mid_y, (AXZ + LID_Z1) / 2), (FX1 - XA - SLOT, _len_y, LID_Z1 - AXZ), WHITE_F),
     ((XA, _mid_y, (AXZ + 0.040 + LID_Z1) / 2), (2 * SLOT, _len_y, LID_Z1 - AXZ - 0.040), WHITE_F),
-    # its handle, on the lid's front (up, with the lid open): a 120 mm steel bar on two 25 mm standoffs
+    # its handle, on the lid's front (on top, with the lid open): a 120 mm steel bar on two 25 mm standoffs
     *[((FX0 - 0.0125, _mid_y + sy * 0.050, AXZ + 0.70 * (LID_Z1 - AXZ)), (0.025, 0.010, 0.010), STAINLESS)
       for sy in (-1, 1)],
     ((FX0 - 0.030, _mid_y, AXZ + 0.70 * (LID_Z1 - AXZ)), (0.010, 0.120, 0.012), STAINLESS),
 ]
-LID_OPEN = math.radians(100.0)  # opened just past upright, leaning back off the left hand
-LID = Joint("lid", kind="hinge", axis="Y", anchor=(HINGE[0], _mid_y, HINGE[1]), lower=0.0, upper=LID_OPEN + 0.02,
-            stiffness=40.0, target=LID_OPEN, damping=1.0, initial=LID_OPEN, mass=0.4, boxes=_lid_boxes)
+LID_OPEN = math.radians(100.0)  # opened just past upright, leaning back off the left hand, resting on its stop
+
+
+def _open_box(c, size, colour):
+    """A lid box (given with the lid closed) swung open about the hinge: fixed, as the lid rests on its stop."""
+    ca, sa = math.cos(LID_OPEN), math.sin(LID_OPEN)
+    pts = []
+    for i in (0, 1):
+        for j in (0, 1):
+            for k in (0, 1):
+                x, y, z = (np.asarray(c, float) + (np.array([i, j, k]) - 0.5) * np.asarray(size, float))
+                dx, dz = x - HINGE[0], z - HINGE[1]
+                pts.append((HINGE[0] + dx * ca + dz * sa, y, HINGE[1] - dx * sa + dz * ca))
+    return _hex(pts, colour)
+
+
 FURNACE = part("tube_furnace", pos=(0.0, 0.0, TOP), fixed=True, friction=0.5, boxes=FURNACE_BOXES,
-               cylinders=FURNACE_CYLS, meshes=FURNACE_MESHES, joints=[LID])
+               cylinders=FURNACE_CYLS, meshes=[*FURNACE_MESHES, *(_open_box(*b) for b in _lid_boxes)])
 
 # -- the tube (loose, in the furnace's saddles and on two supports just outside it): fused quartz, 2 inch, 610 mm long,
 # 0.49 kg, open at both ends (its end caps are off for loading). Its wall in 45 mm lengths, 12-sided, and a smooth strip
