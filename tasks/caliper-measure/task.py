@@ -69,7 +69,7 @@ SLIDE_DAMP, SLIDE_FRICTION = 3.0, 0.6  # N s/m; N: the slider stays where it is 
 # reaction, the force the jaw needs to stay put, as a load cell in the jaw would read it.
 Z_TOP = HB + T  # the beam's top face
 HOUSING_TOP = Z_TOP + HOUSING_H
-CALIPER_MASS = 0.07  # the beam and head; the slider, jaw and display add about 0.06 kg (134 g in all)
+CALIPER_MASS = 0.068  # the beam and head; the slider, jaw and display add about 0.06 kg (134 g in all)
 
 # The wooden rest the caliper starts on: a block under the beam's middle, the head overhanging it.
 REST_BLOCK = (0.040, 0.100, 0.030)  # x, y, z
@@ -77,10 +77,19 @@ REST_BLOCK_Y = -0.100  # its middle, in the caliper's local y
 START_X, START_Y = 0.295, 0.250  # the caliper frame's origin at the start (x, y); its beam lies on the rest
 START_Z = TOP + REST_BLOCK[2] - HB
 
+JAW_K, JAW_C = 2.0e5, 200.0  # both jaws' locked joints also get a stiff drive at 0: a limit alone let them give about
+# 1 mm per newton (c28); with this, 0.3 N moves a jaw about 1.5 micrometres
+
 JAW = Joint(  # the sliding jaw itself: locked rigid to the slider; its joint reaction is the jaw force
     "jaw", kind="slide", axis="Y", anchor=(-JAW_L / 2, MF0 - JAW_T / 2, HB + T / 2), lower=0.0, upper=0.0,
-    initial=0.0, stiffness=0.0, damping=0.0, target=0.0, mass=0.01, parent="slider",
+    initial=0.0, stiffness=JAW_K, damping=JAW_C, target=0.0, mass=0.01, parent="slider",
     boxes=[((-JAW_L / 2, MF0 - JAW_T / 2, HB + T / 2), (JAW_L, JAW_T, T), STEEL)],
+)
+
+FIXED_JAW = Joint(  # the fixed jaw: locked rigid to the beam; its joint reaction is the load on the fixed measuring face
+    "fixed_jaw", kind="slide", axis="Y", anchor=(-JAW_L / 2, JAW_T / 2, HB + T / 2), lower=0.0, upper=0.0,
+    initial=0.0, stiffness=JAW_K, damping=JAW_C, target=0.0, mass=0.002,
+    boxes=[((-JAW_L / 2, JAW_T / 2, HB + T / 2), (JAW_L, JAW_T, T), STEEL)],
 )
 
 # Live display on the slider: four 7-segment digits 14 mm tall (their tops away from the robots, so they read upright
@@ -170,10 +179,9 @@ CALIPER = part(
     "caliper", pos=(START_X, START_Y, START_Z), mass=CALIPER_MASS, friction=0.5,
     boxes=[
         ((BEAM_W / 2, sum(BEAM_Y) / 2, HB + T / 2), (BEAM_W, BEAM_Y[1] - BEAM_Y[0], T), STEEL),  # beam
-        ((-JAW_L / 2, JAW_T / 2, HB + T / 2), (JAW_L, JAW_T, T), STEEL),  # fixed jaw
         ((BEAM_W / 2, BEAM_Y[1] - 0.006, Z_TOP + 0.0005), (BEAM_W - 0.004, 0.008, 0.001), BLACK),  # name plate
     ],
-    joints=[SLIDER, JAW, *SEGMENT_JOINTS],
+    joints=[FIXED_JAW, SLIDER, JAW, *SEGMENT_JOINTS],
 )
 labkit.TORSIONAL_PATCH["caliper"] = 0.008  # the pads on the beam's 16 mm-wide edges
 
@@ -213,7 +221,7 @@ _DEBUG = bool(__import__("os").environ.get("CAL_DEBUG"))
 @on_reset
 def _clear(env):
     _trial.update(text=display_text(GAP0 * 1000), reading=GAP0 * 1000, pin=None, cal=None, t=0.0, force_hist=[],
-                  pts=[], meas=None)
+                  fixed_hist=[], pts=[], meas=None)
     _ids.pop("set", None)
     _demo_reset()
 
@@ -234,15 +242,17 @@ def _tcp(env, arm: str) -> np.ndarray:
     return g[:3] - origin + r @ np.array(TCP_OFFSET)
 
 
-def _jaw_reaction(env, cal) -> float:
-    """|N| of the reaction in the sliding jaw's locked joint along the jaws' axis (the caliper's y)."""
+def _jaw_reaction(env, cal, link: str = "jaw") -> float:
+    """|N| of the reaction in a jaw's locked joint (the sliding jaw, or the fixed jaw) along the jaws' axis (the
+    caliper's y): the load on that measuring face."""
     import warp as wp
 
     asset = env.unwrapped.scene["caliper"]
-    if "jaw_link" not in _ids:
+    key = link + "_link"
+    if key not in _ids:
         names = list(asset.backend_body_names) if hasattr(asset, "backend_body_names") else list(asset.body_names)
-        _ids["jaw_link"] = next(k for k, n in enumerate(names) if n.split("/")[-1] == "jaw")
-    f = wp.to_torch(asset.root_view.get_link_incoming_joint_force())[0, _ids["jaw_link"], :3]
+        _ids[key] = next(k for k, n in enumerate(names) if n.split("/")[-1] == link)
+    f = wp.to_torch(asset.root_view.get_link_incoming_joint_force())[0, _ids[key], :3]
     f = np.asarray(f.detach().cpu().numpy(), float)
     return abs(float(cal.rotation()[:, 1] @ f))
 
@@ -288,10 +298,14 @@ def _watch(env):
     _trial["right_tcp"], _trial["left_tcp"] = _tcp(env, "right_robot"), _tcp(env, "left_robot")
     _trial["right_tips"], _trial["left_tips"] = _tips(env, "right_robot"), _tips(env, "left_robot")
     _trial["force_hist"] = (_trial["force_hist"] + [_jaw_reaction(env, cal)])[-10:]
+    _trial["fixed_hist"] = (_trial.get("fixed_hist", []) + [_jaw_reaction(env, cal, "fixed_jaw")])[-10:]
     _trial["pts"] = (_trial["pts"] + [_surface_points(cal, _trial["pin"])])[-STILL_N:]
-    if held(cal) and between_jaws(_trial["pin"], cal) and still() and free_hand_clear(cal, _trial["pin"]):
-        _trial["meas"] = {"t": round(_trial["t"], 2), "reading": round(_trial["reading"], 2),
-                          "score": _tier(cal, _trial["pin"])}
+    if held(cal) and between_jaws(_trial["pin"], cal) and still():
+        rec = {"t": round(_trial["t"], 2), "reading": round(_trial["reading"], 2), "score": _tier(cal, _trial["pin"]),
+               "faces_mm": [round(v, 3) for v in faces_mm(cal, _trial["pin"])], "force": round(jaw_force(j), 3),
+               "fixed_force": round(fixed_force(), 3)}
+        if rec["score"] > 0.1 or _trial["meas"] is None or _trial["meas"]["score"] <= 0.1:
+            _trial["meas"] = rec  # a contactless reading never replaces one taken with both jaws on the pin
     _demo_follow()
     if _DEBUG and int(round(_trial["t"] / 0.05)) % 10 == 0:
         pin, r = _trial["pin"], cal.rotation()
@@ -308,7 +322,10 @@ def _watch(env):
               f"seat={_pin_seated_mm():.2f} near={_jaw_to_pin_mm():.2f} "
               f"rtips_gap={float(np.linalg.norm(_trial['right_tips'][0] - _trial['right_tips'][1])) * 1000:.0f}mm "
               f"free_mm={free_hand_mm(cal, pin):.0f} free_clear={free_hand_clear(cal, pin)} "
-              f"meas={_trial['meas']} on_rest={on_rest(cal)} hands_mm={hands_mm(cal, pin):.0f}",
+              f"faces={[round(v, 3) for v in faces_mm(cal, pin)]} fixedF={fixed_force():.3f} "
+              f"jq=[{float(j.get('fixed_jaw', 0)) * 1e6:.1f},{float(j.get('jaw', 0)) * 1e6:.1f}]um meas={_trial['meas']} "
+              f"on_rest={on_rest(cal)} "
+              f"hands_mm={hands_mm(cal, pin):.0f}",
               file=sys.stderr, flush=True)
     asset = env.unwrapped.scene["caliper"]
     if "segments" not in _ids:
@@ -429,11 +446,57 @@ def free_hand_clear(cal, pin) -> bool:
     return free_hand_mm(cal, pin) >= FREE_CLEAR * 1000
 
 
+CONTACT_MM = 0.1  # each measuring face within 0.1 mm of the pin's surface
+CONTACT_N = 0.05  # and at least 0.05 N squeezing the pin across its diameter (the jaw force, over 0.5 s)
+
+
+def _pin_at_jaws(cal, pin) -> np.ndarray:
+    """The pin's axis point level with the jaws' mid-plane (world): a slightly tilted caliper otherwise shifts the
+    pin's base centre against the faces by up to a millimetre."""
+    jaw = cal.to_world((-JAW_L / 2, 0.0, JAW_MID))
+    return pin.to_world((0.0, 0.0, float(jaw[2]) - float(pin.pos[2])))
+
+
+def _fixed_face_y(cal) -> float:
+    """World y of the fixed measuring face at the jaws' mid-plane."""
+    return float(cal.to_world((-JAW_L / 2, 0.0, JAW_MID))[1])
+
+
+def faces_mm(cal, pin) -> tuple:
+    """How far (mm) the fixed and the sliding jaw's measuring faces are from the pin's surface, across the jaws (the
+    fixed face is the caliper frame's y = 0; the sliding face is the displayed gap from it)."""
+    jaw = cal.to_world((-JAW_L / 2, 0.0, JAW_MID))  # the jaws' mid-plane, at the fixed face
+    up = float(jaw[2]) - float(pin.pos[2])  # its height above the pin's base
+    y = float(cal.to_local(pin.to_world((0.0, 0.0, up)))[1])  # the pin's axis at the jaws' height, across the jaws
+    fixed = (-y - PIN_R) * 1000.0
+    sliding = reading_mm(cal.joints) - (-y + PIN_R) * 1000.0
+    return fixed, sliding
+
+
+def fixed_force() -> float:
+    """The load on the fixed jaw's measuring face (N), from its locked joint's reaction, averaged over 0.5 s."""
+    h = _trial.get("fixed_hist") or [0.0]
+    return float(sum(h) / len(h))
+
+
+def on_both_sides(cal, pin) -> bool:
+    """Both measuring faces press on the pin: each within 0.1 mm of its surface and each carrying at least 0.05 N
+    (the sliding jaw's and the fixed jaw's own mounting reactions, averaged over 0.5 s and also at this step). A gap set near the size
+    without touching, or a one-sided push that the pin's table friction resists, is not a measurement."""
+    now = [(_trial.get(k) or [0.0])[-1] for k in ("force_hist", "fixed_hist")]  # and each face loaded right now, so a
+    # jaw lifting off does not pass on its last half second's average
+    return (max(abs(v) for v in faces_mm(cal, pin)) <= CONTACT_MM and jaw_force(cal.joints) >= CONTACT_N
+            and fixed_force() >= CONTACT_N and min(now) >= CONTACT_N)
+
+
 def _tier(cal, pin) -> float:
-    """The measurement's score while held on the pin: 0.1; 0.25 if the display reads within 1.00 mm of the pin's
-    23.40 mm; 0.5 within 0.20 mm, the pin square to the jaws within 3 degrees and the jaw pressing on it with at most
-    2 N; 1.0 within 0.05 mm, square within 1 degree, at most 0.3 N (just touching)."""
+    """The measurement's score while held on the pin: 0.1 unless both jaws are on the pin (on_both_sides); then 0.25
+    if the display reads within 1.00 mm of the pin's 23.40 mm; 0.5 within 0.20 mm, the pin square to the jaws within
+    3 degrees and the jaw pressing on it with at most 2 N; 1.0 within 0.05 mm, square within 1 degree, at most 0.3 N
+    (just touching)."""
     j = cal.joints
+    if not on_both_sides(cal, pin):
+        return 0.1
     err = abs(reading_mm(j) - PIN_D * 1000.0)
     sq, f = off_square_deg(pin, cal), jaw_force(j)
     for mm, deg, newton, s in TIERS:
@@ -467,9 +530,10 @@ def hands_mm(cal, pin) -> float:
 
 def score(objects):
     """The measurement taken while the caliper was held on the pin (latched each step it was valid: held, the pin
-    between the jaws, everything still for 1 s, the free hand 80 mm clear; scored by _tier; the most recent one
-    counts), kept only if the trial ends with the caliper back on its rest, all four fingertips 80 mm or more from
-    the caliper and the pin, and the caliper and the pin still for the last second. Otherwise 0."""
+    between the jaws, everything still for 1 s; scored by _tier; the latest one counts, except that a reading without
+    both jaws on the pin never replaces one with them), kept only if the trial ends with the caliper back on its
+    rest, all four fingertips 80 mm or more from the caliper and the pin, and the caliper and the pin still for the
+    last second. Otherwise 0."""
     cal, pin = objects["caliper"], objects["pin"]
     m = _trial.get("meas")
     if m is None or not (on_rest(cal) and still() and hands_mm(cal, pin) >= FREE_CLEAR * 1000):
@@ -560,7 +624,8 @@ def _measure_origin() -> np.ndarray:
     """Where the caliper frame's origin should be while measuring, from the pin's seen position (the start layout before
     the pin is seen)."""
     p = _hold["pin0"] if _hold["pin0"] is not None else np.array([*PIN_XY, TOP])
-    return np.array([p[0] + PIN_IN, p[1] + PIN_R + FIXED_CLEAR, TOP + MEASURE_UNDER - HB])
+    clear = ONESIDED_CLEAR if CHECK == "onesided" else FIXED_CLEAR
+    return np.array([p[0] + PIN_IN, p[1] + PIN_R + clear, TOP + MEASURE_UNDER - HB])
 
 
 def _trim_rot() -> np.ndarray:
@@ -593,6 +658,11 @@ def _follow_hold():
     cal, pin = _trial["cal"], _trial["pin"]
     if pin is not None and _hold["pin0"] is None:
         _hold["pin0"] = np.array(pin.pos, float)
+    if _push["done"] and _push.get("hold") and cal is not None and pin is not None and CHECK != "onesided":
+        # squeezing: like a hand holding a caliper on a part, keep the fixed jaw pressed onto the pin's seen side
+        ey = faces_mm(cal, pin)[0] / 1000.0 + PRESS_FIXED  # the fixed face's seen gap to the pin, past contact
+        _hold["dy"] = float(np.clip(_hold["dy"] - np.clip(K_POS * ey, -MAX_DPOS, MAX_DPOS), -MAX_POS, MAX_POS))
+        return
     if not _hold["tilt_on"] or cal is None or _push["done"]:
         return  # once the jaws are on the pin the hand stays put: further trims would rub the caliper on the pin
     r = cal.rotation()
@@ -600,7 +670,8 @@ def _follow_hold():
         ez = float(cal.pos[2]) - float(_measure_origin()[2])
         _hold["dz"] = float(np.clip(_hold["dz"] - np.clip(K_POS * ez, -MAX_DPOS, MAX_DPOS), -MAX_POS, MAX_POS))
         if not _push["on"] and pin is not None:  # the fixed jaw FIXED_CLEAR from the pin's seen side, until the push
-            ey = float(cal.pos[1]) - (float(pin.pos[1]) + PIN_R + FIXED_CLEAR)
+            clear = ONESIDED_CLEAR if CHECK == "onesided" else FIXED_CLEAR
+            ey = faces_mm(cal, pin)[0] / 1000.0 - clear  # the fixed face's seen gap to the pin, less its target
             _hold["dy"] = float(np.clip(_hold["dy"] - np.clip(K_POS * ey, -MAX_DPOS, MAX_DPOS), -MAX_POS, MAX_POS))
     tilt_x = math.atan2(float(r[2, 1]), float(r[2, 2]))  # the caliper turned about x (its beam tipping)
     tilt_y = math.atan2(-float(r[2, 0]), float(r[2, 2]))  # turned about y (its jaws tipping)
@@ -621,6 +692,13 @@ PUSH_V_TOUCH, TOUCH_ZONE_MM = 0.0003, 1.0  # and 0.3 mm/s for the last 1 mm: the
 TOUCH_MM, STALL_S, STALL_MM = 1.0, 0.5, 0.01  # seen within 1 mm and the reading flat (under 0.01 mm) for 0.5 s: on it
 SEATED_MM = 0.5  # and the pin seen within 0.5 mm of the fixed jaw
 BACK_OFF = 0.005
+SEATED_S = 1.3  # both faces seen seated this long (1 s still plus the 0.5 s force average) and the reading is taken
+SQUEEZE_S = 5.0  # how long the gentle squeeze is held after the jaw closes (c33: 2.5 s ended mid-contact)
+SQUEEZE = 0.0005  # once on the pin the finger is held this much past where it is: a gentle squeeze (0.05 to 0.3 N)
+GAP_SHORT_MM = 0.15  # CAL_CHECK=gap stops the jaw once it is seen this close to the pin
+HOLD_GAP_MM, HOLD_EXTRA = 0.03, 0.001  # while reading: keep both faces seen within 0.03 mm, at most 2 mm more push
+PRESS_FIXED = 0.0  # and the holding hand aims the fixed jaw this far into the pin's seen side (a gentle press)
+ONESIDED_CLEAR = 0.0005  # CAL_CHECK=onesided: the fixed jaw held 0.5 mm off the pin while the sliding jaw squeezes
 RIGHT_PARK = (0.15, -0.25, TOP + 0.14)
 LEFT_PARK = (0.12, 0.33, TOP + 0.20)  # the holding hand's park after setting the caliper down: 80 mm clear of it
 
@@ -643,7 +721,7 @@ def _jaw_to_pin_mm() -> float:
     cal, pin = _trial["cal"], _trial["pin"]
     if cal is None or pin is None:
         return 1e9
-    y = float(cal.to_local(pin.pos)[1])  # the pin's centre across the jaws (the fixed jaw's face is at 0)
+    y = float(cal.to_local(_pin_at_jaws(cal, pin))[1])  # the pin across the jaws (fixed face at 0)
     return _trial["reading"] - (-y + PIN_R) * 1000.0
 
 
@@ -652,7 +730,7 @@ def _pin_seated_mm() -> float:
     cal, pin = _trial["cal"], _trial["pin"]
     if cal is None or pin is None:
         return 1e9
-    return (-float(cal.to_local(pin.pos)[1]) - PIN_R) * 1000.0
+    return (-float(cal.to_local(_pin_at_jaws(cal, pin))[1]) - PIN_R) * 1000.0
 
 
 def _release_at_actual():
@@ -667,9 +745,25 @@ def _follow_push():
     """Advance the finger at PUSH_V, slowing to PUSH_V_NEAR once the sliding jaw is seen within NEAR_MM of the pin; stop
     once the jaw is seen within TOUCH_MM of the pin and the reading has not fallen for STALL_S."""
     p = _push
+    t = _trial["t"]
+    if p["done"] and p.get("hold") and CHECK != "gap" and p.get("dy_max") is not None:
+        # keep both jaws on the pin while the reading is taken: the holding arm creeps, so advance the finger slowly
+        # whenever either face is seen more than HOLD_GAP_MM off the pin (at most HOLD_EXTRA past where it stopped);
+        # once both have been seen seated for SEATED_S, the reading is taken: ease the finger off, as an inspector
+        # lets go of the thumb wheel after reading
+        if p.get("read"):
+            return
+        seated = max(_pin_seated_mm(), _jaw_to_pin_mm()) <= HOLD_GAP_MM
+        p["seated_t"] = (p.get("seated_t", 0.0) + (t - p["tl"])) if seated else 0.0
+        if p["seated_t"] >= SEATED_S:
+            p["read"] = True
+            p["dy"] -= BACK_OFF
+        elif not seated:
+            p["dy"] = min(p["dy"] + PUSH_V_TOUCH * (t - p["tl"]), p["dy_max"])
+        p["tl"] = t
+        return
     if not p["on"] or p["done"]:
         return
-    t = _trial["t"]
     if p["t0"] is None:
         p.update(t0=t, tl=t, dy=0.0, hist=[], gap0=_trial["reading"] / 1000.0)
     near = _jaw_to_pin_mm()
@@ -679,9 +773,21 @@ def _follow_push():
     p["hist"].append((t, _trial["reading"]))
     p["hist"] = [h for h in p["hist"] if t - h[0] <= STALL_S + 1e-6]
     flat = t - p["hist"][0][0] >= STALL_S - 0.06 and p["hist"][0][1] - _trial["reading"] < STALL_MM
-    if near < TOUCH_MM and _pin_seated_mm() < SEATED_MM and flat:
+    if CHECK == "onesided" and near < 0.05:  # control: only the sliding jaw on the pin, then the squeeze
         p["done"] = True
         _release_at_actual()
+        p["dy"] += SQUEEZE
+        return
+    if CHECK == "gap" and near < GAP_SHORT_MM:  # shortcut check: stop the jaw short of the pin, no squeeze
+        p["done"] = True
+        _release_at_actual()
+        return
+    if near < TOUCH_MM and _pin_seated_mm() < SEATED_MM and flat:
+        # on the pin: stop advancing but keep the finger's target where it is; the arm lags it by a few mm, and that
+        # lag is the gentle squeeze (about 0.15 N, c33/c34) held while the reading is taken. Pulling the target back
+        # to the finger's actual place, as before, let the jaws open again.
+        p["done"] = True
+        p["dy_max"], p["tl"] = p["dy"] + HOLD_EXTRA, t
     if p["dy"] >= PUSH_MAX:
         p["done"] = True
 
@@ -697,7 +803,8 @@ class _PushPos:
 
 def _demo_reset():
     _hold.update(on=False, tilt_on=False, dy=0.0, dz=0.0, rx=0.0, ry=0.0, pin0=None)
-    _push.update(on=False, t0=None, dy=0.0, hist=[], done=False, gap0=None)
+    _push.update(on=False, t0=None, dy=0.0, hist=[], done=False, gap0=None, hold=False, dy_max=None, read=False,
+                 seated_t=0.0)
 
 
 def _demo_follow():
@@ -707,9 +814,10 @@ def _demo_follow():
     _hold["on"] = t >= _T["hold"]
     _hold["tilt_on"] = t >= _T["lift"]
     _push["on"] = t >= _T["push"]
+    _push["hold"] = t < _T.get("squeeze_end", 0.0)
 
 
-_T = {"lift": 1e9, "hold": 1e9, "push": 1e9}
+_T = {"lift": 1e9, "hold": 1e9, "push": 1e9, "squeeze_end": 0.0}
 
 
 def _dur(wps):
@@ -744,9 +852,10 @@ def demo():
     right.append(Waypoint(1.2, _PushPos(), FINGER_CLOSED, "down behind the thumb rest", PUSH_ROT))
     _T["push"] = _dur(right)
     window = PUSH_MAX / PUSH_V + NEAR_MM / 1000.0 / PUSH_V_NEAR + TOUCH_ZONE_MM / 1000.0 / PUSH_V_TOUCH + 1.0
+    _T["squeeze_end"] = _T["push"] + window + SQUEEZE_S  # the gentle squeeze is kept until the finger backs off
     right += [
         Waypoint(window, _PushPos(), FINGER_CLOSED, "close the jaw until the reading stops falling", PUSH_ROT),
-        Waypoint(0.8, _PushPos(), FINGER_CLOSED, "stay on the thumb rest while the holding hand settles", PUSH_ROT),
+        Waypoint(SQUEEZE_S, _PushPos(), FINGER_CLOSED, "keep a gentle squeeze while the reading is taken", PUSH_ROT),
         Waypoint(2.5, _PushPos(dy=-BACK_OFF), FINGER_CLOSED, "back off the thumb rest, slowly", PUSH_ROT),
         Waypoint(1.0, _PushPos(dy=-BACK_OFF, dz=0.04), FINGER_CLOSED, "up", PUSH_ROT),
         Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),

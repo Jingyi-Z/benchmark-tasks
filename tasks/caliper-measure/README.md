@@ -33,7 +33,7 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
         --instruction "$(python -c 'import json;print(json.load(open("task.json"))["instruction"])')" \
         --scorer task_score --max-steps 1600 --store-frames --log-dir logs
 
-Scripted demo: the same command with `--policy yam_scripted` (about 54 s of motion). There is no early end on
+Scripted demo: the same command with `--policy yam_scripted` (about 60 s of motion). There is no early end on
 success: the trial runs its full 80 s, so the caliper going back on its rest, both hands moving away and the
 stillness at the end are seen. The demo reads only what a camera
 sees: the pin's and caliper's poses and the display. The holding hand's target is placed from the pin's seen position
@@ -41,16 +41,25 @@ and trimmed from the caliper's seen pose: under the caliper's weight the arm sag
 the wrist), so the hand's tilt, height and sideways place are corrected until the caliper sits level with its fixed
 jaw beside the pin; once the jaws are on the pin the hand stays put. The pushing finger starts just short of the thumb
 rest, where the display says it is, advances at 3 mm/s (1 mm/s for the last 3 mm), and stops once the jaw is seen on
-the pin, the pin against the fixed jaw and the reading has not fallen for 0.5 s; it is then held where it actually is
-(the arm lags its target by several mm) and backs slowly off. Set `CAL_DEBUG=1` to print
+the pin, the pin against the fixed jaw and the reading has not fallen for 0.5 s. It then keeps its target, so the
+arm's lag behind it is a gentle squeeze (about 0.15 N), advancing slowly only if either face is seen more than
+0.03 mm off the pin, while the holding hand keeps the fixed jaw at the pin's seen side; once both faces have been
+seen seated for 1.3 s (the reading is taken) the finger eases off and backs away. Set `CAL_DEBUG=1` to print
 the state every half second. Run one trial per process: the demo's state is kept in the task module and cleared at
 each reset.
 
 The score is `task_score` in the log, computed by `score()` in `task.py`. The measurement is latched while the
-caliper is held: every step that the caliper is held off the bench and the rest, the pin is between the jaws, the
+caliper is held: every step that the caliper is held off the bench and the rest, the pin is between the jaws and the
 caliper and the pin are still (points on them, the sliding jaw and thumb rest included, moved under 1 mm over the
-last 21 samples, 1 s) and both fingertips of the other hand are 80 mm or more from them, the display reading, the
-pin's squareness and the jaw force are scored (`_tier`), and the latest such moment counts. The final score is that
+last 21 samples, 1 s), the display reading, the pin's squareness and the jaw force are scored (`_tier`). The
+accuracy tiers need both jaws on the pin: each measuring face within 0.1 mm of the pin's surface and each
+carrying at least 0.05 N, over the last 0.5 s and at that step. In simulation each jaw's load is the reaction in its
+own locked mounting (the sliding jaw on the slider, the fixed jaw on the beam, both stiff, so 0.3 N moves a jaw about
+1.5 micrometres); in a real trial the force-sensing pin reads the squeeze, and a continuity tester with its leads on
+the pin's two half-sleeves (insulated from each other, one facing each jaw) closes only through both jaws and the
+caliper, so it shows both faces touching. Leads on the two jaws would not: they are joined through the beam. Without that the measurement scores 0.1 at most, so a gap set near
+the size without touching, or a one-sided push that the pin's table friction resists, cannot earn accuracy credit. The latest such moment counts, except that a
+reading without both jaws on the pin never replaces one with them. The final score is that
 measurement's score only if the trial ends with the caliper back on its rest (flat within 5 degrees, its underside
 within 3 mm of the rest's top), all four fingertips of both hands 80 mm or more from the caliper and the pin, and
 everything still for the last second; otherwise 0. The fingertips are the pad tips, each read from its own finger's
@@ -61,9 +70,16 @@ link pose (the two jaws stop independently).
 - 1,600 control steps (80 seconds of simulated time) per trial; about 4 minutes of wall time on the lab GPU.
 - One fixed starting layout: run with `-E object_jitter=0`. No other randomness.
 
-## Shortcut check
+## Shortcut checks
+
+`CAL_CHECK=onesided` holds the fixed jaw 0.5 mm off the pin and lets only the sliding jaw close on it and squeeze;
+the fixed face carries no load, so the trial must score 0.1 or less (lab GPU, Nov 14: 0.1, the jaw stopped 0.4 to 0.6 mm short).
+
+`CAL_CHECK=gap` runs the demo but stops the sliding jaw once it is seen within 0.15 mm of the pin, without
+touching it and without the squeeze; the display then reads close to 23.40 but both jaws are not on the pin, and the
+trial must score 0.1 or less (lab GPU, Nov 14: 0.1, the jaw stopped 0.4 to 0.6 mm short).
 
 `CAL_CHECK=letgo` runs the demo, then has the holding hand let go of the caliper on the pin once it has measured,
 instead of putting it back. The caliper drops onto the pin and the bench, is not on its rest at the end, and the
-trial must score 0 (lab GPU, Nov 14: 0; the measurement, 23.43 mm, was latched while held, then the caliper fell onto
+trial must score 0 (lab GPU, Nov 14: 0; the measurement, 23.40 mm with both jaws loaded, was latched while held, then the caliper fell onto
 the pin instead of going back on its rest).
