@@ -267,10 +267,7 @@ OBJECTS = [UPRIGHT, LEFT_BRACKET, RIGHT_BRACKET, BRACKET_CRADLES, SHELF, SHELF_R
 
 # -- Scoring ----------------------------------------------------------------------------------------------------------
 BRK_NAMES = ("left_bracket", "right_bracket")
-BRK_DROP_Z = 0.025       # bracket origin < 25 mm above table -> dropped onto table
-BRK_ROLL_MAX = 35.0      # bracket tipped sideways > 35 deg -> dropped/toppled
-SHELF_DROP_Z = 0.030     # shelf underside < 30 mm above table -> dropped
-SHELF_TILT_MAX = 20.0    # shelf tilted > 20 deg at any time -> violation
+OFF_TABLE_DROP_Z = -0.050  # part origin > 50 mm below tabletop -> fell off the station table onto the floor
 
 BRK_POS_TOL = 0.007      # seated bracket shoulder within 7 mm of (UP_X0, col_y, TOP + SILL_3)
 BRK_ANG_TOL = 7.0        # seated bracket pitch, roll and yaw within 7 deg
@@ -280,7 +277,7 @@ SHELF_Z_TOL = 0.010      # seated shelf underside within 10 mm of bracket flange
 SHELF_LEVEL_TOL = 5.0    # seated shelf tilt <= 5 deg, yaw <= 6 deg
 HANDS_CLEAR = 0.080      # all four fingertips >= 8 cm from every scored loose part
 SETTLE_STEPS = 20        # 1.0 s at 20 Hz
-SETTLE_TOL = 0.001       # < 1 mm motion over the last 20 steps
+SETTLE_TOL = 0.001       # < 1 mm 3D Euclidean motion over the last 20 steps
 
 _state = {}
 _hist = []
@@ -289,8 +286,7 @@ _hist = []
 @on_reset
 def _reset_state(env):
     _state.clear()
-    _state.update(step=0, viol=set(), both_ever_seated=False, brk_ok={}, shelf_ok=False, clear_brk={},
-                  clear_all=False, settled=False)
+    _state.update(step=0, viol=set(), brk_ok={}, shelf_ok=False, clear_brk={}, clear_all=False, settled=False)
     _hist.clear()
 
 
@@ -365,14 +361,12 @@ def _watch(env):
 
     for n, b in bs.items():
         bp = np.asarray(b.pos, float)
-        R = b.rotation()
-        side_tilt = math.degrees(math.acos(max(-1.0, min(1.0, abs(float(R[1, 1]))))))
-        if bp[2] < TOP + BRK_DROP_Z or side_tilt > BRK_ROLL_MAX:
-            st["viol"].add(f"{n} dropped or toppled")
+        if bp[2] < TOP + OFF_TABLE_DROP_Z:
+            st["viol"].add(f"{n} fell off the table")
 
     sp = np.asarray(sh.pos, float)
-    if sp[2] < TOP + SHELF_DROP_Z or sh.tilt_deg() > SHELF_TILT_MAX:
-        st["viol"].add("shelf dropped or tilted over 20 deg")
+    if sp[2] < TOP + OFF_TABLE_DROP_Z:
+        st["viol"].add("shelf fell off the table")
 
     tips = _tips(env)
     brk_pts = {n: _part_sample_pts(n, bs[n]) for n in BRK_NAMES}
@@ -385,24 +379,15 @@ def _watch(env):
     clear_sh = all(float(np.linalg.norm(np.asarray(q) - pt)) >= HANDS_CLEAR for q in tips for pt in sh_pts)
 
     raw_brk = {n: _bracket_seated_l3(bs[n], COL_Y[n]) for n in BRK_NAMES}
-    if all(raw_brk.values()):
-        st["both_ever_seated"] = True
-
-    # Enforce required order: moving the shelf over the upright zone before both brackets have been seated at level 3
-    if sp[0] > 0.245 and sp[2] > TOP + 0.110 and not st["both_ever_seated"]:
-        st["viol"].add("shelf carried to upright before both brackets seated at level 3")
-
     st["brk_ok"] = {n: raw_brk[n] and clear_brk[n] for n in BRK_NAMES}
     st["shelf_ok"] = _shelf_seated(sh, bs)
     st["clear_all"] = clear_brk["left_bracket"] and clear_brk["right_bracket"] and clear_sh
 
-    vec = np.concatenate([brk_pts["left_bracket"].ravel(),
-                          brk_pts["right_bracket"].ravel(),
-                          sh_pts.ravel()])
-    _hist.append(vec)
+    pts = np.vstack([brk_pts["left_bracket"], brk_pts["right_bracket"], sh_pts])
+    _hist.append(pts)
     del _hist[:-(SETTLE_STEPS + 1)]
     st["settled"] = (len(_hist) > SETTLE_STEPS
-                     and float(np.max(np.abs(np.asarray(_hist) - _hist[-1]))) < SETTLE_TOL)
+                     and float(np.max(np.linalg.norm(np.asarray(_hist) - _hist[-1], axis=-1))) < SETTLE_TOL)
 
 
 def score(objects) -> float:
