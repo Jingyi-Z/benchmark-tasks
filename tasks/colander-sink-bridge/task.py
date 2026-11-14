@@ -31,12 +31,12 @@ INSTRUCTION = (
 )
 
 # -- Colors ------------------------------------------------------------------------------------------------------------
-STEEL_BRIGHT = (0.74, 0.76, 0.79)
-STEEL_MESH = (0.58, 0.61, 0.65)
-STEEL_DARK = (0.42, 0.45, 0.49)
+STEEL_BRIGHT = (0.78, 0.80, 0.84)
+STEEL_MESH = (0.72, 0.75, 0.79)
+SINK_RIM_STEEL = (0.56, 0.59, 0.63)
 SINK_BASIN_DARK = (0.30, 0.33, 0.36)
 RUBBER_BLACK = (0.12, 0.13, 0.14)
-DRAIN_CHROME = (0.64, 0.66, 0.69)
+DRAIN_CHROME = (0.48, 0.51, 0.55)
 
 # -- Fixed Countertop Sink-Basin Module (585 x 300 x 125 mm, 455 x 276 mm open basin) ---------------------------------
 SINK_XY = np.array([0.435, 0.000], float)
@@ -53,12 +53,12 @@ SINK_BOXES = [
     ((0.0, 0.0, BASIN_FLOOR_H / 2), (SINK_DX - 2 * WALL_T, 2 * BASIN_HALF_Y, BASIN_FLOOR_H), SINK_BASIN_DARK),
     # Left & right 65 mm-wide full-height stainless sink deck ledges (y = +227.5..+292.5 mm and -292.5..-227.5 mm)
     *[
-        ((0.0, sy * (BASIN_HALF_Y + 0.0325), SINK_H / 2), (SINK_DX, 0.065, SINK_H), STEEL_BRIGHT)
+        ((0.0, sy * (BASIN_HALF_Y + 0.0325), SINK_H / 2), (SINK_DX, 0.065, SINK_H), SINK_RIM_STEEL)
         for sy in (-1, 1)
     ],
     # Front & rear stainless sink walls (x = +-133 mm, leaving 252 mm clear basin opening along X)
     *[
-        ((sx * (SINK_DX / 2 - WALL_T / 2), 0.0, SINK_H / 2), (WALL_T, 2 * BASIN_HALF_Y, SINK_H), STEEL_DARK)
+        ((sx * (SINK_DX / 2 - WALL_T / 2), 0.0, SINK_H / 2), (WALL_T, 2 * BASIN_HALF_Y, SINK_H), SINK_RIM_STEEL)
         for sx in (-1, 1)
     ],
 ]
@@ -82,13 +82,13 @@ BASKET_DY = 0.236          # 236.0 mm central basket length along Y (+ 2 x 52 mm
 COL_H = 0.120              # 120.0 mm overall collapsed height
 SLIDE_MAX = 0.105          # 105.0 mm per side -> 340 + 210 = 550.0 mm max span (Norpro #2158 official spec!)
 SLIDE_FRIC = 1.6           # light realistic friction-slide sleeve resistance (not inflated; sequential pulls allowed)
-HANDLE_BAR_Y = 0.160       # collapsed handle grip bar center (outer face at +-170.0 mm = 340.0 mm collapsed span!)
-HANDLE_BAR_DY = 0.020      # 20.0 mm rubberized grip width along Y
-HANDLE_BAR_DX = 0.144      # 144.0 mm straight central rubberized grip bar along X (between x=+-92 mm corner bends)
-HANDLE_BAR_Z = 0.113       # grip bar center Z (z = 0.106..0.120 m, +8 mm raised above z=0.098 m corner rubber feet!)
-FOOT_REST_Y = 0.150        # corner rubber rest foot center Y on each handle (at extension q, sits at +-0.150 +- q)
-FOOT_BOTTOM_Z = 0.098      # underside of downward corner rubber feet (suspends basket bottom +21 mm above sink floor!)
-GRASP_X_OFF = 0.006        # +-6 mm X-stagger along 144 mm straight handle bars prevents single-line hinge pitch!
+HANDLE_BAR_Y = 0.1655      # thin 9 mm stainless U-handle end bar center (outer face at +-170.0 mm = 340.0 mm collapsed span!)
+HANDLE_BAR_DY = 0.009      # authentic 9.0 mm stainless steel U-rod thickness (coplanar with slide rails, zero raised bar!)
+HANDLE_BAR_DX = 0.193      # 193.0 mm continuous stainless U-handle end bar joining both x=+-92 mm rails seamlessly!
+HANDLE_BAR_Z = 0.112       # exact coplanar Z centerline with the two parallel stainless slide rails (z = 0.1075..0.1165 m)
+FOOT_REST_Y = 0.154        # corner rubber rest foot center Y under each U-handle corner (at ext q, sits at +-0.154 +- q)
+FOOT_BOTTOM_Z = 0.098      # underside of downward corner rubber feet (+14 mm below z=0.112 m steel bar, +21 mm basin gap!)
+GRASP_X_OFF = 0.006        # +-6 mm X-stagger along straight handle bars prevents single-line hinge pitch!
 
 BASKET_BOXES = [
     # Four non-slip black rubber base feet at (x=+-90 mm, y=+-94 mm, z=0..8 mm)
@@ -123,7 +123,7 @@ BASKET_BOXES = [
         for sy in (-1, 1)
         for zb in (0.025, 0.054, 0.083)
     ],
-    # Upper stainless perimeter rim frame + crimped tubular friction-slide guide collars at x = +-0.092 m
+    # Upper stainless perimeter rim frame + continuous stainless slide guide sleeves & crimped collars at x = +-0.092 m
     *[
         ((sx * 0.111, 0.0, 0.110), (0.008, BASKET_DY, 0.012), STEEL_BRIGHT)
         for sx in (-1, 1)
@@ -133,7 +133,11 @@ BASKET_BOXES = [
         for sy in (-1, 1)
     ],
     *[
-        ((sx * 0.092, sy * 0.102, 0.112), (0.014, 0.032, 0.014), STEEL_DARK)
+        ((sx * 0.092, 0.0, 0.112), (0.013, 0.152, 0.013), STEEL_BRIGHT)
+        for sx in (-1, 1)
+    ],
+    *[
+        ((sx * 0.092, sy * 0.098, 0.112), (0.016, 0.044, 0.016), STEEL_BRIGHT)
         for sx in (-1, 1)
         for sy in (-1, 1)
     ],
@@ -142,18 +146,19 @@ BASKET_BOXES = [
 
 def _handle_boxes(sy: int):
     return [
-        # Twin parallel stainless slide rods along Y at x = +-0.092 m (running inside crimped basket rim sleeves)
+        # Continuous parallel 9x9 mm stainless slide rails along Y at x = +-0.092 m (y = 0.004..0.1655 m; even at max
+        # 105 mm stroke, inner ends remain at y = 0.109 m inside the 0.076..0.120 m crimped collars -> zero gap always!)
         *[
-            ((sx * 0.092, sy * 0.098, 0.112), (0.008, 0.116, 0.008), STEEL_BRIGHT)
+            ((sx * 0.092, sy * 0.08475, HANDLE_BAR_Z), (0.009, 0.1615, 0.009), STEEL_BRIGHT)
             for sx in (-1, 1)
         ],
-        # Outer U-handle corner bends + downward black rubber rest feet (bottom at z = 0.098 m, hooks outside sink rim!)
+        # Coplanar 9x9 mm continuous stainless U-handle end bar joining both x = +-0.092 m rails as one piece
+        ((0.0, sy * HANDLE_BAR_Y, HANDLE_BAR_Z), (HANDLE_BAR_DX, HANDLE_BAR_DY, 0.009), STEEL_BRIGHT),
+        # Compact downward black rubber rest feet only under the two U-handle corners (z = 0.098..0.109 m)
         *[
-            ((sx * 0.092, sy * FOOT_REST_Y, 0.107), (0.018, 0.024, 0.018), RUBBER_BLACK)
+            ((sx * 0.088, sy * FOOT_REST_Y, 0.1035), (0.018, 0.020, 0.011), RUBBER_BLACK)
             for sx in (-1, 1)
         ],
-        # Raised central rubberized grip bar (z = 0.106..0.120 m, +8 mm clear above corner rubber feet so fingers clear rim!)
-        ((0.0, sy * HANDLE_BAR_Y, HANDLE_BAR_Z), (HANDLE_BAR_DX, HANDLE_BAR_DY, 0.014), RUBBER_BLACK),
     ]
 
 
@@ -243,12 +248,19 @@ _BASKET_SPECS = tuple((np.asarray(c, float), 0.5 * np.asarray(s, float)) for c, 
 _HL_SPECS = tuple((np.asarray(c, float), 0.5 * np.asarray(s, float)) for c, s, *_ in _handle_boxes(+1))
 _HR_SPECS = tuple((np.asarray(c, float), 0.5 * np.asarray(s, float)) for c, s, *_ in _handle_boxes(-1))
 
-_BASKET_CORNERS = tuple(
-    np.array([sx * (BASKET_DX / 2), sy * (BASKET_DY / 2), z], float)
-    for sx in (-1.0, 1.0)
-    for sy in (-1.0, 1.0)
-    for z in (0.0, COL_H)
-)
+def _box_vertices(specs) -> tuple[np.ndarray, ...]:
+    verts = []
+    for c, h in specs:
+        for sx in (-1.0, 1.0):
+            for sy in (-1.0, 1.0):
+                for sz in (-1.0, 1.0):
+                    verts.append(c + np.array([sx * h[0], sy * h[1], sz * h[2]], float))
+    return tuple(verts)
+
+
+_ACTUAL_BASKET_VERTS = _box_vertices(_BASKET_SPECS)
+_ACTUAL_HL_VERTS = _box_vertices(_HL_SPECS)
+_ACTUAL_HR_VERTS = _box_vertices(_HR_SPECS)
 
 _state: dict = {}
 _hist: list = []
@@ -343,14 +355,12 @@ def _check_impact(key: str, pts: np.ndarray, sk) -> bool:
 
 
 def _tracked_points(col) -> np.ndarray:
-    ql = float(col.joints["arm_left"])
-    qr = float(col.joints["arm_right"])
-    pts = [col.to_world(p) for p in _BASKET_CORNERS]
-    for sx in (-1.0, 1.0):
-        pts.append(col.to_world(np.array([sx * 0.092, +FOOT_REST_Y + ql, FOOT_BOTTOM_Z], float)))
-        pts.append(col.to_world(np.array([sx * 0.092, -FOOT_REST_Y + qr, FOOT_BOTTOM_Z], float)))
-        pts.append(col.to_world(np.array([sx * 0.072, +HANDLE_BAR_Y + ql, HANDLE_BAR_Z], float)))
-        pts.append(col.to_world(np.array([sx * 0.072, -HANDLE_BAR_Y + qr, HANDLE_BAR_Z], float)))
+    """Actual collider vertices of basket and both slide handles (eliminates empty-AABB-corner false impact)."""
+    ql = np.array([0.0, float(col.joints["arm_left"]), 0.0], float)
+    qr = np.array([0.0, float(col.joints["arm_right"]), 0.0], float)
+    pts = [col.to_world(p) for p in _ACTUAL_BASKET_VERTS]
+    pts.extend(col.to_world(p + ql) for p in _ACTUAL_HL_VERTS)
+    pts.extend(col.to_world(p + qr) for p in _ACTUAL_HR_VERTS)
     return np.asarray(pts, float)
 
 
@@ -617,7 +627,7 @@ O_GRIP = Orient(R_GRIP)
 HANDLE_OPEN = -0.021                   # 42 mm Y-jaw gap clears 20 mm rubberized handle bar by 11 mm/side!
 HANDLE_PAST = 0.001                    # fingertips sit +12 mm above 0.098 m rubber feet -> clears sink rim by +11 mm!
 PULL_STROKE = 0.098                    # +98 mm per side -> total ext = 196 mm (536 mm span across 455 mm basin!)
-SEAT_CMD_XY = np.array([0.456, 0.000], float)  # +21 mm X feedforward compensates arm compliance over x = 0.435 m basin
+SEAT_CMD_XY = np.array([0.451, +0.005], float)  # centers basket squarely at [0.435, 0.000] over basin drain
 
 LEFT_PARK = np.array([0.13, +0.30, TOP + 0.25])
 RIGHT_PARK = np.array([0.13, -0.30, TOP + 0.25])
