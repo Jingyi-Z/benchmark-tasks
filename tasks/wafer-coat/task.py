@@ -246,12 +246,66 @@ LID_SHUT = math.radians(3.0)
 TOP_TOUCH = 0.006  # a pad tip within 6 mm above the wafer's top, more than 3 mm inside its rim: the top was touched
 HANDLED = 0.002  # a pad tip within 2 mm outside the wafer's rim and 8 mm of its height: held by the gripper
 
-_state = {"touched": False, "handled": False, "dropped": False}
+EDGE_ZONE = 0.006  # the handling edge: tools may touch the wafer's top only in its outer 6 mm
+TOOL_TOUCH = 0.0005  # a tool surface point within 0.5 mm of the wafer's top face, inside the handling edge: touched
+
+_state = {"touched": False, "handled": False, "dropped": False, "tool_touched": False}
 
 
 @on_reset
 def _reset_state(env):
-    _state.update(touched=False, handled=False, dropped=False)
+    _state.update(touched=False, handled=False, dropped=False, tool_touched=False)
+
+
+def _turned(yaw, pitch):
+    """A box's turn in its part (labkit: pitch about y, then yaw about the vertical)."""
+    cy, sy, cp, sp = math.cos(yaw), math.sin(yaw), math.cos(pitch), math.sin(pitch)
+    rz = np.array([[cy, -sy, 0.0], [sy, cy, 0.0], [0.0, 0.0, 1.0]])
+    ry = np.array([[cp, 0.0, sp], [0.0, 1.0, 0.0], [-sp, 0.0, cp]])
+    return rz @ ry
+
+
+def _box_points(box, n=7, shift=(0.0, 0.0, 0.0)):
+    """Points spread over a box's faces (part frame), so a wide blade lying across the wafer's rim is caught over its
+    whole face, not only at its corners."""
+    c, size = np.asarray(box[0], float) + np.asarray(shift, float), np.asarray(box[1], float)
+    turn = box[3] if len(box) > 3 else 0.0
+    yaw, pitch = (turn[0], turn[1]) if isinstance(turn, (tuple, list)) else (turn, 0.0)
+    r, h = _turned(float(yaw), float(pitch)), size / 2
+    g = np.linspace(-1.0, 1.0, n)
+    pts = []
+    for ax in range(3):  # both faces normal to each axis
+        u, v = [i for i in range(3) if i != ax]
+        for side in (-1.0, 1.0):
+            for a in g:
+                for b in g:
+                    q = np.zeros(3)
+                    q[ax], q[u], q[v] = side * h[ax], a * h[u], b * h[v]
+                    pts.append(c + r @ q)
+    return np.array(pts)
+
+
+_BLADE_FIXED = _box_points(_half(-SEP / 2)[1])  # the body's blade (tweezers frame)
+_BLADE_MOVING = _box_points(_half(SEP / 2)[1])  # the sprung half's blade at rest; it slides along x by the jaw
+_ALIGNER_PTS = np.vstack([_box_points(b, n=3) for b in ALIGNER_BOXES])
+
+
+def tool_on_top(wafer, points) -> bool:
+    """True if any tool point lies within TOOL_TOUCH of the wafer's top face, more than EDGE_ZONE inside its rim."""
+    for p in points:
+        lp = wafer.to_local(p)
+        if np.hypot(lp[0], lp[1]) < WAFER_R - EDGE_ZONE and abs(lp[2] - WAFER_T) < TOOL_TOUCH:
+            return True
+    return False
+
+
+def _tool_points(env):
+    """The tweezer blades' and the aligner's surface points, world (env frame)."""
+    tw = labkit._part_state(env, labkit._SPECS["tweezers"])
+    q = float(tw.joints.get("jaw", 0.0))
+    al = labkit._part_state(env, labkit._SPECS["aligner"])
+    blades = np.vstack([_BLADE_FIXED, _BLADE_MOVING + np.array([q, 0.0, 0.0])])
+    return [tw.to_world(p) for p in blades] + [al.to_world(p) for p in _ALIGNER_PTS]
 
 
 def _tips(env):
@@ -274,8 +328,9 @@ def _tips(env):
 
 @on_step
 def _watch(env):
-    """Latch the violations: the wafer's top touched by the gripper, the wafer held by the gripper itself, the wafer
-    dropped (tilted past 40 degrees, or on the table)."""
+    """Latch the violations: the wafer's top touched by the gripper, or by the tweezers or the aligner inside its
+    6 mm handling edge; the wafer held by the gripper itself; the wafer dropped (tilted past 40 degrees, or on the
+    table)."""
     w = labkit._part_state(env, labkit._SPECS["wafer"])
     p = np.asarray(w.pos, float)
     top = p[2] + WAFER_T
@@ -287,6 +342,8 @@ def _watch(env):
             _state["touched"] = True
         if r < WAFER_R + HANDLED and abs(tip[2] - (p[2] + WAFER_T / 2)) < 0.008:
             _state["handled"] = True
+    if not _state["tool_touched"] and tool_on_top(w, _tool_points(env)):
+        _state["tool_touched"] = True
 
 
 def wafer_offset(w) -> float:
@@ -299,11 +356,11 @@ def on_chuck(w) -> bool:
 
 def score(objects):
     """0 unless the wafer rests flat on the chuck (tilt up to 2 degrees, underside within 1 mm of the chuck's top,
-    centre over the chuck). 0 also if the gripper ever touched the wafer's top or held the wafer itself, or the wafer
-    was dropped. 0.25 on the chuck; 0.5 centred within 1.5 mm; 1.0 within 0.5 mm. Halved if the lid is not shut (within
+    centre over the chuck). 0 also if the gripper ever touched the wafer's top or held the wafer itself, a tweezer
+    blade or the aligner ever touched its top more than 6 mm inside its rim, or the wafer was dropped. 0.25 on the chuck; 0.5 centred within 1.5 mm; 1.0 within 0.5 mm. Halved if the lid is not shut (within
     3 degrees)."""
     w = objects["wafer"]
-    if _state["touched"] or _state["handled"] or _state["dropped"]:
+    if _state["touched"] or _state["handled"] or _state["dropped"] or _state["tool_touched"]:
         return 0.0
     if not on_chuck(w):
         return 0.0
@@ -397,6 +454,8 @@ def _cup_tcp(origin):
 
 
 PINCH_IN = 0.0085  # the blade tips this far inside the wafer's edge (the upper blade draws back ~3 mm as it closes)
+if __import__("os").environ.get("WC_CHECK") == "tipontop":  # shortcut check: pinch 14 mm in, so the upper blade
+    PINCH_IN = 0.014  # lands about 11 mm inside the rim, past the 6 mm handling edge; the trial must score 0
 _wb = TOP + PAD_TOP  # the wafer's underside on its stand
 BLADE_Z = 0.0022  # the tips' midpoint this far above the wafer's underside: the held-open lower blade 0.3 mm under
 # it (only the upper blade moves as they close), the upper 3 mm over it

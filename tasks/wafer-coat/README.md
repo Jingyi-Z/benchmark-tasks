@@ -17,7 +17,9 @@ the lid shut. The wafer's top and edge are never touched by the gripper.
 - `task.py`: scene, scoring and scripted demo (yam_arena task file). The coater, the wafer stand and the tweezers' cup
   are fixed; the coater's lid is on a damped hinge and falls shut unless held; the wafer, the tweezers and the aligner
   are loose. The tweezers are two halves, one on a sprung labkit slide, so squeezing their arms closes the blades. An
-  `on_step` hook latches the violations (a fingertip over the wafer's top or at the wafer's rim; the wafer dropped).
+  `on_step` hook latches the violations (a fingertip over the wafer's top or at the wafer's rim; a tweezer blade or
+  the aligner touching the wafer's top more than 6 mm inside its rim, checked over points spread across their faces;
+  the wafer dropped).
 - `labkit.py`: parts built from several shapes, with hinges and slides. It hooks `yam_arena.scene` and the embodiment
   from the task's import, so no change to yam_arena is needed.
 - `arena_assets_fix.py`: imported by `labkit.py`; points Arena library assets at NVIDIA's production bucket. This task
@@ -44,3 +46,8 @@ The score is `task_score` in the log, computed by `score()` in `task.py`.
 - 2,400 control steps (2 minutes of simulated time) per trial; about 11 minutes of wall time on one L40S with frames
   stored at 640 x 352.
 - One fixed starting layout: run with `-E object_jitter=0`. No other randomness.
+
+## Shortcut check
+
+`WC_CHECK=tipontop` runs the same demo with the tweezers pinching 14 mm in from the rim, so the upper blade rests on
+the wafer's top about 11 mm inside it, past the 6 mm handling edge. The trial must score 0.
