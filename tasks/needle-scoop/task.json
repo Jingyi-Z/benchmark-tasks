@@ -1,0 +1,21 @@
+{
+  "title": "Recap a used dental needle one-handed, scooping its cap off the tray",
+  "category": "Safety and alignment",
+  "keywords": [
+    "needlestick safety",
+    "one-handed technique",
+    "dental",
+    "syringe",
+    "precise alignment",
+    "tool use"
+  ],
+  "instruction": "Recap the syringe's used needle, then lay the syringe back on its rest.",
+  "context": "Needlesticks injure about 385,000 US hospital workers a year, and recapping is a classic cause. Dentistry still recaps between injections for one patient, and OSHA allows that only one-handed or with a device. The robot's second hand stands for the free hand that two-handed recapping puts in the needle's path, so it must stay away, and the cap is never held: a loose 7 mm cap has to be scooped onto a 0.4 mm needle without pushing it away.",
+  "setup": "Station table (top 0.7475 m). Robot base frame: x forward, y to the robots' left. Stainless dental setup tray, fixed: 24 x 34 cm outside, 2 mm floor, 15 mm tall rims 1.5 mm thick, centred at (0.33, -0.14), so its far rim's inner face is at x 0.4485. Syringe rest on the tray floor: two white acetal blocks at x 0.272 and 0.330, y -0.08, each 8 mm along x, 18 mm wide and 19.5 mm tall, with two 3 mm lips on top whose inner faces are 12 mm apart. Dental aspirating syringe, loose, 60 g, lying on the rest along x, needle pointing forward (+x): stainless barrel 11 mm across and 80 mm long, centred at (0.30, -0.08) with its axis 25 mm above the tray floor; a 34 mm finger-grip bar at the barrel's back end; an upright 22 mm thumb ring behind it on a short plunger rod; an 8 mm threaded nose 10 mm long; a grey plastic hub 6 mm across and 10 mm long; a 27 gauge steel needle 0.4 mm across and 25 mm long, tip at x 0.385. Needle cap, loose, 0.6 g blue polypropylene: a 7 x 7 mm square tube 35 mm long, closed at the far end; its open end is a 5 mm funnel narrowing from 5 mm to a 3.5 mm bore for the next 10 mm, then 2.6 mm to the end. It lies on the tray floor along x at y -0.18, its open end facing the robots at x 0.360. No other objects.",
+  "scoring": "Measured once everything has come to rest. 0 if, at any moment, both hands' fingertips were within 10 cm of the needle's tip at once; or a fingertip touched the cap (came within 3 mm of it) before the needle was seated in it; or the needle's tip came within 1.5 mm of the tray floor. Otherwise: 0.25 if the needle's tip is at least 10 mm inside the cap's mouth and inside its bore there (the square 3.5 mm or 2.6 mm section, allowing for the needle's thickness), the two axes within 10 degrees. 0.5 if also seated: the hub's front face within 2 mm of the cap's mouth. 1.0 if also the syringe lies on its rest (barrel centre within 5 mm of its start, axis within 5 degrees), both hands have let go (every fingertip at least 8 cm from the barrel's axis and from the cap), and syringe and cap moved under 1 mm over the last 1 s.",
+  "run_limit": "1,200 steps (60 seconds at 20 Hz)",
+  "reset_notes": "Nothing is consumed. Pull the cap off by hand, lay it back at its start and put the syringe on its rest.",
+  "fidelity": "Rigid bodies in PhysX. The needle is a rigid 0.4 mm steel rod: it cannot bend, blunt or stick anyone, so the needlestick risk is scored from hand distances. The cap is a rigid square tube (real caps are round with ribs) and its push fit on the hub is not modelled: seated means the hub meets its mouth. No anaesthetic cartridge or fluid. Contacts use 128 solver position iterations per body so the thin needle does not pass through the cap's walls.",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": ""
+}
