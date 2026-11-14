@@ -1,0 +1,20 @@
+{
+  "title": "Shuck an oyster with an oyster knife, keeping the cup level and the holding hand clear of the blade",
+  "category": "Societal relatability",
+  "keywords": [
+    "bimanual",
+    "food preparation",
+    "tool use",
+    "knife safety",
+    "keep level"
+  ],
+  "instruction": "Shuck the oyster: open it at the hinge with the knife, free the top shell and put it in the shell bowl, keep the cup level on the board, and lay the knife back down.",
+  "context": "Shucking oysters is familiar raw-bar and home-kitchen work: the hinge only gives to a twist of the knife's tip, the liquor must stay in the cup, and a slipping knife into the holding hand is the classic injury.",
+  "setup": "Two YAM arms, bases 60 cm apart along the bench's near edge (bottom of the setup image). Shucking board: end-grain hardwood, 200 mm front to back x 300 mm x 30 mm, centred 30 cm in front of the bases' line and 6 cm right of centre. Oyster: a Pacific oyster about 90 mm long, cup side down on the board 30 cm in front of the bases' line, midway between them, hinge toward the right arm; cup 84 x 56 mm, 20 mm deep, 70 g with meat and liquor; flat top shell 88 x 64 x 5 mm, 25 g; a 4 mm gap at the hinge. Oyster knife: 65 mm stout steel blade (10 mm wide, 8 mm at the tip, 2 mm thick, dull edges) with a guard and a 100 mm blue plastic handle, 90 g, lying on the board along its length, handle toward the right arm, centred 23 cm in front of the bases' line and 17 cm right of centre. Shell bowl: open stainless box, inside 110 x 110 x 40 mm deep, on the bench 40 cm in front of the bases' line and 21.5 cm left of centre. Both arms start at rest.",
+  "scoring": "0 if, at any time, the cup tips more than 20 degrees (liquor spilled), the knife's tip comes within 3 cm of a fingertip of the hand holding the cup, the cup, the top shell or the knife falls off the board (the top shell may go into the shell bowl), or the top shell is lifted 5 mm before the hinge has popped and the knife's tip has been in the muscle (torn off); 0 unless the cup, the top shell and the knife moved under 1 mm in the last second. Otherwise 0.25 once the hinge has popped (the top shell's hinge end lifted 1.5 mm or more off the cup's rim while its centre stayed seated); 0.5 once the top shell is off the cup (its centre 25 mm or more above its seat, or 50 mm or more to the side); 0.75 with the top shell also in the shell bowl; 1.0 with the cup also level on the board (within 10 degrees and 3 cm of where it started), the knife lying on the board, and every fingertip 8 cm or more from the cup, the top shell and the knife.",
+  "run_limit": "1,800 steps (90 s at 20 Hz)",
+  "reset_notes": "Put the top shell back on the cup, hinge toward the right arm (the sim re-bonds both joints at every reset); lay the knife back on the board.",
+  "fidelity": "Shells are rigid, oyster-shaped in plan; the meat is drawn only. The hinge ligament is a joint that breaks past 6 N, reached by a blade twisted in the 4 mm hinge gap (a straight push doesn't wedge); the muscle is a joint that breaks past 2 N, reached by sweeping the blade through a small muscle body under the top shell. Both forces are well below a real oyster's, since the arm holds the knife far out; the order rule carries the skill. Liquor isn't simulated: the cup tipping past 20 degrees counts as spilled. Real oysters vary.",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": ""
+}
