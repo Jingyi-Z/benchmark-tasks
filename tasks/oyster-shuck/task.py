@@ -11,7 +11,7 @@ Run it:  inspect-robots run --embodiment yam_arena -E task=task.py --instruction
 The two shells are rigid bodies held together by two breakable PhysX joints (built with bodykit.py, which this folder
 reuses unchanged from the accepted ice-cube tray task, TK-YTH6M4): the hinge ligament, a hinge along the hinge end
 that breaks past 6 N, which a blade twisted in the 4 mm hinge gap wedges against but a straight push doesn't; and the
-muscle, a ball joint where a small muscle body hangs from the top shell, which breaks past 2 N, which the blade
+muscle, a ball joint where a small muscle body hangs from the top shell, which breaks past 1 N, which the blade
 reaches by sweeping through the muscle body. Neither is switched off by the task file.
 """
 
@@ -59,7 +59,7 @@ ADDUCTOR = np.array([OX + 0.010, OY + 0.002, RIM])  # where the muscle meets the
 MUSCLE_R, MUSCLE_H = 0.005, 0.012  # the muscle, hanging from the top shell into the cup: what the blade must cut
 POP_N = 6.0  # N: the hinge ligament breaks (pops) under this force: a blade twisted in the gap wedges past it
 POP_NM = 0.03  # N m: or under this twisting load about the hinge line (the wedge mostly turns the shell there)
-CUT_N = 2.0  # N: the muscle lets go of the top shell under this force: the blade swept through it
+CUT_N = 1.0  # N: the muscle lets go of the top shell under this force: the blade swept through it
 POP_GAP = 0.0015  # the top shell's hinge end lifted this far off the cup: the hinge has popped (latched)
 OFF = 0.025  # the top shell's centre this far above its seat, or twice this to the side: it is off the cup
 SEATED = 0.003  # the top shell's centre within this of its seat: still seated (a pop lifts only the hinge end)
@@ -137,20 +137,51 @@ def _cup() -> Body:
                             out, SHELL))
     shapes.append(BoxShape((0.0, 0.006, WALL + 0.004), (cx - 2 * WALL - 0.012, cy - 2 * WALL - 0.024, 0.008), MEAT,
                            collide=False))
+    # the cupped shell's frilled outer edge, wider than the top shell and showing round it (drawn only)
+    for z, scale in ((0.004, 1.30), (0.010, 1.22), (0.016, 1.14)):
+        shapes += _frill(cx / 2 * scale, cy / 2 * scale * 0.95, z, (0.009, 0.006, 0.006), (0.40, 0.38, 0.35))
     return Body.build("cup", pos=(OX, OY, BT), mass=CUP_MASS, shapes=shapes, color=SHELL, friction=(0.8, 0.7),
                       com=(0.0, 0.0, 0.006))
 
 
+def _half_width(y: float, a: float, b: float) -> float:
+    """The outline's half width (x) at ``y`` (the same oval, narrowed toward the hinge end, as _outline)."""
+    s = max(-1.0, min(1.0, y / b))
+    return a * math.sqrt(max(0.0, 1.0 - s * s)) * (1.0 - 0.30 * max(0.0, -s) ** 2)
+
+
+def _bands(a: float, b: float, n: int, z: float, thick: float, color, collide: bool) -> list[BoxShape]:
+    """The outline filled with ``n`` bands across y, each as wide as the outline at its middle."""
+    out = []
+    for k in range(n):
+        y0, y1 = -b + 2 * b * k / n, -b + 2 * b * (k + 1) / n
+        half = _half_width((y0 + y1) / 2, a, b)
+        if half > 0.0005:
+            out.append(BoxShape((0.0, (y0 + y1) / 2, z), (2 * half, y1 - y0, thick), color, collide=collide))
+    return out
+
+
+def _frill(a: float, b: float, z: float, size, color, n: int = 36) -> list[BoxShape]:
+    """A rough, scalloped edge round the outline (drawn only): small plates along it, alternately in and out."""
+    pts = _outline(a, b, n)
+    out = []
+    for i, (p, q) in enumerate(zip(pts, pts[1:] + pts[:1])):
+        mid, d = (p + q) / 2, q - p
+        r = mid / max(float(np.linalg.norm(mid)), 1e-6) * (0.0012 if i % 2 else -0.0008)
+        out.append(BoxShape((float(mid[0] + r[0]), float(mid[1] + r[1]), z), size, color,
+                            yaw=math.atan2(float(d[1]), float(d[0])), collide=False))
+    return out
+
+
 def _lid() -> Body:
-    """The flat top shell: tapered to the hinge like the cup, overhanging its wall by about 4 mm."""
-    pts = _outline(LID[0] / 2, LID[1] / 2)
-    shapes = []
-    for k in range(6):
-        y0, y1 = -LID[1] / 2 + k * LID[1] / 6, -LID[1] / 2 + (k + 1) * LID[1] / 6
-        half = max(abs(float(p[0])) for p in pts if y0 - 0.004 <= float(p[1]) <= y1 + 0.004)
-        shapes.append(BoxShape((0.0, (y0 + y1) / 2, 0.0), (2 * half, y1 - y0, LID[2]), SHELL))
-    shapes.append(BoxShape((0.0, 0.006, LID[2] / 2 + 0.0002), (LID[0] - 0.026, LID[1] - 0.040, 0.0004),
-                           (0.44, 0.42, 0.38), collide=False))  # a darker growth band on top
+    """The flat top shell: an oyster-shaped plate (oval, narrowing to the hinge), overhanging the cup's wall by about
+    4 mm, with its growth rings and scalloped edge drawn on top (visual only; the collision shape is the plate)."""
+    a, b = LID[0] / 2, LID[1] / 2
+    shapes = _bands(a, b, 14, 0.0, LID[2], SHELL, True)
+    for k, (scale, color) in enumerate(((0.82, (0.46, 0.44, 0.40)), (0.62, (0.58, 0.56, 0.51)),
+                                        (0.40, (0.43, 0.41, 0.37)))):
+        shapes += _bands(a * scale, b * scale, 10, LID[2] / 2 + 0.0003 * (k + 1), 0.0004, color, False)
+    shapes += _frill(a, b, LID[2] / 2 - 0.0005, (0.007, 0.0025, 0.0015), (0.48, 0.46, 0.42))
     m = ADDUCTOR - np.array([OX, OY, RIM + LID[2] / 2])
     shapes.append(CylShape((float(m[0]), float(m[1]), -LID[2] / 2 - MUSCLE_H / 2), MUSCLE_R, MUSCLE_H, MEAT))
     return Body.build("lid", pos=(OX, OY, RIM + LID[2] / 2), mass=LID_MASS, shapes=shapes, color=SHELL,
@@ -479,8 +510,13 @@ def _wk(t, tip, tilt, twist, label) -> Waypoint:
 
 
 def demo():
+    """The scripted demo. OYSTER_SHORTCUT=push runs it with no twist (the knife pushed straight in, the rest the same);
+    OYSTER_SHORTCUT=pull leaves the knife alone and has the left hand pull the top shell off: both must score 0."""
+    from yam_arena import ik, station
     from yam_arena.constants import READY
 
+    shortcut = os.environ.get("OYSTER_SHORTCUT", "")
+    twist = 0.0 if shortcut == "push" else TWIST
     # -- left: press the oyster down on the board by its lip end, fingers closed (as a towelled hand does) -------------
     hold_r = _rot([1.0, 0.0, 0.0], HOLD_ROLL) @ DOWN_L
     approach = hold_r @ np.array([0.0, 0.0, 1.0])  # the fingers' pointing line, down and in
@@ -517,15 +553,17 @@ def demo():
     _CAL["looks"] = looks
     right += [_wk(0.6, near_tip, TILT, 0.0, "tip on the line, close up"),
               _wk(1.5, in_tip, TILT, 0.0, "work the tip into the hinge")]
-    right += [_wk(0.3, in_tip, TILT, TWIST * k / 5, "twist the knife: the hinge pops") for k in range(1, 6)]
-    right += [_wk(0.6, in_tip, TILT, TWIST, "hold the twist"),
+    right += [_wk(0.3, in_tip, TILT, twist * k / 5, "twist the knife: the hinge pops") for k in range(1, 6)]
+    right += [_wk(0.6, in_tip, TILT, twist, "hold the twist"),
               _wk(1.0, in_tip, TILT, 0.0, "untwist")]
     # -- cut the top muscle -----------------------------------------------------------------------------------------
     under = in_tip + [0.0, 0.0, 0.001]
     at_muscle = np.array([ADDUCTOR[0] - 0.008, ADDUCTOR[1], RIM - NOTCH_H / 2])
     right += [_wk(1.0, under, 0.0, 0.0, "level the blade under the top shell"),
               _wk(2.0, at_muscle, 0.0, 0.0, "slide in flat under the top shell to the muscle"),
-              _wk(1.5, at_muscle + [0.020, 0.0, 0.0], 0.0, 0.0, "sweep across the muscle: it's cut"),
+              _wk(1.5, at_muscle + [0.020, 0.0, 0.0], 0.0, 0.0, "sweep across the muscle"),
+              _wk(1.2, at_muscle, 0.0, 0.0, "sweep back across it"),
+              _wk(1.2, at_muscle + [0.020, 0.0, 0.0], 0.0, 0.0, "and across again: it's cut"),
               _wk(2.0, under, 0.0, 0.0, "draw the blade back to the hinge"),
               _wk(1.5, notch + [0.0, -0.030, 0.0], 0.0, 0.0, "straight back out of the hinge, level"),
               _wk(0.8, out_tip, 0.0, 0.0, "up, clear of the oyster")]
@@ -536,6 +574,9 @@ def demo():
               _w(1.0, over_knife, OPEN_KNIFE, "up", DOWN_R)]
     right += _joint_path("right", _good_ik("right", over_knife, DOWN_R), np.array(READY, float),
                          "back to where it started", OPEN_KNIFE)
+    if shortcut == "pull":  # no knife work: the right hand stays where it started
+        p0, r0 = ik.tcp_pose(np.array(READY, float), station.BASES["right"])
+        right = [Waypoint(2.0, tuple(float(v) for v in p0), OPEN_KNIFE, "stay put (pull-off check)", r0)]
     # -- left: once the knife is down and the right hand is away, let go of the cup and take the top shell off ---------
     t_left = sum(w.duration for w in left)
     left.append(Waypoint(max(sum(w.duration for w in right) - t_left, 0.5), tuple(float(v) for v in hold),
@@ -560,6 +601,7 @@ def demo():
         side.append(Waypoint(max(total - t, 0.5), side[-1].pos, side[-1].finger,
                              "hold still: the trial ends once the full score has held 1 s", side[-1].yaw))
     return {"left": left, "right": right}
+
 
 
 

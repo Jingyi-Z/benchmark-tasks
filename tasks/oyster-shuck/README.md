@@ -1,10 +1,10 @@
 # Shuck an oyster
 
-A cold Pacific oyster lies cup side down on a hardwood shucking board, hinge toward the right arm, with an oyster knife
-beside it and a bowl for empty shells on the bench. One hand presses the oyster down on the board by its lip end, as a
-towelled hand does, keeping it level and still; the other picks up the knife, works its tip into the hinge and twists
-to pop it, slides the blade flat under the top shell through the muscle, draws it out and lays the knife back down.
-Then the first hand lifts the top shell off into the shell bowl.
+A cold Pacific oyster (about 110 mm) lies cup side down on a hardwood shucking board, hinge toward the right arm,
+with an oyster knife beside it and a bowl for empty shells on the bench. One hand presses the oyster down on the board
+by its lip end, as a towelled hand does, keeping it level and still; the other picks up the knife, works its tip into
+the hinge and twists to pop it, slides the blade flat under the top shell through the muscle, draws it out and lays
+the knife back down. Then the first hand lifts the top shell off into the shell bowl.
 
 What it tests: tool use in two physical stages on a small held object (a twist in a 4 mm gap, then a flat sweep under
 a shell), with the other hand holding the work level and out of the knife's line.
@@ -20,10 +20,11 @@ built with `bodykit.py`, reused unchanged from the accepted ice-cube tray task
 
 - The shells: the cup is a floor and a wall round an oyster-shaped outline (oval, narrowing to a pointed hinge end),
   the wall 4 mm lower for 24 mm at the hinge: the gap the knife goes into. The top shell is a flat plate of the same
-  outline, 4 mm larger all round, resting on the rim, with a 10 mm muscle body hanging under it.
+  outline, 4 mm larger all round, resting on the rim, with a 10 mm muscle body hanging under it. The frilled edges
+  (the cup's showing round the top shell, as a real cupped shell is the larger) and the growth rings are drawn only.
 - The hinge ligament: a hinge joint along the hinge end that PhysX breaks past 6 N or 0.03 N m. A 2 mm blade pushed
   straight into the 4 mm gap doesn't load it; its 8 mm tip turned 25 to 30 degrees wedges the top shell up and breaks
-  it (the pop). The muscle: a ball joint at the muscle's top that PhysX breaks past 2 N, which the blade reaches by
+  it (the pop). The muscle: a ball joint at the muscle's top that PhysX breaks past 1 N, which the blade reaches by
   sweeping through the muscle body. The task file never switches either joint off. Contact between the shells stays
   on (`task.py` sets the joints' `collisionEnabled`, which USD turns off by default).
 - Scoring reads what a camera could see: the hinge end lifting 1.5 mm off the rim while the shell's centre stays seated
@@ -44,3 +45,16 @@ hand a few degrees off its commanded turn, which moves a tip 115 mm away by abou
 The scorer is `task_score` (see `score()` in `task.py` and `scoring` in `task.json`). One trial is 1,800 control steps
 (90 s at 20 Hz); the scripted demo reaches full score in about 47 s. No seeds: the layout is fixed
 (`object_jitter=0`). Set `OYSTER_DEBUG=1` to print the scorer's state every half second.
+
+## Shortcut checks
+
+`OYSTER_SHORTCUT=push` runs the demo with no twist (the knife pushed straight into the hinge, then everything else the
+same) and `OYSTER_SHORTCUT=pull` skips the knife and has the holding hand lift the top shell straight off. Both must
+score 0. Results on the lab GPU (Nov 13), with this commit's settings:
+
+| Run | Score | What happened |
+|---|---|---|
+| Demo | 1.0 (971 steps) | Hinge popped at a 24 degree twist (hinge end up 3.1 mm), knife through the muscle, top shell into the bowl |
+| Straight push (push) | 0.0 | The push itself never popped the hinge; drawing the blade back out later levered it, but after the sweep, so the cut never counted and lifting the shell was scored torn off |
+| Pull-off (pull) | 0.0 | Both joints held: lifting the top shell carried the cup with it (torn off; the cup then fell off the board) |
+
