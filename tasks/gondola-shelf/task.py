@@ -267,17 +267,48 @@ OBJECTS = [UPRIGHT, LEFT_BRACKET, RIGHT_BRACKET, BRACKET_CRADLES, SHELF, SHELF_R
 
 # -- Scoring ----------------------------------------------------------------------------------------------------------
 BRK_NAMES = ("left_bracket", "right_bracket")
-OFF_TABLE_DROP_Z = -0.050  # part origin > 50 mm below tabletop -> fell off the station table onto the floor
+LOOSE_NAMES = ("left_bracket", "right_bracket", "shelf")
+IMPACT_SPEED = 0.50      # > 0.50 m/s pre-impact downward collider-vertex speed at contact latches 0
+TABLE_X0, TABLE_X1 = -0.19, 0.91   # station.TABLE_CENTER[0] = 0.36 +/- 0.55 (station.TABLE_SIZE = 1.10 x 1.30)
+TABLE_Y_HALF = 0.65                # station.TABLE_SIZE[1] / 2
+FLOOR_Z = -0.0125                  # station.FLOOR_Z
+CONTACT_TOL = 0.0008               # 0.8 mm surface contact shell (matches labkit.CONTACT_OFFSET = 0.5 mm, restOffset = 0)
+PENETRATION_FLOOR = -0.004         # allow up to 4 mm transient solver penetration at impact
+CONTROL_DT = 0.05                  # 20 Hz nominal control step
 
 BRK_POS_TOL = 0.007      # seated bracket shoulder within 7 mm of (UP_X0, col_y, TOP + SILL_3)
 BRK_ANG_TOL = 7.0        # seated bracket pitch, roll and yaw within 7 deg
 SHELF_X_TOL = 0.012      # seated shelf within 12 mm front-to-back of bracket flange centre
 SHELF_Y_TOL = 0.015      # seated shelf within 15 mm of midline
 SHELF_Z_TOL = 0.010      # seated shelf underside within 10 mm of bracket flange top
+SHELF_SUPPORT_Z_TOL = 0.005  # shelf underside within 5 mm vertically of each seated bracket flange top
 SHELF_LEVEL_TOL = 5.0    # seated shelf tilt <= 5 deg, yaw <= 6 deg
-HANDS_CLEAR = 0.080      # all four fingertips >= 8 cm from every scored loose part
-SETTLE_STEPS = 20        # 1.0 s at 20 Hz
-SETTLE_TOL = 0.001       # < 1 mm 3D Euclidean motion over the last 20 steps
+HANDS_CLEAR = 0.080      # all four fingertips >= 8 cm from every physical collider surface of scored loose parts
+SETTLE_STEPS = 20        # 1.0 s at 20 Hz (21 consecutive samples)
+SETTLE_TOL = 0.001       # < 1 mm 3D Euclidean motion across all physical collider vertices over the last 20 steps
+
+
+def _part_box_colliders_and_verts(spec):
+    boxes = []
+    verts = []
+    for c, s, _k, (yaw, pitch) in spec.boxes:
+        c_arr = np.asarray(c, dtype=float)
+        h_arr = 0.5 * np.asarray(s, dtype=float)
+        R_box = labkit._rot((0.0, pitch, yaw))
+        boxes.append((c_arr, h_arr, R_box))
+        for dx in (-h_arr[0], h_arr[0]):
+            for dy in (-h_arr[1], h_arr[1]):
+                for dz in (-h_arr[2], h_arr[2]):
+                    verts.append(c_arr + R_box @ np.array([dx, dy, dz], dtype=float))
+    arr = np.asarray(verts, dtype=float)
+    _, idx = np.unique(np.round(arr, 6), axis=0, return_index=True)
+    return tuple(boxes), arr[np.sort(idx)]
+
+
+_PART_BOX_SPECS = {}
+_PART_COLLIDER_VERTS = {}
+for _p_spec in (LEFT_BRACKET, RIGHT_BRACKET, SHELF):
+    _PART_BOX_SPECS[_p_spec.name], _PART_COLLIDER_VERTS[_p_spec.name] = _part_box_colliders_and_verts(_p_spec)
 
 _state = {}
 _hist = []
@@ -286,7 +317,17 @@ _hist = []
 @on_reset
 def _reset_state(env):
     _state.clear()
-    _state.update(step=0, viol=set(), brk_ok={}, shelf_ok=False, clear_brk={}, clear_all=False, settled=False)
+    _state.update(
+        step=0,
+        viol=set(),
+        prev_verts={},
+        prev_down={},
+        brk_ok={},
+        shelf_ok=False,
+        clear_brk={},
+        clear_all=False,
+        settled=False,
+    )
     _hist.clear()
 
 
@@ -306,14 +347,25 @@ def _tips(env):
     return out
 
 
-def _part_sample_pts(name: str, st) -> np.ndarray:
-    """Representative world points across a loose part for 8 cm fingertip-clearance checks."""
-    if name in BRK_NAMES:
-        locals_ = ((0.0, 0.0, 0.0), (-0.081, 0.0, -0.015), (-0.174, 0.0, -0.019))
-    else:
-        locals_ = ((0.0, 0.0, 0.0), (0.0, 0.156, 0.014), (0.0, -0.156, 0.014),
-                   (0.069, 0.0, 0.0), (-0.069, 0.0, 0.0))
-    return np.array([st.to_world(p) for p in locals_])
+def _world_verts(name: str, st) -> np.ndarray:
+    p = np.asarray(st.pos, dtype=float)
+    R = st.rotation()
+    return _PART_COLLIDER_VERTS[name] @ R.T + p[None, :]
+
+
+def _min_tip_dist_to_part(name: str, st, tips) -> float:
+    """Exact minimum 3D Euclidean distance from all 4 fingertips to any physical box collider of ``name``."""
+    p = np.asarray(st.pos, dtype=float)
+    R = st.rotation()
+    tips_local = (np.asarray(tips, dtype=float) - p[None, :]) @ R
+    best = float("inf")
+    for c_box, h_box, R_box in _PART_BOX_SPECS[name]:
+        rel = (tips_local - c_box[None, :]) @ R_box
+        outside = np.maximum(np.abs(rel) - h_box[None, :], 0.0)
+        d = float(np.min(np.linalg.norm(outside, axis=-1)))
+        if d < best:
+            best = d
+    return best
 
 
 def _bracket_seated_l3(st, col_y: float) -> bool:
@@ -344,11 +396,58 @@ def _shelf_seated(sh, bs) -> bool:
     p = np.asarray(sh.pos, float)
     R = sh.rotation()
     yaw_err = abs(math.degrees(math.atan2(float(R[1, 0]), float(R[0, 0]))))
-    return (abs(p[0] - SHELF_GOAL_X) <= SHELF_X_TOL
+    if not (abs(p[0] - SHELF_GOAL_X) <= SHELF_X_TOL
             and abs(p[1]) <= SHELF_Y_TOL
             and abs(p[2] - (TOP + SHELF_GOAL_Z)) <= SHELF_Z_TOL
             and sh.tilt_deg() <= SHELF_LEVEL_TOL
-            and yaw_err <= 6.0)
+            and yaw_err <= 6.0):
+        return False
+    # Verify both seated bracket flanges lie inside the shelf's 138 mm captive lip pocket and support the deck underside
+    pocket_half_x = 0.5 * SHELF_D - LIP_T
+    inner_half_y = 0.5 * SHELF_W - FENCE_W
+    for n in BRK_NAMES:
+        for fx in (FLANGE_X0, FLANGE_X1):
+            fw = np.asarray(bs[n].to_world((fx, 0.0, FLANGE_TOP)), dtype=float)
+            fl = R.T @ (fw - p)
+            if (abs(float(fl[0])) > pocket_half_x
+                    or abs(float(fl[1])) > inner_half_y
+                    or abs(float(fl[2])) > SHELF_SUPPORT_Z_TOL):
+                return False
+    return True
+
+
+def _check_part_impact(name: str, part_st, verts_w: np.ndarray, st: dict, dt: float) -> None:
+    """Latch a violation only when a physical collider vertex contacts the tabletop or floor after > 0.50 m/s descent."""
+    pos = np.asarray(part_st.pos, dtype=float)
+    lin_v = np.asarray(part_st.lin_vel, dtype=float)
+    ang_v = np.asarray(part_st.ang_vel, dtype=float)
+    vel_verts = lin_v[None, :] + np.cross(ang_v[None, :], verts_w - pos[None, :])
+    down_now = -vel_verts[:, 2]
+
+    prev_v = st["prev_verts"].get(name)
+    prev_d = st["prev_down"].get(name)
+    if prev_v is not None and prev_d is not None and dt > 0.0:
+        fd_down = (prev_v[:, 2] - verts_w[:, 2]) / dt
+        for i in range(len(verts_w)):
+            x, y, z = float(verts_w[i, 0]), float(verts_w[i, 1]), float(verts_w[i, 2])
+            on_table = (
+                (TABLE_X0 <= x <= TABLE_X1)
+                and (abs(y) <= TABLE_Y_HALF)
+                and (PENETRATION_FLOOR <= (z - TOP) <= CONTACT_TOL)
+            )
+            on_floor = z <= (FLOOR_Z + CONTACT_TOL)
+            if on_table or on_floor:
+                z_surf = FLOOR_Z if on_floor else TOP
+                incident_down = max(float(down_now[i]), float(fd_down[i]))
+                prev_z = float(prev_v[i, 2])
+                if prev_z > (z_surf + CONTACT_TOL) and (prev_z - float(prev_d[i]) * dt) <= (z_surf + CONTACT_TOL):
+                    incident_down = max(incident_down, float(prev_d[i]))
+                if incident_down > IMPACT_SPEED:
+                    surf = "floor" if on_floor else "table"
+                    st["viol"].add(f"{name} impacted {surf} at {incident_down:.2f} m/s")
+                    break
+    st["prev_verts"][name] = verts_w
+    st["prev_down"][name] = down_now
 
 
 @on_step
@@ -356,34 +455,27 @@ def _watch(env):
     S = labkit._SPECS
     st = _state
     st["step"] += 1
+    dt = float(getattr(getattr(env, "unwrapped", None), "step_dt", CONTROL_DT))
     bs = {n: labkit._part_state(env, S[n]) for n in BRK_NAMES}
     sh = labkit._part_state(env, S["shelf"])
 
-    for n, b in bs.items():
-        bp = np.asarray(b.pos, float)
-        if bp[2] < TOP + OFF_TABLE_DROP_Z:
-            st["viol"].add(f"{n} fell off the table")
+    verts_w = {n: _world_verts(n, bs[n]) for n in BRK_NAMES}
+    verts_w["shelf"] = _world_verts("shelf", sh)
 
-    sp = np.asarray(sh.pos, float)
-    if sp[2] < TOP + OFF_TABLE_DROP_Z:
-        st["viol"].add("shelf fell off the table")
+    for n, b in bs.items():
+        _check_part_impact(n, b, verts_w[n], st, dt)
+    _check_part_impact("shelf", sh, verts_w["shelf"], st, dt)
 
     tips = _tips(env)
-    brk_pts = {n: _part_sample_pts(n, bs[n]) for n in BRK_NAMES}
-    sh_pts = _part_sample_pts("shelf", sh)
-
-    clear_brk = {
-        n: all(float(np.linalg.norm(np.asarray(q) - pt)) >= HANDS_CLEAR for q in tips for pt in brk_pts[n])
-        for n in BRK_NAMES
-    }
-    clear_sh = all(float(np.linalg.norm(np.asarray(q) - pt)) >= HANDS_CLEAR for q in tips for pt in sh_pts)
+    clear_brk = {n: _min_tip_dist_to_part(n, bs[n], tips) >= HANDS_CLEAR for n in BRK_NAMES}
+    clear_sh = _min_tip_dist_to_part("shelf", sh, tips) >= HANDS_CLEAR
 
     raw_brk = {n: _bracket_seated_l3(bs[n], COL_Y[n]) for n in BRK_NAMES}
     st["brk_ok"] = {n: raw_brk[n] and clear_brk[n] for n in BRK_NAMES}
     st["shelf_ok"] = _shelf_seated(sh, bs)
     st["clear_all"] = clear_brk["left_bracket"] and clear_brk["right_bracket"] and clear_sh
 
-    pts = np.vstack([brk_pts["left_bracket"], brk_pts["right_bracket"], sh_pts])
+    pts = np.vstack([verts_w["left_bracket"], verts_w["right_bracket"], verts_w["shelf"]])
     _hist.append(pts)
     del _hist[:-(SETTLE_STEPS + 1)]
     st["settled"] = (len(_hist) > SETTLE_STEPS
