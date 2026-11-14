@@ -10,5 +10,5 @@
   "reset_notes": "Swing the fuel holder's snuffer cover 110 degrees open toward -Y and seat the fuel holder upright inside the chafer stand's central burner ring with its handle pointing forward (-X).",
   "fidelity": "Evaluated cold and unlit (no flame or heat simulated). Rigid PhysX box/cylinder colliders (6-8 mm wall proxies for thin stamped stainless sheet, 257 g total holder mass) use an 18 mm torsional patch radius (10 mm min). The articulated snuffer damper has 0.010 N m friction, 0.02 N m s/rad damping, and sibling collision; at 110 deg open its 168.7 mm minimum span blocks on the 144 mm front legs, and unbraced knob pushes spin the loose cup.",
   "scores": "Dream-1 run: 0.0; demo: 1.0",
-  "media": ""
+  "media": "M-7WKVVL"
 }
