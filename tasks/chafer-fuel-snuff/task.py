@@ -3,12 +3,12 @@
 A cold 8-quart stainless buffet chafer stand sits on the bench with its shallow water pan on the upper rim (z=204 mm)
 and a loose handled stainless chafing-fuel holder seated inside its lower central burner support ring. The holder's
 top-pivoted horizontal snuffer damper starts swung 110 deg open toward -Y, giving the L-shaped assembly a minimum
-horizontal caliper width of 157 mm across all 0..360 deg yaw angles — wider than the 144 mm clear front leg opening.
+horizontal caliper width of 168.7 mm across all 0..360 deg yaw angles — wider than the 144 mm clear front leg opening.
 
-Pulling or twisting the open holder forward jams against the front legs, while pushing the snuffer tab one-handed spins
+Pulling or twisting the open holder forward jams against the front legs, while pushing the snuffer knob one-handed spins
 the loose cup inside the burner ring. The robot braces the protruding front handle with its left hand while reaching
 through the open right side bay with its right hand to swing the snuffer damper concentric (0 deg, narrowing the width
-to 94 mm), then lifts the covered fuel holder out of the burner ring, withdraws it cleanly between the front legs, and
+to 99 mm), then lifts the covered fuel holder out of the burner ring, withdraws it cleanly between the front legs, and
 sets it upright inside the stainless bussing pan.
 """
 
