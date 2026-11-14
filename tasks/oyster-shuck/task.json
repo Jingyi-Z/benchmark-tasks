@@ -16,5 +16,5 @@
   "reset_notes": "Put the top shell back on the cup, hinge toward the right arm (the sim re-bonds both joints at every reset); lay the knife back on the board.",
   "fidelity": "Shells are rigid, oyster-shaped in plan; their frilled edges and growth rings, and the meat, are drawn only. The hinge ligament is a joint that breaks past 6 N, reached by a blade twisted in the 4 mm hinge gap (a straight push doesn't wedge); the muscle is a joint that breaks past 1 N, reached by sweeping the blade through a small muscle body under the top shell. Liquor isn't simulated: the cup tipping past 20 degrees counts as spilled. Both forces are far below a real oyster's.",
   "scores": "Dream-1 run: 0.0; demo: 1.0",
-  "media": ""
+  "media": "M-VWVHPB"
 }
