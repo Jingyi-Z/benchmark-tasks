@@ -22,6 +22,37 @@ def polydist(q,poly):
 def rotation_y(a):
  return np.array([[math.cos(a),0,math.sin(a)],[0,1,0],[-math.sin(a),0,math.cos(a)]])
 def extent(axis):return .0465*np.abs(axis)+.003*np.sqrt(np.maximum(0.,1-axis**2))
+
+def finite_cylinder(radius,half_length,centre_y=0.,sides=32):
+ # Circumscribed polygons enclose the exact cylinder. Combined radial excess
+ # is <0.117mm for the 21mm chuck and 3mm bit; the test allows 0.15mm.
+ a=np.arange(sides)*2*math.pi/sides
+ radial=np.column_stack((np.cos(a),np.zeros(sides),np.sin(a)))
+ vertices=np.concatenate([radial*(radius/math.cos(math.pi/sides))+[0,centre_y+s*half_length,0] for s in (-1,1)])
+ face_a=a+math.pi/sides
+ normals=np.vstack((np.column_stack((np.cos(face_a),np.zeros(sides),np.sin(face_a))),[0.,1.,0.]))
+ edges=np.vstack((np.roll(radial,-1,axis=0)-radial,[0.,1.,0.]))
+ return vertices,normals,edges
+
+_BIT_SOLID=finite_cylinder(.003,.0465)
+_CHUCK_SOLID=finite_cylinder(.021,.020,-.049)
+
+def bit_removed(rel,rotation,tolerance=.00015):
+ """The whole bit is outside the finite chuck (42mm OD x40mm), any pose.
+
+ Complete separating-axis test for the enclosing convex polygons: face
+ normals and all cross-edge axes. No infinite nose plane or yaw preference.
+ The 0.15mm geometric tolerance covers the polygon overapproximation.
+ """
+ cv,cn,ce=_CHUCK_SOLID;bv,bn,be=_BIT_SOLID
+ bv=bv@rotation.T+np.asarray(rel);bn=bn@rotation.T;be=be@rotation.T
+ if np.any(np.minimum(cv.max(0),bv.max(0))-np.maximum(cv.min(0),bv.min(0))<=tolerance):return True
+ cross=np.cross(ce[:,None,:],be[None,:,:]).reshape(-1,3)
+ lengths=np.linalg.norm(cross,axis=1);cross=cross[lengths>1e-10]/lengths[lengths>1e-10,None]
+ axes=np.concatenate((cn,bn,cross))
+ cp=cv@axes.T;bp=bv@axes.T
+ overlap=np.minimum(cp.max(0),bp.max(0))-np.maximum(cp.min(0),bp.min(0))
+ return bool(np.any(overlap<=tolerance))
 class Metric:
  def __init__(self,ns):
   self.ns=ns;self.lk=ns['labkit'];self.top=ns['TOP'];self.spec=ns['DRILL'];self.trspec=ns['TRAY']
@@ -58,7 +89,7 @@ class Metric:
   for name in ['left_robot','right_robot']:
    a=base.scene[name];mid=runtime.pad_tips_world(a)-origin;g=runtime.link_poses(a)['gripper'];ids=a.find_joints(['joint7','joint8'],preserve_order=True)[0];j7,j8=np.abs(self.lk._np(a.data.joint_pos)[0,ids]);tips.extend([mid,mid-j7*g[:3,0],mid+j8*g[:3,0]])
   clear=min(self.distance(p,d,b,tr) for p in tips)
-  rel=d.rotation().T@(np.asarray(b.pos)-np.asarray(d.pos));axis=d.rotation().T@b.rotation()[:,1];rear=rel[1]+extent(axis)[1];outside=rear<=-.089
+  rel=d.rotation().T@(np.asarray(b.pos)-np.asarray(d.pos));relative_rotation=d.rotation().T@b.rotation();axis=relative_rotation[:,1];rear=rel[1]+extent(axis)[1];outside=bit_removed(rel,relative_rotation)
   bitlow=np.asarray(b.pos)-extent(b.rotation()[:,1]);drill_supported=abs(float(dp[:,2].min())-self.top)<=.003;bit_supported=self.top-.001<=float(bitlow[2])<=self.top+.025
   qr=tr.rotation().T@(np.asarray(b.pos)-np.asarray(tr.pos));he=extent(tr.rotation().T@b.rotation()[:,1]);lo,hi=qr-he,qr+he
   inside=lo[0]>=-.082 and hi[0]<=.082 and lo[1]>=-.052 and hi[1]<=.052 and abs(float(lo[2])-.003)<=.003 and hi[2]<=.019 and tr.rotation()[2,2]>=math.cos(math.radians(5)) and abs(float(tp[:,2].min())-self.top)<=.003
