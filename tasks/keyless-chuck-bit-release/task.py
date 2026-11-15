@@ -98,7 +98,7 @@ def demo():
  from yam_arena import ik
  from yam_arena.constants import READY,LEFT_BASE_POS,RIGHT_BASE_POS
  homeL,rotL=ik.tcp_pose(np.asarray(READY,float),np.asarray(LEFT_BASE_POS,float));homeR,rotR=ik.tcp_pose(np.asarray(READY,float),np.asarray(RIGHT_BASE_POS,float))
- l=ORIGIN+[-.070,.026,.016];s=ORIGIN+[0,-.049,0];lift=np.array([0,-.040,.180])
+ l=ORIGIN+[-.045,.026,.008];s=ORIGIN+[0,-.049,0];lift=np.array([0,-.040,.180])
  lp=tcp(l,R_LEFT);sp=tcp(s+lift,R_RIGHT);tw=ry(math.radians(-90))@R_RIGHT
  a=math.radians(45);R_TILT=np.array([[1.,0.,0.],[0.,math.cos(a),-math.sin(a)],[0.,math.sin(a),math.cos(a)]])@R_LEFT
  b=math.radians(30);R_TILT=R_TILT@np.array([[1.,0.,0.],[0.,math.cos(b),-math.sin(b)],[0.,math.sin(b),math.cos(b)]])
@@ -106,16 +106,33 @@ def demo():
  left=[w(2.,lp-R_LEFT[:,2]*.070,-.046,'approach existing pistol grip',R_LEFT),
  w(1.,lp,-.046,'lower around grip',R_LEFT),w(.7,lp,0.,'grasp handle',R_LEFT),
  w(1.3,lp+lift,0.,'lift drill on existing grip',R_LEFT),
- w(10.,lp+lift,0.,'counterhold until sleeve hand has withdrawn',R_LEFT),
+ w(34.8,lp+lift,0.,'counterhold through repeated sleeve regrips',R_LEFT),
  w(1.,tcp(l+lift+[0.,-.045,0.],R_LEFT),0.,'centre the open chuck over the tray',R_LEFT),
  w(2.5,tcp(l+lift+[0.,-.045,0.],R_TILT),0.,'tip the open chuck45deg nose down',R_TILT),
  w(3.,tcp(l+lift+[0.,-.045,0.],R_TILT),0.,'hold nose down while the loose bit slides into the tray',R_TILT),
- w(2.5,tcp(l+lift+[0.,-.045,0.],R_LEFT),0.,'return the empty drill to level',R_LEFT),
+ w(4.0,tcp(l+lift+[0.,-.045,0.],R_LEFT),0.,'slowly return the empty drill to level',R_LEFT),
  w(2.4,lp+[0.,.045,0.],0.,'place drill on counter clear of bit',R_LEFT),
  w(.6,lp+[0.,.045,0.],-.046,'release drill on counter',R_LEFT),
  w(.8,lp+[0.,.045,.020]-R_LEFT[:,2]*.070,-.046,'withdraw from drill',R_LEFT),
  w(1.6,homeL,-.046,'park left',rotL),w(2.5,homeL,-.046,'settle released scene',rotL)]
- right=[w(5.,sp-R_RIGHT[:,2]*.090,-.046,'wait clear while tool lifts',R_RIGHT),w(1.,sp-R_RIGHT[:,2]*.030,-.046,'approach 42mm sleeve',R_RIGHT),w(.6,sp,-.046,'position pads across sleeve',R_RIGHT),w(.7,sp,0.,'grasp sleeve',R_RIGHT),w(2.,tcp(s+lift,tw),0.,'turn sleeve90deg open about spindle axis',tw),w(2.7,tcp(s+lift,tw),0.,'hold open while released bit falls into tray',tw),w(.8,tcp(s+lift,tw),-.046,'release sleeve',tw),w(.8,tcp(s+lift,tw)-tw[:,2]*.080,-.046,'withdraw from chuck',tw),w(1.4,homeR,-.046,'park right',rotR),w(16.9,homeR,-.046,'settle released scene',rotR)]
+ right=[w(5.,sp-R_RIGHT[:,2]*.090,-.046,'wait clear while tool lifts',R_RIGHT),
+ w(1.,sp-R_RIGHT[:,2]*.030,-.046,'approach42mm sleeve',R_RIGHT),
+ w(.6,sp,-.046,'position pads across sleeve',R_RIGHT),
+ w(.7,sp,0.,'grasp sleeve',R_RIGHT)]
+ for quarter in range(6):
+  right += [w(2.,tcp(s+lift,tw),0.,f'open sleeve quarter{quarter+1} of6',tw),
+            w(.5,tcp(s+lift,tw),0.,'hold opened sleeve',tw)]
+  if quarter<5:
+   right += [w(.4,tcp(s+lift,tw),-.046,'release sleeve for regrip',tw),
+             w(.5,tcp(s+lift,tw)-tw[:,2]*.070,-.046,'withdraw open pads before resetting wrist',tw),
+             w(1.,sp-R_RIGHT[:,2]*.070,-.046,'reset wrist while clear of sleeve',R_RIGHT),
+             w(.5,sp,-.046,'return open pads to sleeve',R_RIGHT),
+             w(.5,sp,0.,'regrasp sleeve',R_RIGHT)]
+ right += [w(.8,tcp(s+lift,tw),-.046,'release sleeve after opening540degrees',tw),
+           w(.8,tcp(s+lift,tw)-tw[:,2]*.080,-.046,'withdraw from chuck',tw),
+           w(1.4,homeR,-.046,'park right',rotR),
+           w(18.4,homeR,-.046,'settle released scene',rotR)]
+
  return dict(left=left,right=right)
 
 # Fixed open-loop compensation measured during a prior development demo.
@@ -123,14 +140,14 @@ def demo():
 from scipy.spatial.transform import Rotation
 _ORIG_TARGET=dm.ArmPlan.target
 _S_NOM=ORIGIN+np.array([0.,-.089,.180])
-_FIXED_POS=np.array([0.29303455352783203,0.05095786601305008,0.8994172215461731])
-_FIXED_ROT=np.array([[0.962344451406542,-0.0036695201144600897,0.27180817218373415],[0.030448254080352788,0.9950715508058823,-0.09436901727717628],[-0.2701222902079559,0.09909158501371995,0.9577133161868852]])
+_FIXED_POS=np.array([0.29917362332344055, 0.03413170203566551, 0.9129056334495544])
+_FIXED_ROT=np.array([[0.9881658943773773, 0.00947351796692178, 0.15309609533040597], [0.0013888310283309557, 0.9974974392373379, -0.0706889607923028], [-0.15338263622868492, 0.0700650446860015, 0.9856797920696617]])
 _FIXED_CENTRE=_FIXED_POS+_FIXED_ROT@np.array([0.,-.049,0.])
 
 def track_sleeve(self,t):
  p,rot,f,label=_ORIG_TARGET(self,t)
  if self.base_pos[1]>0 or t<4.:return p,rot,f,label
- w=float(np.clip((t-4.)/1.5,0.,1.))*float(np.clip((15.-t)/1.4,0.,1.))
+ w=float(np.clip((t-4.)/1.5,0.,1.))*float(np.clip((39.8-t)/1.4,0.,1.))
  rb=Rotation.from_rotvec(Rotation.from_matrix(_FIXED_ROT).as_rotvec()*w).as_matrix()
  return _S_NOM+w*(_FIXED_CENTRE-_S_NOM)+rb@(np.asarray(p)-_S_NOM),rb@rot,f,label
 

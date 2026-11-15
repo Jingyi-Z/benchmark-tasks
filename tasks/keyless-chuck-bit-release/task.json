@@ -13,6 +13,6 @@
   "run_limit": "1,600 steps (80 seconds at 20 Hz)",
   "reset_notes": "Restore the bit between the closed jaw faces and put the drill and tray in the stated starting poses.",
   "fidelity": "Rigid estimated DCD701 shell, 0.87 kg bare tool. Three inclined jaw slides use passive two-way nut/sleeve constraints: estimated 20 deg guides, 2 mm/rev lead, load-dependent friction coefficient 0.15 and 20 um initial interference. Native jaw-bit contact retains a loose 6 mm steel bit; the sleeve is hollow. Tool/tray contact, dimensions and mass splits are estimates. No spindle motor, bit flutes or material damage. Demo uses fixed waypoints.",
-  "scores": "Dream-1 run: 0.0; demo: 0.0 (bit removed into tray; signed nose-plane scoring condition fails)",
+  "scores": "Dream-1 run: 0.0; demo: 0.5 (bit in tray; 2.6 mm side margin misses the required 5 mm)",
   "media": ""
 }
