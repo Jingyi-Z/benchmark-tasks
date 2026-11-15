@@ -1,0 +1,21 @@
+{
+  "title": "Swing a car's sun visor off its clip to the side window and slide it out to shade the glass",
+  "category": "Societal relatability",
+  "keywords": [
+    "articulated",
+    "sun visor",
+    "car interior",
+    "clip release",
+    "push",
+    "coverage"
+  ],
+  "instruction": "Move the sun visor over to shade the side window, covering the marked band on the glass.",
+  "context": "Swinging the visor off its centre clip to block low sun through the side window is something nearly every driver does; it takes a clip that resists, a swing through 90 degrees and the extender pulled out.",
+  "setup": "A fixed mock-up of a car's driver-side front corner stands on the bench. A sun visor (cloth-covered board 430 x 170 x 25 mm, 0.35 kg) hangs on an 8 mm steel L-rod 220 mm above the bench: the rod swivels at its outer end about a vertical axis (0 to 88 deg), the board turns about the rod (stowed flat to 100 deg down) and slides along it up to 120 mm; each joint holds by friction. The rod's tip sits in the centre clip, a fixed front jaw and a sprung rear jaw. The visor starts down over the windshield, clipped, slid in, lying across in front of the arms with its pivot on the left. A side window runs forward from 50 mm past the pivot on the left: a 570 x 4 mm glass, top 180 mm above the bench, 120 mm outboard of the rod, between two 30 x 30 mm pillars, with an orange tape outline marking a 300 x 120 mm band near its far top corner. The roof is left out: the pivot mount and the clip are fixed where the headliner holds them.",
+  "scoring": "End state only. 0 unless each hand's two fingertips and the point between them are at least 80 mm from every part and no point on any part moved 1 mm or more over the last 1 s (21 samples at 20 Hz). Then the visor's outline, seen square-on to the glass from inside, is compared with the marked band: 1.0 if it covers 80% or more of the band's area, 0.5 if 40% or more, 0 otherwise. Swung over but not slid out it covers about 61%.",
+  "run_limit": "2,400 steps (120 s at 20 Hz)",
+  "reset_notes": "Slide the visor in, swing it back across and press the rod's tip into the centre clip, board hanging down.",
+  "fidelity": "PhysX at 240 Hz. The visor's three joints and the clip's rear jaw are ideal joints; their friction (0.6 N m swivel and roll, 4 N slide) and the jaw spring (0.05 N m/rad) are estimates, not measured parts. Sizes are estimates within a mid-size sedan visor's 500 x 211 x 66 mm package. The roof and headliner are left out and the corner sits lower than a car's so the arms reach; the board is rigid, without cloth or mirror.",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": "M-C67Z8J"
+}
