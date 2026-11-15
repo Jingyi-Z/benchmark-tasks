@@ -1,0 +1,19 @@
+{
+  "title": "Unplug a latched Ethernet cable from a desktop modem",
+  "category": "Societal relatability",
+  "keywords": [
+    "bimanual",
+    "connector",
+    "it-support",
+    "spring-latch"
+  ],
+  "instruction": "Unplug the Ethernet connector from the desktop modem and leave both resting on the counter.",
+  "context": "Unplugging an Ethernet cable from a home modem or router is an everyday chore, and routine work for computer support specialists: the plug's locking tab must be held down while pulling, and pulling without it drags or tips the loose modem.",
+  "setup": "Two loose objects on the station counter: (1) a vertical 4-port Gigabit desktop cable modem matching the Motorola MB8600 exterior envelope at x = 0.280 m, y = +0.042 m (57 x 184 x 200 mm housing on a 74 x 184 x 7 mm base foot, 0.523 kg, friction 0.55), with its upper LAN 1 RJ45 receptacle cavity centered at z = 118.0 mm above the counter on the -Y rear bezel (world y = -0.0500 m) behind a 1.8 mm upper locking lip, below the visual F-coax barrel and above LAN 2 to LAN 4; and (2) an IEC 60603-7 8P8C RJ45 modular plug with Stewart SS-39200-085 boot envelope and rigid Cat6 strain-relief collar (11.68 mm plug width, 6.60 mm tongue height, 36.07 mm plug-and-boot length plus a 14.0 x 6.0 mm collar, total mass 0.026 kg, friction 0.75) seated 13.0 mm inside LAN 1 at x = 0.280 m, y = -0.0545 m, z = TOP + 0.1180 m. A front-hinged spring-return top locking tab (0.12 Nm/rad, explicit per-step spring target) engages 1.15 mm behind the bezel lip until depressed. Port heights, tab stiffness, catch overlap, and omitted cable tail are estimates.",
+  "scoring": "End-state only; harmless modem yaw or repositioning during extraction is allowed. Every positive score requires the modem within 5 degrees of upright with its base within 3 mm of the counter, the RJ45 plug resting within 3 mm of the counter, both pad midpoints and all four independent fingertip pad positions at least 80 mm from every modem and plug collider, tab angle within normal bounds, and under 1 mm 3D Euclidean excursion across all sampled modem and plug corners over the final 21 samples at 20 Hz. 0.5: plug completely withdrawn at least 10 mm outside the modem rear bezel. 1.0: plug also at least 35 mm clear in 3D from every modem collider. Pulling without depressing the locking tab retains the barb behind the bezel lip and scores 0.",
+  "run_limit": "900 steps (45 seconds at 20 Hz)",
+  "reset_notes": "Depress the RJ45 locking tab, push the plug 13.0 mm into the upper LAN 1 port until the barb clicks behind the bezel lip, and set the upright modem at x = 0.280 m, y = +0.042 m with its ports facing -Y. Simulation reset restores the fixed layout with object_jitter = 0.",
+  "fidelity": "Exterior follows Motorola MB8600 (57 x 184 x 200 mm, 0.523 kg), IEC 60603-7 tongue, and Stewart SS-39200-085 36.07 mm boot; internal CAD is not claimed. Rigid ABS/PC bodies; flexible cable tail beyond the 14 mm collar, pin wipe, and click acoustics are omitted. Port heights, tab stiffness (0.12 Nm/rad), damping (0.004 Nms/rad), 1.15 mm barb overlap, and friction (0.55/0.75) are engineering estimates; torsional patches are bounded to collider half-widths.",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": "M-NPCKSK"
+}
