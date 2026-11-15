@@ -73,14 +73,14 @@ def jaw_clearance(d,b):
 @on_reset
 def reset(env):
  global _step
- _step=0;_METRIC.reset()
+ _step=0;_METRIC.reset();_direct.clear()
 @on_step
 def observe(env):
  global _step
  _step+=1;art=env.unwrapped.scene['drill'];art.set_joint_position_target(art.data.default_joint_pos)
  d=labkit._part_state(env,labkit._SPECS['drill']);b=labkit._part_state(env,labkit._SPECS['bit']);tr=labkit._part_state(env,labkit._SPECS['tray'])
  _METRIC.update(env,d,b,tr)
- if _DEBUG and _step%10==0:print('CHUCKTASK '+json.dumps(dict(step=_step,body_pos=list(map(float,d.pos)),tray_pos=list(map(float,tr.pos)),tray_R=tr.rotation().tolist(),body_R=d.rotation().tolist(),bit_R=b.rotation().tolist(),bit_pos=list(map(float,b.pos)),sleeve_rad=float(d.joints['sleeve']),jaw_m=[float(d.joints['jaw'+str(j)]) for j in range(3)],score=_METRIC.score(),detail=_METRIC.detail,clearance=jaw_clearance(d,b))),flush=True)
+ if _DEBUG and _step%10==0:print('CHUCKTASK '+json.dumps(dict(step=_step,body_pos=list(map(float,d.pos)),tray_pos=list(map(float,tr.pos)),tray_R=tr.rotation().tolist(),body_R=d.rotation().tolist(),bit_R=b.rotation().tolist(),bit_pos=list(map(float,b.pos)),sleeve_rad=float(d.joints['sleeve']),jaw_m=[float(d.joints['jaw'+str(j)]) for j in range(3)],placement_height_mm=(_direct.get('placement',(None,None,None))[2]*1000 if 'placement' in _direct else None),score=_METRIC.score(),detail=_METRIC.detail,clearance=jaw_clearance(d,b))),flush=True)
 def score(objects):return _METRIC.score()
 def success(objects):return score(objects)==1.
 class Orient(float):
@@ -106,15 +106,11 @@ def demo():
  left=[w(2.,lp-R_LEFT[:,2]*.070,-.046,'approach existing pistol grip',R_LEFT),
  w(1.,lp,-.046,'lower around grip',R_LEFT),w(.7,lp,0.,'grasp handle',R_LEFT),
  w(1.3,lp+lift,0.,'lift drill on existing grip',R_LEFT),
- w(34.8,lp+lift,0.,'counterhold through repeated sleeve regrips',R_LEFT),
- w(1.,tcp(l+lift+[0.,-.045,0.],R_LEFT),0.,'centre the open chuck over the tray',R_LEFT),
- w(2.5,tcp(l+lift+[0.,-.045,0.],R_TILT),0.,'tip the open chuck45deg nose down',R_TILT),
- w(3.,tcp(l+lift+[0.,-.045,0.],R_TILT),0.,'hold nose down while the loose bit slides into the tray',R_TILT),
- w(4.0,tcp(l+lift+[0.,-.045,0.],R_LEFT),0.,'slowly return the empty drill to level',R_LEFT),
- w(2.4,lp+[0.,.045,0.],0.,'place drill on counter clear of bit',R_LEFT),
- w(.6,lp+[0.,.045,0.],-.046,'release drill on counter',R_LEFT),
- w(.8,lp+[0.,.045,.020]-R_LEFT[:,2]*.070,-.046,'withdraw from drill',R_LEFT),
- w(1.6,homeL,-.046,'park left',rotL),w(2.5,homeL,-.046,'settle released scene',rotL)]
+ w(43.,lp+lift,0.,'hold drill still while bit is grasped and extracted',R_LEFT),
+ w(2.4,lp+[0.,.045,0.],0.,'place drill clear of tray',R_LEFT),
+ w(.6,lp+[0.,.045,0.],-.046,'release drill',R_LEFT),
+ w(.8,lp+[0.,.045,.020]-R_LEFT[:,2]*.070,-.046,'withdraw',R_LEFT),
+ w(1.6,homeL,-.046,'park left',rotL),w(18.6,homeL,-.046,'settle',rotL)]
  right=[w(5.,sp-R_RIGHT[:,2]*.090,-.046,'wait clear while tool lifts',R_RIGHT),
  w(1.,sp-R_RIGHT[:,2]*.030,-.046,'approach42mm sleeve',R_RIGHT),
  w(.6,sp,-.046,'position pads across sleeve',R_RIGHT),
@@ -129,14 +125,24 @@ def demo():
              w(.5,sp,-.046,'return open pads to sleeve',R_RIGHT),
              w(.5,sp,0.,'regrasp sleeve',R_RIGHT)]
  right += [w(.8,tcp(s+lift,tw),-.046,'release sleeve after opening540degrees',tw),
-           w(.8,tcp(s+lift,tw)-tw[:,2]*.080,-.046,'withdraw from chuck',tw),
-           w(1.4,homeR,-.046,'park right',rotR),
-           w(18.4,homeR,-.046,'settle released scene',rotR)]
+           w(.8,tcp(s+lift,tw)-tw[:,2]*.080,-.046,'withdraw from chuck',tw)]
+ rp,rrot=_pick_pose(_BIT_NOM,_BIT_R_NOM)
+ lay=_LAY
+ hover=np.array([.320,-.065,TOP+.120])+.010*lay[:,1]-lay[:,2]*.004
+ low=np.array([.320,-.065,TOP+.014])+.010*lay[:,1]-lay[:,2]*.004
+ right += [w(1.6,rp-rrot[:,2]*.040,-.046,'bit_hover',rrot),
+           w(1.5,rp,-.012,'bit_approach',rrot),w(1.5,rp,0.,'bit_close',rrot),
+           w(1.,rp,0.,'bit_hold',rrot),w(2.,rp-_BIT_R_NOM[:,1]*.050,0.,'bit_extract',rrot),
+           w(2.,rp-_BIT_R_NOM[:,1]*.080,0.,'bit_extra_extract',rrot),w(6.,rp-_BIT_R_NOM[:,1]*.080,0.,'bit_wait_drill',rrot),w(4.,hover,0.,'bit_transfer',lay),w(1.,hover,0.,'bit_over_tray',lay),
+           w(3.,low,0.,'bit_lower',lay),w(1.,low,0.,'bit_rest',lay),
+           w(1.,low,-.012,'bit_release',lay),w(2.,hover,-.012,'bit_rise',lay),
+           w(1.,hover,-.046,'bit_open',lay),w(2.5,homeR,-.046,'bit_park',rotR),
+           w(2.5,homeR,-.046,'bit_settle',rotR)]
 
  return dict(left=left,right=right)
 
 # Fixed open-loop compensation measured during a prior development demo.
-# Neither demo() nor its waypoint controller reads simulator object state.
+# Sleeve-prefix compensation is fixed; the later bit controller reads visible poses.
 from scipy.spatial.transform import Rotation
 _ORIG_TARGET=dm.ArmPlan.target
 _S_NOM=ORIGIN+np.array([0.,-.089,.180])
@@ -152,3 +158,85 @@ def track_sleeve(self,t):
  return _S_NOM+w*(_FIXED_CENTRE-_S_NOM)+rb@(np.asarray(p)-_S_NOM),rb@rot,f,label
 
 dm.ArmPlan.target=track_sleeve
+
+# Camera-observable bit/tray poses only. No object writes, joint-state grasp flags,
+# contact forces, or kinematic attachment is used by this controller.
+_LAY=frame(np.array([.5,math.sqrt(3)/2,0.]),np.array([0.,0.,-1.]))
+_BIT_NOM=np.array([.2980050147,-.0633013397,.8820738792])
+_BIT_R_NOM=np.array([[-.8435578,-.03364293,.5359836],[.1835908,.91984044,.3466814],[-.5046828,.39084743,-.7697621]])
+from scipy.spatial.transform import Slerp
+_CAM=json.loads((pathlib.Path(__file__).parent/'camera-replay-d16c.json').read_text(encoding='utf-8-sig'))
+_CT=np.array([x['t'] for x in _CAM]);_CP=np.array([x['pos'] for x in _CAM]);_CR=Slerp(_CT,Rotation.from_matrix(np.array([x['rot'] for x in _CAM])))
+_HAND_ENVELOPE=np.array(json.loads((pathlib.Path(__file__).parent/'hand-envelope.json').read_text(encoding='utf-8-sig')))
+def _camera_replay(t):
+ tt=float(np.clip(t,_CT[0],_CT[-1]));return np.array([np.interp(tt,_CT,_CP[:,i]) for i in range(3)]),_CR(tt).as_matrix()
+_direct={}
+def _pick_pose(pos,rot):
+ axis=np.asarray(rot)[:,1];axis=axis/np.linalg.norm(axis)
+ if axis[1]<0:axis=-axis
+ gx=np.array([1.,0.,0.]);gx-=axis*np.dot(axis,gx);gx/=np.linalg.norm(gx)
+ rr=np.column_stack([gx,-axis,np.cross(gx,-axis)])
+ return np.asarray(pos)-axis*.010-rr[:,2]*.004,rr
+def _blend(a,b,u):
+ return Rotation.from_rotvec(float(u)*Rotation.from_matrix(b@a.T).as_rotvec()).as_matrix()@a
+_before_direct=dm.ArmPlan.target
+def direct_bit(self,t):
+ p,rot,f,label=_before_direct(self,t)
+ if self.base_pos[1]>0 or not label.startswith('bit_'):return p,rot,f,label
+ e=labkit.env()
+ if e is None:
+  bp,br=_camera_replay(t);bp=bp-br[:,1]*.030*float(np.clip((t-46.)/2.,0.,1.));tp=np.array([.32,-.065,TOP]);tr=np.eye(3)
+ else:
+  bs=labkit._part_state(e,labkit._SPECS['bit']);ts=labkit._part_state(e,labkit._SPECS['tray'])
+  bp,br=bs.pos,bs.rotation();tp,tr=ts.pos,ts.rotation()
+ pick,pr=_pick_pose(bp,br);nom,nr=_pick_pose(_BIT_NOM,_BIT_R_NOM)
+ rv=Rotation.from_matrix(pr@nr.T).as_rotvec();rv*=min(1.,math.radians(10)/max(np.linalg.norm(rv),1e-12));pr=Rotation.from_rotvec(rv).as_matrix()@nr
+ if label in ('bit_hover','bit_approach','bit_close','bit_hold'):
+  # Bound the pose correction; retain the planned continuous approach. Only the
+  # final few millimetres follow visible drift, before the grasp freezes.
+  u=float(np.clip((t-38.4)/1.6,0,1));delta=np.clip(pick-nom,-.008,.008)
+  p=np.asarray(p)+u*delta;rot=_blend(rot,pr,u) if label!='bit_hover' else _blend(rot,pr,u)
+  _direct['grasp']=(p.copy(),rot.copy(),br[:,1].copy())
+ elif label=='bit_extract':
+  if 'extract' not in _direct:_direct['extract']=_direct.get('grasp',(nom,nr,_BIT_R_NOM[:,1]))
+  gp,gr,axis=_direct['extract'];axis=axis/np.linalg.norm(axis)
+  if axis[1]<0:axis=-axis
+  p=gp-axis*.050*float(np.clip((t-44.)/2.,0,1));rot=gr
+  _direct['withdrawn']=(p.copy(),rot.copy())
+ elif label in ('bit_extra_extract','bit_wait_drill'):
+  if 'extra' not in _direct:
+   hp,hr=_direct['withdrawn'];axis=br[:,1].copy();axis/=np.linalg.norm(axis)
+   if axis[1]<0:axis=-axis
+   _direct['extra']=(hp.copy(),hr.copy(),axis)
+  hp,hr,axis=_direct['extra'];u=float(np.clip((t-46.)/2.,0.,1.));p=hp-axis*.030*u;rot=hr
+  _direct['post_extract']=(p.copy(),rot.copy())
+ else:
+  if 'placement' not in _direct:
+   hp,hr=_direct.get('post_extract',(nom-_BIT_R_NOM[:,1]*.080,nr))
+   if e is not None:
+    from yam_arena import runtime
+    rb=e.unwrapped;g=runtime.link_poses(rb.scene['right_robot'])['gripper'];hr=g[:3,:3];hp=g[:3,3]-labkit._np(rb.scene.env_origins[0])+hr@np.array([0.,0.,.134])
+   rel=hr.T@(np.asarray(bp)-hp);axis=hr.T@br[:,1];axis/=np.linalg.norm(axis)
+   baseline=tr@_LAY;aa=baseline@axis;bb=-baseline[:,1];v=np.cross(aa,bb);c=float(aa@bb)
+   if c<-.99:raise RuntimeError('Unexpected reversed held-bit axis; stop before placement')
+   k=np.array([[0.,-v[2],v[1]],[v[2],0.,-v[0]],[-v[1],v[0],0.]])
+   lay=(np.eye(3)+k+k@k/(1+c))@baseline
+   lowest=float(np.min(((_HAND_ENVELOPE-rel)@lay.T)[:,2]));height=max(.014,.005-lowest)
+   if height>.040:raise RuntimeError('No low release pose with tray-floor clearance')
+   _direct['placement']=(rel,lay,height,hp.copy(),hr.copy())
+  rel,lay,height,startp,startr=_direct['placement']
+  hover=tp+tr@np.array([0.,0.,.120])-lay@rel
+  low=tp+tr@np.array([0.,0.,height])-lay@rel
+  if label=='bit_transfer':
+   u=float(np.clip((t-54.)/4.,0,1));p=(1-u)*startp+u*hover;rot=_blend(startr,lay,u)
+  elif label in ('bit_over_tray','bit_open'):p=hover;rot=lay
+  elif label=='bit_lower':u=float(np.clip((t-59.)/3.,0,1));p=(1-u)*hover+u*low;rot=lay
+  elif label in ('bit_rest','bit_release'):p=low;rot=lay
+  elif label=='bit_rise':u=float(np.clip((t-64.)/2.,0,1));p=(1-u)*low+u*hover;rot=lay
+  elif label in ('bit_park','bit_settle'):
+   from yam_arena import ik
+   from yam_arena.constants import READY,RIGHT_BASE_POS
+   home,homeR=ik.tcp_pose(np.asarray(READY,float),np.asarray(RIGHT_BASE_POS,float));u=1. if label=='bit_settle' else float(np.clip((t-67.)/2.5,0,1));p=(1-u)*hover+u*home;rot=_blend(lay,homeR,u)
+
+ return p,rot,f,label
+dm.ArmPlan.target=direct_bit
