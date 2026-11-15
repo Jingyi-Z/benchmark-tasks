@@ -1,0 +1,20 @@
+{
+  "title": "Pop a phone's SIM tray out with the eject pin and put the pin back in its holder",
+  "category": "Societal relatability",
+  "keywords": [
+    "bimanual",
+    "tool use",
+    "pinhole",
+    "precision insertion",
+    "phone"
+  ],
+  "instruction": "Pop the SIM tray out of the phone with the eject tool, then stand the tool back in its foam block.",
+  "context": "Swapping a SIM starts with this: a 0.8 mm pin has to go straight into a 1 mm hole while the other hand steadies the phone, and the tool goes back where it is kept so it is not lost.",
+  "setup": "On the counter: (1) a phone the size of an iPhone 12 (146.7 x 71.5 x 7.4 mm, 164 g, aluminium frame, glass faces) standing upright in portrait, screen towards the robot, in (2) a loose weighted desk dock (ABS, 300 g, 70 x 110 x 4 mm base, an 8.6 mm groove along the phone's width, 10 mm front lip, 70 mm back rest). Its nano-SIM tray (steel, 4 g, 15.4 x 3.3 mm end cap) sits flush in the phone's left edge (towards the left arm), cap centre 64 mm above the counter, with a 1.0 mm eject hole through the cap 5.5 mm above the cap's centre. (3) A steel eject tool (18 x 10 x 0.8 mm paddle, 0.8 mm pin 8 mm long, 3 g) stands pin-down in a 2 mm slit in (4) a loose foam block (40 x 40 x 20 mm, 30 g). Layout from the arms' base line (x forward, y to the left arm): dock centre at x 380 mm, y 0; foam block at x 300 mm, y 150 mm.",
+  "scoring": "Final state only. 0.5: the tray's cap stands at least 2 mm out of the phone's edge; 1.0: also the eject tool standing back pin-down in its foam block (pin tip within 3 mm of the hole's centre and 4 mm of its floor, tilt under 15 degrees). Every tier needs the phone standing in its dock (tilt under 10 degrees, bottom within 3 mm of the groove floor, centred in the groove within 3 mm), every fingertip at least 80 mm from the phone, tray, tool and dock, and the phone and tray still (under 1 mm over the last 1 s at 20 Hz). Pushing, prying or tipping the phone earns nothing: the tray stays latched until the pin lifts its catch.",
+  "run_limit": "1,000 steps (50 s at 20 Hz)",
+  "reset_notes": "Push the tray back in until it clicks; stand the tool back in its slit if it is not already there.",
+  "fidelity": "Rigid bodies. Phone size, mass and tray side match an iPhone 12; pin and hole diameters follow retail tool listings; the tray latch is an estimate: a sprung pawl in a notch on the tray, lifted by the pin on a 30 degree slope inside, and a 150 N/m ejector that pushes the tray 3 mm out. Glass, buttons, cameras and the SIM card are omitted; holes are square, the pin round.",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": "M-SUSTAC"
+}
