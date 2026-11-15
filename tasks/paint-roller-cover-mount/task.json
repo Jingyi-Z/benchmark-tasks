@@ -1,0 +1,18 @@
+{
+  "title": "Slide a 9-inch paint-roller cover onto a loose cranked roller frame",
+  "category": "Societal relatability",
+  "keywords": [
+    "paint-roller",
+    "coaxial-insertion",
+    "bimanual",
+    "spring-detent",
+    "household-tool"
+  ],
+  "instruction": "Slide the paint-roller cover all the way onto the roller frame's cage until it seats past the retaining clip.",
+  "context": "Most adults have slid a paint-roller cover onto a paint-roller frame themselves when painting a room at home; an unbraced push spins the off-axis 90-degree cranked frame across the bench, and resting flat on the bench leaves the smaller cage axis below the thicker cover's bore.",
+  "setup": "Two loose 1:1 objects rest on the benchtop: (1) at x = 0.375 m, y = +0.115 m lies a 9-inch cage paint-roller frame (0.34 kg; 228.6 mm long, 36.0 mm OD free-turning fiberglass-reinforced nylon cage with a 30-to-33.6 mm tapered nose cap, a compliant radial quick-release retaining spring leaf 28 mm from the 40 mm OD inboard shoulder collar, and a 7.9 mm chrome-plated steel rod cranked 90 deg across 135 mm to a 140 x 32 x 34 mm polypropylene grip handle); and (2) at x = 0.255 m, y = -0.235 m lies a hollow cylindrical 9-in x 1.5-in paint-roller cover (0.085 kg; 228.6 mm long, 38.1 mm ID phenolic core, 57.2 mm OD 3/8-in nap).",
+  "scoring": "Evaluated at final state only; 0.0 if either part drops more than 30 mm below the benchtop, if any of the six jaw tips or pad midpoints on either robot hand is within 80 mm of the roller frame or cover, or if any corner of the frame or cover drifts by 1.0 mm or more across the final 21 samples (1.0 s). Partial credit 0.5 if at least 115.0 mm of the roller cover overlaps the 228.6 mm cage with both cover ends within 5.0 mm radially of the cage axis and axis misalignment at most 5.0 deg, without full shoulder seating. Full score 1.0 if at least 222.6 mm of the cover overlaps the cage with its inboard rim within 6.0 mm of the shoulder stop collar, both ends within 4.0 mm radially of the cage axis, and axis misalignment at most 4.0 deg.",
+  "run_limit": "900 steps (45 seconds at 20 Hz)",
+  "fidelity": "Modeled 1:1 on a Wooster Sherlock R017-9 9-in cage roller frame (5/16-in 90-deg chrome shank, nylon cage, quick-release retaining spring) and standard 9 x 1.5 in (3/8-in nap, 57.2 mm OD) roller cover. Hollow cover bore uses a 16-stave rigid tube collider; nap compressibility is omitted. Masses, core wall, cage ribs, and spring stiffness (1400 N/m) are estimated.",
+  "scores": "Dream-1 run: 0.0; demo: 1.0"
+}
