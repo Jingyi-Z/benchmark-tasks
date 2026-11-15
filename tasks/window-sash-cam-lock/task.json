@@ -1,0 +1,18 @@
+{
+  "title": "Close a single-hung vinyl window sash and turn its cam lock into the keeper",
+  "category": "Societal relatability",
+  "keywords": [
+    "articulated",
+    "window",
+    "cam-lock",
+    "home-hardware",
+    "sash"
+  ],
+  "instruction": "Push the raised lower window sash all the way down onto the sill and turn the meeting-rail cam lock into its keeper to pull the sash shut.",
+  "context": "Most adults have closed a home window sash and turned its cam lock themselves at home; turning the cam before lowering blocks the sash on top of the keeper, while lowering without turning the cam leaves the weathersealed sash unlocked.",
+  "setup": "On the bench at x = 0.420 m, y = 0.000 m stands a fixed upright single-hung white uPVC window assembly (444.5 x 596.9 x 63.5 mm outer frame anchored by two 40 x 44 x 12 mm steel rear base brackets) with a fixed exterior upper sash (384 x 297 x 26 mm, open glazing aperture) and an interior vertical-sliding lower sash (384 x 272 x 26 mm, 1.45 kg moving mass) held 55 mm above the 28 mm sill ledge by jamb-balance friction and preloaded 2.2 mm toward the room by compliant meeting-rail weatherstrip. Centered on the lower sash's top meeting rail sits a die-cast cam-action sash lock (64 x 18 x 3 mm base, 15 mm cylindrical hub, 27 mm flared thumb-turn lever pointing left along +Y when unlocked, and a 5 mm-thick eccentric crescent cam) aligned opposite a fixed die-cast keeper (64 x 10 x 16 mm with a 6 mm cylindrical catch pin under a 50 x 15.5 mm top hood) on the upper sash's bottom meeting rail.",
+  "scoring": "Evaluated at final state only; 0.0 if any window part drops more than 30 mm below the benchtop, if any of the six jaw tips or pad midpoints on either robot hand is within 80 mm of the window assembly, or if any corner of the moving sash or cam lock drifts by 1.0 mm or more across the final 21 samples (1.0 s). Partial credit 0.5 if the lower sash bottom rail rests within 6.0 mm vertically of the sill ledge so the meeting rails align vertically, without full keeper lock capture. Full score 1.0 if the lower sash bottom rail rests within 3.5 mm of the sill ledge, the crescent cam dwell hooks behind the keeper catch pin (x >= +8.0 mm in window frame, |y| <= 5.5 mm, vertically inside the 10.0 mm keeper throat), and cam draw-in compresses the meeting-rail weatherseal gap to at most 1.1 mm from flush.",
+  "run_limit": "900 steps (45 seconds at 20 Hz)",
+  "fidelity": "Modeled 1:1 on a Tafco VSH1824B 18 x 24 in single-hung vinyl utility window (444.5 x 596.9 mm outer frame; 63.5 mm depth and rail walls estimated) and Prime-Line F 2588 cam sash lock. Glazing panes are omitted so overhead cameras view the meeting-rail lock clearly. Jamb balances, bulb weatherseal, and die-cast cam/keeper profiles are approximated with PhysX joint-axis friction/spring joints (17.5 N static / 16.0 N dynamic, 450 N/m seal) and rigid box/cylinder colliders (estimated).",
+  "scores": "Dream-1 run: 0.0; demo: 1.0"
+}
