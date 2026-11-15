@@ -273,6 +273,12 @@ def _extent(boxes, cyls, meshes=()):
     return np.min(lo, axis=0), np.max(hi, axis=0)
 
 
+TORSIONAL_PATCH: dict = {}  # part name -> contact patch radius (m), for PhysX torsional friction about the normal
+FRICTION_COMBINE: dict = {}  # part name -> PhysX friction combine mode ("min": contacts take this part's value)
+JOINT_FRAME_ROT: dict = {}  # joint name -> (w, x, y, z): the joint frame's turn in the part, so a slide can run
+# along a direction off the part's axes (both bodies get the same turn, so their rest pose is unchanged)
+
+
 def part(name, pos, boxes=(), cylinders=(), mass=None, fixed=False, yaw=0.0, joints=(), color=(0.5, 0.5, 0.5),
          friction=0.8, meshes=(), self_collide=False) -> Part:
     """Build a Part; its ``size`` is the rest extent of all its shapes (joints included). ``self_collide``: the part's
@@ -409,7 +415,8 @@ def _author(prim_path: str, cfg, translation=None, orientation=None, **kwargs):
     root.AddOrientOp(precision=UsdGeom.XformOp.PrecisionDouble).Set(Gf.Quatd(w, x, y, z))
 
     phys = f"{prim_path}/Looks/physics"
-    pm = sim_utils.RigidBodyMaterialCfg(static_friction=spec.friction, dynamic_friction=spec.friction)
+    pm = sim_utils.RigidBodyMaterialCfg(static_friction=spec.friction, dynamic_friction=spec.friction,
+                                        friction_combine_mode=FRICTION_COMBINE.get(spec.name, "average"))
     pm.func(phys, pm)
     looks: dict = {}
 
@@ -457,6 +464,9 @@ def _author(prim_path: str, cfg, translation=None, orientation=None, **kwargs):
         pc = PhysxSchema.PhysxCollisionAPI.Apply(prim)
         pc.CreateContactOffsetAttr(CONTACT_OFFSET)
         pc.CreateRestOffsetAttr(0.0)
+        if spec.name in TORSIONAL_PATCH:
+            pc.CreateTorsionalPatchRadiusAttr(TORSIONAL_PATCH[spec.name])
+            pc.CreateMinTorsionalPatchRadiusAttr(TORSIONAL_PATCH[spec.name] / 2)
         bind_physics_material(str(prim.GetPath()), phys, stage=stage)
         bind_visual_material(str(prim.GetPath()), look(color), stage=stage)
 
@@ -526,9 +536,10 @@ def _author(prim_path: str, cfg, translation=None, orientation=None, **kwargs):
         jp.CreateBody0Rel().SetTargets([Sdf.Path(f"{prim_path}/{parent.name}" if parent else main)])
         jp.CreateBody1Rel().SetTargets([Sdf.Path(path)])
         jp.CreateLocalPos0Attr(Gf.Vec3f(*(np.array(j.anchor) - (np.array(parent.anchor) if parent else 0.0))))
-        jp.CreateLocalRot0Attr(Gf.Quatf(1, 0, 0, 0))
+        _fr = JOINT_FRAME_ROT.get(j.name, (1.0, 0.0, 0.0, 0.0))
+        jp.CreateLocalRot0Attr(Gf.Quatf(*_fr))
         jp.CreateLocalPos1Attr(Gf.Vec3f(0, 0, 0))
-        jp.CreateLocalRot1Attr(Gf.Quatf(1, 0, 0, 0))
+        jp.CreateLocalRot1Attr(Gf.Quatf(*_fr))
         jp.CreateLowerLimitAttr(j.lower * scale)
         jp.CreateUpperLimitAttr(j.upper * scale)
         drive = UsdPhysics.DriveAPI.Apply(jp.GetPrim(), drive_type)

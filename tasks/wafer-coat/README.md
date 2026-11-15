@@ -16,7 +16,14 @@ the lid shut. The wafer's top and edge are never touched by the gripper.
 
 - `task.py`: scene, scoring and scripted demo (yam_arena task file). The coater, the wafer stand and the tweezers' cup
   are fixed; the coater's lid is on a damped hinge and falls shut unless held; the wafer, the tweezers and the aligner
-  are loose. The tweezers are two halves, one on a sprung labkit slide, so squeezing their arms closes the blades. An
+  are loose. The tweezers are two halves, one on a sprung labkit slide, so squeezing their arms closes the blades. The
+  slide runs along the blades' face normal (a turned joint frame, `labkit.JOINT_FRAME_ROT`), and the sprung blade is
+  set back 6.2 mm along its length, so the PEEK tips (friction 0.4 on silicon, `min` combine) meet and close straight
+  onto the wafer; the hand squeezes them at about 2 N. Every tweezer collider, blades included, has a 4 mm torsional
+  patch radius (minimum 2 mm), half the 8 mm arm face the pads press: an estimated contact approximation, not a
+  measured calibration (without it the demo still picks and carries the wafer but centres it to 1.5 mm, not 0.5 mm).
+  The wafer, drawn 1 mm thick at its real 1.3 g, has a flat collider strip flush inside the
+  edge the tweezers grip (19.4 to 24.9 mm out, 10 mm wide, inside the rim), so the blades meet flat faces there. An
   `on_step` hook latches the violations (a fingertip over the wafer's top or at the wafer's rim; a tweezer blade or
   the aligner touching the wafer's top more than 6 mm inside its rim, checked over points spread across their faces;
   the wafer dropped).
@@ -39,7 +46,10 @@ score). The demo reads only what the cameras see: the tweezers' tips and the waf
 holds the tweezers, and the aligner's position, to line its slot up with the chuck. Run one trial per process: the
 trial's record is kept in the task module and cleared at each reset.
 
-The score is `task_score` in the log, computed by `score()` in `task.py`.
+The score is `task_score` in the log, computed by `score()` in `task.py`. Every positive tier also needs both hands clear
+(each fingertip, and the midpoint between a hand's fingertips, at least 80 mm from every task object's surface,
+the tools and the lid included) and everything still (no surface point of any object, joint bodies included, moved 1 mm
+or more over the last 21 control steps).
 
 ## Runtime and seeds
 

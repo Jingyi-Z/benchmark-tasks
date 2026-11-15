@@ -28,6 +28,8 @@ import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import labkit  # noqa: E402
+labkit.TORSIONAL_PATCH["tweezers"] = 0.004  # the pads and tips bear on 8 mm arm and 14 mm blade faces, not points
+labkit.FRICTION_COMBINE["tweezers"] = "min"  # contacts with the tweezers take their PEEK tips' 0.4
 from labkit import Joint, on_reset, on_step, part  # noqa: E402
 import yam_arena.demo as _demo  # noqa: E402
 from yam_arena.constants import FINGER_OPEN  # noqa: E402
@@ -113,7 +115,8 @@ STAND_XY = (0.40, -0.20)
 PAD_TOP = 0.025  # the rest's top above the table
 REST_HALF, REST_T = 0.022, 0.004
 SLOT_W, SLOT_D = 0.018, 0.003  # the tweezer slot: width, depth
-WAFER_R, WAFER_T = 0.0254, 0.0010  # 2-inch wafer, drawn 1 mm thick (real: 0.28 mm) for stable contact
+WAFER_R, WAFER_T = 0.0254, 0.0010  # 2-inch wafer, drawn 1 mm thick (real 0.28 mm, which the solver squeezes out
+# from between the blades); its mass is the real wafer's
 SLOT_END = -WAFER_R + 0.0085 + 0.003  # the slot runs from the rest's front edge to here (stand frame, x)
 _sl = SLOT_END + REST_HALF
 _rz = PAD_TOP - REST_T / 2
@@ -125,8 +128,14 @@ STAND = part("stand", pos=(*STAND_XY, TOP), fixed=True, friction=0.6,
                     ((SLOT_END - _sl / 2, 0.0, (PAD_TOP - REST_T + PAD_TOP - SLOT_D) / 2),
                      (_sl, SLOT_W, REST_T - SLOT_D), STAND_C)],
              cylinders=[((0.0, 0.0, (0.004 + PAD_TOP - REST_T) / 2), 0.010, PAD_TOP - REST_T - 0.004, STAND_C)])
-WAFER = part("wafer", pos=(*STAND_XY, TOP + PAD_TOP), mass=0.004, friction=0.8,
-             cylinders=[((0.0, 0.0, WAFER_T / 2), WAFER_R, WAFER_T, SI)])
+GRIP_STRIP = (0.0194, 0.0249, 0.005)  # inner and outer radius, half width: inside the rim (hypot(24.9, 5) = 25.397 < 25.4 mm)
+WAFER = part("wafer", pos=(*STAND_XY, TOP + PAD_TOP), mass=0.0013, friction=0.8,  # 2-inch silicon, 0.28 mm: 1.3 g
+             cylinders=[((0.0, 0.0, WAFER_T / 2), WAFER_R, WAFER_T, SI)],
+             # a flat strip inside the edge the tweezers grip, faces flush with the disc's: the outline is unchanged,
+             # and the blades meet flat faces there instead of the round disc's facets (standard wafer handling: a strip collider at
+             # the grip, never a deeper pinch)
+             boxes=[((-(GRIP_STRIP[0] + GRIP_STRIP[1]) / 2, 0.0, WAFER_T / 2),
+                     (GRIP_STRIP[1] - GRIP_STRIP[0], 2 * GRIP_STRIP[2], WAFER_T), SI)])
 
 # -- the aligner (loose, PTFE). Frame: origin at the pocket's centre, on the plate's underside; the slot opens to +x. ---
 PT = 0.003  # plate thickness
@@ -185,11 +194,18 @@ _ax = -_c * BLADE_L  # the arm stack's centre line, x
 _az = _s * BLADE_L  # the arms' lower ends, z
 
 
+TIP_SET = OPEN_GAP + BLADE_T  # the sprung half's blade is set back this far along its length, so it sits straight
+# across the gap from the other blade: the tips meet, and stay together through the stroke, since the jaw slides along
+# the blades' face normal (JAW_N), as real tweezers' tips are made to meet when closed
+
+
 def _half(sx):
-    """One half's arm and blade, at x offset sx: the arm vertical, the blade bent forward-down 45 degrees."""
+    """One half's arm and blade, at x offset sx: the arm vertical, the blade bent forward-down 45 degrees; the sprung
+    half's blade (sx > 0) set back TIP_SET along its length."""
+    back = TIP_SET if sx > 0 else 0.0
     return [((_ax + sx, 0.0, _az + ARM_L / 2), (ARM_T, ARM_W, ARM_L), STEEL),
-            ((_ax + sx + _c * BLADE_L / 2, 0.0, _az - _s * BLADE_L / 2), (BLADE_L, BLADE_W, BLADE_T), STEEL,
-             (0.0, math.radians(45.0)))]
+            ((_ax + sx + _c * (BLADE_L / 2 - back), 0.0, _az - _s * (BLADE_L / 2 - back)), (BLADE_L, BLADE_W, BLADE_T),
+             STEEL, (0.0, math.radians(45.0)))]
 
 
 TOP_Z = _az + ARM_L  # the arms' upper ends
@@ -203,8 +219,10 @@ def _box_mesh(c, size, colour):
     tris = np.array([(0, 1, 3), (0, 3, 2), (4, 6, 7), (4, 7, 5), (0, 4, 5), (0, 5, 1), (2, 3, 7), (2, 7, 6),
                      (0, 2, 6), (0, 6, 4), (1, 5, 7), (1, 7, 3)])
     return labkit.Mesh(points=pts, tris=tris, color=colour, collide="none")
+JAW_N = np.array([_s, 0.0, _c])  # the blades' face normal, from the body's blade towards the sprung one
+labkit.JOINT_FRAME_ROT["jaw"] = (math.cos(math.radians(-22.5)), 0.0, math.sin(math.radians(-22.5)), 0.0)  # x -> JAW_N
 TWEEZER_JAW = Joint("jaw", kind="slide", axis="X", anchor=(_ax + SEP / 2, 0.0, _az + ARM_L / 2),
-                    lower=-(SEP - BLADE_T / _s - 0.0002), upper=0.0, initial=0.0, target=0.0, stiffness=600.0,
+                    lower=-(OPEN_GAP - 0.0002), upper=0.0, initial=0.0, target=0.0, stiffness=600.0,
                     damping=5.0, mass=0.008, boxes=_half(SEP / 2))
 # The cup: a block on the bench; the tweezers stand in it on their blade tips, upright.
 TW_XY = (0.30, -0.28)  # off to the side, clear of the path to the wafer
@@ -219,7 +237,7 @@ TSTAND = part("tweezer_cup", pos=(*TW_XY, TOP), fixed=True, friction=0.8,
                      *[((sum(CUP_IN[0]) / 2, e * (CUP_IN[1] + _cw / 2), CUP_FLOOR + CUP_H / 2),
                         (CUP_IN[0][1] - CUP_IN[0][0], _cw, CUP_H), STAND_C) for e in (-1, 1)]])
 TWEEZERS = part(
-    "tweezers", pos=(*TW_XY, TOP + CUP_FLOOR + 0.0012), mass=0.020, friction=0.9,
+    "tweezers", pos=(*TW_XY, TOP + CUP_FLOOR + 0.0012), mass=0.020, friction=0.4,  # PEEK tips on silicon
     boxes=[*_half(-SEP / 2),
            ],
     meshes=[_box_mesh((_ax, 0.0, TOP_Z - 0.004), (SEP - ARM_T, ARM_W, 0.008), STEEL)],
@@ -250,11 +268,105 @@ EDGE_ZONE = 0.006  # the handling edge: tools may touch the wafer's top only in 
 TOOL_TOUCH = 0.0005  # a tool surface point within 0.5 mm of the wafer's top face, inside the handling edge: touched
 
 _state = {"touched": False, "handled": False, "dropped": False, "tool_touched": False}
+HAND_CLEAR = 0.080  # at the end, each jaw endpoint and midpoint at least this far from every task part's surface
+STILL_MM, STILL_N = 0.001, 21  # and no surface point of any part moved 1 mm or more over the last 21 samples (1 s)
+_end = {"clear": 0.0, "hist": []}  # the latest hand clearance and recent surface samples, kept by _watch
+_AXV = {"X": np.array([1.0, 0.0, 0.0]), "Y": np.array([0.0, 1.0, 0.0]), "Z": np.array([0.0, 0.0, 1.0])}
+_PTS: dict = {}  # part name -> (main body points, [(joint, points at zero)]), part frame
+
+
+def _cyl_points(cyl, n=16):
+    """Points over a cylinder's rim and caps (part frame)."""
+    c, r, h = np.asarray(cyl[0], float), float(cyl[1]), float(cyl[2])
+    axis = cyl[4] if len(cyl) > 4 else "Z"
+    a = np.linspace(0.0, 2.0 * math.pi, n, endpoint=False)
+    ring = [(r * math.cos(x), r * math.sin(x)) for x in a]
+    p = np.array([(u, v, z) for z in (-h / 2, 0.0, h / 2) for u, v in ring] + [(0.0, 0.0, -h / 2), (0.0, 0.0, h / 2)])
+    if axis == "X":
+        p = p[:, [2, 0, 1]]
+    elif axis == "Y":
+        p = p[:, [0, 2, 1]]
+    return p + c
+
+
+def _shape_points(boxes, cyls, meshes=()):
+    pts = [_box_points(b, n=5) for b in boxes] + [_cyl_points(c) for c in cyls]
+    pts += [np.asarray(m.points, float) for m in meshes]
+    return np.vstack(pts) if pts else np.zeros((0, 3))
+
+
+def _rot(axis, ang):
+    k = axis / np.linalg.norm(axis)
+    kx = np.array([[0.0, -k[2], k[1]], [k[2], 0.0, -k[0]], [-k[1], k[0], 0.0]])
+    return np.eye(3) + math.sin(ang) * kx + (1.0 - math.cos(ang)) * kx @ kx
+
+
+def _frame_rot(name):
+    w, x, y, z = labkit.JOINT_FRAME_ROT.get(name, (1.0, 0.0, 0.0, 0.0))
+    return np.array([[1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)],
+                     [2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)],
+                     [2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)]])
+
+
+def _solid_dist(p, boxes, cyls, meshes=()):
+    """Shortest distance from point p (part frame) to the solids (0 inside)."""
+    best = math.inf
+    for b in boxes:
+        turn = b[3] if len(b) > 3 else 0.0
+        yaw, pitch = (turn[0], turn[1]) if isinstance(turn, (tuple, list)) else (turn, 0.0)
+        loc = _turned(float(yaw), float(pitch)).T @ (p - np.asarray(b[0], float))
+        best = min(best, float(np.linalg.norm(np.maximum(np.abs(loc) - np.asarray(b[1], float) / 2, 0.0))))
+    for c in cyls:
+        ax = _AXV[c[4] if len(c) > 4 else "Z"]
+        v = p - np.asarray(c[0], float)
+        a = float(v @ ax)
+        rad = float(np.linalg.norm(v - a * ax))
+        best = min(best, math.hypot(max(rad - float(c[1]), 0.0), max(abs(a) - float(c[2]) / 2, 0.0)))
+    for m in meshes:
+        lo, hi = m.bounds()
+        best = min(best, float(np.linalg.norm(np.maximum(np.maximum(lo - p, p - hi), 0.0))))
+    return best
+
+
+def _part_dist(p_world, st, spec):
+    """Shortest distance from a world point to a part, its joint bodies at their current positions."""
+    p = st.rotation().T @ (np.asarray(p_world, float) - st.pos)
+    best = _solid_dist(p, spec.boxes, spec.cylinders, spec.meshes)
+    for j in spec.joints:
+        q = float(st.joints.get(j.name, 0.0))
+        ax = _frame_rot(j.name) @ _AXV[j.axis]
+        if j.kind == "slide":
+            p0 = p - q * ax
+        else:
+            a = np.asarray(j.anchor, float)
+            p0 = _rot(ax, -q) @ (p - a) + a
+        best = min(best, _solid_dist(p0, j.boxes, j.cylinders, j.meshes))
+    return best
+
+
+def _surface(st, spec):
+    """World points over a part's surfaces, its joint bodies placed at their current positions."""
+    if spec.name not in _PTS:
+        _PTS[spec.name] = (_shape_points(spec.boxes, spec.cylinders, spec.meshes),
+                           [(j, _shape_points(j.boxes, j.cylinders, j.meshes)) for j in spec.joints])
+    main, js = _PTS[spec.name]
+    pts = [main]
+    for j, p0 in js:
+        q = float(st.joints.get(j.name, 0.0))
+        ax = _frame_rot(j.name) @ _AXV[j.axis]
+        if j.kind == "slide":
+            pts.append(p0 + q * ax)
+        else:
+            a = np.asarray(j.anchor, float)
+            pts.append((_rot(ax, q) @ (p0 - a).T).T + a)
+    p = np.vstack(pts)
+    return (st.rotation() @ p.T).T + st.pos
 
 
 @on_reset
 def _reset_state(env):
     _state.update(touched=False, handled=False, dropped=False, tool_touched=False)
+    _end.update(clear=0.0, hist=[])
 
 
 def _turned(yaw, pitch):
@@ -286,7 +398,7 @@ def _box_points(box, n=7, shift=(0.0, 0.0, 0.0)):
 
 
 _BLADE_FIXED = _box_points(_half(-SEP / 2)[1])  # the body's blade (tweezers frame)
-_BLADE_MOVING = _box_points(_half(SEP / 2)[1])  # the sprung half's blade at rest; it slides along x by the jaw
+_BLADE_MOVING = _box_points(_half(SEP / 2)[1])  # the sprung half's blade at rest; it slides along JAW_N by the jaw
 _ALIGNER_PTS = np.vstack([_box_points(b, n=3) for b in ALIGNER_BOXES])
 
 
@@ -304,7 +416,7 @@ def _tool_points(env):
     tw = labkit._part_state(env, labkit._SPECS["tweezers"])
     q = float(tw.joints.get("jaw", 0.0))
     al = labkit._part_state(env, labkit._SPECS["aligner"])
-    blades = np.vstack([_BLADE_FIXED, _BLADE_MOVING + np.array([q, 0.0, 0.0])])
+    blades = np.vstack([_BLADE_FIXED, _BLADE_MOVING + q * JAW_N])
     return [tw.to_world(p) for p in blades] + [al.to_world(p) for p in _ALIGNER_PTS]
 
 
@@ -320,9 +432,9 @@ def _tips(env):
         robot = b.scene[n]
         mid = _rt.pad_tips_world(robot) - o
         g = _rt.link_poses(robot)["gripper"]
-        ids = robot.find_joints(["joint7"], preserve_order=True)[0]
-        half = abs(float(robot.data.joint_pos.torch[0, ids].cpu().numpy()[0]))
-        out += [mid + half * g[:3, 0], mid - half * g[:3, 0]]
+        ids = robot.find_joints(["joint7", "joint8"], preserve_order=True)[0]
+        q7, q8 = (abs(float(v)) for v in robot.data.joint_pos.torch[0, ids].cpu().numpy())
+        out += [mid - q7 * g[:3, 0], mid + q8 * g[:3, 0]]  # joint7's pad towards -x, joint8's towards +x
     return out
 
 
@@ -336,7 +448,14 @@ def _watch(env):
     top = p[2] + WAFER_T
     if w.tilt_deg() > 40.0 or p[2] < TOP + 0.0015:  # the aligner plate holds it 3 mm up
         _state["dropped"] = True
-    for tip in _tips(env):
+    tips = _tips(env)
+    jaw = [np.asarray(tip, float) for tip in tips]  # each hand's two fingertips, then the midpoint between them
+    jaw += [(jaw[0] + jaw[1]) / 2, (jaw[2] + jaw[3]) / 2]
+    states = [(labkit._part_state(env, spec), spec) for spec in labkit._SPECS.values()]
+    _end["clear"] = float(min(_part_dist(q, st, spec) for q in jaw for st, spec in states))
+    allp = np.vstack([_surface(st, spec) for st, spec in states])  # surface points, for stillness only
+    _end["hist"] = (_end["hist"] + [allp])[-STILL_N:]
+    for tip in tips:
         r = np.hypot(*(tip[:2] - p[:2]))
         if r < WAFER_R - 0.003 and top - 0.001 < tip[2] < top + TOP_TOUCH:
             _state["touched"] = True
@@ -358,9 +477,16 @@ def score(objects):
     """0 unless the wafer rests flat on the chuck (tilt up to 2 degrees, underside within 1 mm of the chuck's top,
     centre over the chuck). 0 also if the gripper ever touched the wafer's top or held the wafer itself, a tweezer
     blade or the aligner ever touched its top more than 6 mm inside its rim, or the wafer was dropped. 0.25 on the chuck; 0.5 centred within 1.5 mm; 1.0 within 0.5 mm. Halved if the lid is not shut (within
-    3 degrees)."""
+    3 degrees). Every tier needs both hands clear (each jaw endpoint and the midpoint between them at least 80 mm from
+    every task part's surface, the tools and the lid included) and everything still (no surface point of any part,
+    joint bodies included, moved 1 mm or more over the last 21 samples, 1 s at 20 Hz)."""
     w = objects["wafer"]
     if _state["touched"] or _state["handled"] or _state["dropped"] or _state["tool_touched"]:
+        return 0.0
+    hist = _end["hist"]
+    moved = max(float(np.max(np.linalg.norm(a - b, axis=1))) for i, a in enumerate(hist) for b in hist[i + 1:]) \
+        if len(hist) > 1 else 1.0  # the largest move of any point between any two of the samples
+    if len(hist) < STILL_N or moved >= STILL_MM or _end["clear"] < HAND_CLEAR:
         return 0.0
     if not on_chuck(w):
         return 0.0
@@ -439,8 +565,8 @@ TW_TILT = axis_angle_matrix(Y, math.radians(-45.0))  # upright -> held: arms ris
 TW_GRIP = TW_TILT @ TW_GRIP_F  # the grip point, from the blade tips, when held
 DOWN_X = Orient(_prev_grip(math.pi / 2))  # pointing down, fingers closing along x (across the arms' faces)
 TW_WIDE = -0.014  # pads 28 mm apart round the arms (11.3 mm over their outer faces)
-TW_HOLD = -0.0050  # just closed on the arms' outer faces: the blades stay open
-TW_PINCH = -0.0016  # squeezes the arms: the blades close on the wafer
+TW_HOLD = -0.0045  # just closed on the arms' outer faces: the blades stay open
+TW_PINCH = -0.0028  # squeezes the arms: the blades close on the wafer (finger drive about 6 N, clamp about 2 N)
 
 
 def _tw_tcp(origin):
@@ -453,7 +579,7 @@ def _cup_tcp(origin):
     return _tcp(np.asarray(origin, float) + TW_GRIP_F, DOWN_X)
 
 
-PINCH_IN = 0.0085  # the blade tips this far inside the wafer's edge (the upper blade draws back ~3 mm as it closes)
+PINCH_IN = 0.0076  # the aim, past the wafer's edge; the tips settle 4 to 5 mm in, inside the 6 mm handling edge
 if __import__("os").environ.get("WC_CHECK") == "tipontop":  # shortcut check: pinch 14 mm in, so the upper blade
     PINCH_IN = 0.014  # lands about 11 mm inside the rim, past the 6 mm handling edge; the trial must score 0
 _wb = TOP + PAD_TOP  # the wafer's underside on its stand
@@ -617,7 +743,9 @@ def demo():
         Waypoint(1.5, _TwAt(np.array(WAFER_PICK) + [-0.015, 0.0, 0.0]), TW_HOLD, "line up again", q),
         Waypoint(2.0, _TwAt(WAFER_PICK), TW_HOLD, "slide the open blades round its edge", q),
         Waypoint(1.5, _TwAt(WAFER_PICK), TW_HOLD, "line up: the lower blade just under the wafer", q),
-        Waypoint(0.8, _TwAt(WAFER_PICK, track=False), TW_PINCH, "pinch the wafer by its edge", q),
+        Waypoint(2.0, _TwAt(WAFER_PICK), TW_PINCH, "pinch the wafer by its edge, slowly", q),
+        Waypoint(0.3, _TwAt(WAFER_PICK), TW_PINCH, "let the pinch settle", q),
+        Waypoint(2.0, _TwAt(np.array(WAFER_PICK) + [0.0, 0.0, 0.01]), TW_PINCH, "ease it up off the stand", q),
         Waypoint(2.0, _TwAt(np.array(WAFER_PICK) + [0.0, 0.0, 0.10], track=False), TW_PINCH,
                  "lift it off the stand, well clear of the coater's lid", q),
         Waypoint(6.0, _TwAt(np.array(POCKET_PLACE) + [0.0, 0.0, 0.10], track=False), TW_PINCH,
