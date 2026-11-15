@@ -1,0 +1,19 @@
+{
+  "title": "Unlatch and remove a pull-tab QSFP28 optical transceiver from a 1U rack switch",
+  "category": "Impact on AI timelines",
+  "keywords": [
+    "data center",
+    "QSFP28",
+    "optical transceiver",
+    "pull-tab latch",
+    "switch servicing"
+  ],
+  "instruction": "Use the transceiver's release pull-tab to unlatch and remove the optical transceiver from the switch port, and leave it resting on the counter.",
+  "context": "Servicing AI training-cluster leaf and spine switches requires releasing high-density SFF-8661 QSFP28 optical transceivers via their sliding pull-tab cam latch rather than pulling on the module housing.",
+  "setup": "Two full-scale metal data-center assemblies in a fixed layout on a bare counter: (1) a loose EIA-310 19-inch two-post 5U desktop test rack stand (482.6 mm flange span, 380.0 mm base skids, 250.0 mm height, 2.40 kg steel) mounting a full-depth 1U leaf-switch chassis at U3 (439.0 mm W x 44.0 mm H x 406.0 mm D, 8.80 kg, 11.20 kg combined assembly; port center 125.0 mm above the counter and 75.0 mm right of center facing the robot) with an SFF-8661 QSFP28 EMI cage (19.6 mm x 9.6 mm inner tunnel) and dual spring-loaded side-latching pawls; and (2) one die-cast zinc SFF-8661 Type 2B pull-tab QSFP28 optical transceiver (18.35 mm W x 8.50 mm H x 72.0 mm L, 0.045 kg including its 28.0 mm protruding elastomer release pull-tab) seated 60.0 mm inside the cage.",
+  "scoring": "0.5 if the transceiver has been physically withdrawn at least 25.0 mm out of the switch cage; 1.0 if the transceiver is completely extracted (rear end at least 20.0 mm in front of the cage face, all surfaces at least 35.0 mm clear of the switch and rack) and resting on the counter within 3.0 mm. Every positive tier requires the desktop rack and switch upright on the counter (within 3.0 mm and 5.0 degrees), all gripper fingertips at least 80.0 mm clear of every part surface, and under 1.0 mm motion across the final 21 samples at 20 Hz.",
+  "run_limit": "900 steps (45 seconds at 20 Hz)",
+  "fidelity": "Rigid-body PhysX with 1:1 SFF-8661 QSFP28 module envelope (18.35 x 8.50 x 72.0 mm) and full-depth 1U leaf-switch chassis (439.0 x 44.0 x 406.0 mm) on an EIA-310 19-inch desktop rack (11.20 kg combined). Dual spring-loaded cage side pawls lock into 90-degree module shoulders and cam open when the pull-tab slides 6.0 mm. Pawl ramps, spring rates, 0.1 mm contact offset, half-thickness torsional patch bounds, and omitted fiber cord are engineering estimates.",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": ""
+}
