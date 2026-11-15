@@ -1,0 +1,19 @@
+{
+  "title": "Unlock a new liquid-soap pump",
+  "category": "Societal relatability",
+  "keywords": [
+    "bimanual",
+    "household",
+    "pump",
+    "spring release"
+  ],
+  "instruction": "Unlock the soap pump and leave the bottle upright with its head raised, ready to press.",
+  "context": "Opening a new soap or shampoo pump is ordinary first-use household packaging: the captive head must be freed from its retaining shoulders before its spring can raise it. No dispensing is requested.",
+  "setup": "One loose filled PET bottle and its captive PP pump head, at x 320 mm/y 0 on the station counter. Filled body 70 mm diameter x 170 mm high,0.55 kg including lumped contents. The fixed-to-body closure is a 28 mm OD hollow collar from 170 to 194 mm high, with two 21x 4.7x 2 mm retaining shoulders. A6 mm diameter x 30 mm stem and a 55 mm diameter x 8 mm actuator with a 40x 10x 8 mm spout carry two 3 mm diameter x 2 mm retaining lugs. Stem/head mass 1 g/26 g. Actuator disc underside starts 198 mm above the bottle base; its locked lift is 0 mm and it rises approximately 16.6 mm when released (18 mm travel,200 N/m spring). Spout initially points+X. The head turns about the vertical stem; the bottle and head are not fixed to the counter. All internal dimensions and loads are representative estimates, not a commercial SKU reconstruction.",
+  "scoring": "End-state only; harmless bottle movement, tilt and regrasping do not latch penalties. Every positive score requires the bottle within 5 degrees of upright, its lowest body surface within 3 mm of the counter, the captive head within 0.5 mm of its 0..18 mm lift travel, both pad midpoints and all four independent pad tips at least 80 mm from every pump collider, and under 1 mm 3D Euclidean movement of every sampled body/stem/head extremal point across the final 21 samples at 20Hz. 0.5: the actuator disc has risen at least 12 mm relative to the bottle from its locked height.1.0: rise at least 15 mm, satisfying all common conditions. Otherwise 0. Whole-bottle lifting or turning alone earns 0 because relative head rise is absent. Either hand may counterhold either component; holding the head while rotating the bottle is allowed. Turning angle or a hidden latch flag earns no credit.",
+  "run_limit": "800 steps (40 seconds at 20Hz)",
+  "reset_notes": "Push the head back down while turning it clockwise into its down-lock, returning lift and head turn to 0; place the upright bottle at x 320 mm/y 0 with its spout toward+X. Simulation reset restores that fixed layout; object_jitter=0.",
+  "fidelity": "Representative reusable down-lock from US6065647A, not SKU-specific CAD. Rigid PET bottle/PP head; contents lumped into body mass. Collar fixed to bottle; closure threads, dispensing and seals omitted. Estimated 18 mm stroke,200 N/m spring,0.025 Nm head/0.05 N lift friction; distributed brake replaces elastic detents. Torsional patches bounded by geometry (1 mm lugs/rails,zero minimum; bottle 18/10 mm). Dimensions/contact/mass splits estimated.",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": ""
+}
