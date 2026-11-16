@@ -1,0 +1,19 @@
+{
+  "title": "Find the tripped breaker in a home load center and reset it, leaving the others on",
+  "category": "Societal relatability",
+  "keywords": [
+    "circuit breaker",
+    "trip-free",
+    "reset",
+    "home electrical panel"
+  ],
+  "instruction": "One branch circuit in the load center has tripped. Restore power to all six circuits without turning any working circuit off.",
+  "context": "Resetting a tripped breaker is something most people do at home. A QO breaker that has tripped rests with its handle midway and will not go back on until it is first pushed all the way to OFF, among neighbours that must stay on.",
+  "setup": "One fixed layout on the station table (top 0.7475 m; x forward from the arm bases, y to the left). A Square D QO-style load center (steel tub, closed, on a stand) faces the robots with its dead front in the plane x = 0.400 m and a raised trim round the breaker opening. Six QO120 single-pole breakers in two columns of three: columns centred at y = +0.040 m and -0.040 m, rows 19.05 mm (0.75 in) apart with the middle row's handle pivots at z = 0.9375 m; each breaker 76 mm (3.0 in) long across the column, 19.05 mm wide, 74 mm (2.91 in) deep, black face. Each handle is 13 mm long, 7 mm wide, 8 mm tall with a white mark on its end, and swings sideways about a vertical pin, 25 degrees each side of midway; both columns switch ON towards the centre line (left column ON with the tip towards -y, right column towards +y). Five breakers are ON; the left column's middle breaker has tripped: its handle rests midway and a red trip flag shows on its face.",
+  "scoring": "0 for the whole trial once any of the five working breakers is knocked out of ON (its handle more than 9 degrees back from its ON stop at any moment; stricter than an actual switch-off, so a knock counts even if the breaker would stay on). Otherwise, from the final state of the tripped breaker: 0.5 if it has been reset (pushed all the way to OFF, which re-arms its trip-free mechanism) and its handle is at OFF (within 5 degrees of the OFF stop); 1.0 if it has been reset and its handle is at ON (within 5 degrees of the ON stop). A tripped handle pushed towards ON without the reset stays near midway and scores 0. Every positive score needs both hands' fingertips and pad midpoints at least 80 mm from the breakers' faces, and every breaker still for the last 1 s (21 samples at 20 Hz: no handle moving 0.01 rad, no arming block 0.5 mm).",
+  "run_limit": "900 steps (45 s at 20 Hz)",
+  "reset_notes": "Return the tripped breaker to its tripped state (handle midway, mechanism un-armed) and the others to ON.",
+  "fidelity": "Rigid bodies. QO size, pole pitch, inward ON and the midway trip with OFF-then-ON reset follow Schneider's data and FAQ FA353467; the QO's internal mechanism and handle forces are not published, so the trip-free part is modelled: handle pivot friction, an arming block slid by a 45 degree ramp only at the OFF stop (it also carries the red flag), and an interlock arm that blocks ON until then. No wiring, labels or load.",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": "M-RCDHV4"
+}
