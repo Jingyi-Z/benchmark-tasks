@@ -23,6 +23,9 @@ the caliper off the pin, lays it back on its rest and lets go, and both arms mov
   `yam_arena.scene` and the embodiment from the task's import, so no change to yam_arena is needed.
 - `arena_assets_fix.py`: imported by `labkit.py`; points Arena library assets at NVIDIA's production bucket. This task
   uses no library assets.
+- `force_pin/`: for real trials, the force-sensing pin: parts with sources and prices, construction (drawing in
+  `force_pin.scad`), wiring, calibration over the scored 0.05 to 2 N, and a check that the caliper closes the
+  continuity circuit through both jaws.
 
 ## Run a trial
 
@@ -55,7 +58,7 @@ last 21 samples, 1 s), the display reading, the pin's squareness and the jaw for
 accuracy tiers need both jaws on the pin: each measuring face within 0.1 mm of the pin's surface and each
 carrying at least 0.05 N, over the last 0.5 s and at that step. In simulation each jaw's load is the reaction in its
 own locked mounting (the sliding jaw on the slider, the fixed jaw on the beam, both stiff, so 0.3 N moves a jaw about
-1.5 micrometres); in a real trial the force-sensing pin reads the squeeze, and a continuity tester with its leads on
+1.5 micrometres); in a real trial the force-sensing pin (built as in `force_pin/README.md`) reads the squeeze, and a continuity tester with its leads on
 the pin's two half-sleeves (insulated from each other, one facing each jaw) closes only through both jaws and the
 caliper, so it shows both faces touching. Leads on the two jaws would not: they are joined through the beam. Without that the measurement scores 0.1 at most, so a gap set near
 the size without touching, or a one-sided push that the pin's table friction resists, cannot earn accuracy credit. The latest such moment counts, except that a
