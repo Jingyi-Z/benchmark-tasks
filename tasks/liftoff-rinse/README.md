@@ -25,6 +25,31 @@ Real trials run in a ventilated wet bench or fume hood rated for flammable solve
 spill tray lined with absorbent paper. Afterwards the wafers are checked under a microscope against the mask's pattern,
 and any drip or spill outside the beakers, the dish or the funnel scores 0.
 
+## Preparing the wafers (real trials)
+
+Each trial uses two identical pre-patterned wafers. Make them in one batch (for example 20 wafers for 10 trials) so
+every trial starts the same. Any university nanofabrication facility with contact lithography and e-beam or thermal
+evaporation can do this; most take outside academic and commercial users.
+
+1. Wafers: 2 inch (50.8 mm) test-grade silicon, any orientation and doping, about 280 to 500 um thick, from any wafer
+   vendor (about USD 10 to 20 each).
+2. Mask: one transparency photomask (film printed by a photoplotting service, under about USD 100) with a simple test
+   pattern, for example 1 mm square pads and 50 um lines and gaps, no feature under 20 um. The same mask is the
+   reference pattern for the microscope check.
+3. Lithography: AZ 5214E image-reversal resist spun to about 1.4 um, soft bake, mask exposure, reversal bake, flood
+   exposure, develop in AZ 726 MIF, following the MicroChemicals AZ 5214E datasheet. This gives the undercut profile
+   that lift-off needs.
+4. Metal: 5 nm Ti then 30 nm Au by e-beam (or thermal) evaporation, all wafers in one run.
+5. Store the batch in a closed wafer box at room temperature, away from light, and use within about two weeks.
+
+Approximate cost per trial (two wafers): USD 40 to 100, from the wafers, resist and developer (under USD 5) and a share
+of one evaporation run at typical facility rates, plus the one-time mask. Before a batch is used for trials, lift off
+one wafer from it as in the task (60 s in acetone in the ultrasonic bath) and check it under the microscope.
+
+Reset between trials: two fresh wafers into the cassette, pattern side down; replace the LIFT-OFF acetone, which now
+holds gold flakes, and the IPA and DI water; pour the dish and funnel waste into the solvent waste bottle; dry the
+cassette and dish. The used wafers are kept for the microscope check.
+
 ## Files
 
 - `task.py`: scene, scoring and scripted demo (yam_arena task file). The beakers, cards, tray, stand and waste bottle
