@@ -20,3 +20,36 @@ Primary exterior reference: https://www.cee.dewalt.global/en-ee/product/dcd701d2
 
 
 Dream-1 run: the scene, physics and instruction are unchanged in this revision, so the earlier full Dream-1 run (1,600 steps) is kept. Its logged object poses were rescored with the revised scorer: the bit is never removed from the chuck, so the score stays 0.0.
+
+## Reviewer-requested tray/orientation scorer checks (Nov 16)
+
+Run this CPU-only check in the installed YAM environment:
+
+    python check_tray_orientations.py
+
+All **576 valid bit-in-tray cases receive full credit, 1.0**. The matrix covers 16 drill orientations: yaw 0, 45, 90, 135, 180, 225, 270, 315 degrees, each at roll 0 and 180 degrees. For each drill orientation it tests 36 tray placements: bit yaw 0, 45, 90, 135 degrees, with a 3x3 grid of centre/edge/corner positions that leaves at least 2 mm to every inner wall. The bit rests 3 mm above the tray base, matching the physical floor. The drill's height is set from its full geometry to touch the table. For each case the unchanged production Metric.update runs 21 identical observations and verifies removal, support, whole-bit containment, six-point hand clearance and stillness.
+
+Only installed-hand runtime access is stubbed, with two distinct 12 mm-open jaws per hand placed clear of all parts; every object-scoring predicate is the submitted production implementation. These are scorer checks with prescribed static poses, not 576 native simulations or a proof of dynamic stability. They implement the review's condition that other scoring requirements are met.
+
+| Drill yaw (deg) | Drill roll (deg) | Valid tray cases | Minimum score | Maximum score |
+|---:|---:|---:|---:|---:|
+| 0 | 0 | 36 | 1.0 | 1.0 |
+| 45 | 0 | 36 | 1.0 | 1.0 |
+| 90 | 0 | 36 | 1.0 | 1.0 |
+| 135 | 0 | 36 | 1.0 | 1.0 |
+| 180 | 0 | 36 | 1.0 | 1.0 |
+| 225 | 0 | 36 | 1.0 | 1.0 |
+| 270 | 0 | 36 | 1.0 | 1.0 |
+| 315 | 0 | 36 | 1.0 | 1.0 |
+| 0 | 180 | 36 | 1.0 | 1.0 |
+| 45 | 180 | 36 | 1.0 | 1.0 |
+| 90 | 180 | 36 | 1.0 | 1.0 |
+| 135 | 180 | 36 | 1.0 | 1.0 |
+| 180 | 180 | 36 | 1.0 | 1.0 |
+| 225 | 180 | 36 | 1.0 | 1.0 |
+| 270 | 180 | 36 | 1.0 | 1.0 |
+| 315 | 180 | 36 | 1.0 | 1.0 |
+
+Guard controls: bit outside tray 0.5; fewer than 21 still samples 0; a hand within 1 mm of the bit 0; 2 mm final-second bit motion 0; bit still in chuck 0. All five match their expected scores. The full CSV is tray-orientation-checks.csv; summary and source hashes are in tray-orientation-summary.json. The script regenerates the full JSON report and CSV. Minimum positive-case hand clearance is 518.877 mm; minimum inner-wall margin is 2.0 mm.
+
+This evidence-only revision preserves the physical scene, controller, scorer, reset procedure and instruction from submitted 650061ff003499cacd36472f31e338a74441745f. Existing native demo 1.0 and retained completed Dream-1 regraded 0.0 remain the media evidence. No new native run is claimed or needed for these CPU checks.
