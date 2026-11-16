@@ -40,6 +40,13 @@ the trial's record is kept in the task module and cleared at each reset.
 
 The score is `task_score` in the log, computed by `score()` in `task.py`.
 
+## Real trials
+
+- Keep the hotplate switched off and cold; touching its plate is scored, not felt.
+- Pattern contact is judged from the trial video, filmed from the side at the wafer's height: a tweezer blade seen
+  resting on or sliding over the wafer's top inside the 30.8 mm pattern circle scores 0. The simulation's 0.8 mm
+  blade-to-top distance (`TW_TOUCH` in `task.py`) is its stand-in for that contact.
+
 ## Runtime and seeds
 
 - 2,400 control steps (2 minutes of simulated time) per trial; about 11 minutes of wall time on one L40S with frames
