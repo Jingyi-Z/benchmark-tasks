@@ -76,6 +76,22 @@ def cyldist_y_many(pts: np.ndarray, cyl) -> np.ndarray:
     return np.hypot(rad, ax)
 
 
+def boxes_overlap(ca, ra, ha, cb, hb) -> bool:
+    """Positive-volume overlap of an oriented box and the jack's axis-aligned cavity."""
+    axes = [*ra.T, *np.eye(3)]
+    axes.extend(np.cross(a, b) for a in ra.T for b in np.eye(3))
+    delta = ca - cb
+    for axis in axes:
+        length = float(np.linalg.norm(axis))
+        if length < 1e-10:
+            continue
+        axis = axis / length
+        extent = float(np.abs(ra.T @ axis) @ ha + np.abs(axis) @ hb)
+        if extent - abs(float(delta @ axis)) <= 1e-7:
+            return False
+    return True
+
+
 class Metric:
     def __init__(self, ns):
         self.lk = ns["labkit"]
@@ -120,6 +136,31 @@ class Metric:
         qt = (q - self.tab_anchor) @ rx(q_tab) + self.tab_anchor
         dists += [boxdist_many(qt, b) for b in self.tab_joint.boxes]
         return float(np.min(np.stack(dists, axis=0)))
+
+    def fully_disconnected(self, sw_state, pl_state) -> bool:
+        """No plug collider occupies LAN1's insertion cavity, independent of which side it rests on."""
+        # Exact cavity bounds authored in task.py; these are not a placement target.
+        pc = np.array([0.0, -0.08525, 0.119425])
+        ph = np.array([0.00625, 0.00675, 0.005075])
+        sr = sw_state.rotation()
+        rel_r = sr.T @ pl_state.rotation()
+        rel_p = sr.T @ (np.asarray(pl_state.pos) - np.asarray(sw_state.pos))
+        for b in self.pl_spec.boxes:
+            c, h = np.asarray(b[0]), np.asarray(b[1]) / 2
+            if boxes_overlap(rel_p + rel_r @ c, rel_r, h, pc, ph):
+                return False
+        rt = rx(float(pl_state.joints.get('tab', 0.0)))
+        for b in self.tab_joint.boxes:
+            c = self.tab_anchor + rt @ (np.asarray(b[0]) - self.tab_anchor)
+            if boxes_overlap(rel_p + rel_r @ c, rel_r @ rt, np.asarray(b[1]) / 2, pc, ph):
+                return False
+        # Conservative enclosing boxes for the round strain relief.
+        for c, radius, height, _, axis in self.pl_spec.cylinders:
+            assert axis == 'Y'
+            if boxes_overlap(rel_p + rel_r @ np.asarray(c), rel_r,
+                             np.array([radius, height / 2, radius]), pc, ph):
+                return False
+        return True
 
     def evaluate_states(self, sw_state, pl_state, finger_tips_world: np.ndarray, hist_override=None):
         sw_world_corners = self.sw_corners @ sw_state.rotation().T + np.asarray(sw_state.pos, float)
@@ -169,6 +210,7 @@ class Metric:
         q_tab = float(pl_state.joints.get("tab", 0.0))
         tab_in_bounds = -0.02 <= q_tab <= 0.22
 
+        disconnected = self.fully_disconnected(sw_state, pl_state)
         common = (
             still
             and sw_supported
@@ -176,18 +218,14 @@ class Metric:
             and pl_supported
             and hand_clear_m >= 0.080
             and tab_in_bounds
-            and outside_bezel_m >= 0.010
+            and disconnected
         )
-        if not common:
-            val = 0.0
-        elif sep_m >= 0.035:
-            val = 1.0
-        else:
-            val = 0.5
+        val = 1.0 if common else 0.0
 
         self.value = val
         self.detail = dict(
             score=val,
+            fully_disconnected=bool(disconnected),
             outside_bezel_mm=round(outside_bezel_m * 1000.0, 2),
             sep_mm=round(sep_m * 1000.0, 2),
             tab_deg=round(math.degrees(q_tab), 2),
@@ -220,3 +258,4 @@ class Metric:
 
     def score(self) -> float:
         return float(self.value)
+
