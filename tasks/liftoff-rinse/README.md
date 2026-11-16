@@ -28,8 +28,10 @@ and any drip or spill outside the beakers, the dish or the funnel scores 0.
 ## Preparing the wafers (real trials)
 
 Each trial uses two identical pre-patterned wafers. Make them in one batch (for example 20 wafers for 10 trials) so
-every trial starts the same. Any university nanofabrication facility with contact lithography and e-beam or thermal
-evaporation can do this; most take outside academic and commercial users.
+every trial starts the same. Source: any facility of the US National Nanotechnology Coordinated Infrastructure (NNCI,
+nnci.net) takes outside users. For example, the University of Washington's Washington Nanofabrication Facility (WNF)
+offers a "Remote" user class whose limited-scope process work is done by WNF staff on a time-and-materials basis, with
+USD 50 domestic shipping; a lab with its own trained user can run the same steps itself at academic rates.
 
 1. Wafers: 2 inch (50.8 mm) test-grade silicon, any orientation and doping, about 280 to 500 um thick, from any wafer
    vendor (about USD 10 to 20 each).
@@ -42,9 +44,29 @@ evaporation can do this; most take outside academic and commercial users.
 4. Metal: 5 nm Ti then 30 nm Au by e-beam (or thermal) evaporation, all wafers in one run.
 5. Store the batch in a closed wafer box at room temperature, away from light, and use within about two weeks.
 
-Approximate cost per trial (two wafers): USD 40 to 100, from the wafers, resist and developer (under USD 5) and a share
-of one evaporation run at typical facility rates, plus the one-time mask. Before a batch is used for trials, lift off
-one wafer from it as in the task (60 s in acetone in the ultrasonic bath) and check it under the microscope.
+Batch cost (20 wafers, 10 trials), at WNF's published rates effective 1 March 2026 for external academic users
+(spin/photoresist bench and contact aligner USD 63/hr, e-beam evaporator USD 89/hr, staff USD 89/hr, 15.6% overhead;
+precious metals at cost plus overhead):
+
+| Item | Estimate (USD) |
+|---|---|
+| 20 wafers, 2 inch test-grade Si | 200 to 400 |
+| Transparency mask (one-time) | 50 to 100 |
+| Resist, developer, solvents | 20 to 40 |
+| Spin bench 2 h + aligner 2 h | 252 |
+| E-beam evaporator 3 h (one run, all 20 wafers) | 267 |
+| Gold and titanium (at cost) | 50 to 150 |
+| Staff time, about 6 h (remote service only) | 534 |
+| Overhead 15.6% on facility charges, shipping | about 220 |
+| Total with staff service | about 1,600 to 2,000 |
+| Total if the lab's own trained user does it (no staff time, no shipping) | about 900 to 1,300 |
+
+So about USD 80 to 100 per wafer, or USD 160 to 200 per trial, with staff service (USD 90 to 130 per trial without).
+
+Before a batch is used for trials, lift off one wafer from it as in the task (60 s in acetone in the ultrasonic bath) and check it under the microscope.
+
+Protect the robot: fit solvent-resistant covers (for example nitrile finger cots) over both grippers' pads for real
+trials. The grippers touch only the PFA cassette's handle and the PTFE dish's tab, never the liquids.
 
 Reset between trials: two fresh wafers into the cassette, pattern side down; replace the LIFT-OFF acetone, which now
 holds gold flakes, and the IPA and DI water; pour the dish and funnel waste into the solvent waste bottle; dry the
