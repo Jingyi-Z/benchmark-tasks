@@ -57,5 +57,5 @@ Run one trial per process. The score is `task_score` in the log, computed by `sc
 
 ## Runtime and seeds
 
-- 2,400 control steps (2 minutes of simulated time) per trial. The scripted demo finishes in about 80 s.
+- 3,600 control steps (3 minutes of simulated time) per trial. The scripted demo finishes in about 80 s.
 - One fixed starting layout: run with `-E object_jitter=0`. No other randomness.
