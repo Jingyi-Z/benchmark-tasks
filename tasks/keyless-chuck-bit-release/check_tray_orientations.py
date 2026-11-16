@@ -39,7 +39,7 @@ def make_drill(yaw,flip,m):
  return d
 
 tr=Part([.32,-.065,task.TOP]);rows=[]
-for flip in (0,180):
+for flip in (0,180,270):
  for yaw in range(0,360,45):
   for bit_yaw in (0,45,90,135):
    Rb=rz(math.radians(bit_yaw));half=extent(Rb[:,1])
@@ -80,11 +80,11 @@ for name in ('outside_tray','short_history','near_hand','moving_bit','not_remove
 
 manifest={f:hashlib.sha256((HERE/f).read_bytes()).hexdigest() for f in ('task.py','task_metrics.py','labkit.py','arena_assets_fix.py','task.json','camera-replay-d16c.json','hand-envelope.json')}
 summary=[]
-for flip in (0,180):
+for flip in (0,180,270):
  for yaw in range(0,360,45):
   rs=[r for r in rows if r['drill_roll_deg']==flip and r['drill_yaw_deg']==yaw]
   summary.append(dict(drill_yaw_deg=yaw,drill_roll_deg=flip,count=len(rs),minimum_score=min(r['score'] for r in rs),maximum_score=max(r['score'] for r in rs)))
-report=dict(scope='CPU production Metric.update with prescribed static part poses,21observations per positive case,and only hand runtime stubbed. This is scorer validation,not576native runs or a dynamics/stability proof.',submitted_head='650061ff003499cacd36472f31e338a74441745f',production_source_sha256=manifest,orientation_count=16,placements_per_orientation=36,positive_cases=len(rows),all_positive_full_score=all(r['score']==1 for r in rows),min_hand_clearance_mm=min(r['detail']['hands_mm'] for r in rows),minimum_inner_wall_margin_mm=min(r['inner_wall_margin_mm'] for r in rows),summary=summary,guard_controls=controls,rows=rows)
+report=dict(scope='CPU production Metric.update with prescribed static part poses,21observations per positive case,and only hand runtime stubbed. This is scorer validation,not864native runs or a dynamics/stability proof.',submitted_head='650061ff003499cacd36472f31e338a74441745f',production_source_sha256=manifest,orientation_count=24,placements_per_orientation=36,positive_cases=len(rows),all_positive_full_score=all(r['score']==1 for r in rows),min_hand_clearance_mm=min(r['detail']['hands_mm'] for r in rows),minimum_inner_wall_margin_mm=min(r['inner_wall_margin_mm'] for r in rows),summary=summary,guard_controls=controls,rows=rows)
 (HERE/'tray-orientation-checks.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
 (HERE/'tray-orientation-summary.json').write_text(json.dumps({k:v for k,v in report.items() if k!='rows'},indent=2)+'\n',encoding='utf-8')
 with (HERE/'tray-orientation-checks.csv').open('w',newline='',encoding='utf-8') as f:

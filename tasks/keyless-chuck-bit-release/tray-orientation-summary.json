@@ -1,5 +1,5 @@
 {
-  "scope": "CPU production Metric.update with prescribed static part poses,21observations per positive case,and only hand runtime stubbed. This is scorer validation,not576native runs or a dynamics/stability proof.",
+  "scope": "CPU production Metric.update with prescribed static part poses,21observations per positive case,and only hand runtime stubbed. This is scorer validation,not864native runs or a dynamics/stability proof.",
   "submitted_head": "650061ff003499cacd36472f31e338a74441745f",
   "production_source_sha256": {
     "task.py": "8d53fd839a9b00792da10a0d5fada61d1908d9e00d4ddecb48b8c1e4cc581ef8",
@@ -10,11 +10,11 @@
     "camera-replay-d16c.json": "80aafb28fdf974bed4eb1df03a3ffa7db8f271f7f33918924c59c424fc9a2132",
     "hand-envelope.json": "aebe9dfa2f1b8cb4373c1e5a410a6af854470750687a32575ecb8dc547bd2226"
   },
-  "orientation_count": 16,
+  "orientation_count": 24,
   "placements_per_orientation": 36,
-  "positive_cases": 576,
+  "positive_cases": 864,
   "all_positive_full_score": true,
-  "min_hand_clearance_mm": 518.8771530808195,
+  "min_hand_clearance_mm": 444.27989005599875,
   "minimum_inner_wall_margin_mm": 2.0000000000000013,
   "summary": [
     {
@@ -125,6 +125,62 @@
     {
       "drill_yaw_deg": 315,
       "drill_roll_deg": 180,
+      "count": 36,
+      "minimum_score": 1.0,
+      "maximum_score": 1.0
+    },
+    {
+      "drill_yaw_deg": 0,
+      "drill_roll_deg": 270,
+      "count": 36,
+      "minimum_score": 1.0,
+      "maximum_score": 1.0
+    },
+    {
+      "drill_yaw_deg": 45,
+      "drill_roll_deg": 270,
+      "count": 36,
+      "minimum_score": 1.0,
+      "maximum_score": 1.0
+    },
+    {
+      "drill_yaw_deg": 90,
+      "drill_roll_deg": 270,
+      "count": 36,
+      "minimum_score": 1.0,
+      "maximum_score": 1.0
+    },
+    {
+      "drill_yaw_deg": 135,
+      "drill_roll_deg": 270,
+      "count": 36,
+      "minimum_score": 1.0,
+      "maximum_score": 1.0
+    },
+    {
+      "drill_yaw_deg": 180,
+      "drill_roll_deg": 270,
+      "count": 36,
+      "minimum_score": 1.0,
+      "maximum_score": 1.0
+    },
+    {
+      "drill_yaw_deg": 225,
+      "drill_roll_deg": 270,
+      "count": 36,
+      "minimum_score": 1.0,
+      "maximum_score": 1.0
+    },
+    {
+      "drill_yaw_deg": 270,
+      "drill_roll_deg": 270,
+      "count": 36,
+      "minimum_score": 1.0,
+      "maximum_score": 1.0
+    },
+    {
+      "drill_yaw_deg": 315,
+      "drill_roll_deg": 270,
       "count": 36,
       "minimum_score": 1.0,
       "maximum_score": 1.0
