@@ -204,7 +204,7 @@ PLUNGER_BOXES = [
     ],
 ]
 
-# Plunger joint: estimated 2.4 N dry spiral-seal friction + estimated 85 N*s/m Darcy filtration damping
+# Plunger joint: dimensionless legacy PhysX jointFriction = 2.4 + estimated 85 N*s/m Darcy filtration damping
 PLUNGER_JOINT = Joint(
     "plunger", kind="slide", axis="Z", anchor=(0.0, 0.0, 0.0),
     boxes=PLUNGER_BOXES, cylinders=PLUNGER_CYLS,
@@ -249,10 +249,12 @@ CARAFE_END_TILT = 3.0        # <=3 deg upright at end
 LID_RAD_TOL = 0.006          # <=6 mm coaxial with carafe rim
 LID_Z_TOL = 0.006            # within 6 mm of carafe rim height
 LID_TILT_TOL = 5.0           # <=5 deg tilt
-SPOUT_CLOSED_MIN_DEG = 75.0  # whole lid rotated >=75 deg from -Y pour spout (solid pilot skirt occluding spout)
-SPOUT_CLOSED_MAX_DEG = 135.0 # and <=135 deg so the -Y pour slot has not wrapped around to the spout from the other side
-PLUNGE_GOAL = 0.052          # >=52 mm downward travel (within 8 mm of 60 mm bottom stop)
-MAX_PLUNGE_SPEED = 0.110     # >110 mm/s slam (>11 N Darcy blow-by hazard) latches 0
+# Modeled spout/slot occlusion: carafe -Y spout gap spans +-10.46 deg (12.32 deg across 19.2 mm chord) and lid -Y pour
+# slot spans +-33.82 deg (solid 13-stave pilot skirt covers the entire remaining 292.36 deg continuously through 180 deg).
+# At >=48.0 deg unsigned yaw (48..180 deg CW or CCW), the solid skirt overlaps completely across the spout opening.
+SPOUT_CLOSED_MIN_DEG = 48.0
+PLUNGE_GOAL = 0.052          # >=52 mm final depth AND >=52 mm net downward travel accumulated while seated on carafe
+MAX_PLUNGE_SPEED = 0.110     # >110 mm/s filter descent inside 90 mm carafe bore (insertion or seated press) latches 0
 HANDS_CLEAR = 0.080          # >=80 mm exact collider-surface clearance from both pad midpoints + all 4 jaw endpoints
 SETTLE_STEPS = 20            # 21 samples = 1.0 s at 20 Hz
 SETTLE_TOL = 0.001           # <1 mm 3D Euclidean extremal-point motion
@@ -329,6 +331,7 @@ def _reset(env):
     _state.clear()
     _state.update(
         step=0, viol=set(), settled=False, clear_all=False, prev_q=None,
+        prev_seated=False, seated_travel=0.0, prev_filter_cr=None,
         prev_pts={}, prev_down={},
     )
     _hist.clear()
@@ -385,13 +388,12 @@ def _min_surf_dist_world(q_world: np.ndarray, cr, pl) -> float:
 
 
 def _spout_angle_deg(cr, pl) -> float:
-    """Horizontal angle (0..180 deg) between carafe's -Y pour spout and lid's -Y pour slot."""
-    c_y = cr.rotation()[:2, 1]
-    l_y = pl.rotation()[:2, 1]
-    denom = float(np.linalg.norm(c_y) * np.linalg.norm(l_y))
+    """Unsigned azimuthal angle (0..180 deg) in the carafe's horizontal frame between -Y pour spout and lid -Y pour slot."""
+    rel_y = (cr.rotation().T @ pl.rotation())[:2, 1]
+    denom = float(math.hypot(float(rel_y[0]), float(rel_y[1])))
     if denom < 1e-9:
         return 180.0
-    cos_a = float(np.clip(np.dot(c_y, l_y) / denom, -1.0, 1.0))
+    cos_a = float(np.clip(float(rel_y[1]) / denom, -1.0, 1.0))
     return math.degrees(math.acos(cos_a))
 
 
@@ -424,16 +426,26 @@ def _watch(env):
     cr = labkit._part_state(env, S["carafe"])
     pl = labkit._part_state(env, S["plunger_lid"])
     q_plg = float(pl.joints["plunger"])
+    plunge_stroke = float(globals().get("PLUNGE_STROKE", 0.060))
+    r_bore = float(globals().get("BEAKER_R_IN", 0.0450))
+    z_fill = float(globals().get("Z_FILL_LOCAL", 0.07874))
     c_corners = np.asarray([cr.to_world(p) for p in _CARAFE_CORNERS], float)
-    pl_extra = np.array([
+    filter_local = np.array([
         [0.0, 0.0, -0.032 + q_plg],
         [+0.039, 0.0, -0.032 + q_plg],
         [-0.039, 0.0, -0.032 + q_plg],
         [0.0, +0.039, -0.032 + q_plg],
         [0.0, -0.039, -0.032 + q_plg],
-        [0.0, 0.0, 0.117 + q_plg],
+        [0.0, 0.0, -0.024 + q_plg],
     ], float)
+    pl_extra = np.vstack([filter_local[:5], np.array([[0.0, 0.0, 0.117 + q_plg]], float)])
     l_corners = np.asarray([pl.to_world(p) for p in _LID_CORNERS] + [pl.to_world(p) for p in pl_extra], float)
+    cr_pos = np.asarray(cr.pos, float)
+    cr_R_T = cr.rotation().T
+    filter_cr = np.asarray([cr_R_T @ (pl.to_world(p) - cr_pos) for p in filter_local], float)
+    seated = _lid_seated_on_carafe(cr, pl)
+    rim_dp = np.asarray(pl.pos, float) - cr.to_world(np.array([0.0, 0.0, CARAFE_H]))
+    removed_off_carafe = (float(math.hypot(float(rim_dp[0]), float(rim_dp[1]))) > 0.025) or (abs(float(rim_dp[2])) > 0.025)
 
     if st["step"] > 5:
         if _carafe_spilled(cr):
@@ -465,11 +477,41 @@ def _watch(env):
                             break
             st["prev_pts"][pname] = p_pts
             st["prev_down"][pname] = down_now
-        seated = _lid_seated_on_carafe(cr, pl)
+
+        # Monitor both seated plunger joint speed and 3D filter entry/descent inside the filled brew bore (0..Z_FILL_LOCAL)
         if st["prev_q"] is not None and seated and dt > 0.0:
             v_down = (st["prev_q"] - q_plg) / dt
             if v_down > MAX_PLUNGE_SPEED:
                 st["viol"].add("plunged_too_fast")
+        prev_fc = st.get("prev_filter_cr")
+        if prev_fc is not None and dt > 0.0:
+            for i in range(len(filter_cr)):
+                x0, y0, z0 = float(prev_fc[i, 0]), float(prev_fc[i, 1]), float(prev_fc[i, 2])
+                x1, y1, z1 = float(filter_cr[i, 0]), float(filter_cr[i, 1]), float(filter_cr[i, 2])
+                if z1 >= z0:
+                    continue
+                dz = z1 - z0
+                s_lo = max(0.0, min((0.0 - z0) / dz, (z_fill - z0) / dz))
+                s_hi = min(1.0, max((0.0 - z0) / dz, (z_fill - z0) / dz))
+                if s_hi <= s_lo:
+                    continue
+                dx, dy = x1 - x0, y1 - y0
+                qa = dx * dx + dy * dy
+                qb = 2.0 * (x0 * dx + y0 * dy)
+                qc = x0 * x0 + y0 * y0 - r_bore * r_bore
+                if qa < 1e-12:
+                    if qc > 0.0:
+                        continue
+                else:
+                    disc = qb * qb - 4.0 * qa * qc
+                    if disc < 0.0:
+                        continue
+                    sq = math.sqrt(disc)
+                    s_lo = max(s_lo, (-qb - sq) / (2.0 * qa))
+                    s_hi = min(s_hi, (-qb + sq) / (2.0 * qa))
+                if (z0 - z1) * (s_hi - s_lo) > 1e-5 and (z0 - z1) / dt > MAX_PLUNGE_SPEED:
+                    st["viol"].add("plunged_too_fast")
+                    break
     else:
         for pname, p_st, p_pts in (("carafe", cr, c_corners), ("plunger_lid", pl, l_corners)):
             pos_p = np.asarray(p_st.pos, float)
@@ -478,7 +520,23 @@ def _watch(env):
             )
             st["prev_pts"][pname] = p_pts
             st["prev_down"][pname] = -vel_pts[:, 2]
+
+    # Credit net downward plunger travel strictly while lid is seated on carafe (zero credit off-carafe; upward return
+    # or full lid removal deducts/resets so oscillations or unseat-repress cycles cannot manufacture stroke credit).
+    if removed_off_carafe:
+        st["seated_travel"] = 0.0
+    elif st["prev_q"] is not None:
+        d_prev = float(np.clip(-float(st["prev_q"]), 0.0, plunge_stroke))
+        d_cur = float(np.clip(-q_plg, 0.0, plunge_stroke))
+        dd = d_cur - d_prev
+        if seated and st.get("prev_seated", False):
+            st["seated_travel"] = float(np.clip(float(st.get("seated_travel", 0.0)) + dd, 0.0, plunge_stroke))
+        elif dd < 0.0:
+            st["seated_travel"] = max(0.0, float(st.get("seated_travel", 0.0)) + dd)
+
     st["prev_q"] = q_plg
+    st["prev_seated"] = seated
+    st["prev_filter_cr"] = filter_cr
 
     st["clear_all"] = all(_min_surf_dist_world(tp, cr, pl) >= HANDS_CLEAR for tp in _tips(env))
 
@@ -506,10 +564,12 @@ def task_score(env) -> float:
     if cr.tilt_deg() > CARAFE_END_TILT or not _lid_seated_on_carafe(cr, pl):
         return 0.0
 
-    travel = -float(pl.joints["plunger"])
+    plunge_stroke = float(globals().get("PLUNGE_STROKE", 0.060))
+    travel = float(np.clip(-float(pl.joints["plunger"]), 0.0, plunge_stroke))
+    credited_travel = float(st.get("seated_travel", 0.0))
     spout_deg = _spout_angle_deg(cr, pl)
-    spout_closed = SPOUT_CLOSED_MIN_DEG <= spout_deg <= SPOUT_CLOSED_MAX_DEG
-    plunged = travel >= PLUNGE_GOAL
+    spout_closed = spout_deg >= SPOUT_CLOSED_MIN_DEG
+    plunged = (travel >= PLUNGE_GOAL) and (credited_travel >= PLUNGE_GOAL)
     if plunged and spout_closed:
         return 1.0
     if plunged:
@@ -711,7 +771,8 @@ def _ctrack(env):
             f"FPDBG step={_state.get('step',0)} t={t:.2f} cr_pos={[round(float(v),4) for v in cr.pos]} "
             f"lid_pos={[round(float(v),4) for v in pl.pos]} "
             f"lid_tilt={pl.tilt_deg():.2f} cr_tilt={cr.tilt_deg():.2f} q_plg={float(pl.joints['plunger']):.4f} "
-            f"spout_deg={_spout_angle_deg(cr, pl):.1f} viol={sorted(_state.get('viol',()))}",
+            f"seated_trv={_state.get('seated_travel',0.0):.4f} spout_deg={_spout_angle_deg(cr, pl):.1f} "
+            f"viol={sorted(_state.get('viol',()))}",
             flush=True,
         )
 
@@ -777,7 +838,181 @@ LEFT_PARK = np.array([0.16, +0.27, TOP + 0.21])
 RIGHT_PARK = np.array([0.16, -0.27, TOP + 0.21])
 
 
+def _stand_press_pose(z_world: float):
+    """Right-arm vertical-ish press on the brass knob directly on LID_STAND_START."""
+    R_sp = Rz(-math.radians(25.0)) @ Ry(-math.radians(28.0)) @ DOWN
+    p = np.array([LID_STAND_START[0], LID_STAND_START[1], z_world], float)
+    return _tcp(p, R_sp, past=0.0), Orient(R_sp)
+
+
+def _shortcut_demo(fast_insert: bool = False):
+    """Negative control: depress plunger 30 mm ON THE DRIP STAND first (earning 0 credit), then carry & seat via demo().
+    - stand_plunge (fast_insert=False): seats slowly and presses remaining 30 mm to -60 mm bottom stop -> scores 0.50 (NOT 1.0!).
+    - fast_insert (fast_insert=True): plunges pre-pressed filter into filled brew bore at >200 mm/s -> latches plunged_too_fast (0.0).
+    """
+    _ct["wins"].clear()
+    pl = _Plan()
+    o_wait = Orient(Ry(-math.radians(35.0)) @ DOWN)
+    p_h_pre, o_h = _hnd_pose(back=0.060)
+    p_h_hold, _ = _hnd_pose(back=0.016)
+
+    # Phase 0: Depress plunger 30 mm directly ON THE DRIP STAND before pickup (seated_travel stays 0.0000!)
+    z_st_knob0 = float(LID_STAND_START[2] + KNOB_CUP_LOCAL_Z)
+    p_sp_pre, o_sp = _stand_press_pose(z_st_knob0 + 0.024)
+    p_sp_touch, _ = _stand_press_pose(z_st_knob0 - 0.002)
+    p_sp_bot, _ = _stand_press_pose(z_st_knob0 - 0.038)
+    p_sp_up, _ = _stand_press_pose(z_st_knob0 + 0.025)
+    p_t_safe = np.array([0.215, -0.275, TOP + 0.215])
+    p_t_pre, o_t0 = _col_pose(LID_STAND_START, COL_YAW_START, back=0.060)
+    p_t_grasp, _ = _col_pose(LID_STAND_START, COL_YAW_START, back=0.0)
+
+    pl.phase(
+        left=[(1.20, p_h_pre, HND_OPEN, "align short of carafe handle", o_h)],
+        right=[(1.20, p_sp_pre, KNOB_CLOSED, "align closed fingertips over knob on drip stand", o_sp)],
+    )
+    t_sp = pl.phase(
+        left=[(0.85, _Dyn(p_h_pre, "hnd"), HND_OPEN, "encoder PD trim at carafe handle", o_h)],
+        right=[(0.85, _Dyn(p_sp_pre, "st_knb"), KNOB_CLOSED, "encoder PD trim over stand knob", o_sp)],
+    )
+    pl.window(t_sp + 0.20, t_sp + 0.85, "hnd", lambda env, _p=p_h_pre: _p - _live_tcp(env, "left_robot"))
+    pl.window(t_sp + 0.20, t_sp + 0.85, "st_knb", lambda env, _p=p_sp_pre: _p - _live_tcp(env, "right_robot"))
+
+    pl.phase(
+        left=[(4.50, _Dyn(p_h_pre, "hnd"), HND_OPEN, "wait clear during on-stand pre-plunge", o_h)],
+        right=[
+            (0.55, _Dyn(p_sp_touch, "st_knb"), KNOB_CLOSED, "engage brass knob on stand", o_sp),
+            (1.60, _Dyn(p_sp_bot, "st_knb"), KNOB_CLOSED, "depress plunger 30 mm on drip stand", o_sp),
+            (0.35, _Dyn(p_sp_bot, "st_knb"), KNOB_CLOSED, "hold stand bottom", o_sp),
+            (0.65, _Dyn(p_sp_up, "st_knb"), COL_OPEN, "lift clear above stand-pressed knob", o_sp),
+            (0.65, p_t_safe, COL_OPEN, "swing outboard to collar approach", o_wait),
+            (0.70, p_t_pre, COL_OPEN, "align short of lid guide collar", o_t0),
+        ],
+    )
+    pl.phase(
+        left=[(0.75, _Dyn(p_h_pre, "hnd"), HND_OPEN, "wait short of carafe handle", o_h)],
+        right=[(0.75, p_t_grasp, COL_OPEN, "advance open jaws onto guide collar", o_t0)],
+    )
+    t_look1 = pl.phase(
+        left=[(0.85, _Dyn(p_h_pre, "hnd"), HND_OPEN, "hold carafe handle trim", o_h)],
+        right=[(0.85, _Dyn(p_t_grasp, "tur0"), COL_OPEN, "encoder PD trim at collar grasp height", o_t0)],
+    )
+    pl.window(t_look1 + 0.20, t_look1 + 0.85, "tur0", lambda env, _p=p_t_grasp: _p - _live_tcp(env, "right_robot"))
+
+    # Phase 1: 10-leg +92 deg CCW collar carry with [+5.5, +9.5] mm bore-entry centering for the -31 mm stand-pressed filter!
+    lid_lift_stand = np.array([LID_STAND_START[0], LID_STAND_START[1], CARAFE_START[2] + CARAFE_H + 0.095])
+    lid_over_carafe = CARAFE_START + np.array([+0.0055, +0.0095, CARAFE_H + 0.095])
+    lid_rim_clear = CARAFE_START + np.array([+0.0055, +0.0095, CARAFE_H + 0.048])
+    lid_rim_inside = CARAFE_START + np.array([+0.0040, +0.0065, CARAFE_H + 0.018])
+    lid_seated = CARAFE_START + np.array([+0.0025, +0.0045, CARAFE_H - 0.004])
+
+    p_t_lift, _ = _col_pose(lid_lift_stand, COL_YAW_START)
+    carry_wps = []
+    for _k in range(1, 11):
+        _f = _k / 10.0
+        _yk = COL_YAW_START + _f * (COL_YAW_END - COL_YAW_START)
+        _p_c, _o_c = _col_pose((1.0 - _f) * lid_lift_stand + _f * lid_over_carafe, _yk)
+        carry_wps.append((0.26, _p_c, COL_HOLD, f"carry & turn lid leg {_k}/10", _o_c))
+
+    p_t_rim_clear, o_t1 = _col_pose(lid_rim_clear, COL_YAW_END)
+    p_t_inside, _ = _col_pose(lid_rim_inside, COL_YAW_END)
+    p_t_seat, _ = _col_pose(lid_seated, COL_YAW_END)
+    p_t_rel, _ = _col_pose(lid_seated, COL_YAW_END, back=0.070)
+
+    pl.phase(
+        left=[(5.10, _Dyn(p_h_pre, "hnd"), HND_OPEN, "wait clear of carafe during lid carry", o_h)],
+        right=[
+            (0.50, _Dyn(p_t_grasp, "tur0"), COL_HOLD, "grasp central guide collar on axis", o_t0),
+            (1.25, _Dyn(p_t_lift, "tur0"), COL_HOLD, "lift stand-pressed lid plumb clear of stand", o_t0),
+            *carry_wps,
+            (0.75, p_t_rim_clear, COL_HOLD, "descend above carafe bore rim", o_t1),
+        ],
+    )
+    t_rim_trim = pl.phase(
+        left=[(1.00, _Dyn(p_h_pre, "hnd"), HND_OPEN, "stay clear during rim-plane XY trim", o_h)],
+        right=[(1.00, _Dyn(p_t_rim_clear, "tur1"), COL_HOLD, "converge encoder trim at bore rim plane", o_t1)],
+    )
+    pl.window(t_rim_trim + 0.20, t_rim_trim + 1.00, "tur1", lambda env, _p=p_t_rim_clear: _p - _live_tcp(env, "right_robot"))
+
+    if fast_insert:
+        p_t_fast_deep, _ = _col_pose(CARAFE_START + np.array([+0.0045, +0.0075, CARAFE_H - 0.012]), COL_YAW_END)
+        pl.phase(
+            left=[(3.10, LEFT_PARK, HND_OPEN, "left park clear", o_wait)],
+            right=[
+                (0.15, _Dyn(p_t_fast_deep, "tur1"), COL_HOLD, "fast pre-pressed insertion (>300 mm/s into brew)", o_t1),
+                (0.50, _Dyn(p_t_seat, "tur1"), COL_OPEN, "release collar", o_t1),
+                (0.85, p_t_rel, COL_OPEN, "back clear of collar", o_t1),
+                (1.60, RIGHT_PARK, COL_OPEN, "right park clear", o_wait),
+            ],
+        )
+        pl.phase(
+            left=[(2.2, LEFT_PARK, HND_OPEN, "left final settle", o_wait)],
+            right=[(2.2, RIGHT_PARK, COL_OPEN, "right final settle", o_wait)],
+        )
+        return {"left": pl.L, "right": pl.R}
+
+    pl.phase(
+        left=[(3.25, _Dyn(p_h_pre, "hnd"), HND_OPEN, "stay clear while pre-pressed lid seats coaxially", o_h)],
+        right=[
+            (0.95, _Dyn(p_t_inside, "tur1"), COL_HOLD, "descend slowly into 90 mm bore", o_t1),
+            (1.05, _Dyn(p_t_seat, "tur1"), COL_HOLD, "seat pre-closed lid onto carafe rim", o_t1),
+            (0.45, _Dyn(p_t_seat, "tur1"), COL_OPEN, "release seated guide collar", o_t1),
+            (0.80, p_t_rel, COL_OPEN, "back clear of guide collar", o_t1),
+        ],
+    )
+
+    # Phase 2: Complete remaining ~27 mm stroke while seated -> reaches ~-58 mm final depth (>=52 mm), earns 0.50 (NOT 1.0!)
+    z_knob0 = float(CARAFE_START[2] + CARAFE_H + KNOB_CUP_LOCAL_Z)
+    p_k_clear = np.array([0.205, -0.095, z_knob0 + 0.045])
+    p_k_pre, o_k = _press_pose(z_knob0 + 0.024)
+    p_k_mid, _ = _press_pose(z_knob0 - 0.034)
+    p_k_bot, _ = _press_pose(z_knob0 - 0.066)
+    p_k_up, _ = _press_pose(z_knob0 - 0.015)
+    p_h_rel, _ = _hnd_pose(back=0.070)
+
+    pl.phase(
+        left=[
+            (0.85, _Dyn(p_h_hold, "hnd"), HND_OPEN, "advance onto seated carafe handle", o_h),
+            (0.55, _Dyn(p_h_hold, "hnd"), HND_HOLD, "brace carafe handle", o_h),
+        ],
+        right=[
+            (0.70, p_k_clear, KNOB_CLOSED, "lift clear outboard of knob", o_k),
+            (0.70, p_k_pre, KNOB_CLOSED, "close fingers above knob", o_k),
+        ],
+    )
+    t_look2 = pl.phase(
+        left=[(0.9, _Dyn(p_h_hold, "hnd"), HND_HOLD, "hold carafe for knob encoder trim", o_h)],
+        right=[(0.9, _Dyn(p_k_pre, "knb"), KNOB_CLOSED, "encoder PD trim above knob", o_k)],
+    )
+    pl.window(t_look2 + 0.20, t_look2 + 0.9, "knb", lambda env, _p=p_k_pre: _p - _live_tcp(env, "right_robot"))
+
+    pl.phase(
+        left=[
+            (5.05, _Dyn(p_h_hold, "hnd"), HND_HOLD, "brace carafe during remaining stroke", o_h),
+            (0.50, _Dyn(p_h_hold, "hnd"), HND_OPEN, "release carafe handle", o_h),
+            (0.90, p_h_rel, HND_OPEN, "back clear of carafe handle", o_h),
+            (1.10, LEFT_PARK, HND_OPEN, "left park clear", o_wait),
+        ],
+        right=[
+            (1.90, _Dyn(p_k_mid, "knb"), KNOB_CLOSED, "engage partly-pressed knob", o_k),
+            (1.90, _Dyn(p_k_bot, "knb"), KNOB_CLOSED, "complete remaining 30 mm stroke to bottom stop", o_k),
+            (0.50, _Dyn(p_k_bot, "knb"), KNOB_CLOSED, "hold at bottom stop", o_k),
+            (0.75, _Dyn(p_k_up, "knb"), COL_OPEN, "lift clear above pressed knob", o_k),
+            (1.30, RIGHT_PARK, COL_OPEN, "right park clear", o_wait),
+        ],
+    )
+    pl.phase(
+        left=[(2.2, LEFT_PARK, HND_OPEN, "left final settle", o_wait)],
+        right=[(2.2, RIGHT_PARK, COL_OPEN, "right final settle", o_wait)],
+    )
+    return {"left": pl.L, "right": pl.R}
+
+
 def demo():
+    mode = os.environ.get("FRENCH_PRESS_MODE", "demo").strip().lower()
+    if mode == "stand_plunge":
+        return _shortcut_demo(fast_insert=False)
+    if mode == "fast_insert":
+        return _shortcut_demo(fast_insert=True)
     _ct["wins"].clear()
     pl = _Plan()
     o_wait = Orient(Ry(-math.radians(35.0)) @ DOWN)
