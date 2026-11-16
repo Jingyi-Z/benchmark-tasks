@@ -36,7 +36,7 @@ Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the
         --instruction "$(python -c 'import json;print(json.load(open("task.json"))["instruction"])')" \
         --scorer task_score --max-steps 2400 --store-frames --log-dir logs
 
-Scripted demo: the same command with `--policy yam_scripted` (about 87 s of motion; 2,000 steps are enough).
+Scripted demo: the same command with `--policy yam_scripted` (about 100 s of motion; it needs the full 2,400 steps).
 
 The score is `task_score` in the log, computed by `score()` in `task.py` from the slide's pose in the holder, the
 alignment mark's offset from the objective's axis, the stage height's distance from focus, and the smallest gap from the
@@ -44,9 +44,11 @@ slide to the front lens during the trial (recorded every control step).
 
 ## Scoring a real trial
 
-- Centring: the alignment mark is in the camera image on the monitor at 10x (2.2 mm field of view).
+- Centring: the whole alignment mark is on the monitor, whose camera image covers 6 x 4 mm of the slide at 10x (0.5);
+  for full credit its centre is within 0.3 mm of the image centre (the objective's axis), read with the camera
+  software's centre crosshair and scale bar.
 - Focus: without touching the coarse knob, turn the fine knob to the mark's best focus on the monitor and read the travel
-  off its graduations. Within 10 um is 1.0; within 0.1 mm is 0.75.
+  off its graduations. Within 0.1 mm is 0.75; within 10 um, with the mark centred, is 1.0.
 - Crash: a side video against a millimetre scale shows the smallest gap between the slide and the front lens; under
   0.5 mm at any time scores 0.
 

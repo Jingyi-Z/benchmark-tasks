@@ -15,6 +15,7 @@ Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jit
 """
 
 import math
+import os
 import pathlib
 import sys
 
@@ -239,15 +240,17 @@ _ARM, _CORNER, _SQ = 1.6e-3 * SCR_PER_M, 0.5e-3 * SCR_PER_M, 0.4e-3 * SCR_PER_M
 MONITOR_BOXES = [
     ((0.0, 0.0, MON_T / 2), (MON_H + 0.012, MON_W + 0.012, MON_T), DARK),  # tablet body and bezel
     ((0.0, 0.0, MON_T + 0.0005), (MON_H, MON_W, 0.001), SCREEN),
-    ((0.0, 0.0, _face + 0.0002), (MON_H, MON_W, 0.0003), VIEW_GLASS),  # the view over bare glass
-    ((0.0, 0.0, _face + 0.0004), (MON_H, MON_W, 0.0003), VIEW_CHIP),  # the view over the chip
+    # layers, bottom to top: the chip view, the marks, then the bare-glass view on top, so that the start state (bare
+    # glass) is what shows before the first step hides the layers not in use
+    ((0.0, 0.0, _face + 0.0010), (MON_H, MON_W, 0.0003), VIEW_GLASS),  # the view over bare glass
+    ((0.0, 0.0, _face + 0.0002), (MON_H, MON_W, 0.0003), VIEW_CHIP),  # the view over the chip
 ]
 VIEW_BOX0 = 2
 MARK_BOX0 = len(MONITOR_BOXES)  # then, per level, the mark's two bars (across, along) and four corner squares
 for _col, _w in MARK_LEVELS:
-    MONITOR_BOXES += [((0.0, 0.0, _face + 0.0008), (_w, _ARM, 0.0003), _col),
-                      ((0.0, 0.0, _face + 0.0008), (_ARM, _w, 0.0003), _col),
-                      *[((sx * _CORNER, sy * _CORNER, _face + 0.0008), (_SQ + _w, _SQ + _w, 0.0003), _col)
+    MONITOR_BOXES += [((0.0, 0.0, _face + 0.0006), (_w, _ARM, 0.0003), _col),
+                      ((0.0, 0.0, _face + 0.0006), (_ARM, _w, 0.0003), _col),
+                      *[((sx * _CORNER, sy * _CORNER, _face + 0.0006), (_SQ + _w, _SQ + _w, 0.0003), _col)
                         for sx in (-1, 1) for sy in (-1, 1)]]
 MARK_PER_LEVEL = 6
 MONITOR = part("monitor", pos=(*MON_XY, TOP), fixed=True, boxes=MONITOR_BOXES)
@@ -277,7 +280,11 @@ _scr = {"prims": None, "shown": None}
 @on_reset
 def _clear(env):
     _trial["min_gap"] = None
+    _trial["n"] = 0
     _scr["shown"] = None
+    # the start state on the monitor: bare glass, no mark (the slide is on its rest, not under the objective); without
+    # this the screen shows every layer until the first step redraws it, which put the chip view in the setup image
+    _show_screen(env, ("glass", None, (0.0, 0.0)))
 
 
 def _screen_prims(env):
@@ -310,8 +317,8 @@ def screen_view(j: dict, slide):
         return "glass", None, (0.0, 0.0)
     p = slide.to_world((0.0, SPEC_Y, 0.0))
     dx, dy = p[0] - OBJ_AXIS[0], p[1] - OBJ_AXIS[1]
-    field = "chip" if max(abs(dx), abs(dy)) < 0.005 - 0.0011 else "glass"
-    if field != "chip" or math.hypot(dx, dy) > 0.0011:
+    field = "chip" if max(abs(dx), abs(dy)) < 0.005 else "glass"
+    if field != "chip" or not mark_in_view(dx, dy):
         return field, None, (0.0, 0.0)
     e = focus_error(j)
     level = 0 if e <= FOCUS_TOL else 1 if e <= NEAR_TOL else 2 if e <= 0.001 else None
@@ -354,6 +361,13 @@ def _drive(env):
     g = stage_gap(s.joints["stage"])
     if _loaded(s.joints, sl):
         _trial["min_gap"] = g if _trial["min_gap"] is None else min(_trial["min_gap"], g)
+    if os.environ.get("MICRO_DEBUG"):
+        _trial["n"] = _trial.get("n", 0) + 1
+        if _trial["n"] % 20 == 0:
+            dx, dy = specimen_xy(sl)
+            print(f"[micro] t={_trial['n'] / 20:5.1f}s loaded={_loaded(s.joints, sl)} mark=({dx * 1000:.3f}, "
+                  f"{dy * 1000:.3f}) mm focus_err={focus_error(s.joints) * 1e6:.1f} um "
+                  f"min_gap={(_trial['min_gap'] or 0) * 1000:.2f} mm", file=sys.stderr, flush=True)
     asset = env.unwrapped.scene["microscope"]
     names = list(asset.joint_names)
     ids = [names.index(j.joint_name) for j in (STAGE_X_J, STAGE_Y, STAGE)]
@@ -365,7 +379,14 @@ def _drive(env):
 # -- scoring ----------------------------------------------------------------------------------------------------------
 OBJ_AXIS = (MX + STAGE_X, MY)
 HOLD_TOL, HOLD_Z, FLAT_DEG, CLOSED = 0.003, 0.001, 3.0, 0.10
-CENTRE_TOL = 0.0011  # the 10x field of view is 2.2 mm across (field number 22)
+# The camera's field of view is what the monitor shows: 4 mm along x by 6 mm across y of the slide, centred on the
+# objective's axis. The mark (1.6 mm across) is in view when all of it is on the screen.
+FIELD_X, FIELD_Y, MARK_HALF = 0.002, 0.003, 0.0008
+CENTRE_TOL = 0.0003  # full credit: the mark's centre within 0.3 mm of the objective's axis (the image centre)
+
+
+def mark_in_view(dx: float, dy: float) -> bool:
+    return abs(dx) <= FIELD_X - MARK_HALF and abs(dy) <= FIELD_Y - MARK_HALF
 CRASH_GAP = 0.0005
 FOCUS_TOL, NEAR_TOL = 0.00001, 0.0001  # depth of field of a 10x / 0.25 objective: about 10 um
 
@@ -381,9 +402,13 @@ def _loaded(j: dict, slide) -> bool:
             and slide.to_world((0, 1, 0))[1] - slide.pos[1] > 0.99 and j["holder"] <= CLOSED)
 
 
-def specimen_offset(slide) -> float:
+def specimen_xy(slide):
     p = slide.to_world((0.0, SPEC_Y, 0.0))
-    return math.hypot(p[0] - OBJ_AXIS[0], p[1] - OBJ_AXIS[1])
+    return p[0] - OBJ_AXIS[0], p[1] - OBJ_AXIS[1]
+
+
+def specimen_offset(slide) -> float:
+    return math.hypot(*specimen_xy(slide))
 
 
 def focus_error(j: dict) -> float:
@@ -394,17 +419,20 @@ def focus_error(j: dict) -> float:
 def score(objects):
     """0 unless the slide is loaded: flat in the holder within 3 mm of its centre, label to the left, holder arm closed
     over it. 0 also if, once loaded, the slide ever came within 0.5 mm of the objective. 0.25 loaded; 0.5 loaded and
-    the alignment mark within 1.1 mm of the objective's axis (in the field of view); 0.75 also within 0.1 mm of focus (slide
-    top 5.2 mm below the front lens); 1.0 within 10 um of focus (the depth of field)."""
+    the whole alignment mark in the camera's 4 x 6 mm field (on the monitor); 0.75 also within 0.1 mm of focus (slide
+    top 5.2 mm below the front lens); 1.0 within 10 um of focus (the depth of field) with the mark's centre within
+    0.3 mm of the objective's axis (the image centre)."""
     m, sl = objects["microscope"], objects["slide"]
     if not _loaded(m.joints, sl):
         return 0.0
     if _trial["min_gap"] is not None and _trial["min_gap"] < CRASH_GAP:
         return 0.0
-    if specimen_offset(sl) > CENTRE_TOL:
+    if not mark_in_view(*specimen_xy(sl)):
         return 0.25
     e = focus_error(m.joints)
-    return 1.0 if e <= FOCUS_TOL else 0.75 if e <= NEAR_TOL else 0.5
+    if e > NEAR_TOL:
+        return 0.5
+    return 1.0 if e <= FOCUS_TOL and specimen_offset(sl) <= CENTRE_TOL else 0.75
 
 
 SUCCESS_HOLD_S = 15.0  # end a trial early only once it has stayed in focus for 15 s (time to let go of the knob and park)
@@ -549,6 +577,8 @@ F_OUT = (F_GRIP[0], F_GRIP[1] - 0.04, F_GRIP[2])
 F_OUT_UP = (F_GRIP[0], F_GRIP[1] - 0.04, F_GRIP[2] + 0.04)
 FF_GRIP = W(FKNOB_X, -(FINE_Y0 + FINE_W) + 0.007 - TIP_ABOVE_TCP, FKNOB_Z)  # fingertips 7 mm onto the fine knob
 FF_OUT = (FF_GRIP[0], FF_GRIP[1] - 0.04, FF_GRIP[2])
+FF_FAR = (FF_GRIP[0], FF_GRIP[1] - 0.10, FF_GRIP[2])
+FF_FAR_UP = (FF_GRIP[0], FF_GRIP[1] - 0.10, FF_GRIP[2] + 0.04)
 FINE_WIDE = -0.02  # part-open round the 26 mm fine knob
 
 
@@ -664,6 +694,9 @@ def demo():
     _knob_turn(left, W(*YKNOB, 0.0)[:2], "y knob", "ydrive", y_target, servo=True)
     _knob_turn(left, W(*XKNOB, 0.0)[:2], "x knob", "xdrive", X_TARGET, servo=False)
     _knob_turn(left, W(*XKNOB, 0.0)[:2], "x knob", "xdrive", x_target, servo=True)
+    # a second closed-loop pass on the x knob (170 mm per turn, so 0.4 mm is under 1 degree): take up what the first
+    # left, from where the mark is seen now, so its centre lands within 0.3 mm of the image centre
+    _knob_turn(left, W(*XKNOB, 0.0)[:2], "x knob", "xdrive", x_target, servo=True)
     left.append(Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "park"))
     right.append(Waypoint(max(0.3, _dur(left) - 2.0 - _dur(right)), RIGHT_ASIDE, FINGER_OPEN,
                           "wait while the left arm drives the stage"))
@@ -694,8 +727,11 @@ def demo():
         Waypoint(0.6, FF_GRIP, FINGER_CLOSED, "settle", nsv),
         Waypoint(0.8, FF_GRIP, FINE_WIDE, "let go", nsv),
         Waypoint(1.0, FF_OUT, FINE_WIDE, "back off", nsv),
-        Waypoint(1.0, FF_OUT, FINE_WIDE, "unroll", side(0.0)),
-        Waypoint(1.5, F_OUT_UP, KNOB_WIDE, "point down again"),
+        # well clear of the stage and the holder lever's handle before the wrist turns back (turning beside the knob
+        # swept the fingers into the lever and nudged the slide 0.2 mm)
+        Waypoint(1.0, FF_FAR, FINE_WIDE, "out to the side, clear of the stage", nsv),
+        Waypoint(1.0, FF_FAR, FINE_WIDE, "unroll", side(0.0)),
+        Waypoint(1.5, FF_FAR_UP, KNOB_WIDE, "point down again"),
         Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
         Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "hold"),
     ]
