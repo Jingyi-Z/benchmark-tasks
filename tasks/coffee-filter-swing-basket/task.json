@@ -1,0 +1,20 @@
+{
+  "title": "Load a reusable coffee filter into a swivel brew basket and fold its bail flat",
+  "category": "Societal relatability",
+  "keywords": [
+    "bimanual",
+    "hinged compartment",
+    "headspace interlock",
+    "coffee maker",
+    "household appliance"
+  ],
+  "instruction": "Load the reusable coffee filter into the coffee maker's filter basket and close the filter basket holder.",
+  "context": "Home drip coffee makers with front-swivel brew baskets have low showerhead clearance above the filter rim; leaving a reusable filter's wire bail handle standing upright blocks the swivel holder from swinging shut.",
+  "setup": "On a flat countertop (z = 0.7475 m) in front of the dual-arm robot stand two loose objects: (1) a 1:1 12-cup drip coffee maker (polypropylene housing with stainless trim, rear water reservoir filled for a 12-cup brew, and glass carafe on the lower warming plate, 327.9 x 201.9 x 353.1 mm, 3.65 kg) centered at (0.435, -0.055) m facing the robot, with its front-left Z-hinged swivel filter basket holder (130 mm OD, horizontal 32 mm pull tab) closed beneath the upper brew-head overhang (12.0 mm above the seated filter rim) and carrying a seated removable polypropylene filter basket (116.6 mm top ID, 89.6 mm floor ID); and (2) a 1:1 reusable basket coffee filter (gold-tone stainless mesh with polypropylene rim, side pivot ears, and hinged stainless wire bail handle, 109.2 mm top OD, 84.0 mm base OD, 53.3 mm height, 42 g) resting upright on the counter at (0.265, -0.220) m with its semicircular bail handle (48.0 mm radius) standing upright 90.5 deg above horizontal.",
+  "scoring": "0.5 when the reusable filter is seated upright inside the removable filter basket (filter axis within 10.0 deg of basket axis, filter rim center within 8.0 mm horizontally of basket rim center, filter base within -4.0 to +6.0 mm vertically of the basket seat floor) with the coffee maker upright within 8.0 deg, all six fingertip points at least 80.0 mm from every object surface, and all parts still within 1.0 mm over 1.0 s, while the swivel basket holder remains open past 5.0 deg; 1.0 when, in addition, the wire bail handle is folded within 14.0 deg of flat (extending at most 10.2 mm above the filter rim) and the swivel basket holder is closed within 5.0 deg of flush; 0.0 otherwise (including any part falling more than 30.0 mm below the countertop).",
+  "run_limit": "960 steps (48 seconds at 20 Hz)",
+  "reset_notes": "The coffee maker stays unplugged with 12 cups of cold water kept in its rear tank for counterweight (no water is brewed or consumed); between trials, lift out the reusable filter, stand its bail upright on the counter at (0.265, -0.220) m, and swing the holder shut.",
+  "fidelity": "Articulated 1:1 rigid-body assembly from published brewer (328x202x353 mm) and filter (109x84x53 mm) outer specs; the removable filter basket starts seated in the swivel holder's rim slots as one subassembly, tapered wall staves are chordal boxes, and internal basket ID (117 mm), brew-head gap (12 mm), bail pivot recess (3.5 mm), filled brewer and filter masses (3.65 kg, 42 g), and hinge friction (0.08, 0.02 Nm) are engineering estimates.",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": "M-JTYRX2"
+}
