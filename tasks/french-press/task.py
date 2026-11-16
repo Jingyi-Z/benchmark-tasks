@@ -251,8 +251,8 @@ LID_Z_TOL = 0.006            # within 6 mm of carafe rim height
 LID_TILT_TOL = 5.0           # <=5 deg tilt
 # Modeled spout/slot ray occlusion: carafe -Y spout gap spans +-10.46 deg between staves 11 & 13 (r_in=45.0 mm) and lid
 # -Y pour slot spans +-32.65 deg between solid pilot-skirt staves 10 & 14 (r_in=37.0 mm, solid across remaining 294.7 deg
-# continuously through 180 deg). Exact 2D box ray-coverage transition is 32.65 + 10.46 = 43.11 deg -> >=43.2 deg blocks all rays.
-SPOUT_CLOSED_MIN_DEG = 43.2
+# continuously through 180 deg). Exact 2D box ray-coverage transition is 32.65 + 10.46 = 43.11 deg -> >=43.15 deg blocks all rays.
+SPOUT_CLOSED_MIN_DEG = 43.15
 PLUNGE_GOAL = 0.052          # >=52 mm final depth AND >=52 mm net downward travel accumulated while seated on carafe
 MAX_PLUNGE_SPEED = 0.110     # >110 mm/s filter descent inside 90 mm carafe bore (insertion or seated press) latches 0
 HANDS_CLEAR = 0.080          # >=80 mm exact collider-surface clearance from both pad midpoints + all 4 jaw endpoints
