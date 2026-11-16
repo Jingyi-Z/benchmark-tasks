@@ -1,0 +1,19 @@
+{
+  "title": "Hang a 6-outlet power strip onto workbench keyhole studs and slide it locked",
+  "category": "Impact on jobs",
+  "keywords": [
+    "bimanual",
+    "keyhole mount",
+    "power strip",
+    "undercut slot",
+    "facility maintenance"
+  ],
+  "instruction": "Hang the 6-outlet power strip onto both mounting studs of the workbench riser board and slide it left until locked.",
+  "context": "Facility maintenance technicians and electricians mount keyhole-slotted power strips onto workbench risers: unlike open rail hooks or protruding shelf tabs, both keyhole openings are recessed blind inside the flat rear backplate that occludes the two 101 mm-spaced studs on approach, requiring simultaneous blind registration and an orthogonal sideways undercut slide.",
+  "setup": "On a workbench (z = 0.7475 m) sit two 1:1 objects with no artificial starting cradle or handle bar: (1) a fixed painted-steel workbench riser backboard (18.0 x 360.0 x 195.0 mm with rear base flange) centered at (0.425, 0.000) m (front -X face at x = 0.416 m) carrying two horizontal stainless #10 pan-head mounting studs at y = -0.0505 m and y = +0.0505 m (exact 101.0 mm spacing) and z = 0.8995 m, each with a 4.5 mm shank (8.0 mm long) and a 9.6 x 9.6 x 2.8 mm head (engineering estimates); and (2) a loose 1:1 6-outlet surge-protector power strip (Eaton Tripp Lite TLP606, ABS/polycarbonate housing 276.0 x 47.0 x 33.0 mm, 0.460 kg total mass, with six recessed 3-prong NEMA 5-15R receptacles in a 5-standard plus 1-transformer-spaced layout with brass contacts, hinged illuminated red RESET/OFF rocker switch inside a guard bezel, Protected/Grounded LEDs, end thermal-breaker button, ribbed strain-relief boot, and an articulated SJT AC power cable ending in a 3-prong NEMA 5-15P plug) lying flat outlet-face-up at (0.265, 0.000) m with four rear keyhole undercut pockets on the published 101.0 mm lengthwise by 28.0 mm transverse grid (estimated 12.4 x 12.4 mm entry openings, 6.2 mm locking necks, and 6.8 mm head cavities behind a 3.4 mm backplate).",
+  "scoring": "0.5 when the power strip housing is suspended off the workbench (lowest housing point at least 60.0 mm above the bench, housing wholly within the 360.0 mm riser width, rear face within 4.5 mm of x = 0.416 m with backplate normal within 15.0 deg of +X) with both mounting studs engaged inside any two keyhole entry-or-neck cavities, all six fingertip points at least 80.0 mm from the riser, strip housing, power cable, and plug, and all housing corners moving less than 1.0 mm over 1.0 s, while not yet slid into both narrow undercut necks (slide travel under 8.5 mm); 1.0 when, in any securely engaged orientation (upper or lower keyhole row, no arbitrary roll cap), both 9.6 mm stud heads sit inside two distinct 6.2 mm undercut necks (slide travel 8.5 to 16.0 mm from entry) with rear face within 4.5 mm of x = 0.416 m, all six fingertip points at least 80.0 mm clear of riser, housing, cord, and plug, and 1.0 s stillness under 1.0 mm; 0.0 otherwise.",
+  "run_limit": "680 steps (34 seconds at 20 Hz)",
+  "fidelity": "Articulated 1:1 Eaton Tripp Lite TLP606 assembly (276.0x47.0x33.0 mm, 0.460 kg, four keyholes on 101.0x28.0 mm centers, six recessed 3-prong NEMA 5-15R sockets, hinged rocker switch, and 4-link SJT AC cord with NEMA 5-15P plug) with zero scripted locks; pressing over either row passes both 9.6 mm stud heads into 6.8 mm pockets, and sliding +12.4 mm left traps both behind 6.2 mm necks. Internal pocket, shortened cord, and #10 stud dimensions are estimates.",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": "M-2QYZNF"
+}
