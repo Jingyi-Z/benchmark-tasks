@@ -44,6 +44,15 @@ def dist_pts_to_boxes(world_pts: np.ndarray, boxes, pos: np.ndarray, R: np.ndarr
     return best
 
 
+class _DefaultPose:
+    def __init__(self, pos):
+        self.pos = np.asarray(pos, float)
+        self._R = np.eye(3)
+
+    def rotation(self) -> np.ndarray:
+        return self._R
+
+
 class Metric:
     def __init__(self, ns: dict):
         self.top = float(ns["TOP"])
@@ -64,13 +73,72 @@ class Metric:
         self.frame_pos = np.asarray(ns["FILE_FRAME"].pos, float)
         self.riser_boxes = ns["INBOX_RISER"].boxes
         self.riser_pos = np.asarray(ns["INBOX_RISER"].pos, float)
+        self.rear_folder_specs = list(ns.get("REAR_FOLDERS", ()))
         self._I3 = np.eye(3)
 
         self.front_corners = part_local_corners(self.front_boxes)
         self.rear_corners = part_local_corners(self.rear_boxes)
         self.pkt_corners = part_local_corners(self.pkt_boxes)
+        self.rear_folder_corners = [part_local_corners(rf.boxes) for rf in self.rear_folder_specs]
         self.lk = ns["labkit"]
+        # Derive each void from its two actual retaining lugs, not a point tolerance.
+        self.saddles = []
+        for boxes, rear in ((self.front_boxes, False), (self.rear_boxes, True)):
+            for sign in (1.0, -1.0):
+                lugs = [b for b in boxes
+                        if abs(float(b[0][0]) - (self.rod_x_local - 0.00225)) < 1e-7
+                        and abs(float(b[0][1]) - sign * self.rail_y) < 0.012]
+                assert len(lugs) == 2, "Expected two physical saddle retaining lugs"
+                lugs.sort(key=lambda b: b[0][1])
+                lo, hi = lugs
+                self.saddles.append(dict(
+                    rear=rear, rail_y=sign * self.rail_y,
+                    ylo=float(lo[0][1] + lo[1][1] / 2),
+                    yhi=float(hi[0][1] - hi[1][1] / 2),
+                    xlo=max(float(b[0][0] - b[1][0] / 2) for b in lugs),
+                    bearing=min(float(b[0][0] + b[1][0] / 2) for b in lugs),
+                    zlo=max(float(b[0][2] - b[1][2] / 2) for b in lugs),
+                    zhi=min(float(b[0][2] + b[1][2] / 2) for b in lugs)))
+        self.rail_half_width = float(self.frame_boxes[0][1][1]) / 2
         self.reset()
+
+    def rail_in_saddle(self, origin, rotation, saddle):
+        """Intersect the real rail with both finite hook faces.
+
+        Both sides of the 3.6mm rail must be inside the 7.2mm void,
+        including the upper 2mm of its height. The rail top must meet
+        the rod's bearing underside (0.50mm separation / 0.10mm solver
+        penetration allowance). No sideways clearance is added.
+        """
+        normal = rotation[:, 2]
+        if abs(float(normal[0])) < 0.25:
+            return False, -999.0, 999.0
+        points = []
+        tops = []
+        for local_z in (saddle['zlo'], saddle['zhi']):
+            for y in (saddle['rail_y'] - self.rail_half_width,
+                      saddle['rail_y'] + self.rail_half_width):
+                for z in (self.rail_z_top, self.rail_z_top - 0.002):
+                    # Dot(n, world-origin)=local_z, solving for rail-longitudinal X.
+                    x = float(origin[0] + (local_z - normal[1] * (y-origin[1])
+                                          - normal[2] * (z-origin[2])) / normal[0])
+                    if not self.rail_x_min <= x <= self.rail_x_max:
+                        return False, -999.0, 999.0
+                    q = rotation.T @ (np.array([x, y, z]) - origin)
+                    points.append(q)
+                    if z == self.rail_z_top:
+                        tops.append(q)
+        points = np.asarray(points)
+        tops = np.asarray(tops)
+        side_margin = min(float(np.min(points[:, 1]) - saddle['ylo']),
+                          float(saddle['yhi'] - np.max(points[:, 1])))
+        bearing_gap = saddle['bearing'] - tops[:, 0]
+        supported = bool(np.all(bearing_gap >= -0.00010)
+                         and np.all(bearing_gap <= 0.00050))
+        nested = bool(np.min(points[:, 0]) >= saddle['xlo'] - 1e-7
+                      and np.max(points[:, 0]) <= saddle['bearing'] + 0.00010)
+        return (side_margin >= -1e-7 and nested and supported,
+                side_margin * 1000, float(np.max(bearing_gap)) * 1000)
 
     def reset(self):
         self.hist = []
@@ -102,8 +170,25 @@ class Metric:
         p_r = p_f + R_f @ self.anchor_r - R_r @ self.anchor_r
         return p_f, R_f, p_r, R_r, theta
 
-    def evaluate_states(self, fld_s, pkt_s, tip_pts_world: np.ndarray, hist_override=None) -> float:
+    def all_world_corners(self, fld_s, pkt_s, rear_states=None) -> np.ndarray:
+        p_f, R_f, p_r, R_r, _ = self.rear_origin_and_rot(fld_s)
+        p_p = np.asarray(pkt_s.pos, float)
+        R_p = pkt_s.rotation()
+        blocks = [
+            self.front_corners @ R_f.T + p_f,
+            self.rear_corners @ R_r.T + p_r,
+            self.pkt_corners @ R_p.T + p_p,
+        ]
+        if rear_states is None:
+            rear_states = [_DefaultPose(rf.pos) for rf in self.rear_folder_specs]
+        for corners_rf, rf_s in zip(self.rear_folder_corners, rear_states):
+            blocks.append(corners_rf @ rf_s.rotation().T + np.asarray(rf_s.pos, float))
+        return np.vstack(blocks)
+
+    def evaluate_states(self, fld_s, pkt_s, tip_pts_world: np.ndarray, rear_states=None, hist_override=None) -> float:
         p_f, R_f, p_r, R_r, theta = self.rear_origin_and_rot(fld_s)
+        if rear_states is None:
+            rear_states = [_DefaultPose(rf.pos) for rf in self.rear_folder_specs]
 
         p_p = np.asarray(pkt_s.pos, float)
         R_p = pkt_s.rotation()
@@ -111,7 +196,11 @@ class Metric:
         fc_w = self.front_corners @ R_f.T + p_f
         rc_w = self.rear_corners @ R_r.T + p_r
         pc_w = self.pkt_corners @ R_p.T + p_p
-        all_pts = np.vstack([fc_w, rc_w, pc_w])
+        rf_world_blocks = [
+            corners_rf @ rf_s.rotation().T + np.asarray(rf_s.pos, float)
+            for corners_rf, rf_s in zip(self.rear_folder_corners, rear_states)
+        ]
+        all_pts = np.vstack([fc_w, rc_w, pc_w] + rf_world_blocks)
         off_table = float(np.min(all_pts[:, 2])) < self.top - 0.030
 
         if hist_override is not None:
@@ -130,13 +219,18 @@ class Metric:
             still_disp = float(np.max(np.linalg.norm(disp, axis=-1)))
             still_ok = still_disp < 0.0010
 
-        hand_clear = min(
+        clear_dists = [
             dist_pts_to_boxes(tip_pts_world, self.front_boxes, p_f, R_f),
             dist_pts_to_boxes(tip_pts_world, self.rear_boxes, p_r, R_r),
             dist_pts_to_boxes(tip_pts_world, self.pkt_boxes, p_p, R_p),
             dist_pts_to_boxes(tip_pts_world, self.frame_boxes, self.frame_pos, self._I3),
             dist_pts_to_boxes(tip_pts_world, self.riser_boxes, self.riser_pos, self._I3),
-        )
+        ]
+        for rf_spec, rf_s in zip(self.rear_folder_specs, rear_states):
+            clear_dists.append(
+                dist_pts_to_boxes(tip_pts_world, rf_spec.boxes, np.asarray(rf_s.pos, float), rf_s.rotation())
+            )
+        hand_clear = min(clear_dists)
         hands_ok = hand_clear >= 0.080
 
         # 4 underside rail-hook saddle points in world coordinates:
@@ -153,19 +247,16 @@ class Metric:
         max_dz = max(abs(float(pt[2] - self.rail_z_top)) for pt, _ in notches)
         max_dy = max(abs(float(pt[1] - ry_t)) for pt, ry_t in notches)
         x_vals = [float(pt[0]) for pt, _ in notches]
-        x_in_rails = min(x_vals) >= self.rail_x_min + 0.015 and max(x_vals) <= self.rail_x_max - 0.015
 
         # Crease suspended above desk (8.0 mm nominal when hanging on 238 mm rail vs 0.5 mm flat on desk):
         crease_pts = np.array([[0.0, -0.145, 0.0], [0.0, 0.0, 0.0], [0.0, +0.145, 0.0]]) @ R_f.T + p_f
         crease_min_z = float(np.min(crease_pts[:, 2]))
         crease_clear = crease_min_z - self.top
 
-        hooks_ok = (
-            max_dz <= 0.0045
-            and max_dy <= 0.0060
-            and x_in_rails
-            and crease_clear >= 0.0050
-        )
+        engagement = [self.rail_in_saddle(p_r if s['rear'] else p_f,
+                                         R_r if s['rear'] else R_f, s)
+                      for s in self.saddles]
+        hooks_ok = all(e[0] for e in engagement) and crease_clear >= 0.0050
 
         # Tier 1.0: Document packet retained upright inside the suspended V-folder:
         pkt_min_z = float(np.min(pc_w[:, 2]))
@@ -200,12 +291,15 @@ class Metric:
             pkt_clear_mm=round(pkt_clear * 1000.0, 2),
             between_leaves=between_leaves,
             theta_deg=round(math.degrees(theta), 2),
+            rail_engaged=[bool(e[0]) for e in engagement],
+            min_saddle_side_margin_mm=round(min(e[1] for e in engagement), 3),
+            max_bearing_gap_mm=round(max(e[2] for e in engagement), 3),
         )
         return sc
 
-    def update(self, env, fld_s, pkt_s) -> float:
+    def update(self, env, fld_s, pkt_s, rear_states=None) -> float:
         tips = self._six_hand_points(env)
-        return self.evaluate_states(fld_s, pkt_s, tips)
+        return self.evaluate_states(fld_s, pkt_s, tips, rear_states=rear_states)
 
     def score(self) -> float:
         return float(self.last_score)

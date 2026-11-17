@@ -56,9 +56,11 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import arena_assets_fix  # noqa: E402,F401
 
 __all__ = ["Joint", "Part", "PartState", "part", "Model", "JointSet", "model", "on_step", "on_reset", "env", "install",
-           "GLASS_COLORS", "stl_mesh", "Mesh"]
+           "GLASS_COLORS", "MATTE_COLORS", "METALLIC_COLORS", "stl_mesh", "Mesh"]
 
-GLASS_COLORS: set = set()  # colours drawn as glass
+GLASS_COLORS: set = set()     # colours drawn as glass
+MATTE_COLORS: set = set()     # colours drawn as matte paper/card/wood (roughness 0.90)
+METALLIC_COLORS: set = set()  # colours drawn as brushed steel (roughness 0.28, metallic 0.72)
 
 Color = tuple[float, float, float]
 _AXES = ("X", "Y", "Z")
@@ -433,7 +435,12 @@ def _author(prim_path: str, cfg, translation=None, orientation=None, **kwargs):
                     except Exception:
                         continue
             if not made:
-                vis = sim_utils.PreviewSurfaceCfg(diffuse_color=linear_rgb(color), roughness=0.5)
+                if color in MATTE_COLORS:
+                    vis = sim_utils.PreviewSurfaceCfg(diffuse_color=linear_rgb(color), roughness=0.90, metallic=0.0)
+                elif color in METALLIC_COLORS:
+                    vis = sim_utils.PreviewSurfaceCfg(diffuse_color=linear_rgb(color), roughness=0.28, metallic=0.72)
+                else:
+                    vis = sim_utils.PreviewSurfaceCfg(diffuse_color=linear_rgb(color), roughness=0.5)
                 vis.func(path, vis)
             looks[color] = path
         return looks[color]

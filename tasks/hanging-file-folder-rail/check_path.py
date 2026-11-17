@@ -1,4 +1,4 @@
-"""289-hull installed-robot ArmPlan.action7(t) + FILE_FRAME/INBOX_RISER + swept-FOLDER collision screen + 12 scorer counterexamples."""
+"""289-hull installed-robot ArmPlan.action7(t) + FILE_FRAME/INBOX_RISER/REAR_FOLDERS + swept-FOLDER/PACKET collision screen + 170 scorer witnesses."""
 import json
 import math
 import pathlib
@@ -41,8 +41,16 @@ def check_metadata():
     }
     assert tj["category"] in allowed, f"Bad category: {tj['category']}"
     fid_len = len(tj["fidelity"])
+    rst_len = len(tj.get("reset_notes", ""))
     assert fid_len < 500, f"fidelity too long: {fid_len}"
-    print(f"[PASS] task.json category='{tj['category']}', len(fidelity)={fid_len} < 500")
+    assert rst_len < 1500, f"reset_notes too long: {rst_len}"
+    assert "Possible scores: 0, 0.5, 1.0." in tj["scoring"], "Missing Possible scores"
+    assert "Real trial:" in tj["scoring"], "Missing Real trial sentence"
+    assert "Closest look-alikes:" in tj["context"], "Missing Closest look-alikes"
+    print(
+        f"[PASS] task.json category='{tj['category']}', len(fidelity)={fid_len} < 500, "
+        f"len(reset_notes)={rst_len} < 1500"
+    )
 
 
 def obb_overlap(box_a, pos_a, R_a, box_b, pos_b, R_b, eps=1e-5) -> float:
@@ -89,6 +97,8 @@ def check_static_sections():
     p_frm = np.asarray(task.FILE_FRAME.pos, float)
     p_fld0 = np.asarray(task.FOLDER.pos, float)
     p_pkt0 = np.asarray(task.PACKET.pos, float)
+    p_rf1 = np.asarray(task.REAR_FOLDER_1.pos, float)
+    p_rf2 = np.asarray(task.REAR_FOLDER_2.pos, float)
 
     check_boxes_pair(task.INBOX_RISER.boxes, p_ris, I3, task.FILE_FRAME.boxes, p_frm, I3, "t=0 RISER vs FRAME")
     check_boxes_pair(task.INBOX_RISER.boxes, p_ris, I3, task.FRONT_LEAF_BOXES, p_fld0, I3, "t=0 RISER vs FRONT_LEAF")
@@ -98,6 +108,9 @@ def check_static_sections():
     check_boxes_pair(task.FILE_FRAME.boxes, p_frm, I3, task.REAR_LEAF_BOXES, p_fld0, I3, "t=0 FRAME vs REAR_LEAF")
     check_boxes_pair(task.FRONT_LEAF_BOXES, p_fld0, I3, task.PACKET.boxes, p_pkt0, I3, "t=0 FRONT_LEAF vs PACKET")
     check_boxes_pair(task.REAR_LEAF_BOXES, p_fld0, I3, task.PACKET.boxes, p_pkt0, I3, "t=0 REAR_LEAF vs PACKET")
+    check_boxes_pair(task.FILE_FRAME.boxes, p_frm, I3, task.REAR_FOLDER_1.boxes, p_rf1, I3, "t=0 FRAME vs REAR_FOLDER_1")
+    check_boxes_pair(task.FILE_FRAME.boxes, p_frm, I3, task.REAR_FOLDER_2.boxes, p_rf2, I3, "t=0 FRAME vs REAR_FOLDER_2")
+    check_boxes_pair(task.REAR_FOLDER_1.boxes, p_rf1, I3, task.REAR_FOLDER_2.boxes, p_rf2, I3, "t=0 REAR_FOLDER_1 vs REAR_FOLDER_2")
 
     R_hang = ry(-0.5 * math.pi)
     p_fld_goal = np.array([task.X_HANG, 0.0, task.RAIL_Z_TOP - task.ROD_SEAT_X + 0.0002])
@@ -106,6 +119,9 @@ def check_static_sections():
     check_boxes_pair(task.FILE_FRAME.boxes, p_frm, I3, task.REAR_LEAF_BOXES, p_fld_goal, R_hang, "Goal FRAME vs REAR_LEAF")
     check_boxes_pair(task.FRONT_LEAF_BOXES, p_fld_goal, R_hang, task.PACKET.boxes, p_pkt_goal, R_hang, "Goal FRONT_LEAF vs PACKET")
     check_boxes_pair(task.REAR_LEAF_BOXES, p_fld_goal, R_hang, task.PACKET.boxes, p_pkt_goal, R_hang, "Goal REAR_LEAF vs PACKET")
+    check_boxes_pair(task.FRONT_LEAF_BOXES, p_fld_goal, R_hang, task.REAR_FOLDER_1.boxes, p_rf1, I3, "Goal FRONT_LEAF vs REAR_FOLDER_1")
+    check_boxes_pair(task.REAR_LEAF_BOXES, p_fld_goal, R_hang, task.REAR_FOLDER_1.boxes, p_rf1, I3, "Goal REAR_LEAF vs REAR_FOLDER_1")
+    check_boxes_pair(task.PACKET.boxes, p_pkt_goal, R_hang, task.REAR_FOLDER_1.boxes, p_rf1, I3, "Goal PACKET vs REAR_FOLDER_1")
 
 
 def check_scorer_counterexamples():
@@ -117,18 +133,15 @@ def check_scorer_counterexamples():
     p_fld_goal = np.array([task.X_HANG, 0.0, task.RAIL_Z_TOP - task.ROD_SEAT_X])
     p_pkt_goal = p_fld_goal + R_hang @ np.array([0.1050, 0.0, 0.0058])
     far_tips = np.tile(np.array([[0.10, +0.35, 0.95], [0.10, -0.35, 0.95]]), (3, 1))
+    default_rears = [FakeState(rf.pos, I3) for rf in task.REAR_FOLDERS]
 
-    def eval_static(fld_s, pkt_s, tips=far_tips, jitter=0.0, reset_first=True):
+    def eval_static(fld_s, pkt_s, tips=far_tips, rear_states=None, jitter=0.0, reset_first=True):
         if reset_first:
             m.reset()
-        p_f, R_f, p_r, R_r, _ = m.rear_origin_and_rot(fld_s)
-        pts = np.vstack([
-            m.front_corners @ R_f.T + p_f,
-            m.rear_corners @ R_r.T + p_r,
-            m.pkt_corners @ pkt_s.rotation().T + pkt_s.pos,
-        ])
+        rs = default_rears if rear_states is None else rear_states
+        pts = m.all_world_corners(fld_s, pkt_s, rs)
         hist = [pts + (np.array([0, 0, jitter]) if k == 20 else 0.0) for k in range(21)]
-        return m.evaluate_states(fld_s, pkt_s, tips, hist_override=hist)
+        return m.evaluate_states(fld_s, pkt_s, tips, rear_states=rs, hist_override=hist)
 
     assert eval_static(FakeState(p_fld0), FakeState(p_pkt0)) == 0.0
     assert eval_static(FakeState(p_fld_goal, R_hang), FakeState(p_pkt_goal, R_hang)) == 1.0
@@ -152,7 +165,42 @@ def check_scorer_counterexamples():
     assert eval_static(FakeState(p_fld_goal, R_hang), FakeState([0.20, 0.0, task.TOP - 0.050], I3)) == 0.0
     eval_static(FakeState([0.05, 0.0, task.TOP - 0.050], R_hang), FakeState([0.05, 0.0, task.TOP - 0.040], R_hang))
     assert eval_static(FakeState(p_fld_goal, R_hang), FakeState(p_pkt_goal, R_hang), reset_first=False) == 1.0
-    print("[PASS] 15/15 CPU scorer counterexamples verified")
+
+    # Neighbor rear-folder witnesses (hand clearance, dropped neighbor, harmless +15 mm slide along rail):
+    near_rear_tips = far_tips.copy()
+    near_rear_tips[0] = np.array([task.REAR_FOLDER_1.pos[0], 0.0, task.RAIL_Z_TOP + 0.060])
+    assert eval_static(FakeState(p_fld_goal, R_hang), FakeState(p_pkt_goal, R_hang), tips=near_rear_tips) == 0.0
+    dropped_rears = [FakeState([0.635, 0.0, task.TOP - 0.050], I3), FakeState(task.REAR_FOLDER_2.pos, I3)]
+    assert eval_static(FakeState(p_fld_goal, R_hang), FakeState(p_pkt_goal, R_hang), rear_states=dropped_rears) == 0.0
+    bumped_rears = [FakeState(np.asarray(task.REAR_FOLDER_1.pos) + [0.015, 0.0, 0.0], I3), FakeState(task.REAR_FOLDER_2.pos, I3)]
+    assert eval_static(FakeState(p_fld_goal, R_hang), FakeState(p_pkt_goal, R_hang), rear_states=bumped_rears) == 1.0
+
+    # Witness (TK-SJ4K8R counterexample): rod balanced +4.0 mm sideways and +4.49 mm high on inner lug tips
+    # outside the 7.2 mm saddle void (within old 6.0 mm / 4.5 mm point tolerances) MUST score 0.0:
+    p_outside_saddle = np.array([task.X_HANG, +0.0040, task.RAIL_Z_TOP - task.ROD_SEAT_X + 0.00449])
+    p_pkt_outside = p_outside_saddle + R_hang @ np.array([0.1050, 0.0, 0.0058])
+    assert eval_static(FakeState(p_outside_saddle, R_hang), FakeState(p_pkt_outside, R_hang)) == 0.0
+    assert m.detail["rail_engaged"] == [False, False, False, False], m.detail
+    assert m.detail["min_saddle_side_margin_mm"] < -2.0, m.detail
+
+    # Grid audit: 140 valid in-saddle placements -> 1.0, and 10 out-of-saddle / unseated offsets -> 0.0:
+    for dy in np.linspace(-0.0017, +0.0017, 35):
+        for dz in (-0.00005, 0.0, 0.00020, 0.00045):
+            pf_v = np.array([task.X_HANG, float(dy), task.RAIL_Z_TOP - task.ROD_SEAT_X + dz])
+            pp_v = pf_v + R_hang @ np.array([0.1050, 0.0, 0.0058])
+            assert eval_static(FakeState(pf_v, R_hang), FakeState(pp_v, R_hang)) == 1.0, (dy, dz, m.detail)
+    for dy in (-0.006, -0.004, -0.002, +0.002, +0.004, +0.006):
+        pf_n = np.array([task.X_HANG, dy, task.RAIL_Z_TOP - task.ROD_SEAT_X])
+        pp_n = pf_n + R_hang @ np.array([0.1050, 0.0, 0.0058])
+        assert eval_static(FakeState(pf_n, R_hang), FakeState(pp_n, R_hang)) == 0.0, (dy, m.detail)
+    for dz in (-0.00020, +0.00070, +0.00200, +0.00449):
+        pf_n = np.array([task.X_HANG, 0.0, task.RAIL_Z_TOP - task.ROD_SEAT_X + dz])
+        pp_n = pf_n + R_hang @ np.array([0.1050, 0.0, 0.0058])
+        assert eval_static(FakeState(pf_n, R_hang), FakeState(pp_n, R_hang)) == 0.0, (dz, m.detail)
+    print(
+        "[PASS] 169/169 CPU scorer checks verified (140 valid in-saddle -> 1.0, "
+        "outside-saddle lug-tip balance + 10 offsets -> 0.0, 18 structural & neighbor cases)"
+    )
 
 
 def _boxes_to_hulls(prefix, boxes, p_obj, R_obj=None):
@@ -178,10 +226,13 @@ def _boxes_to_hulls(prefix, boxes, p_obj, R_obj=None):
 
 
 def _scene_box_hulls():
-    return (
+    hulls = (
         _boxes_to_hulls("riser", task.INBOX_RISER.boxes, np.asarray(task.INBOX_RISER.pos, float))
         + _boxes_to_hulls("frame", task.FILE_FRAME.boxes, np.asarray(task.FILE_FRAME.pos, float))
     )
+    for idx, rf in enumerate(task.REAR_FOLDERS, start=1):
+        hulls = hulls + _boxes_to_hulls(f"rear_folder_{idx}", rf.boxes, np.asarray(rf.pos, float))
+    return hulls
 
 
 def _polyhedra_intersect_exact(va, pa, vb, pb) -> bool:
@@ -236,7 +287,11 @@ def check_full_trajectory():
     I3 = np.eye(3)
     p_ris = np.asarray(task.INBOX_RISER.pos, float)
     p_frm = np.asarray(task.FILE_FRAME.pos, float)
-    all_fld_boxes = list(task.FRONT_LEAF_BOXES) + list(task.REAR_LEAF_BOXES)
+    pkt_boxes_in_fld = [
+        (tuple(np.asarray(b[0], float) + np.array([0.1050, 0.0, 0.0058])), b[1], b[2])
+        for b in task.PACKET.boxes
+    ]
+    all_fld_boxes = list(task.FRONT_LEAF_BOXES) + list(task.REAR_LEAF_BOXES) + pkt_boxes_in_fld
     fld_corners_local = part_local_corners(all_fld_boxes)
     q_grasp_local = np.array([task.GRASP_X_LOCAL, 0.0, 0.00585], float)
 
@@ -268,8 +323,6 @@ def check_full_trajectory():
         min_inter_aabb_mm = 999.0
         min_scene_aabb_mm = 999.0
         dt = 0.05 if mode == "" else 0.10
-        flo = np.array([fh[3] for fh in scene_hulls])
-        fhi = np.array([fh[4] for fh in scene_hulls])
         for t in np.arange(0.0, duration + 0.001, dt):
             bodies = []
             tcp_acts = []
@@ -317,7 +370,7 @@ def check_full_trajectory():
                     pr = world_planes(rr[2], rr[3], rr[4])
                     if _polyhedra_intersect_exact(rr[1], pr, ff[1], ff[2]):
                         scene_hits.append([round(float(t), 2), arm_idx, rr[0], ff[0]])
-            # Swept carried-FOLDER OBB check during clamped carry/seating phase (t in [3.75, 10.00] s):
+            # Swept carried-FOLDER+PACKET OBB check during clamped carry/seating phase (t in [3.75, 10.00] s):
             if mode == "" and 3.75 <= t <= 10.00:
                 c_r = tcp_acts[0] + task.PAD_OFFSET * rot_acts[0][:, 2]
                 c_l = tcp_acts[1] + task.PAD_OFFSET * rot_acts[1][:, 2]
@@ -339,6 +392,12 @@ def check_full_trajectory():
                         pen = obb_overlap(fb, p_fld, R_fld, mb, p_frm, I3)
                         if pen > 2e-4:
                             swept_fld_hits.append([round(float(t), 2), f"frame_{idx_f}", round(pen * 1000.0, 2)])
+                    for rfi, rf_spec in enumerate(task.REAR_FOLDERS, start=1):
+                        p_rf = np.asarray(rf_spec.pos, float)
+                        for idx_rf, rfb in enumerate(rf_spec.boxes):
+                            pen = obb_overlap(fb, p_fld, R_fld, rfb, p_rf, I3)
+                            if pen > 2e-4:
+                                swept_fld_hits.append([round(float(t), 2), f"rear{rfi}_{idx_rf}", round(pen * 1000.0, 2)])
             for i in range(2):
                 lows = [
                     (v[0], float(v[5][2] - task.TOP) * 1000.0)

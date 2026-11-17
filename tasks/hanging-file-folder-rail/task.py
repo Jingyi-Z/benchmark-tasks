@@ -1,9 +1,12 @@
 """Clamp a V-hinged hanging file folder around a loose packet and hang it on frame rails.
 
 Modeled 1:1 on an Officemate 91990 letter-size steel hanging file frame set to its 14 in
-(355.6 mm) depth (317.6 mm center-to-center rail span, 238 mm rail height) and a Pendaflex
-4152 letter-size reinforced hanging file folder (328 mm top hanger-rod span, 298.5 x 230 mm
-pressboard leaves, 0.16 kg) enclosing a loose 280 x 195 x 6 mm (0.20 kg) manila packet.
+(355.6 mm) depth (317.6 mm center-to-center rail span, 238 mm rail height), two loose
+already-filed Pendaflex 4152 letter-size hanging folders near the rear of the frame, and a
+target Pendaflex 4152 hanging folder (328 mm top hanger-rod span, 298.5 x 230 mm pressboard
+leaves, 1/5-cut index tab, 0.16 kg) enclosing a loose ~60-sheet printed US-letter document
+packet in a Smead 10330 1/3-cut manila folder cover (280 x 195 x 6 mm core stack with an
+exposed 62 x 180 x 4 mm printed top-sheet header and 12 x 88 x 2 mm 1/3-cut manila tab, 0.20 kg).
 """
 import json
 import math
@@ -15,7 +18,7 @@ import numpy as np
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import arena_assets_fix  # noqa: F401
 import labkit
-from labkit import Joint, on_reset, on_step, part
+from labkit import Joint, MATTE_COLORS, METALLIC_COLORS, Mesh, on_reset, on_step, part
 from yam_arena import ik
 from yam_arena.constants import FINGER_OPEN, LEFT_BASE_POS, READY, RIGHT_BASE_POS
 from yam_arena.demo import Waypoint
@@ -28,21 +31,105 @@ RUN_STEPS = 900
 SUCCESS_HOLD_S = 2.5
 labkit.CONTACT_OFFSET = 0.0004
 
-STEEL_DARK = (0.24, 0.26, 0.29)
-STEEL_RAIL = (0.72, 0.75, 0.79)
-FOLDER_GREEN = (0.20, 0.38, 0.27)
-ROD_WHITE = (0.88, 0.89, 0.90)
-MANILA = (0.86, 0.76, 0.54)
+# Frame & hardware colors
+STEEL_DARK = (0.20, 0.22, 0.25)
+STEEL_RAIL = (0.76, 0.79, 0.83)
+ROD_WHITE = (0.91, 0.92, 0.93)
 
-# --- 0. Fixed desktop letter inbox riser (200 x 130 x 32 mm) supporting the flat folder leaves ---
-# Narrow 130 mm Y-width (y in [-0.065, +0.065]) leaves |y| in [0.065, 0.164] m overhanging 32 mm above TOP!
+# Natural butcher-block oak pickup riser colors (matte wood, distinct from metal & paper)
+WOOD_OAK = (0.71, 0.55, 0.36)
+WOOD_LIGHT = (0.77, 0.62, 0.42)
+WOOD_DARK = (0.63, 0.47, 0.30)
+WOOD_BASE = (0.28, 0.23, 0.18)
+MARK_DARK = (0.16, 0.15, 0.14)
+
+# Matte Pendaflex 4152 pressboard/paper-stock & Smead manila/paper document colors
+FOLDER_GREEN = (0.21, 0.41, 0.28)
+FOLDER_INNER = (0.61, 0.69, 0.55)
+FOLDER_REINF = (0.15, 0.31, 0.21)
+MANILA = (0.87, 0.76, 0.50)
+PAPER_WHITE = (0.96, 0.95, 0.92)
+PAPER_CREAM = (0.92, 0.90, 0.86)
+PAPER_EDGE = (0.84, 0.82, 0.78)
+LABEL_WHITE = (0.97, 0.97, 0.95)
+INK_HEADER = (0.17, 0.24, 0.35)
+INK_LINE = (0.27, 0.29, 0.32)
+
+# Staggered 1/5-cut clip-on plastic index tabs
+TAB_BLUE = (0.23, 0.47, 0.73)
+TAB_AMBER = (0.78, 0.52, 0.18)
+TAB_CLEAR = (0.76, 0.81, 0.85)
+
+METALLIC_COLORS.add(STEEL_RAIL)
+MATTE_COLORS.update({
+    STEEL_DARK,
+    WOOD_OAK,
+    WOOD_LIGHT,
+    WOOD_DARK,
+    WOOD_BASE,
+    MARK_DARK,
+    FOLDER_GREEN,
+    FOLDER_INNER,
+    FOLDER_REINF,
+    MANILA,
+    PAPER_WHITE,
+    PAPER_CREAM,
+    PAPER_EDGE,
+    LABEL_WHITE,
+    INK_HEADER,
+    INK_LINE,
+})
+
+_BOX_TRIS = np.array(
+    [
+        [0, 2, 1], [1, 2, 3],  # -X
+        [4, 5, 6], [5, 7, 6],  # +X
+        [0, 1, 4], [1, 5, 4],  # -Y
+        [2, 6, 3], [3, 6, 7],  # +Y
+        [0, 4, 2], [2, 4, 6],  # -Z
+        [1, 3, 5], [3, 7, 5],  # +Z
+    ],
+    dtype=np.int32,
+)
+
+
+def _box_mesh(center, size, color, pitch: float = 0.0) -> Mesh:
+    """Visual-only box mesh (collide='none') for crisp paper edges, printed lines, labels, and wood grain."""
+    c = np.asarray(center, float)
+    hx, hy, hz = 0.5 * np.asarray(size, float)
+    pts = np.array(
+        [[sx * hx, sy * hy, sz * hz] for sx in (-1.0, 1.0) for sy in (-1.0, 1.0) for sz in (-1.0, 1.0)],
+        float,
+    )
+    if pitch:
+        cp, sp = math.cos(pitch), math.sin(pitch)
+        rp = np.array([[cp, 0.0, sp], [0.0, 1.0, 0.0], [-sp, 0.0, cp]])
+        pts = pts @ rp.T
+    return Mesh(points=pts + c, tris=_BOX_TRIS, color=color, collide="none")
+
+
+# --- 0. Fixed wooden pickup block (200 x 130 x 32 mm) supporting the flat folder leaves ---
+# Narrow 130 mm Y-width (y in [-0.065, +0.065]) leaves |y| in [0.065, 0.164] m overhanging 32 mm above TOP.
 RISER_H = 0.0320
+RISER_MESHES = [
+    _box_mesh((0.0, 0.0, 0.0018), (0.1996, 0.1296, 0.0032), WOOD_BASE),
+    _box_mesh((0.0, -0.0455, 0.5 * RISER_H + 0.0002), (0.1996, 0.0360, RISER_H - 0.0002), WOOD_LIGHT),
+    _box_mesh((0.0, 0.0000, 0.5 * RISER_H + 0.0002), (0.1996, 0.0360, RISER_H - 0.0002), WOOD_DARK),
+    _box_mesh((0.0, +0.0455, 0.5 * RISER_H + 0.0002), (0.1996, 0.0360, RISER_H - 0.0002), WOOD_LIGHT),
+    # Reset alignment corner L-marks on top of the oak block:
+    _box_mesh((-0.0940, -0.0560, RISER_H + 0.0001), (0.0030, 0.0140, 0.0002), MARK_DARK),
+    _box_mesh((-0.0885, -0.0615, RISER_H + 0.0001), (0.0140, 0.0030, 0.0002), MARK_DARK),
+    _box_mesh((-0.0940, +0.0560, RISER_H + 0.0001), (0.0030, 0.0140, 0.0002), MARK_DARK),
+    _box_mesh((-0.0885, +0.0615, RISER_H + 0.0001), (0.0140, 0.0030, 0.0002), MARK_DARK),
+]
+
 INBOX_RISER = part(
     "inbox_riser",
     pos=(0.1750, 0.0, TOP),
     fixed=True,
     friction=0.55,
-    boxes=[((0.0, 0.0, 0.5 * RISER_H), (0.2000, 0.1300, RISER_H), STEEL_DARK)],
+    boxes=[((0.0, 0.0, 0.5 * RISER_H), (0.2000, 0.1300, RISER_H), WOOD_OAK)],
+    meshes=RISER_MESHES,
 )
 
 # --- 1. Fixed Officemate 91990 letter-size steel hanging file frame (14 in = 355.6 mm D) ---
@@ -106,10 +193,42 @@ FRONT_LEAF_BOXES = [
     ((0.00125, 0.0, 0.00585), (0.0025, LEAF_W, 0.0067), FOLDER_GREEN),
 ] + _rod_and_hook_boxes(0.00125)
 
+FRONT_LEAF_MESHES = [
+    # Lighter two-tone anti-misfile kraft-sage interior lining + polylaminate top/gusset reinforcement strips:
+    _box_mesh((0.1160, 0.0, 0.00255), (0.2140, LEAF_W - 0.0020, 0.0002), FOLDER_INNER),
+    _box_mesh((0.2240, 0.0, -0.00005), (0.0110, LEAF_W - 0.0010, 0.0002), FOLDER_REINF),
+    _box_mesh((0.0080, 0.0, -0.00005), (0.0150, LEAF_W - 0.0010, 0.0002), FOLDER_REINF),
+    # Exterior subject label on front leaf (visible when hung upright facing -X toward top_cam):
+    _box_mesh((0.1620, +0.0520, -0.00010), (0.0360, 0.0880, 0.0002), LABEL_WHITE),
+    _box_mesh((0.1745, +0.0520, -0.00018), (0.0055, 0.0820, 0.0002), INK_HEADER),
+    _box_mesh((0.1635, +0.0460, -0.00018), (0.0022, 0.0680, 0.0002), INK_LINE),
+    _box_mesh((0.1555, +0.0490, -0.00018), (0.0022, 0.0740, 0.0002), INK_LINE),
+]
+
 # Rear/upper leaf is hinged at anchor (0.0, 0.0, GUSSET_Z); its boxes are specified in FOLDER part frame:
+# Includes a clip-on 1/5-cut plastic index tab at y in [+0.0180, +0.0700] m (52 mm clear of GRASP_Y = 0.1220 m).
 REAR_LEAF_BOXES_JOINT = [
     ((0.1150, 0.0, GUSSET_Z + 0.00125), (0.2300, LEAF_W, 0.0025), FOLDER_GREEN),
+    ((0.24125, +0.0440, GUSSET_Z + 0.00125), (0.0125, 0.0520, 0.0018), TAB_BLUE),
 ] + _rod_and_hook_boxes(GUSSET_Z + 0.00125)
+
+REAR_LEAF_MESHES_JOINT = [
+    # Lighter kraft-sage interior lining + polylaminate reinforcement & scored V-gusset fold lines:
+    _box_mesh((0.1160, 0.0, GUSSET_Z - 0.00005), (0.2140, LEAF_W - 0.0020, 0.0002), FOLDER_INNER),
+    _box_mesh((0.2240, 0.0, GUSSET_Z + 0.00255), (0.0110, LEAF_W - 0.0010, 0.0002), FOLDER_REINF),
+    _box_mesh((0.0080, 0.0, GUSSET_Z + 0.00255), (0.0150, LEAF_W - 0.0010, 0.0002), FOLDER_REINF),
+    _box_mesh((0.0045, 0.0, GUSSET_Z + 0.00265), (0.0012, LEAF_W - 0.0020, 0.0002), MARK_DARK),
+    _box_mesh((0.0105, 0.0, GUSSET_Z + 0.00265), (0.0012, LEAF_W - 0.0020, 0.0002), MARK_DARK),
+    # White paper insert inside the 1/5-cut index tab:
+    _box_mesh((0.2415, +0.0440, GUSSET_Z + 0.00125), (0.0082, 0.0440, 0.0020), LABEL_WHITE),
+    _box_mesh((0.2415, +0.0420, GUSSET_Z + 0.00125), (0.0022, 0.0340, 0.0022), INK_HEADER),
+    # Ruled exterior file-index label card on upper leaf (visible in setup.png when flat on pickup block):
+    _box_mesh((0.1480, +0.0520, GUSSET_Z + 0.00260), (0.0400, 0.0900, 0.0002), LABEL_WHITE),
+    _box_mesh((0.1620, +0.0520, GUSSET_Z + 0.00268), (0.0060, 0.0840, 0.0002), INK_HEADER),
+    _box_mesh((0.1500, +0.0460, GUSSET_Z + 0.00268), (0.0022, 0.0700, 0.0002), INK_LINE),
+    _box_mesh((0.1415, +0.0490, GUSSET_Z + 0.00268), (0.0022, 0.0760, 0.0002), INK_LINE),
+    _box_mesh((0.1330, +0.0420, GUSSET_Z + 0.00268), (0.0022, 0.0620, 0.0002), INK_LINE),
+]
 
 # Equivalent boxes wrt folder origin when rear_leaf = 0 (used by geometric scorer):
 REAR_LEAF_BOXES = REAR_LEAF_BOXES_JOINT
@@ -127,6 +246,7 @@ REAR_LEAF = Joint(
     initial=0.0,
     mass=0.08,
     boxes=REAR_LEAF_BOXES_JOINT,
+    meshes=REAR_LEAF_MESHES_JOINT,
 )
 
 FOLDER_X0 = 0.0720
@@ -140,24 +260,104 @@ FOLDER = part(
     friction=0.58,
     self_collide=False,
     boxes=FRONT_LEAF_BOXES,
+    meshes=FRONT_LEAF_MESHES,
     joints=[REAR_LEAF],
 )
 
-# --- 3. Loose manila interior document packet (280 x 195 x 6.0 mm, 0.20 kg) ---
-# Nested flat inside the V-folder (z_local of cavity is [0.0025, 0.0092], 6.7 mm clear height for 6.0 mm packet!):
+# --- 3. Loose ~60-sheet printed document packet in a Smead 10330 1/3-cut manila cover (0.20 kg) ---
+# Core 280 x 195 x 6.0 mm stack sits inside the V-folder, while a 62 x 180 x 4.0 mm printed top-sheet
+# header and 12 x 88 x 2.0 mm 1/3-cut manila tab protrude cleanly between the two hanger rods (y in [-0.090, +0.090]).
 PKT_H = 0.1950
 PKT_W = 0.2800
 PKT_T = 0.0060
+
+PACKET_BOXES = [
+    ((0.0, 0.0, 0.0), (PKT_H, PKT_W, PKT_T), PAPER_WHITE),
+    ((+0.1285, 0.0, 0.0), (0.0620, 0.1800, 0.0040), PAPER_WHITE),
+    ((+0.1655, -0.0460, -0.0010), (0.0120, 0.0880, 0.0020), MANILA),
+]
+
+PACKET_MESHES = [
+    # Manila outer folder cover backing + side margins framing the white 60-sheet paper stack:
+    _box_mesh((0.0, 0.0, -0.00285), (PKT_H - 0.0004, PKT_W - 0.0004, 0.0004), MANILA),
+    _box_mesh((+0.1285, 0.0, -0.00190), (0.0618, 0.1798, 0.0004), MANILA),
+    _box_mesh((+0.1285, -0.0880, 0.0), (0.0618, 0.0040, 0.0041), MANILA),
+    _box_mesh((+0.1285, +0.0880, 0.0), (0.0618, 0.0040, 0.0041), MANILA),
+    # Printed label on the 1/3-cut manila tab:
+    _box_mesh((+0.1655, -0.0460, +0.00010), (0.0075, 0.0720, 0.0003), LABEL_WHITE),
+    _box_mesh((+0.1655, -0.0480, +0.00022), (0.0022, 0.0560, 0.0003), INK_HEADER),
+    # Stepped white/cream page-edge layers & side sheet striations (60-sheet stack cues):
+    _box_mesh((+0.1540, 0.0, +0.0014), (0.0100, 0.1700, 0.0012), PAPER_CREAM),
+    _box_mesh((+0.1570, +0.0020, +0.0004), (0.0050, 0.1680, 0.0010), PAPER_EDGE),
+    _box_mesh((0.0, 0.0, -0.0012), (PKT_H + 0.0002, PKT_W + 0.0002, 0.0008), PAPER_EDGE),
+    _box_mesh((0.0, 0.0, +0.0008), (PKT_H + 0.0002, PKT_W + 0.0002, 0.0008), PAPER_EDGE),
+    # Printed report header banner + text lines on +Z face (faces top_cam both at t=0 and when hung!):
+    _box_mesh((+0.1475, -0.0040, +0.00208), (0.0065, 0.1480, 0.0002), INK_HEADER),
+    _box_mesh((+0.1385, -0.0220, +0.00208), (0.0026, 0.1120, 0.0002), INK_LINE),
+    _box_mesh((+0.1325, -0.0080, +0.00208), (0.0022, 0.1380, 0.0002), INK_LINE),
+    _box_mesh((+0.1270, -0.0120, +0.00208), (0.0022, 0.1300, 0.0002), INK_LINE),
+    _box_mesh((+0.1215, -0.0050, +0.00208), (0.0022, 0.1440, 0.0002), INK_LINE),
+    _box_mesh((+0.1160, -0.0280, +0.00208), (0.0022, 0.0980, 0.0002), INK_LINE),
+]
+
 PACKET = part(
     "packet",
     pos=(FOLDER_X0 + 0.1050, 0.0, FOLDER_Z0 + 0.0028 + 0.5 * PKT_T),
     fixed=False,
     mass=0.20,
     friction=0.55,
-    boxes=[((0.0, 0.0, 0.0), (PKT_H, PKT_W, PKT_T), MANILA)],
+    boxes=PACKET_BOXES,
+    meshes=PACKET_MESHES,
 )
 
-OBJECTS = [INBOX_RISER, FILE_FRAME, FOLDER, PACKET]
+
+# --- 4. Two loose pre-filed Pendaflex 4152 hanging folders seated on the rear half of FILE_FRAME ---
+def _make_rear_filed_folder(name: str, x_slot: float, tab_y: float, tab_color, manila_y: float) -> labkit.Part:
+    """Loose rail-supported Pendaflex 4152 folder with 4 real hook saddles, V-leaves, and visible filed documents."""
+    boxes = [
+        # Front & rear 328 mm coated-steel hanger rods (underside bearing at z_local = 0.0000 on RAIL_Z_TOP):
+        ((-0.0100, 0.0, +0.0025), (0.0030, ROD_SPAN, 0.0050), ROD_WHITE),
+        ((+0.0100, 0.0, +0.0025), (0.0030, ROD_SPAN, 0.0050), ROD_WHITE),
+        # V-angled front & rear pressboard leaves meeting at a 9.2 mm bottom crease 8 mm above the desk:
+        ((-0.0064, 0.0, -0.1140), (0.0025, LEAF_W, 0.2280), FOLDER_GREEN, (0.0, -0.025)),
+        ((+0.0064, 0.0, -0.1140), (0.0025, LEAF_W, 0.2280), FOLDER_GREEN, (0.0, +0.025)),
+        ((0.0, 0.0, -0.2288), (0.0092, LEAF_W, 0.0025), FOLDER_GREEN),
+        # Filed white letter pages + Smead 1/3-cut manila tab peeking out the V-mouth:
+        ((0.0, 0.0, -0.0980), (0.0055, 0.2780, 0.2200), PAPER_WHITE),
+        ((+0.0018, manila_y, +0.0155), (0.0020, 0.0860, 0.0090), MANILA),
+        # Clip-on 1/5-cut plastic index tab on the rear rod:
+        ((+0.0100, tab_y, +0.01125), (0.0018, 0.0520, 0.0125), tab_color),
+    ]
+    for x_rod in (-0.0100, +0.0100):
+        for sgn in (+1.0, -1.0):
+            boxes.append(((x_rod, sgn * 0.1531, -0.00225), (0.0030, 0.0042, 0.0045), ROD_WHITE))
+            boxes.append(((x_rod, sgn * 0.1642, -0.00225), (0.0030, 0.0036, 0.0045), ROD_WHITE))
+    meshes = [
+        # Two-tone kraft-sage interior lining visible down the 20 mm open V-mouth:
+        _box_mesh((-0.0050, 0.0, -0.1140), (0.0002, LEAF_W - 0.0020, 0.2260), FOLDER_INNER, pitch=-0.025),
+        _box_mesh((+0.0050, 0.0, -0.1140), (0.0002, LEAF_W - 0.0020, 0.2260), FOLDER_INNER, pitch=+0.025),
+        # White paper insert inside the 1/5-cut index tab + printed header lines on the exposed document top:
+        _box_mesh((+0.0100, tab_y, +0.01125), (0.0020, 0.0440, 0.0082), LABEL_WHITE),
+        _box_mesh((+0.0100, tab_y - 0.0020, +0.01125), (0.0022, 0.0340, 0.0022), INK_HEADER),
+        _box_mesh((-0.0029, -0.0100, +0.0085), (0.0003, 0.1400, 0.0035), INK_HEADER),
+        _box_mesh((0.0, +0.0030, +0.0122), (0.0040, 0.2680, 0.0008), PAPER_EDGE),
+    ]
+    return part(
+        name,
+        pos=(x_slot, 0.0, RAIL_Z_TOP + 0.0003),
+        fixed=False,
+        mass=0.22,
+        friction=0.52,
+        boxes=boxes,
+        meshes=meshes,
+    )
+
+
+REAR_FOLDER_1 = _make_rear_filed_folder("rear_folder_1", 0.6350, -0.0620, TAB_AMBER, +0.0460)
+REAR_FOLDER_2 = _make_rear_filed_folder("rear_folder_2", 0.7100, +0.0920, TAB_CLEAR, -0.0460)
+REAR_FOLDERS = (REAR_FOLDER_1, REAR_FOLDER_2)
+
+OBJECTS = [INBOX_RISER, FILE_FRAME, FOLDER, PACKET, REAR_FOLDER_1, REAR_FOLDER_2]
 
 from task_metrics import Metric, ry  # noqa: E402
 
@@ -180,7 +380,8 @@ def _update(env):
     _step += 1
     fld_s = labkit._part_state(env, FOLDER)
     pkt_s = labkit._part_state(env, PACKET)
-    _METRIC.update(env, fld_s, pkt_s)
+    rear_s = [labkit._part_state(env, rf) for rf in REAR_FOLDERS]
+    _METRIC.update(env, fld_s, pkt_s, rear_s)
     if _DEBUG and (_step % 10 == 0 or _step <= 5):
         from yam_arena import runtime as _rt
 
@@ -202,6 +403,8 @@ def _update(env):
                     t=round(_step / 20.0, 2),
                     fld_pos=[round(float(v), 4) for v in fld_s.pos],
                     pkt_pos=[round(float(v), 4) for v in pkt_s.pos],
+                    rf1_pos=[round(float(v), 4) for v in rear_s[0].pos],
+                    rf2_pos=[round(float(v), 4) for v in rear_s[1].pos],
                     rod_l_mm=rod_l_mm,
                     rod_r_mm=rod_r_mm,
                     **_METRIC.detail,
