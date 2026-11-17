@@ -22,7 +22,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from labkit import VISUAL_ONLY, Joint, on_reset, on_step, part  # noqa: E402
+from labkit import VISUAL_ONLY, Joint, on_reset, on_step, part, stl_mesh  # noqa: E402
 import yam_arena.demo as _demo  # noqa: E402
 from yam_arena.constants import FINGER_CLOSED, FINGER_OPEN  # noqa: E402
 from yam_arena.demo import Waypoint  # noqa: E402
@@ -38,14 +38,17 @@ GREY = (0.35, 0.36, 0.38)
 BLACK = (0.06, 0.06, 0.07)
 STEEL = (0.70, 0.71, 0.73)
 GLASS = (0.80, 0.90, 0.95)
-INK = (0.05, 0.05, 0.06)  # the chip's alignment mark (drawn only: too thin to touch)
+INK = (0.05, 0.05, 0.06)  # the slide's crossed scales (drawn only: too thin to touch)
 SPECIMEN = (0.55, 0.20, 0.45)
 SHARP, SOFT, BLUR = (0.04, 0.03, 0.05), (0.22, 0.12, 0.25), (0.40, 0.22, 0.38)  # the mark on the monitor, by focus
-VIEW_CHIP, VIEW_GLASS = (0.62, 0.30, 0.55), (0.92, 0.92, 0.86)  # the monitor's field of view: over the chip, or not
+VIEW_CHIP, VIEW_GLASS = (0.95, 0.95, 0.90), (0.92, 0.92, 0.86)  # the monitor's bright transmitted-light view: over the
+#   scales, or over plain glass
 SCREEN = (0.03, 0.03, 0.04)
 WHITE = (0.97, 0.97, 0.97)
 RED = (0.85, 0.12, 0.12)
 LIGHT = (1.0, 0.98, 0.80)  # the illuminator's spot of light
+ADAPTER_GREY = (0.24, 0.25, 0.27)  # the printed adapter (dark grey PETG)
+ADAPTER_DIR = pathlib.Path(__file__).resolve().parent / "adapter" / "out"
 VISUAL_ONLY.add(LIGHT)
 for _c in (INK, SHARP, SOFT, BLUR, VIEW_CHIP, VIEW_GLASS):
     VISUAL_ONLY.add(_c)
@@ -56,40 +59,53 @@ MX, MY = 0.34, 0.06
 BASE = (0.26, 0.16, 0.03)
 PILLAR = (0.07, 0.11, 0.185)
 PILLAR_X = 0.085
-HEAD = (0.18, 0.09, 0.05)  # the arm over the stage
+HEAD = (0.18, 0.06, 0.05)  # the arm over the stage (6 cm wide)
 HEAD_TOP = 0.215
 STAGE_X = -0.03  # objective axis (local x); the stage is centred under it when its carriages are at zero
 OBJ_R, OBJ_TIP = 0.012, 0.120  # the 10x objective: 24 mm across, front lens 12 cm above the table
 WD = 0.0052  # working distance: in focus when the slide's top is 5.2 mm below the front lens
 START_OFF = 0.012  # the stage starts 12 mm below focus
 SLIDE_W, SLIDE_L, SLIDE_T = 0.026, 0.076, 0.002  # x by y by thickness (drawn 2 mm thick; a real slide is 1 mm)
-SPEC_Y = -0.010  # the chip (and its alignment mark) sits 10 mm right of the slide's centre; the label on the left end
+SPEC_Y = 0.0  # the crossed scales' crossing (the alignment mark) is at the slide's centre; the label on the left end
 PLATE_TOP0 = OBJ_TIP - WD - START_OFF - SLIDE_T  # top of the stage (x carriage) at the start
 STAGE_MAX = START_OFF + WD - 0.0002  # the focus stops just short of the slide touching the objective
 
 # Focus drive housing under the stage, with one knob shaft through it along y.
-HOUSING = (0.08, 0.20, 0.052)
+HOUSING = (0.05, 0.20, 0.052)  # the focus mechanism under the stage (50 mm deep, behind the stage-knob adapter)
 FKNOB_X, FKNOB_Z = -0.04, 0.07
 FKNOB_R, FKNOB_W = 0.021, 0.020
 FKNOB_Y0 = HOUSING[1] / 2
 F_LEAD = 0.024  # coarse focus: m of stage travel per turn
 F_MIN = -2 * math.pi * STAGE_MAX / F_LEAD
 # Fine focus: a smaller knob on the same axis, outboard of each coarse knob.
-FINE_LEAD = 0.001  # m of stage travel per turn
+FINE_LEAD = 0.0002  # m of stage travel per turn (100 divisions of 2 um; an estimate)
 FINE_R, FINE_W = 0.013, 0.012
 FINE_Y0 = FKNOB_Y0 + FKNOB_W + 0.001  # inner face of each fine knob (|y|)
 FINE_LIM = 4 * math.pi
 
 # Stage travel: the x carriage starts 85 mm towards the robots (loading position), the y carriage centred.
-QX0, QY0 = -0.085, 0.0
+QX0, QY0 = -0.0125, 0.025  # the stage starts at its front-left limits, the slide already in its holder
 QX_FOCUS, QY_FOCUS = 0.0, -SPEC_Y  # carriage positions that put the specimen on the objective axis
-X_LEAD, Y_LEAD = 0.170, 0.040  # stage drive: m per knob turn (turning a knob clockwise seen from above moves the stage
-#                                away from the robots for x, to the left for y)
-XKNOB = (STAGE_X - 0.075, 0.105)  # x (inner) and y (outer) drive knobs on a bracket out to the stage's left (local xy)
-YKNOB = (STAGE_X - 0.075, 0.170)
+X_LEAD, Y_LEAD = 0.025, 0.025  # stage drive: m per knob turn (turning a knob clockwise seen from above moves the stage
+#   away from the robots for x, to the right for y); not published for the B110C: an estimate, checked on the stage's
+#   scales before trials
+# The stage knobs are the top knobs of the printed belt adapter (adapter/knob_adapter.py, the one geometry for both the
+# real adapter and this scene). Its frame: the B110C's coaxial stage control's axis, 5 mm behind the lower stage plate's
+# front edge and 15 mm inboard of its right edge, at the stage's top surface; u towards the robots (-x), v outboard (-y).
+ADAPTER_AXIS = (STAGE_X - 0.060 + 0.005, -0.075 + 0.015)
+ADAPTER_SHAFTS = ((0.050, 0.0461), (0.050, 0.1435))  # (u, v) of the x and y knobs' shafts (belts 232 and 400 mm)
+
+
+def _adapter_xy(u, v):
+    return (ADAPTER_AXIS[0] - u, ADAPTER_AXIS[1] - v)
+
+
+XKNOB = _adapter_xy(*ADAPTER_SHAFTS[0])  # x (inner) and y (outer) stage knobs, 97.4 mm apart (local xy)
+YKNOB = _adapter_xy(*ADAPTER_SHAFTS[1])
 DKNOB_R, DKNOB_H = 0.017, 0.016
-DKNOB_TOP = PLATE_TOP0 - 0.006
+DKNOB_TOP = PLATE_TOP0 + 0.0175  # the adapter's knob tops, 17.5 mm above the stage top (they rise with the stage)
 LIM = 0.10
+LIM_X, LIM_Y = (-0.0125, 0.0125), 0.025  # the stage's travel: 25 mm front to back, 50 mm left to right
 
 # Slide holder on the x carriage: the slide lies with its centre at the holder centre (STAGE_X, 0) against two back
 # posts and a left stop; a spring lever pivoting behind its right end presses a jaw on that end, against the stop. Pulling the lever's
@@ -98,7 +114,7 @@ STOP_IN = SLIDE_L / 2 + 0.0005  # the left stop's inner face (y): a loaded slide
 PUSHED_DY = STOP_IN - SLIDE_L / 2  # so a loaded slide's centre sits this far left of the holder centre
 PIVOT = (STAGE_X + SLIDE_W / 2 + 0.012, STOP_IN - SLIDE_L + 0.0008 - 0.003)  # the closed jaw's face presses 0.8 mm
 ARM_L = 0.044  # the clamp jaw, across the slide's right end
-HANDLE_L = 0.090  # the lever's handle, out to the right, with the post at its end
+HANDLE_L = 0.060  # the lever's handle, out to the right, with the post at its end
 ARM_Z = PLATE_TOP0 + 0.0003  # the jaw's underside, just clear of the plate: it pushes the slide's right end
 POST_R, POST_H = 0.005, 0.020
 ARM_OPEN = 1.2
@@ -143,20 +159,33 @@ STAGE = Joint(  # the focus slide: carries the stage, the drive bracket and knob
     boxes=[
         ((STAGE_X + 0.075, 0.0, PLATE_TOP0 - 0.03), (0.03, 0.07, 0.03), DARK),  # carrier, into the pillar
         ((STAGE_X, 0.0, PLATE_TOP0 - 0.0135), (0.12, 0.15, 0.005), DARK),  # fixed lower plate
-        ((STAGE_X - 0.075, 0.1275, DKNOB_TOP - DKNOB_H - 0.006), (0.03, 0.105, 0.012), DARK),  # drive bracket, from under the stage
+        # the knob adapter's L-shaped arm and locating wall (colliding stand-ins for its drawn mesh), z -15.5 to -11.5 mm
+        # under the stage top: a strip along the wall (u -5 to 66 mm, v 16 to 30) and a bar along the shafts' line
+        # (u 34 to 66, v 16 to 159.5); the wall along the lower plate's right edge face, z -17 to -11.5 mm
+        ((ADAPTER_AXIS[0] - 0.0305, ADAPTER_AXIS[1] - 0.023, PLATE_TOP0 - 0.0135), (0.071, 0.014, 0.004), ADAPTER_GREY),
+        ((ADAPTER_AXIS[0] - 0.050, ADAPTER_AXIS[1] - 0.08775, PLATE_TOP0 - 0.0135), (0.032, 0.1435, 0.004), ADAPTER_GREY),
+        ((ADAPTER_AXIS[0] - (0.005 - 0.075) / 2, ADAPTER_AXIS[1] - 0.018, PLATE_TOP0 - 0.01425),
+         (0.080, 0.004, 0.0055), ADAPTER_GREY),
     ],
     # The illuminator's light, from below through the stage, shows as a spot on the slide on the objective's axis. It
     # rises with the stage (the condenser does) and is only drawn: nothing collides with it.
     # It is drawn just over the glass and under the specimen square's top, so the square shows on the light.
-    cylinders=[((STAGE_X, 0.0, PLATE_TOP0 + SLIDE_T + 0.0001), SPOT_R, 0.0001, LIGHT)],
+    cylinders=[((STAGE_X, 0.0, PLATE_TOP0 + SLIDE_T + 0.0001), SPOT_R, 0.0001, LIGHT),
+               # the adapter's bearing bosses, from the arm's top (11.5 mm under the stage top) up to the knobs
+               *[((kx, ky, (PLATE_TOP0 - 0.0115 + DKNOB_TOP - DKNOB_H) / 2), 0.012,
+                  DKNOB_TOP - DKNOB_H - (PLATE_TOP0 - 0.0115), ADAPTER_GREY) for kx, ky in (XKNOB, YKNOB)]],
+    # the adapter's own parts as drawn (adapter/out/asm_*.stl, in its frame: millimetres, u and v turned to -x and -y)
+    meshes=[stl_mesh(ADAPTER_DIR / f"asm_{n}.stl", c, pos=(*ADAPTER_AXIS, PLATE_TOP0), rpy=(0.0, 0.0, math.pi))
+            for n, c in (("bracket", ADAPTER_GREY), ("sleeve_x", ADAPTER_GREY), ("sleeve_y", ADAPTER_GREY),
+                         ("pulley_x", ADAPTER_GREY), ("pulley_y", ADAPTER_GREY), ("belt_x", BLACK), ("belt_y", BLACK))],
 )
 STAGE_Y = Joint(
-    "stage_y", kind="slide", axis="Y", anchor=(STAGE_X, 0.0, PLATE_TOP0), lower=-LIM, upper=LIM, initial=QY0,
+    "stage_y", kind="slide", axis="Y", anchor=(STAGE_X, 0.0, PLATE_TOP0), lower=-LIM_Y, upper=LIM_Y, initial=QY0,
     stiffness=20000.0, damping=400.0, target=QY0, mass=0.05, parent="stage",
     boxes=[((STAGE_X, 0.0, PLATE_TOP0 - 0.0085), (0.11, 0.14, 0.005), GREY)],
 )
 STAGE_X_J = Joint(
-    "stage_x", kind="slide", axis="X", anchor=(STAGE_X, 0.0, PLATE_TOP0), lower=-LIM, upper=LIM, initial=QX0,
+    "stage_x", kind="slide", axis="X", anchor=(STAGE_X, 0.0, PLATE_TOP0), lower=LIM_X[0], upper=LIM_X[1], initial=QX0,
     stiffness=20000.0, damping=400.0, target=QX0, mass=0.05, parent="stage_y",
     boxes=[
         ((STAGE_X, 0.0, PLATE_TOP0 - 0.003), (0.10, 0.13, 0.006), DARK),  # top plate
@@ -179,7 +208,7 @@ HOLDER = Joint(
 def _drive_knob(name, xy):
     cx, cy = xy
     return Joint(
-        name, kind="hinge", axis="Z", anchor=(cx, cy, DKNOB_TOP - DKNOB_H), lower=-2 * math.pi, upper=2 * math.pi,
+        name, kind="hinge", axis="Z", anchor=(cx, cy, DKNOB_TOP - DKNOB_H), lower=-4 * math.pi, upper=4 * math.pi,
         initial=0.0, stiffness=0.0, damping=0.1, target=0.0, mass=0.02, parent="stage",
         cylinders=[((cx, cy, DKNOB_TOP - DKNOB_H / 2), DKNOB_R, DKNOB_H, BLACK),
                    *_ribs(cx, cy, DKNOB_TOP - DKNOB_H, DKNOB_R, DKNOB_H)],
@@ -196,6 +225,14 @@ MICROSCOPE = part(
         ((PILLAR_X, 0.0, BASE[2] + PILLAR[2] / 2), PILLAR, STAND),
         ((PILLAR_X + PILLAR[0] / 2 - HEAD[0] / 2, 0.0, HEAD_TOP - HEAD[2] / 2), HEAD, STAND),
         ((FKNOB_X, 0.0, 0.03 + HOUSING[2] / 2), HOUSING, STAND),
+        # the binocular head on the arm over the objective, swivelled to face the back (away from the robots, whose right
+        # arm reaches past it to the stage knobs), its eyepiece tubes inclined 45 degrees
+        ((STAGE_X + 0.005, 0.0, HEAD_TOP + 0.020), (0.070, 0.060, 0.040), STAND),
+        *[((STAGE_X + 0.0577, sy * 0.032, HEAD_TOP + 0.0577), (0.050, 0.022, 0.022), DARK, (0.0, -math.pi / 4))
+          for sy in (1, -1)],
+        ((STAGE_X + 0.0812, -0.032, HEAD_TOP + 0.0812), (0.012, 0.026, 0.026), BLACK, (0.0, -math.pi / 4)),  # eyecup
+        # the 1 MP eyepiece camera (as AmScope's MD100) in the other eyepiece tube
+        ((STAGE_X + 0.0971, 0.032, HEAD_TOP + 0.0971), (0.045, 0.030, 0.030), BLACK, (0.0, -math.pi / 4)),
     ],
     cylinders=[
         ((STAGE_X, 0.0, HEAD_TOP - HEAD[2] - 0.006), 0.032, 0.012, STEEL),  # nosepiece
@@ -206,21 +243,14 @@ MICROSCOPE = part(
 )
 
 # -- the slide (loose) on its rest -----------------------------------------------------------------------------------
-REST_XY = (0.18, 0.26)
-REST = (0.016, 0.060, 0.030)  # narrower than the slide, so fingers can close on the slide's edges
-SLIDE_REST = part("slide_rest", pos=(*REST_XY, TOP), fixed=True,
-                  boxes=[((0.0, 0.0, REST[2] / 2), REST, GREY)])
 SLIDE = part(
-    "slide", pos=(*REST_XY, TOP + REST[2]), mass=0.006, friction=0.6,
+    "slide", pos=(MX + STAGE_X + QX0, MY + QY0 + PUSHED_DY, TOP + PLATE_TOP0), mass=0.006, friction=0.6,
     boxes=[
         ((0.0, 0.0, SLIDE_T / 2), (SLIDE_W, SLIDE_L, SLIDE_T), GLASS),
-        # the chip: purple, 10 mm square, with an alignment mark at its centre (a cross 1.6 mm across, 40 um lines,
-        # in four corner boxes)
-        ((0.0, SPEC_Y, SLIDE_T + 0.0002), (0.010, 0.010, 0.0004), SPECIMEN),
-        ((0.0, SPEC_Y, SLIDE_T + 0.00045), (0.0016, 0.00004, 0.0001), INK),
-        ((0.0, SPEC_Y, SLIDE_T + 0.00045), (0.00004, 0.0016, 0.0001), INK),
-        *[((sx * 0.0005, SPEC_Y + sy * 0.0005, SLIDE_T + 0.00045), (0.0004, 0.0004, 0.0001), INK)
-          for sx in (-1, 1) for sy in (-1, 1)],
+        # the crossed scales (MAGUS CS5): two 1 mm scales crossing at the slide's centre, each a 10 um line with 100
+        # divisions of 0.01 mm (drawn: the two lines, 20 um wide, without their ticks)
+        ((0.0, SPEC_Y, SLIDE_T + 0.00005), (0.001, 0.00002, 0.0001), INK),
+        ((0.0, SPEC_Y, SLIDE_T + 0.00005), (0.00002, 0.001, 0.0001), INK),
         ((0.0, 0.025, SLIDE_T + 0.0002), (0.024, 0.020, 0.0004), WHITE),  # label
     ],
 )
@@ -232,11 +262,10 @@ SLIDE = part(
 # 1 mm; beyond that it is lost in the blur). The screen's centre is the objective's axis; away from the robots on the
 # slide is away on the screen (its far edge is up in the robots' view), and to their left is to the left.
 MON_XY = (0.09, 0.0)  # the screen's centre on the table
-MON_W, MON_H, MON_T = 0.18, 0.12, 0.012  # across (y), along (x), thickness
-SCR_PER_M = 0.030 / 0.001
-MARK_LEVELS = ((SHARP, 0.0012), (SOFT, 0.004), (BLUR, 0.010))  # colour, line width on the screen
+MON_W, MON_H, MON_T = 0.18, 0.102, 0.012  # across (y), along (x), thickness
+SCR_PER_M = 0.18 / 0.000384  # 469 mm on the screen per mm of the slide
+MARK_LEVELS = ((SHARP, 0.005), (SOFT, 0.012), (BLUR, 0.025))  # colour, line width on the screen
 _face = MON_T + 0.0010  # the screen's face, on top of the tablet
-_ARM, _CORNER, _SQ = 1.6e-3 * SCR_PER_M, 0.5e-3 * SCR_PER_M, 0.4e-3 * SCR_PER_M
 MONITOR_BOXES = [
     ((0.0, 0.0, MON_T / 2), (MON_H + 0.012, MON_W + 0.012, MON_T), DARK),  # tablet body and bezel
     ((0.0, 0.0, MON_T + 0.0005), (MON_H, MON_W, 0.001), SCREEN),
@@ -246,16 +275,29 @@ MONITOR_BOXES = [
     ((0.0, 0.0, _face + 0.0002), (MON_H, MON_W, 0.0003), VIEW_CHIP),  # the view over the chip
 ]
 VIEW_BOX0 = 2
-MARK_BOX0 = len(MONITOR_BOXES)  # then, per level, the mark's two bars (across, along) and four corner squares
+MARK_BOX0 = len(MONITOR_BOXES)  # then, per level, the cross's two lines, each across the whole screen (the 1 mm scales
+# are longer than the field): the one across (along y) moves only along x, the one along x moves only across
 for _col, _w in MARK_LEVELS:
-    MONITOR_BOXES += [((0.0, 0.0, _face + 0.0006), (_w, _ARM, 0.0003), _col),
-                      ((0.0, 0.0, _face + 0.0006), (_ARM, _w, 0.0003), _col),
-                      *[((sx * _CORNER, sy * _CORNER, _face + 0.0006), (_SQ + _w, _SQ + _w, 0.0003), _col)
-                        for sx in (-1, 1) for sy in (-1, 1)]]
-MARK_PER_LEVEL = 6
+    MONITOR_BOXES += [((0.0, 0.0, _face + 0.0006), (_w, MON_W, 0.0003), _col),
+                      ((0.0, 0.0, _face + 0.0006), (MON_H, _w, 0.0003), _col)]
+MARK_PER_LEVEL = 2
+TICK = 0.00001 * SCR_PER_M  # the scales' 0.01 mm divisions on the screen (4.7 mm apart)
+TICK_K = range(-19, 20)
+TICK_BOX0 = len(MONITOR_BOXES)  # then, per level, a tick across each line at each division: all built at the screen's
+# centre (under the top view layer, so none shows outside the screen before the first draw) and placed when drawn,
+# hidden where it would fall off the screen
+TICKS = []  # (division k, on the line along "y" or "x"), in box order within a level
+for _col, _w in MARK_LEVELS:
+    TICKS = []
+    for _k in TICK_K:
+        _len = 0.007 if _k % 10 == 0 else 0.004 if _k % 5 == 0 else 0.0022
+        MONITOR_BOXES += [((0.0, 0.0, _face + 0.0006), (_len, _w, 0.0003), _col),   # on the line along y
+                          ((0.0, 0.0, _face + 0.0006), (_w, _len, 0.0003), _col)]   # on the line along x
+        TICKS += [(_k, "y"), (_k, "x")]
+TICK_PER_LEVEL = 2 * len(TICK_K)
 MONITOR = part("monitor", pos=(*MON_XY, TOP), fixed=True, boxes=MONITOR_BOXES)
 
-OBJECTS = [MICROSCOPE, SLIDE_REST, SLIDE, MONITOR]
+OBJECTS = [MICROSCOPE, SLIDE, MONITOR]
 
 
 # -- drives: the stage follows its knobs ------------------------------------------------------------------------------
@@ -263,8 +305,8 @@ def carriages(j: dict) -> tuple[float, float, float]:
     """(x, y, z) stage positions the knobs ask for: z from the coarse and fine focus knobs, x and y from the drive
     knobs."""
     qz = float(np.clip(-(F_LEAD * j["focus"] + FINE_LEAD * j["fine"]) / (2 * math.pi), 0.0, STAGE_MAX))
-    qx = float(np.clip(QX0 - X_LEAD * j["xdrive"] / (2 * math.pi), -LIM, LIM))
-    qy = float(np.clip(QY0 - Y_LEAD * j["ydrive"] / (2 * math.pi), -LIM, LIM))
+    qx = float(np.clip(QX0 - X_LEAD * j["xdrive"] / (2 * math.pi), *LIM_X))
+    qy = float(np.clip(QY0 + Y_LEAD * j["ydrive"] / (2 * math.pi), -LIM_Y, LIM_Y))
     return qx, qy, qz
 
 
@@ -281,6 +323,7 @@ _scr = {"prims": None, "shown": None}
 def _clear(env):
     _trial["min_gap"] = None
     _trial["n"] = 0
+    _trial["far"], _trial["still"], _trial["hist"], _trial["hist_holder"] = False, False, [], []
     _scr["shown"] = None
     # the start state on the monitor: bare glass, no mark (the slide is on its rest, not under the objective); without
     # this the screen shows every layer until the first step redraws it, which put the chip view in the setup image
@@ -304,9 +347,17 @@ def _screen_prims(env):
                 op = UsdGeom.Xformable(prim).GetOrderedXformOps()[0]
                 row.append((prim, op, op.Get()))
             marks.append(row)
+        ticks = []
+        for lv in range(len(MARK_LEVELS)):
+            row = []
+            for k in range(TICK_PER_LEVEL):
+                prim = stage.GetPrimAtPath(f"{body}/box_{TICK_BOX0 + lv * TICK_PER_LEVEL + k}")
+                op = UsdGeom.Xformable(prim).GetOrderedXformOps()[0]
+                row.append((prim, op, op.Get()))
+            ticks.append(row)
         _scr["prims"] = {"glass": stage.GetPrimAtPath(f"{body}/box_{VIEW_BOX0}"),
                          "chip": stage.GetPrimAtPath(f"{body}/box_{VIEW_BOX0 + 1}"),
-                         "marks": marks}
+                         "marks": marks, "ticks": ticks}
     return _scr["prims"]
 
 
@@ -317,7 +368,7 @@ def screen_view(j: dict, slide):
         return "glass", None, (0.0, 0.0)
     p = slide.to_world((0.0, SPEC_Y, 0.0))
     dx, dy = p[0] - OBJ_AXIS[0], p[1] - OBJ_AXIS[1]
-    field = "chip" if max(abs(dx), abs(dy)) < 0.005 else "glass"
+    field = "chip" if max(abs(dx), abs(dy)) < 0.0005 else "glass"
     if field != "chip" or not mark_in_view(dx, dy):
         return field, None, (0.0, 0.0)
     e = focus_error(j)
@@ -342,12 +393,116 @@ def _show_screen(env, view):
             for prim, op, base in row:
                 img = UsdGeom.Imageable(prim)
                 if lv == level:
-                    op.Set(Gf.Vec3d(base[0] + ox, base[1] + oy, base[2]))
+                    k = row.index((prim, op, base))
+                    op.Set(Gf.Vec3d(base[0] + (ox if k == 0 else 0.0), base[1] + (oy if k == 1 else 0.0), base[2]))
+                    img.MakeVisible()
+                else:
+                    img.MakeInvisible()
+        for lv, row in enumerate(pr["ticks"]):
+            for (prim, op, base), (k, line) in zip(row, TICKS):
+                img = UsdGeom.Imageable(prim)
+                x, y = base[0] + ox + (k * TICK if line == "x" else 0.0), base[1] + oy + (k * TICK if line == "y" else 0.0)
+                if lv == level and abs(x) <= MON_H / 2 - 0.004 and abs(y) <= MON_W / 2 - 0.004:
+                    op.Set(Gf.Vec3d(x, y, base[2]))
                     img.MakeVisible()
                 else:
                     img.MakeInvisible()
     except Exception:
         pass
+
+
+# -- released hands and stillness (every positive score) --------------------------------------------------------------
+RELEASE = 0.080  # every jaw point and pad midpoint at least this far from every task surface
+STILL_N, STILL_TOL = 21, 0.001  # and the slide and stage moved under 1 mm over the last 21 control steps (1 s at 20 Hz)
+
+
+def _tips(env):
+    """Both hands' pad midpoints (the runtime's own pad datum) and their two jaw points (world, env frame)."""
+    from yam_arena import runtime as _rt
+
+    b = env.unwrapped
+    o = b.scene.env_origins[0].cpu().numpy()
+    out = []
+    for n in ("left_robot", "right_robot"):
+        robot = b.scene[n]
+        mid = _rt.pad_tips_world(robot) - o
+        g = _rt.link_poses(robot)["gripper"]
+        ids = robot.find_joints(["joint7", "joint8"], preserve_order=True)[0]
+        q7, q8 = (abs(float(v)) for v in robot.data.joint_pos.torch[0, ids].cpu().numpy())
+        out += [mid, mid - q7 * g[:3, 0], mid + q8 * g[:3, 0]]
+    return out
+
+
+def _task_boxes(j: dict, slide):
+    """World axis-aligned boxes (centre, half sizes) of every task surface: the microscope's fixed body and cylinders,
+    its stage, holder and knobs where the joints now put them, the slide and the monitor."""
+    org = np.array([MX, MY, TOP])
+    qx, qy, qz = j["stage_x"], j["stage_y"], j["stage"]
+    out = []
+    for c, sz, *_ in MICROSCOPE.boxes:
+        out.append((org + np.array(c, float), np.array(sz, float) / 2))
+    for c, r, h, *rest in MICROSCOPE.cylinders:
+        ax = rest[1] if len(rest) > 1 else "Z"
+        half = [r, r, h / 2] if ax == "Z" else ([r, h / 2, r] if ax == "Y" else [h / 2, r, r])
+        out.append((org + np.array(c, float), np.array(half, float)))
+    moves = {"stage": (0.0, 0.0, qz), "stage_y": (0.0, qy, qz), "stage_x": (qx, qy, qz), "holder": (qx, qy, qz),
+             "xdrive": (0.0, 0.0, qz), "ydrive": (0.0, 0.0, qz), "focus": (0.0, 0.0, 0.0), "fine": (0.0, 0.0, 0.0)}
+    for J in MICROSCOPE.joints:
+        d = np.array(moves.get(J.name, (0.0, 0.0, 0.0)), float) - (np.array([QX0, QY0, 0.0]) if J.name in ("stage_x", "holder") else np.array([0.0, QY0, 0.0]) if J.name == "stage_y" else 0.0)
+        for c, sz, *_ in (J.boxes or []):
+            pad = 0.05 if J.name == "holder" else 0.0  # (the lever swings: a generous box)
+            out.append((org + np.array(c, float) + d, np.array(sz, float) / 2 + pad))
+        for c, r, h, *rest in (J.cylinders or []):
+            ax = rest[1] if len(rest) > 1 else "Z"
+            half = [r, r, h / 2] if ax == "Z" else ([r, h / 2, r] if ax == "Y" else [h / 2, r, r])
+            out.append((org + np.array(c, float) + d, np.array(half, float)))
+    out.append((np.asarray(slide.to_world((0.0, 0.0, SLIDE_T / 2)), float), np.array([SLIDE_W, SLIDE_L, SLIDE_T]) / 2))
+    out.append((np.array([MON_XY[0], MON_XY[1], TOP + MON_T / 2]), np.array([MON_H + 0.012, MON_W + 0.012, MON_T]) / 2))
+    return out
+
+
+def _moving_points(j: dict, slide) -> np.ndarray:
+    """Material points on every moving task part, in 3-D (m): three on the slide, one on the stage's x carriage (it
+    carries the y and focus motions too), the holder jaw's tip, and a rim point on each knob (coarse, fine and both
+    stage knobs), each at its knob's own radius and angle."""
+    pts = [np.asarray(slide.to_world(p), float) for p in ((0.0, -SLIDE_L / 2, 0.0), (0.0, SLIDE_L / 2, 0.0),
+                                                           (SLIDE_W / 2, 0.0, 0.0))]
+    qx, qy, qz = j["stage_x"], j["stage_y"], j["stage"]
+    pts.append(np.array([qx, qy, qz]))
+    th = j["holder"]
+    pts.append(np.array([PIVOT[0] - ARM_L * math.cos(th) + qx, PIVOT[1] - ARM_L * math.sin(th) + qy, qz]))
+    for name, r, lift in (("focus", FKNOB_R, 0.0), ("fine", FINE_R, 0.0), ("xdrive", DKNOB_R, qz), ("ydrive", DKNOB_R, qz)):
+        a = j[name]
+        pts.append(np.array([r * math.cos(a), r * math.sin(a), lift]))
+    return np.array(pts)
+
+
+def _max_travel(hist) -> float:
+    """The largest distance any one tracked point moved between any two of the recorded samples (m)."""
+    h = np.asarray(hist)  # samples x points x 3
+    d = np.linalg.norm(h[:, None, :, :] - h[None, :, :, :], axis=3)
+    return float(d.max())
+
+
+HOLDER_R = 0.062  # the holder's farthest surface from its pivot: the grasp post (centre 57 mm out, radius 5 mm)
+
+
+def _holder_travel(hist) -> float:
+    """The largest movement of any point of the holder lever between any two samples (m), as a conservative bound
+    from its pivot's translation and its turn: |d pivot| + 2 * HOLDER_R * |sin(d angle / 2)|."""
+    h = np.asarray(hist)  # samples x (x, y, z, angle)
+    dt = np.linalg.norm(h[:, None, :3] - h[None, :, :3], axis=2)
+    da = np.abs(np.sin((h[:, None, 3] - h[None, :, 3]) / 2.0))
+    return float((dt + 2.0 * HOLDER_R * da).max())
+
+
+def _clearance(j: dict, slide, tips) -> float:
+    best = 9.0
+    for c, h in _task_boxes(j, slide):
+        for p in tips:
+            d = np.maximum(np.abs(np.asarray(p, float) - c) - h, 0.0)
+            best = min(best, float(np.linalg.norm(d)))
+    return best
 
 
 @on_step
@@ -374,6 +529,24 @@ def _drive(env):
     qx, qy, qz = carriages(s.joints)
     asset.set_joint_position_target(torch.tensor([[qx, qy, qz]], device=asset.device), joint_ids=ids)
     _show_screen(env, screen_view(s.joints, sl))
+    # the release and stillness gate's state, each control step
+    clear = _clearance(s.joints, sl, _tips(env))
+    _trial["far"] = clear >= RELEASE
+    hist = _trial.setdefault("hist", [])
+    hist.append(_moving_points(s.joints, sl))
+    del hist[:-STILL_N]
+    qx, qy, qz = (s.joints["stage_x"], s.joints["stage_y"], s.joints["stage"])
+    hh = _trial.setdefault("hist_holder", [])
+    hh.append((PIVOT[0] + qx, PIVOT[1] + qy, qz, s.joints["holder"]))  # the lever's pivot (it rides on the carriage)
+    del hh[:-STILL_N]
+    _trial["still"] = (len(hist) == STILL_N and _max_travel(hist) < STILL_TOL and len(hh) == STILL_N
+                       and _holder_travel(hh) < STILL_TOL)
+    if os.environ.get("MICRO_DEBUG") and _trial.get("n", 0) % 20 == 0 and len(hist) == STILL_N:
+        h = np.asarray(hist)
+        per = np.linalg.norm(h[:, None] - h[None, :], axis=3).max(axis=(0, 1)) * 1000
+        print(f"[gate] clear={clear * 1000:.1f} mm far={_trial['far']} still={_trial['still']} travel_mm="
+              + ",".join(f"{v:.2f}" for v in per) + f" holder_mm={_holder_travel(hh) * 1000:.2f}",
+              file=sys.stderr, flush=True)
 
 
 # -- scoring ----------------------------------------------------------------------------------------------------------
@@ -381,14 +554,14 @@ OBJ_AXIS = (MX + STAGE_X, MY)
 HOLD_TOL, HOLD_Z, FLAT_DEG, CLOSED = 0.003, 0.001, 3.0, 0.10
 # The camera's field of view is what the monitor shows: 4 mm along x by 6 mm across y of the slide, centred on the
 # objective's axis. The mark (1.6 mm across) is in view when all of it is on the screen.
-FIELD_X, FIELD_Y, MARK_HALF = 0.002, 0.003, 0.0008
-CENTRE_TOL = 0.0003  # full credit: the mark's centre within 0.3 mm of the objective's axis (the image centre)
+FIELD_X, FIELD_Y, MARK_HALF = 0.000108, 0.000192, 0.0
+CENTRE_TOL = 0.00005  # full credit: the crossing within 0.05 mm of the objective's axis (the image centre)
 
 
 def mark_in_view(dx: float, dy: float) -> bool:
     return abs(dx) <= FIELD_X - MARK_HALF and abs(dy) <= FIELD_Y - MARK_HALF
 CRASH_GAP = 0.0005
-FOCUS_TOL, NEAR_TOL = 0.00001, 0.0001  # depth of field of a 10x / 0.25 objective: about 10 um
+FOCUS_TOL, NEAR_TOL = 0.000005, 0.0001  # depth of field of a 10x / 0.25 objective: about 10 um (+-5 um)
 
 
 def holder_centre(j: dict) -> np.ndarray:
@@ -417,18 +590,21 @@ def focus_error(j: dict) -> float:
 
 
 def score(objects):
-    """0 unless the slide is loaded: flat in the holder within 3 mm of its centre, label to the left, holder arm closed
-    over it. 0 also if, once loaded, the slide ever came within 0.5 mm of the objective. 0.25 loaded; 0.5 loaded and
-    the whole alignment mark in the camera's 4 x 6 mm field (on the monitor); 0.75 also within 0.1 mm of focus (slide
-    top 5.2 mm below the front lens); 1.0 within 10 um of focus (the depth of field) with the mark's centre within
-    0.3 mm of the objective's axis (the image centre)."""
+    """0 unless the slide is still in the holder (flat, within 3 mm of its centre, label to the left, the holder's jaw
+    closed), it never came within 0.5 mm of the objective, both hands are released (every jaw point and pad midpoint
+    80 mm or more from every task surface) and the slide and stage moved under 1 mm over the last 21 control steps.
+    Then: 0 unless the scales' crossing is in the camera's 0.38 x 0.22 mm view; 0.5 if it is; 0.75 if the slide's top
+    is also within 0.1 mm of focus (5.2 mm below the front lens); 1.0 if within 5 um of focus with the crossing within
+    0.05 mm of the objective's axis (the image centre)."""
     m, sl = objects["microscope"], objects["slide"]
     if not _loaded(m.joints, sl):
         return 0.0
     if _trial["min_gap"] is not None and _trial["min_gap"] < CRASH_GAP:
         return 0.0
+    if not (_trial.get("far") and _trial.get("still")):
+        return 0.0
     if not mark_in_view(*specimen_xy(sl)):
-        return 0.25
+        return 0.0
     e = focus_error(m.joints)
     if e > NEAR_TOL:
         return 0.5
@@ -541,9 +717,7 @@ def _down(yaw):
 
 TIP_ABOVE_TCP = 0.013
 LEFT_PARK = (0.15, 0.25, TOP + 0.14)
-RIGHT_PARK = (0.15, -0.25, TOP + 0.14)
-RIGHT_ASIDE = (0.18, -0.16, TOP + 0.12)
-OPEN_TH = 0.95  # how far the holder lever is pulled (rad): enough to swing the jaw off the slide's end
+RIGHT_PARK = (0.12, -0.30, TOP + 0.18)  # 104 mm from the adapter's y knob (release needs 80 mm)
 
 
 def W(x, y, z):
@@ -551,25 +725,6 @@ def W(x, y, z):
     return (MX + x, MY + y, TOP + z)
 
 
-def _push_at(theta: float):
-    """TCP xy for closed fingers pushing the post back, on its front side, when the lever is open by theta."""
-    px, py = _post_at(theta)
-    return px - (POST_R + 0.010) * math.cos(theta), py - (POST_R + 0.010) * math.sin(theta)
-
-
-def _post_at(theta: float, qx=QX0, qy=QY0):
-    """World xy of the holder arm's post when the arm is open by theta."""
-    r = HANDLE_L - 0.003
-    px, py = PIVOT[0] + r * math.sin(theta), PIVOT[1] - r * math.cos(theta)
-    return MX + px + qx, MY + py + qy
-
-
-POST_GRIP_Z = TOP + ARM_Z + 0.003 + POST_H * 0.55 + TIP_ABOVE_TCP
-SLIDE_GRIP_DY = 0.031  # grip the slide 31 mm left of its centre (on the label end)
-REST_GRIP_Z = TOP + REST[2] - 0.003 + TIP_ABOVE_TCP  # pad tips 3 mm below the slide, beside the narrow rest
-PLACE = (MX + STAGE_X + QX0 - 0.001, MY + QY0 - 0.002)  # 1 mm in front of and 2 mm right of where it ends
-PLACE_Z = TOP + PLATE_TOP0 + 0.0005 + TIP_ABOVE_TCP  # pad tips 0.5 mm above the plate: the slide drops 3.5 mm
-CARRY_Z = TOP + PLATE_TOP0 + 0.05
 DK_GRIP_Z = TOP + DKNOB_TOP - DKNOB_H / 2 + TIP_ABOVE_TCP
 DK_HOVER = DK_GRIP_Z + 0.05
 F_GRIP = W(FKNOB_X, -(FKNOB_Y0 + FKNOB_W) + 0.009 - TIP_ABOVE_TCP, FKNOB_Z)
@@ -582,16 +737,21 @@ FF_FAR_UP = (FF_GRIP[0], FF_GRIP[1] - 0.10, FF_GRIP[2] + 0.04)
 FINE_WIDE = -0.02  # part-open round the 26 mm fine knob
 
 
+# Letting go of a stage knob turns it back about a degree (r13: the cross moved +0.078 mm in x and -0.081 mm in y after
+# each closed-loop turn that had put it on the axis), so each closed loop aims that far past the axis.
+RELEASE_SLIP = (0.000078, -0.000081)
+
+
 def x_target(j: dict, slide) -> float:
     """x drive angle that puts the alignment mark on the objective's axis, from where the mark is seen now (on the monitor)."""
     p = slide.to_world((0.0, SPEC_Y, 0.0))
-    return j["xdrive"] + 2 * math.pi * (p[0] - OBJ_AXIS[0]) / X_LEAD
+    return j["xdrive"] + 2 * math.pi * (p[0] - (OBJ_AXIS[0] - RELEASE_SLIP[0])) / X_LEAD
 
 
 def y_target(j: dict, slide) -> float:
     """y drive angle that puts the alignment mark on the objective's axis line, from where the mark is seen now (on the monitor)."""
     p = slide.to_world((0.0, SPEC_Y, 0.0))
-    return j["ydrive"] + 2 * math.pi * (p[1] - OBJ_AXIS[1]) / Y_LEAD
+    return j["ydrive"] + 2 * math.pi * ((OBJ_AXIS[1] - RELEASE_SLIP[1]) - p[1]) / Y_LEAD
 
 
 def fine_target(j: dict, slide=None) -> float:
@@ -601,9 +761,10 @@ def fine_target(j: dict, slide=None) -> float:
 F_TURN = -2 * math.pi * START_OFF / F_LEAD
 F_TARGET = F_TURN  # focus knob angle for the working distance
 X_TARGET = -2 * math.pi * (QX_FOCUS - QX0) / X_LEAD  # drive knob angles that centre the specimen
-Y_TARGET = -2 * math.pi * (QY_FOCUS - PUSHED_DY - QY0) / Y_LEAD
+Y_TARGET = 2 * math.pi * (QY_FOCUS - PUSHED_DY - QY0) / Y_LEAD
+X_QUARTERS = max(0, int(abs(X_TARGET) // (math.pi / 2)) - 1)  # open quarter turns before a closed loop finishes
+Y_QUARTERS = max(0, int(abs(Y_TARGET) // (math.pi / 2)) - 1)
 WIDE = -0.025  # fingers part-open round the post or the slide
-SLIDE_RELEASE = -0.016  # open just enough to free the slide, clear of the objective
 FOCUS_WIDE = -0.03  # part-open round the 47 mm focus knob, clear of the table
 KNOB_WIDE = -0.030  # part-open round a 39 mm ribbed drive knob
 KNOB_GRIP = -0.004  # closed on a drive knob
@@ -617,7 +778,6 @@ PLANCHECK_BOXES = [
     ("objective", W(STAGE_X, 0.0, (OBJ_TIP + HEAD_TOP - HEAD[2]) / 2), (0.024, 0.024, HEAD_TOP - HEAD[2] - OBJ_TIP)),
     ("head", W(PILLAR_X + PILLAR[0] / 2 - HEAD[0] / 2, 0.0, HEAD_TOP - HEAD[2] / 2), HEAD),
     ("stage at load", W(STAGE_X + QX0, QY0, PLATE_TOP0 - 0.003), (0.10, 0.13, 0.006)),
-    ("slide rest", (*REST_XY, TOP + REST[2] / 2), REST),
     ("monitor", (MON_XY[0], MON_XY[1], TOP + MON_T / 2), (MON_H + 0.012, MON_W + 0.012, MON_T)),
 ]
 
@@ -652,54 +812,22 @@ def _knob_turn(wps, xy, label, joint, target, servo):
 
 def demo():
     _SERVOS.clear()
-    sx, sy = REST_XY
-    gx, gy = PLACE
-    # Right arm: pushes the lever's post back with closed fingers (the spring holds it against them), holds it while
-    # the left arm lays the slide in, then eases off so the jaw closes, and later focuses.
-    right = [
-        Waypoint(2.5, (*_push_at(0.0), POST_GRIP_Z + 0.04), FINGER_CLOSED, "above the front of the lever post"),
-        Waypoint(1.0, (*_push_at(0.0), POST_GRIP_Z), FINGER_CLOSED, "down in front of the post"),
-    ]
-    for th in (0.3, 0.6, OPEN_TH):
-        right.append(Waypoint(0.8, (*_push_at(th), POST_GRIP_Z), FINGER_CLOSED, "push the lever back", th))
-    t_open = _dur(right)
-    left = [
-        Waypoint(2.5, (sx, sy + SLIDE_GRIP_DY, REST_GRIP_Z + 0.05), FINGER_OPEN, "above the slide's label", -math.pi / 2),
-        Waypoint(1.2, (sx, sy + SLIDE_GRIP_DY, REST_GRIP_Z), WIDE, "fingers either side of the slide", -math.pi / 2),
-        Waypoint(0.8, (sx, sy + SLIDE_GRIP_DY, REST_GRIP_Z), FINGER_CLOSED, "grip its edges", -math.pi / 2),
-        Waypoint(1.0, (sx, sy + SLIDE_GRIP_DY, CARRY_Z), FINGER_CLOSED, "lift", -math.pi / 2),
-    ]
-    left.append(Waypoint(max(0.3, t_open - _dur(left)), (sx, sy + SLIDE_GRIP_DY, CARRY_Z), FINGER_CLOSED,
-                         "wait for the holder to open", -math.pi / 2))
-    left += [
-        Waypoint(2.0, (gx, gy + SLIDE_GRIP_DY, CARRY_Z), FINGER_CLOSED, "over the holder", -math.pi / 2),
-        Waypoint(1.5, (gx, gy + SLIDE_GRIP_DY, PLACE_Z), FINGER_CLOSED, "lower into the holder", -math.pi / 2),
-        Waypoint(0.6, (gx, gy + SLIDE_GRIP_DY, PLACE_Z), SLIDE_RELEASE, "let go", -math.pi / 2),
-        Waypoint(1.0, (gx, gy + SLIDE_GRIP_DY, CARRY_Z), SLIDE_RELEASE, "up", -math.pi / 2),
-        Waypoint(1.5, (*W(*YKNOB, 0.0)[:2], DK_HOVER + 0.03), KNOB_WIDE, "towards the drive knobs"),
-    ]
-    t_left_clear = _dur(left) - 1.0
-    right.append(Waypoint(max(0.3, t_left_clear - _dur(right)), (*_push_at(OPEN_TH), POST_GRIP_Z), FINGER_CLOSED,
-                          "hold the lever back until the left arm is clear", OPEN_TH))
-    for th in (0.6, 0.3, 0.0):
-        right.append(Waypoint(0.8, (*_push_at(th), POST_GRIP_Z), FINGER_CLOSED, "ease off: the jaw closes", th))
-    right += [
-        Waypoint(0.6, (*_push_at(-0.15), POST_GRIP_Z), FINGER_CLOSED, "clear of the post"),
-        Waypoint(0.8, (*_push_at(-0.15), POST_GRIP_Z + 0.04), FINGER_CLOSED, "up"),
-        Waypoint(1.5, RIGHT_ASIDE, FINGER_OPEN, "aside"),
-    ]
-    # Left arm: the stage drives, once the jaw has closed over the slide.
-    left.append(Waypoint(max(0.3, _dur(right) - _dur(left)), (*W(*YKNOB, 0.0)[:2], DK_HOVER + 0.03), KNOB_WIDE,
-                         "wait for the jaw to close"))
-    _knob_turn(left, W(*YKNOB, 0.0)[:2], "y knob", "ydrive", y_target, servo=True)
-    _knob_turn(left, W(*XKNOB, 0.0)[:2], "x knob", "xdrive", X_TARGET, servo=False)
-    _knob_turn(left, W(*XKNOB, 0.0)[:2], "x knob", "xdrive", x_target, servo=True)
-    # a second closed-loop pass on the x knob (170 mm per turn, so 0.4 mm is under 1 degree): take up what the first
-    # left, from where the mark is seen now, so its centre lands within 0.3 mm of the image centre
-    _knob_turn(left, W(*XKNOB, 0.0)[:2], "x knob", "xdrive", x_target, servo=True)
-    left.append(Waypoint(2.0, LEFT_PARK, FINGER_OPEN, "park"))
-    right.append(Waypoint(max(0.3, _dur(left) - 2.0 - _dur(right)), RIGHT_ASIDE, FINGER_OPEN,
-                          "wait while the left arm drives the stage"))
+    right = [Waypoint(2.5, (*W(*YKNOB, 0.0)[:2], DK_HOVER + 0.03), KNOB_WIDE, "towards the stage knobs")]
+    left = []
+    # Right arm: the stage drives (under the stage's right side), once the jaw has closed over the slide: the y knob
+    # about a turn in quarter turns, then closed loops on where the cross is seen; then the x knob half a turn the same
+    # way, and a second closed loop on each
+    for _ in range(Y_QUARTERS):
+        _knob_turn(right, W(*YKNOB, 0.0)[:2], "y knob", "ydrive", None, servo=False)
+    _knob_turn(right, W(*YKNOB, 0.0)[:2], "y knob", "ydrive", y_target, servo=True)
+    for _ in range(X_QUARTERS):
+        _knob_turn(right, W(*XKNOB, 0.0)[:2], "x knob", "xdrive", None, servo=False)
+    _knob_turn(right, W(*XKNOB, 0.0)[:2], "x knob", "xdrive", x_target, servo=True)
+    _knob_turn(right, W(*YKNOB, 0.0)[:2], "y knob", "ydrive", y_target, servo=True)
+    _knob_turn(right, W(*XKNOB, 0.0)[:2], "x knob", "xdrive", x_target, servo=True)
+    # a third closed loop on each (25 mm per turn: 0.05 mm is 0.7 deg of knob; letting go can leave a degree)
+    _knob_turn(right, W(*YKNOB, 0.0)[:2], "y knob", "ydrive", y_target, servo=True)
+    _knob_turn(right, W(*XKNOB, 0.0)[:2], "x knob", "xdrive", x_target, servo=True)
     right += [
         Waypoint(2.0, F_OUT_UP, KNOB_WIDE, "above, beside the right focus knob"),
         Waypoint(1.5, F_OUT, FOCUS_WIDE, "level the gripper", side(0.0)),
@@ -727,13 +855,26 @@ def demo():
         Waypoint(0.6, FF_GRIP, FINGER_CLOSED, "settle", nsv),
         Waypoint(0.8, FF_GRIP, FINE_WIDE, "let go", nsv),
         Waypoint(1.0, FF_OUT, FINE_WIDE, "back off", nsv),
+        # a second grip on the fine knob (0.2 mm per turn: one grip turns it about a third of a turn, 0.06 mm)
+        Waypoint(1.0, FF_FAR, FINE_WIDE, "out to the side, clear of the stage", nsv),
+        Waypoint(1.0, FF_FAR, FINE_WIDE, "unroll", side(0.0)),
+        Waypoint(1.0, FF_OUT, FINE_WIDE, "back in to the fine knob", side(0.0)),
+        Waypoint(1.2, FF_GRIP, FINE_WIDE, "onto the fine knob again", side(0.0)),
+        Waypoint(0.8, FF_GRIP, FINGER_CLOSED, "grip it", side(0.0)),
+    ]
+    nsv2 = _servo(right, 8.0, FF_GRIP, FINGER_CLOSED, "fine focus: turn until sharp", "fine", fine_target, 0.0,
+                  lambda r: side(r).rot)
+    right += [
+        Waypoint(0.6, FF_GRIP, FINGER_CLOSED, "settle", nsv2),
+        Waypoint(0.8, FF_GRIP, FINE_WIDE, "let go", nsv2),
+        Waypoint(1.0, FF_OUT, FINE_WIDE, "back off", nsv2),
         # well clear of the stage and the holder lever's handle before the wrist turns back (turning beside the knob
         # swept the fingers into the lever and nudged the slide 0.2 mm)
-        Waypoint(1.0, FF_FAR, FINE_WIDE, "out to the side, clear of the stage", nsv),
+        Waypoint(1.0, FF_FAR, FINE_WIDE, "out to the side, clear of the stage", nsv2),
         Waypoint(1.0, FF_FAR, FINE_WIDE, "unroll", side(0.0)),
         Waypoint(1.5, FF_FAR_UP, KNOB_WIDE, "point down again"),
         Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "park"),
         Waypoint(2.0, RIGHT_PARK, FINGER_OPEN, "hold"),
     ]
-    left.append(Waypoint(max(0.5, _dur(right) - _dur(left)), LEFT_PARK, FINGER_OPEN, "rest"))
+    left.append(Waypoint(max(0.5, _dur(right)), LEFT_PARK, FINGER_OPEN, "rest"))
     return {"left": left, "right": right}

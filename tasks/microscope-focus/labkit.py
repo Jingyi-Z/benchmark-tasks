@@ -15,6 +15,12 @@ yam_arena task files only take single primitives (Box, Cylinder, Sphere, Asset).
 - ``Model``: a real USD model (for example from NVIDIA SimReady) with its own bodies and joints, fixed to the table
   or loose, with per-joint drive settings and starting positions.
 - Arena library assets are loaded from NVIDIA's production bucket (see ``arena_assets_fix``).
+- A box may carry a fourth item, its yaw (rad) about the part's vertical, or a (yaw, pitch) pair (pitch about y), for walls that are not axis-aligned (a
+  polygonal vial). Colours added to ``GLASS_COLORS`` are drawn with Omniverse's glass material (see-through), or,
+  should that material fail to load, as a translucent surface.
+- ``meshes``: triangle meshes (from STL files of real parts, see ``stl_mesh``) on a part or joint, drawn with flat
+  shading. Each collides as its convex hull (``"hull"``), as a convex decomposition (``"decomp"``), or not at all
+  (``"none"``: drawn only, with boxes and cylinders doing the colliding).
 
 The technique (hooking ``yam_arena.scene`` and the embodiment from a task file's import, without modifying
 yam_arena) follows robocurve/benchmark-tasks PR #40 (tasks/bearing-press/partkit.py). This is an independent
@@ -51,7 +57,10 @@ import arena_assets_fix  # noqa: E402,F401
 
 VISUAL_ONLY: set = set()  # colours of shapes that are drawn without a collider (a patch of light, say)
 
-__all__ = ["VISUAL_ONLY", "Joint", "Part", "PartState", "part", "Model", "JointSet", "model", "on_step", "on_reset", "env", "install"]
+__all__ = ["VISUAL_ONLY", "Joint", "Part", "PartState", "part", "Model", "JointSet", "model", "on_step", "on_reset",
+           "env", "install", "GLASS_COLORS", "stl_mesh", "Mesh"]
+
+GLASS_COLORS: set = set()  # colours drawn as glass
 
 Color = tuple[float, float, float]
 _AXES = ("X", "Y", "Z")
@@ -75,8 +84,84 @@ def _vec3(v, what) -> tuple[float, float, float]:
 
 
 def _boxes(specs, what):
-    """Each box: (centre, size, colour)."""
-    return tuple((_vec3(c, what), _vec3(s, what), _vec3(k, what)) for c, s, k in specs)
+    """Each box: (centre, size, colour[, yaw about the vertical, rad])."""
+    out = []
+    for spec in specs:
+        c, s, k = spec[:3]
+        turn = spec[3] if len(spec) > 3 else 0.0
+        yaw, pitch = (float(turn[0]), float(turn[1])) if isinstance(turn, (tuple, list)) else (float(turn), 0.0)
+        if not (math.isfinite(yaw) and math.isfinite(pitch)):
+            raise ValueError(f"{what}: box turn must be finite")
+        out.append((_vec3(c, what), _vec3(s, what), _vec3(k, what), (yaw, pitch)))
+    return tuple(out)
+
+
+@dataclass(frozen=True, eq=False)
+class Mesh:
+    """A triangle mesh in the part frame (metres): ``points`` (N, 3) and ``tris`` (M, 3) vertex indices, a colour, and
+    how it collides: "hull", "decomp" or "none"."""
+
+    points: np.ndarray
+    tris: np.ndarray
+    color: tuple
+    collide: str = "none"
+
+    def bounds(self):
+        return self.points.min(axis=0), self.points.max(axis=0)
+
+
+def _read_stl(path) -> np.ndarray:
+    """Triangles (M, 3, 3) from a binary or ASCII STL file, in the file's units."""
+    import struct
+
+    data = pathlib.Path(path).read_bytes()
+    if data[:5] == b"solid" and b"facet" in data[:400]:
+        v = [[float(x) for x in ln.split()[1:4]] for ln in data.decode(errors="ignore").splitlines()
+             if ln.strip().startswith("vertex")]
+        return np.asarray(v, float).reshape(-1, 3, 3)
+    n = struct.unpack("<I", data[80:84])[0]
+    rec = np.frombuffer(data[84:84 + 50 * n], dtype=np.dtype([("n", "<f4", 3), ("v", "<f4", (3, 3)), ("a", "<u2")]))
+    return rec["v"].astype(float)
+
+
+def _rot(rpy) -> np.ndarray:
+    """Rotation matrix from (roll, pitch, yaw) in rad, applied about x, then y, then z (fixed axes)."""
+    r, p, y = (float(a) for a in rpy)
+    cx, sx, cy, sy, cz, sz = math.cos(r), math.sin(r), math.cos(p), math.sin(p), math.cos(y), math.sin(y)
+    rx = np.array([[1, 0, 0], [0, cx, -sx], [0, sx, cx]])
+    ry = np.array([[cy, 0, sy], [0, 1, 0], [-sy, 0, cy]])
+    rz = np.array([[cz, -sz, 0], [sz, cz, 0], [0, 0, 1]])
+    return rz @ ry @ rx
+
+
+def stl_mesh(path, color, pos=(0.0, 0.0, 0.0), rpy=(0.0, 0.0, 0.0), scale=0.001, origin=None, collide="none",
+             mirror_y=False) -> Mesh:
+    """Load an STL (millimetres by default: ``scale`` 0.001) into the part frame: the file's point ``origin`` (file
+    units; default its own origin) is scaled, rotated by ``rpy`` (or a 3 x 3 rotation matrix) and placed at ``pos``. ``mirror_y`` mirrors the part
+    (a left-hand copy of a right-hand part)."""
+    tri = _read_stl(path).reshape(-1, 3)
+    if origin is not None:
+        tri = tri - np.asarray(origin, float)
+    tri = tri * float(scale)
+    if mirror_y:
+        tri[:, 1] *= -1.0
+    rot = np.asarray(rpy, float)
+    rot = rot if rot.shape == (3, 3) else _rot(rpy)
+    pts = tri @ rot.T + np.asarray(pos, float)
+    tris = np.arange(len(pts)).reshape(-1, 3)
+    if mirror_y:
+        tris = tris[:, ::-1]  # keep the faces pointing outwards
+    if collide not in ("hull", "decomp", "none"):
+        raise ValueError("collide must be 'hull', 'decomp' or 'none'")
+    return Mesh(points=pts, tris=tris, color=_vec3(color, str(path)), collide=collide)
+
+
+def _meshes(specs, what):
+    out = tuple(specs)
+    for m in out:
+        if not isinstance(m, Mesh):
+            raise ValueError(f"{what}: meshes must be made with stl_mesh()")
+    return out
 
 
 def _cyls(specs, what):
@@ -105,6 +190,7 @@ class Joint:
     anchor: tuple[float, float, float] = (0.0, 0.0, 0.0)
     boxes: tuple = ()
     cylinders: tuple = ()
+    meshes: tuple = field(default=(), compare=False, hash=False)
     lower: float = -0.01
     upper: float = 0.0
     stiffness: float = 0.0
@@ -120,7 +206,7 @@ class Joint:
             raise ValueError(f"{self.name}: kind must be 'slide' or 'hinge'")
         if self.axis.upper() not in _AXES:
             raise ValueError(f"{self.name}: axis must be X, Y or Z")
-        if not self.boxes and not self.cylinders:
+        if not self.boxes and not self.cylinders and not self.meshes:
             raise ValueError(f"{self.name}: a joint needs at least one shape")
         if not self.lower <= self.initial <= self.upper:
             raise ValueError(f"{self.name}: initial must lie within [lower, upper]")
@@ -129,7 +215,7 @@ class Joint:
         return Joint(
             name=self.name, kind=self.kind, axis=self.axis.upper(), anchor=_vec3(self.anchor, self.name),
             boxes=_boxes(self.boxes, self.name), cylinders=_cyls(self.cylinders, self.name),
-            lower=float(self.lower), upper=float(self.upper), stiffness=float(self.stiffness),
+            meshes=_meshes(self.meshes, self.name), lower=float(self.lower), upper=float(self.upper), stiffness=float(self.stiffness),
             damping=float(self.damping), target=float(self.target), friction=float(self.friction),
             initial=float(self.initial), mass=float(self.mass), parent=str(self.parent),
         )
@@ -148,11 +234,13 @@ class Part(Box):
     cylinders: tuple = ()
     joints: tuple = ()
     fixed: bool = False
+    meshes: tuple = field(default=(), compare=False, hash=False)
+    self_collide: bool = False
     friction: float = 0.8
     meta: dict = field(default_factory=dict, compare=False, hash=False)
 
     def _check(self) -> None:
-        if not self.boxes and not self.cylinders:
+        if not self.boxes and not self.cylinders and not self.meshes:
             raise ValueError(f"{self.name}: a Part needs at least one shape")
         if self.fixed == (self.mass is not None):
             raise ValueError(f"{self.name}: give a loose part a mass, and a fixed part none")
@@ -162,11 +250,23 @@ class Part(Box):
         return not self.fixed
 
 
-def _extent(boxes, cyls):
+def _extent(boxes, cyls, meshes=()):
     lo, hi = [], []
-    for c, s, _ in boxes:
-        lo.append(np.array(c) - np.array(s) / 2)
-        hi.append(np.array(c) + np.array(s) / 2)
+    for m in meshes:
+        a, b = m.bounds()
+        lo.append(a)
+        hi.append(b)
+    for c, s, _, (yaw, pitch) in boxes:
+        if pitch:  # a wall tipped about y: bound it by its turned corners in x and z
+            hxp = abs(s[0] / 2 * math.cos(pitch)) + abs(s[2] / 2 * math.sin(pitch))
+            hzp = abs(s[0] / 2 * math.sin(pitch)) + abs(s[2] / 2 * math.cos(pitch))
+            s = (2 * hxp, s[1], 2 * hzp)
+        hx, hy = s[0] / 2, s[1] / 2
+        ex = abs(hx * math.cos(yaw)) + abs(hy * math.sin(yaw))
+        ey = abs(hx * math.sin(yaw)) + abs(hy * math.cos(yaw))
+        half = np.array([ex, ey, s[2] / 2])
+        lo.append(np.array(c) - half)
+        hi.append(np.array(c) + half)
     for c, r, h, _, axis in cyls:
         half = np.full(3, r)
         half[_AXES.index(axis)] = h / 2
@@ -176,8 +276,10 @@ def _extent(boxes, cyls):
 
 
 def part(name, pos, boxes=(), cylinders=(), mass=None, fixed=False, yaw=0.0, joints=(), color=(0.5, 0.5, 0.5),
-         friction=0.8) -> Part:
-    """Build a Part; its ``size`` is the rest extent of all its shapes (joints included)."""
+         friction=0.8, meshes=(), self_collide=False) -> Part:
+    """Build a Part; its ``size`` is the rest extent of all its shapes (joints included). ``self_collide``: the part's
+    joint bodies collide with its other bodies (PhysX still ignores a body and the one it hangs on), e.g. a flexible
+    cable of hinged segments lying on the part's own board."""
     b, c = _boxes(boxes, name), _cyls(cylinders, name)
     js = tuple(j.checked() for j in joints)
     names = [j.name for j in js]
@@ -186,10 +288,12 @@ def part(name, pos, boxes=(), cylinders=(), mass=None, fixed=False, yaw=0.0, joi
             raise ValueError(f"{name}: joint {j.name} rides on {j.parent!r}, which must be listed before it")
     all_b = list(b) + [x for j in js for x in j.boxes]
     all_c = list(c) + [x for j in js for x in j.cylinders]
-    lo, hi = _extent(all_b, all_c)
+    m = _meshes(meshes, name)
+    all_m = list(m) + [x for j in js for x in j.meshes]
+    lo, hi = _extent(all_b, all_c, all_m)
     return Part(name=name, pos=_vec3(pos, name), size=tuple((hi - lo).tolist()), mass=None if fixed else mass,
                 color=_vec3(color, name), yaw=float(yaw), boxes=b, cylinders=c, joints=js, fixed=bool(fixed),
-                friction=float(friction))
+                friction=float(friction), meshes=m, self_collide=bool(self_collide))
 
 
 
@@ -314,8 +418,24 @@ def _author(prim_path: str, cfg, translation=None, orientation=None, **kwargs):
     def look(color):
         if color not in looks:
             path = f"{prim_path}/Looks/c{len(looks)}"
-            vis = sim_utils.PreviewSurfaceCfg(diffuse_color=linear_rgb(color), roughness=0.5)
-            vis.func(path, vis)
+            made = False
+            if color in GLASS_COLORS:
+                # Omniverse's glass material; failing that, a translucent surface; failing that, a plain one below.
+                makers = (
+                    lambda: sim_utils.GlassMdlCfg(glass_color=linear_rgb(color), thin_walled=True),
+                    lambda: sim_utils.PreviewSurfaceCfg(diffuse_color=linear_rgb(color), roughness=0.05, opacity=0.3),
+                )
+                for n, make in enumerate(makers):
+                    try:
+                        vis = make()
+                        vis.func(f"{path}_g{n}", vis)
+                        path, made = f"{path}_g{n}", True
+                        break
+                    except Exception:
+                        continue
+            if not made:
+                vis = sim_utils.PreviewSurfaceCfg(diffuse_color=linear_rgb(color), roughness=0.5)
+                vis.func(path, vis)
             looks[color] = path
         return looks[color]
 
@@ -345,12 +465,42 @@ def _author(prim_path: str, cfg, translation=None, orientation=None, **kwargs):
         bind_physics_material(str(prim.GetPath()), phys, stage=stage)
         bind_visual_material(str(prim.GetPath()), look(color), stage=stage)
 
-    def shapes(path, boxes, cyls, offset):
+    def mesh_prims(path, meshes, offset):
+        from pxr import Vt
+
         off = np.array(offset)
-        for i, (c, s, k) in enumerate(boxes):
+        for i, m in enumerate(meshes):
+            mesh = UsdGeom.Mesh.Define(stage, f"{path}/mesh_{i}")
+            pts = m.points - off
+            mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(pts.astype(np.float32)))
+            mesh.CreateFaceVertexCountsAttr(Vt.IntArray.FromNumpy(np.full(len(m.tris), 3, dtype=np.int32)))
+            mesh.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(m.tris.reshape(-1).astype(np.int32)))
+            tri = pts[m.tris]
+            n = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
+            n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
+            mesh.CreateNormalsAttr(Vt.Vec3fArray.FromNumpy(np.repeat(n, 3, axis=0).astype(np.float32)))
+            mesh.SetNormalsInterpolation(UsdGeom.Tokens.faceVarying)
+            mesh.CreateSubdivisionSchemeAttr(UsdGeom.Tokens.none)
+            mesh.CreateDoubleSidedAttr(True)
+            prim = mesh.GetPrim()
+            if m.collide == "none":
+                bind_visual_material(str(prim.GetPath()), look(m.color), stage=stage)
+                continue
+            collide(prim, m.color)
+            mc = UsdPhysics.MeshCollisionAPI.Apply(prim)
+            mc.CreateApproximationAttr("convexHull" if m.collide == "hull" else "convexDecomposition")
+
+    def shapes(path, boxes, cyls, offset, meshes=()):
+        mesh_prims(path, meshes, offset)
+        off = np.array(offset)
+        for i, (c, s, k, (yaw, pitch)) in enumerate(boxes):
             cube = UsdGeom.Cube.Define(stage, f"{path}/box_{i}")
             cube.CreateSizeAttr(1.0)
             cube.AddTranslateOp().Set(Gf.Vec3d(*(np.array(c) - off)))
+            if yaw:
+                cube.AddRotateZOp().Set(math.degrees(yaw))
+            if pitch:
+                cube.AddRotateYOp().Set(math.degrees(pitch))
             cube.AddScaleOp().Set(Gf.Vec3f(*s))
             collide(cube.GetPrim(), k)
         for i, (c, r, h, k, axis) in enumerate(cyls):
@@ -364,12 +514,12 @@ def _author(prim_path: str, cfg, translation=None, orientation=None, **kwargs):
     main = f"{prim_path}/body"
     articulated = bool(spec.joints)
     body(main, (0.0, 0.0, 0.0), spec.mass or 1.0, kinematic=spec.fixed and not articulated)
-    shapes(main, spec.boxes, spec.cylinders, (0.0, 0.0, 0.0))
+    shapes(main, spec.boxes, spec.cylinders, (0.0, 0.0, 0.0), spec.meshes)
 
     for j in spec.joints:
         path = f"{prim_path}/{j.name}"
         body(path, j.anchor, j.mass)
-        shapes(path, j.boxes, j.cylinders, j.anchor)
+        shapes(path, j.boxes, j.cylinders, j.anchor, j.meshes)
         if j.kind == "slide":
             jp = UsdPhysics.PrismaticJoint.Define(stage, f"{path}/{j.joint_name}")
             scale, drive_type = 1.0, "linear"
@@ -407,7 +557,7 @@ def _author(prim_path: str, cfg, translation=None, orientation=None, **kwargs):
             art_prim = stage.GetPrimAtPath(main)
         UsdPhysics.ArticulationRootAPI.Apply(art_prim)
         art = PhysxSchema.PhysxArticulationAPI.Apply(art_prim)
-        art.CreateEnabledSelfCollisionsAttr(False)
+        art.CreateEnabledSelfCollisionsAttr(bool(spec.self_collide))
         art.CreateSolverPositionIterationCountAttr(SOLVER_POS_ITERS)
         art.CreateSolverVelocityIterationCountAttr(SOLVER_VEL_ITERS)
     return root.GetPrim()
@@ -609,7 +759,7 @@ def _part_state(environment, spec: Part) -> PartState:
     if isinstance(spec, Model):
         lo, hi = np.array(spec.info["min"]), np.array(spec.info["max"])
     else:
-        lo, hi = _extent(spec.boxes, spec.cylinders)
+        lo, hi = _extent(spec.boxes, spec.cylinders, spec.meshes)
     corners = np.array([[a, b, c] for a in (lo[0], hi[0]) for b in (lo[1], hi[1]) for c in (lo[2], hi[2])])
     pts = np.array([probe.to_world(p) for p in corners])
     joints = {}
