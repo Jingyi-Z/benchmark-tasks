@@ -63,6 +63,14 @@ precious metals at cost plus overhead):
 
 So about USD 80 to 100 per wafer, or USD 160 to 200 per trial, with staff service (USD 90 to 130 per trial without).
 
+Low-cost route outside a cleanroom (test wafers only): the trial needs a clean lift-off and a pattern to check, not
+device-grade wafers, so a lab with common benchtop equipment can make them in an ordinary lab under yellow or
+UV-filtered light: spin the AZ 5214E on a benchtop spin coater, bake on a hotplate, expose through the same
+transparency mask with a 365 nm UV LED source, do the reversal bake and flood exposure, develop, then coat 5 nm Ti and
+30 nm Au in a benchtop sputter or thermal coater of the kind used for SEM samples. Dust may leave a few pinholes, which
+does not affect the check (gold left outside the pattern). Consumables only: about USD 15 to 25 per wafer (wafer,
+resist, developer, a share of the targets), so about USD 30 to 50 per trial. Check the first wafer of each batch as below.
+
 Before a batch is used for trials, lift off one wafer from it as in the task (60 s in acetone in the ultrasonic bath) and check it under the microscope.
 
 Protect the robot: fit solvent-resistant covers (for example nitrile finger cots) over both grippers' pads for real
