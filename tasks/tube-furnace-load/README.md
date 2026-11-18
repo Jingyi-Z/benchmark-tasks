@@ -1,46 +1,108 @@
-# Push three sample boats to their zones in a tube furnace with a rod while holding the loose tube, then cap both ends
+# Load three sample boats into their temperature zones in a tube furnace with a push rod, then stopper the tube's inlet end
 
-A split-tube furnace, its lid open, holds a 2 inch quartz tube with both end caps off, each in a cradle beside its end. Argon
-comes in at the near end, so the near end is upstream. Three boats wait on a tray beside the near end:
-precursor 1 (a yellow powder), precursor 2 (a white powder), and a quartz boat with a silicon substrate face up. A quartz push rod with a flat T-handle across its back end
-lies in two channel rests in line with the tube, behind its near end. The tube lies loose in the furnace's saddles,
-centred. The left hand takes it by its far end, slides it 75 mm towards the far side so the near end stands close to the
-furnace, and holds it there. The right hand sets each boat in the tube's mouth by its tongue, takes the rod by its T-handle
-and pushes the boat in, then racks the rod. The left hand slides the tube back, centred, and lets go; then each hand caps
-its end (the left the far, exhaust end; the right the near, inlet end). The layout is scored against the furnace:
+Loading a tube furnace is a routine hand step in materials and device research labs. A split-tube furnace, its lid open,
+holds a 2 inch quartz tube. Each end of the tube takes a tapered one-hole silicone stopper with a stainless gas tube
+through it. As in daily use, the far (exhaust) end's stopper stays in, and the near (argon inlet) end's stopper is out,
+lying in a cradle beside the tube. Argon comes in at the near end, so the near end is upstream.
 
+Three boats wait on a tray beside the near end: precursor 1 (a yellow powder), precursor 2 (a white powder), and a quartz
+boat with a silicon substrate face up. A quartz push rod with a flat T-handle across its back end lies in two channel
+rests in line with the tube, behind its near end. The tube lies loose in the furnace's saddles, centred.
+
+The scripted demo runs in this order:
+1. The left hand takes the tube by its far end, slides it 75 mm towards the far side so the near end stands close to the
+   furnace, and holds it there.
+2. For each boat, the right hand sets the boat in the tube's mouth by its tongue, takes the rod by its T-handle, pushes
+   the boat in, then racks the rod.
+3. The left hand slides the tube back, centred, and keeps holding it.
+4. The right hand takes the inlet stopper by its gas tube, lines it up with the tube's end as seen (the loose tube can
+   lie a degree off its line in its saddles), and pushes it in, held lightly so its taper can centre it, until it stops.
+5. The right hand lets go and lifts clear; then the left hand lets go of the tube; both hands rest over 100 mm from
+   everything.
+
+The layout is scored against the furnace:
 - precursor 1 at the furnace's upstream edge, where it stays cool enough to evaporate slowly;
 - precursor 2 under the thermocouple, in the hot zone;
 - the substrate 50 to 80 mm downstream of precursor 2, centre to centre;
-- both caps pushed home and square;
+- the inlet stopper seated in the tube's end, square to it;
 - the tube back where it started, 120 mm out of the furnace at each end.
+
+## The stopper
+
+The stopper is Chemglass CG-1420-05: a #10 silicone stopper with one 9/16 in hole, nominally 42 mm across at its small
+end, 50 mm at its large end, 25 mm long (standard #10 sizing; not measured lot tolerances). Sellers' prices seen on
+Nov 17, 2026: USD 60.96 each (VWR, catalog 80068-662) and USD 72.51 each (CP Lab Safety,
+https://www.cplabsafety.com/stopper-only-10-silicone-9-16-hole-each/cg-1420-05).
+A 5/8 in stainless tube through its hole carries the gas. In the 46 mm bore of a 2 in quartz tube, a #10 stopper starts
+in by about half its length and is pushed in until it stops.
+
+In the simulation:
+- The stopper is rigid, at its real size. It seats where its taper meets the tube's inner edge, 11.81 mm in; a real one
+  squeezes further. Its small end is rounded over 3 mm, as on a moulded stopper.
+- The gas tube is a hollow stainless tube, 1 mm wall, 60 mm long: 30 mm out of the large end and 5 mm past the small end.
+- The tube's end is a 32-sided ring, so the stopper bears on it all round.
+- The bore collides as facets (32 sides over the end lengths, 12 between), and its floor is a flat quartz strip, 20 mm
+  wide, 2 mm proud, starting 15 mm inside the loading end (clear of the seated stopper). The boats' underside end edges
+  are bevelled 2 mm over 4 mm, as on a moulded boat's rounded ends, so a dragged boat rides up the strip's edge.
+- Seated is scored as its small end within 1 mm of 11.81 mm in, and its axis within 2 degrees and 1 mm of the tube's.
+
+Real trials use the real stopper's own seated depth, D_real, not 11.81 mm. Before the trials, push this stopper into
+this tube by hand until it stops, pass the vacuum hold below, then read a ruler from the tube's end to the stopper's
+large end at four points round it and mark that reading (D_real). A trial's stopper must read within 1 mm of it at all
+four points. The vacuum hold has not been run for this submission; it is the real-trial check.
+
+## Every positive score
+
+Both hands must be released and everything loose must be still:
+- Released: each hand's pad midpoint and both jaw points (from its two finger joints separately), six points in all,
+  80 mm or more from every task surface. The fixed parts (furnace with its open lid and controller, the tube's supports,
+  the stopper's cradle, the tray, the rod's rests) are bounded by boxes; the loose parts by capsules round them where
+  they are: the tube with its exhaust stopper and gas tube, the inlet stopper and its gas tube, each boat with its
+  tongue, the substrate, the rod's bar and paddle, and its T-handle.
+- Still: points at the extremities of the tube, the inlet stopper, each boat, the substrate and the rod (both ends,
+  the paddle's corners, the handle's top corners) each moved under 1 mm between any two of the last 21 samples (1 s at
+  20 Hz), so turns count as well as slides.
+
+## Cheaper real trials
+
+Trials are run cold (furnace off), so the heated parts may be stand-ins. The furnace body may be a 3D-printed or plywood
+shell with the same chamber, saddles and thermocouple position. The quartz tube (2 in OD, 610 mm), the stoppers, the
+boats and the push rod are the real items.
+
+Seal-check kit (fitted only after a trial, not in the scene): two short silicone hoses that push onto the 5/8 in gas
+tubes; two quarter-turn ball valves; a barbed tee; a vacuum gauge reading to -100 kPa; a hand vacuum pump (e.g. a
+Mityvac-type pump); a timer in view.
 
 ## Files
 
-- `task.py`: scene, scoring and scripted demo (yam_arena task file). The furnace, tray, rod rack, cap cradles
-  and the tube's two blocks are fixed; the tube (0.49 kg), the three boats, the substrate, the rod and both caps are loose. An `on_step` hook latches the
-  violations, follows the end state and checks that everything has been still for the last second.
-- `labkit.py`: parts built from several shapes. It hooks `yam_arena.scene` and the embodiment from the task's
-  import, so no change to yam_arena is needed.
-- `arena_assets_fix.py`: imported by `labkit.py`; points Arena library assets at NVIDIA's production bucket.
-  This task uses no library assets; every object is built in `task.py`.
+- `task.py`: scene, scoring and scripted demo (yam_arena task file).
+  - Fixed: the furnace, tray, rod rack, the stopper's cradle and the tube's two blocks.
+  - Loose: the tube (0.49 kg, with its exhaust stopper), the three boats, the substrate, the rod and the inlet stopper
+    (0.08 kg).
+  - An `on_step` hook latches the violations, follows the end state, and keeps the release and stillness gate (see
+    Every positive score).
+- `labkit.py`: parts built from several shapes. It hooks `yam_arena.scene` and the embodiment from
+  the task's import, so no change to yam_arena is needed.
+- `arena_assets_fix.py`: imported by `labkit.py`; points Arena library assets at NVIDIA's production bucket. This task uses
+  no library assets; every object is built in `task.py`.
 
 ## Run a trial
 
-Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed (the Robocurve Brev launchable):
+Inside the Isaac Lab-Arena environment with `yam-isaac-lab-arena` installed:
 
     inspect-robots run --embodiment yam_arena --policy dream \
         -E task=$PWD/task.py -E object_jitter=0 -E control_hz=20 \
         --instruction "$(python -c 'import json;print(json.load(open("task.json"))["instruction"])')" \
-        --scorer task_score --max-steps 4800 --store-frames --log-dir logs
+        --scorer task_score --max-steps 5000 --store-frames --log-dir logs
 
-Scripted demo: the same command with `--policy yam_scripted`. The demo reads only what a camera sees: the poses of
-the boats (outside the tube), the rod, the caps and the tube. Run one trial per process. The score is `task_score` in the log, computed by `score()` in
+Scripted demo: the same command with `--policy yam_scripted`. It aims by the poses of the boats (outside the tube), the
+rod, the stopper and the tube. Run one trial per process. The score is `task_score` in the log, computed by `score()` in
 `task.py`.
 
 ## Runtime and seeds
 
-- 4,800 control steps (240 s of simulated time) per trial. The scripted demo takes about 4,450.
+- 5,000 control steps (250 s of simulated time) per trial. The scripted demo ends at about 4,785 steps (3 minutes 59 s): the trial
+  stops 2 s after the score reaches 1.0, which needs both hands resting clear and everything still.
 - One fixed starting layout: run with `-E object_jitter=0`. No other randomness.
 
 ## Scoring a real trial
@@ -48,5 +110,13 @@ the boats (outside the tube), the rod, the caps and the tube. Run one trial per 
 - Boats: the quartz tube is clear in a real trial, so each boat's centre is read with a ruler along the tube from the
   furnace's near end and from the thermocouple's tip.
 - Tube: a ruler at each end of the furnace gives how far the tube stands out (120 mm each, within 5 mm).
-- Caps: pushed home when their end plate touches the tube's end; square by eye against a set square.
+- Hands and stillness (every positive score): both hands off and 80 mm or more from every part, nothing moving, judged
+  from the video's last second.
+- Stopper seated: a ruler from the tube's end to the stopper's large end reads within 1 mm of D_real at four points
+  round it (D_real: see The stopper, above).
+- Seal (needed for real seal credit): with the tube cold, push a hose with a shut ball valve onto the exhaust stopper's
+  gas tube, and a hose from the inlet stopper's gas tube to the tee, which carries the gauge and, through the second ball
+  valve, the pump. Press on neither stopper. Pump to -30 kPa gauge, shut the pump's valve (the gauge stays on the tube);
+  the pressure must rise under 2 kPa in 30 s, gauge and timer on video. This is a cold check, not proof of hot or
+  high-vacuum performance.
 - Spills, a tipped boat or a flipped substrate: seen in the video.
