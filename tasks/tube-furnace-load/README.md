@@ -5,9 +5,10 @@ holds a 2 inch quartz tube. Each end of the tube takes a tapered one-hole silico
 through it. As in daily use, the far (exhaust) end's stopper stays in, and the near (argon inlet) end's stopper is out,
 lying in a cradle beside the tube. Argon comes in at the near end, so the near end is upstream.
 
-Three boats wait on a tray beside the near end: precursor 1 (a yellow powder), precursor 2 (a white powder), and a quartz
-boat with a silicon substrate face up. A quartz push rod with a flat T-handle across its back end lies in two channel
-rests in line with the tube, behind its near end. The tube lies loose in the furnace's saddles, centred.
+Three boats wait on a tray beside the near end: precursor 1 (a yellow load), precursor 2 (a white load), and a clear
+boat with a substrate face up. A push rod with a flat T-handle across its back end lies in two channel rests in line
+with the tube, behind its near end. The tube lies loose in the furnace's saddles, centred. In real trials the boats,
+their loads, the substrate and the rod are the cold-trial stand-ins below; there is no powder on the rig.
 
 The scripted demo runs in this order:
 1. The left hand takes the tube by its far end, slides it 75 mm towards the far side so the near end stands close to the
@@ -43,7 +44,7 @@ In the simulation:
 - The tube's end is a 32-sided ring, so the stopper bears on it all round.
 - The bore collides as facets (32 sides over the end lengths, 12 between), and its floor is a flat quartz strip, 20 mm
   wide, 2 mm proud, starting 15 mm inside the loading end (clear of the seated stopper). The boats' underside end edges
-  are bevelled 2 mm over 4 mm, as on a moulded boat's rounded ends, so a dragged boat rides up the strip's edge.
+  are bevelled 1.2 mm up over their last 4 mm, as on a moulded boat's rounded ends, so a dragged boat rides up the strip's edge.
 - Seated is scored as its small end within 1 mm of 11.81 mm in, and its axis within 2 degrees and 1 mm of the tube's.
 
 Real trials use the real stopper's own seated depth, D_real, not 11.81 mm. Before the trials, push this stopper into
@@ -63,15 +64,57 @@ Both hands must be released and everything loose must be still:
   the paddle's corners, the handle's top corners) each moved under 1 mm between any two of the last 21 samples (1 s at
   20 Hz), so turns count as well as slides.
 
-## Cheaper real trials
+## Cold-trial parts
 
-Trials are run cold (furnace off), so the heated parts may be stand-ins. The furnace body may be a 3D-printed or plywood
-shell with the same chamber, saddles and thermocouple position. The quartz tube (2 in OD, 610 mm), the stoppers, the
-boats and the push rod are the real items.
+All real trials are cold, with no loose precursor powder or process gas on the shared rig. The yellow and white loads
+are captive solid inserts specified in the parts table below; their assembled boat masses and contact geometry match
+the published cold-trial setup. Inspect the inserts and attachments before every reset, and replace any damaged
+assembly before a trial.
 
-Seal-check kit (fitted only after a trial, not in the scene): two short silicone hoses that push onto the 5/8 in gas
-tubes; two quarter-turn ball valves; a barbed tee; a vacuum gauge reading to -100 kPa; a hand vacuum pump (e.g. a
-Mityvac-type pump); a timer in view.
+The furnace body may be a 3D-printed or plywood shell with the same chamber, saddles and thermocouple position (the
+heater is never on). The quartz tube (2 in OD, 46 mm ID, 610 mm) and the two stoppers are real items. The boats, their
+loads and the push rod are printed from `make_parts.py` at the simulation's sizes (it checks them against `task.py`);
+the substrate is a stainless square of the simulation's mass.
+
+| Part | Qty | Make it from | Size (mm) | Mass |
+|---|---|---|---|---|
+| Precursor boat (white) | 2 | `boat_precursor.stl`, white PETG | 60 x 20 x 12, 2 mm walls; tongue 5 x 5 x 20 turned 55 deg, axis 4 mm up; underside end edges bevelled 1.2 mm up over 4 mm | 7.49 g each |
+| Yellow load (precursor 1) | 1 | `load_yellow.stl`, yellow PETG | 55.6 x 15.6 x 4 slab (0.2 mm clearance inside the walls) | 4.41 g |
+| White load (precursor 2) | 1 | `load_white.stl`, white PETG | as above | 4.41 g |
+| Substrate boat (clear) | 1 | `boat_substrate.stl`, clear PETG; closed floor pocket 18 x 10 x 0.8 at 0.6 to 1.4 mm up | 35 x 20 x 12, as the precursor boat | 4.76 g printed |
+| Ballast plate | 1 | 304 stainless sheet 0.8 mm, cut with tin snips or laser | 18 x 10 x 0.8 | 1.14 g |
+| Substrate stand-in | 1 | 304 stainless sheet 0.5 mm, top painted purple | 10 x 10 x 0.5 | 0.40 g |
+| Push rod | 1 | `push_rod.stl`, natural PETG, one piece | 8 x 8 bar, 293 long, hollow with closed 1.0 mm walls; paddle 4 thick, 14 to 20 wide, 9 to 11.5 tall, foot bevelled; T-handle plate 26 x 5 x 45 (hollow, 1.0 mm walls) over the bar's end | 14.74 g |
+| Cyanoacrylate glue | - | any thin CA glue | bonds each load to its boat's floor | - |
+
+Assembled masses against the simulation (`python make_parts.py` prints this table; PETG 1.27 g/cm3, steel 7.93 g/cm3):
+
+| Assembly | Printed or cut | Simulation | Difference |
+|---|---|---|---|
+| Precursor boat + load | 11.89 g | 12.0 g | -0.9 % |
+| Substrate boat + ballast | 5.90 g (4.76 printed + 1.14 plate) | 6.0 g | -1.6 % |
+| Push rod | 14.74 g | 15.0 g | -1.7 % |
+| Substrate stand-in | 0.40 g | 0.4 g | -0.9 % |
+
+Weigh each part after printing; reprint any part more than 0.5 g from its listed mass.
+
+How to make them:
+1. `python make_parts.py out/` (Python 3 with numpy) writes the five STL files (mm). Print solid (100 % infill), 0.2 mm layers, 0.4 mm nozzle.
+   The boats print upright on their floor; the loads flat. The push rod prints lying on one side of the bar, and needs a
+   bed of at least 300 mm along its diagonal (it fits diagonally on a 250 x 210 mm bed); its hollow bar and plate are
+   closed shells, so no support is needed inside them.
+2. Substrate boat: insert a pause after the 1.4 mm layer, drop the ballast plate into the pocket, resume. The plate ends
+   sealed inside the floor.
+3. Loads: put a thin bead of CA glue over the boat's floor, press the load in flat against the floor, and let it cure
+   10 min. The load sits 0.2 mm inside the walls all round and cannot come out without breaking the bond.
+4. Weigh every part against the table, and check the tongue and bevels by eye.
+
+Cost: about 45 g of PETG in all (about USD 1 at USD 25 per kg spool), two scraps of stainless sheet and a drop of
+glue. Before each trial: turn each boat over and tap it on the tray; a load that moves is re-glued or the boat replaced.
+
+Real-trial seal-check kit (fitted only after a trial, not in the scene): two short silicone hoses that push onto the
+5/8 in gas tubes; two quarter-turn ball valves; a barbed tee; a vacuum gauge reading to -100 kPa; a hand vacuum pump
+(e.g. a Mityvac-type pump); a timer in view.
 
 ## Files
 
@@ -85,6 +128,8 @@ Mityvac-type pump); a timer in view.
   the task's import, so no change to yam_arena is needed.
 - `arena_assets_fix.py`: imported by `labkit.py`; points Arena library assets at NVIDIA's production bucket. This task uses
   no library assets; every object is built in `task.py`.
+- `make_parts.py`: writes the cold-trial print files (STL) for the boats, loads and push rod, checks their sizes against
+  `task.py` and prints the mass table (see Cold-trial parts).
 
 ## Run a trial
 
@@ -119,4 +164,4 @@ rod, the stopper and the tube. Run one trial per process. The score is `task_sco
   valve, the pump. Press on neither stopper. Pump to -30 kPa gauge, shut the pump's valve (the gauge stays on the tube);
   the pressure must rise under 2 kPa in 30 s, gauge and timer on video. This is a cold check, not proof of hot or
   high-vacuum performance.
-- Spills, a tipped boat or a flipped substrate: seen in the video.
+- A tipped boat or a flipped substrate: seen in the video.
