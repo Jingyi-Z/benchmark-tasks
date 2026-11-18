@@ -22,6 +22,7 @@ Run it:  inspect-robots run --embodiment yam_arena -E task=task.py -E object_jit
 """
 
 import math
+import os
 import pathlib
 import sys
 
@@ -191,16 +192,21 @@ def _strips():
 # -- the sample plate (loose): stainless, 200 mm across, 1.5 mm thick, face up on the loading stand, with rings of tapped
 # holes for 2, 3, 4 and 6 inch wafers. In the 4 inch ring (59.5 mm out) stand eight swing clips every 45 degrees. Each is
 # a 13 mm steel tab on its screw: parked along the rim (joint 0) it clears the wafer; swung in 90 degrees clockwise to its
-# stop, its tip lies 4.3 mm over a round edge (1.6 mm over the flat), and a lip under it, 9.2 mm from the screw, reaches
-# 0.5 mm inside the wafer's edge, so a clipped wafer cannot slide out. Each clip's screw (7 mm cheese head, its slot 2.2
-# mm wide, 2.5 mm deep) turns on the clip: clockwise tightens it. A boss under
+# stop, its tip lies 4.3 mm over a round edge (1.6 mm over the flat). Nothing else holds the wafer: an untightened tab
+# stands 0.35 mm over it, so the wafer slides out from under loose clips. Each clip's screw (7 mm cheese head, its slot
+# 2.2 mm wide, 2.5 mm deep) turns on the clip: clockwise tightens it. The screw is M3 x 0.5: each turn lowers the tab
+# 0.5 mm (the clip rides on a short slide, its shank), so the tab meets the wafer after 252 degrees and presses it from
+# then on through the tab's spring (TAB_K), and the screw gets harder to turn as it presses (SCREW_T0, SCREW_T1). A boss under
 # the plate sits in the stand's socket. Frame: origin at the centre of the plate's back face, +z out of its sample face.
 PL_R, PL_T = 0.100, 0.0015
 CLIP_P, CLIP_L, CLIP_W, CLIP_T = 0.0595, 0.013, 0.004, 0.0010
-TAB_BOT = PL_T + W_T + 0.0003  # the tabs' underside: 0.3 mm over the wafer
+TAB_GAP_REAL = 0.00035  # the real start: the screw's head 0.35 mm over its tab (the README's feeler gauge); the tab
+# meets the wafer after 252 degrees
+TAB_GAP = 0.0008  # drawn here: the sim's 0.5 mm contact band (labkit CONTACT_OFFSET) plus 0.3 mm, so a swinging tab
+# cannot catch the wafer; the screw closes this drawn gap over the same first 252 degrees (see screw_depth)
+TAB_BOT = PL_T + W_T + TAB_GAP
 TAB_Z = TAB_BOT + CLIP_T / 2
 TAB_TOP = TAB_BOT + CLIP_T
-LIP_D0, LIP_D1 = 0.0024, CLIP_P - (W_R - 0.0005)  # the lip under each tab, from the screw out along the tab
 KNOB_AT, KNOB_R, KNOB_H = 0.007, 0.0020, 0.005
 HEAD_R, HEAD_H, SLOT, RIDGE = 0.0035, 0.0025, 0.0032, (0.0012, 0.0060, 0.0025)  # slot 3.2 mm: the sim's 0.5 mm contact margin
 # on both faces leaves the 0.8 mm blade about 0.7 mm of play either side
@@ -214,6 +220,27 @@ W_OFF = 0.005 * np.array([math.cos(math.radians(202.5)), math.sin(math.radians(2
 SCREW_TIGHT = math.radians(300.0)  # tightened: turned at least 300 degrees clockwise
 SCREW_MAX = math.radians(420.0)  # past this, a clip over the wafer cracks it
 LONG_TURN = math.radians(90.0)
+PITCH = 0.0005  # M3 x 0.5: the tab's travel per turn of its screw (m)
+SA_TOUCH = 2 * math.pi * TAB_GAP_REAL / PITCH  # 252 degrees: where the real tab meets the wafer
+
+
+SIM_GAP = TAB_GAP + 0.1 * W_T  # tab underside to the wafer's colliders: the strips' tops lie 0.1 x W_T under the
+# drawn top (strip thickness 0.9 x W_T, resting on the plate), measured in r6: contact began at 325 degrees
+
+
+def screw_depth(sa):
+    """How far (m) a screw turned sa (radians, clockwise) drives its tab down: the gap to the wafer's colliders
+    (SIM_GAP) closes over the first 252 degrees, then 0.5 mm a turn as the real M3 x 0.5 screw, so contact is at 252
+    degrees and every angle past it clamps as on the real clip (0.07 mm at 300 degrees, 0.23 at 420)."""
+    sa = max(float(sa), 0.0)
+    return SIM_GAP * min(sa, SA_TOUCH) / SA_TOUCH + PITCH * max(sa - SA_TOUCH, 0.0) / (2 * math.pi)
+SLIDE_K = 200000.0  # a swinging clip's slide: a 7 N push on its knob moves the tab 35 um
+TAB_K = 20000.0  # the clip tab's spring against the wafer (N/m): 300 degrees presses about 1.3 N, 420 degrees about 4.7 N
+SCREW_T0 = 0.005  # a loose screw's running torque in its tapped hole (N m, estimate)
+SCREW_T1 = 350.0  # extra torque per metre of clamp (N m/m): about 0.03 N m at 300 degrees, 0.09 N m at 420 (estimates)
+# PhysX's joint friction is not a torque: measured on these screws (a spring drive ramped against values 1e-4 to 1e-2,
+# static and dynamic set alike) the running resistance is 8.0 N m per unit, linear (0.0084 N m at 0.001, 0.080 at 0.01)
+FRICTION_NM = 8.0
 
 
 def clip_frame(k):
@@ -237,13 +264,15 @@ def _clip_joints(k):
     P, t, _ = clip_frame(k)
     yaw = math.atan2(t[1], t[0])
     c = P + t * CLIP_L / 2
-    lc = P + t * (LIP_D0 + LIP_D1) / 2
     kb = P + t * KNOB_AT
+    # the clip's slide: the screw's shank, down through the tab into the plate's tapped hole (the part does not collide
+    # with itself); the screw drives it down (see _press_clips), the tab's spring (TAB_K) is its stiffness
+    lift = Joint(f"clipz{k}", kind="slide", axis="Z", anchor=(P[0], P[1], TAB_Z), lower=-0.0012, upper=0.0, initial=0.0,
+                 stiffness=TAB_K, damping=20.0, target=0.0, mass=0.001,
+                 cylinders=[((P[0], P[1], (PL_T - 0.001 + TAB_BOT) / 2), 0.0012, TAB_BOT - PL_T + 0.001, STEEL)])
     clip = Joint(f"clip{k}", kind="hinge", axis="Z", anchor=(P[0], P[1], TAB_Z), lower=-math.pi / 2, upper=0.0,
-                 initial=0.0, friction=0.002, damping=0.001, mass=0.002,
-                 boxes=[((c[0], c[1], TAB_Z), (CLIP_L + 0.002, CLIP_W, CLIP_T), STEEL, yaw),
-                        ((lc[0], lc[1], (PL_T + 0.0001 + TAB_BOT) / 2), (LIP_D1 - LIP_D0, CLIP_W, TAB_BOT - PL_T - 0.0001),
-                         STEEL, yaw)],
+                 initial=0.0, friction=0.002, damping=0.001, mass=0.002, parent=f"clipz{k}",
+                 boxes=[((c[0], c[1], TAB_Z), (CLIP_L + 0.002, CLIP_W, CLIP_T), STEEL, yaw)],
                  cylinders=[((kb[0], kb[1], TAB_TOP + KNOB_H / 2), KNOB_R, KNOB_H, DARK)])
     up = LONG_UP if CLIP_DEG[k] == LONG_AT else 0.0
     s = math.radians(SLOT_DEG[CLIP_DEG[k]])
@@ -254,14 +283,14 @@ def _clip_joints(k):
     if up:
         cyl.append(((P[0], P[1], TAB_TOP + up / 2), 0.0019, up, STEEL))
     screw = Joint(f"screw{k}", kind="hinge", axis="Z", anchor=(P[0], P[1], TAB_Z), lower=-10.0, upper=0.05,
-                  initial=0.0, friction=0.001, damping=0.0005, mass=0.002, parent=f"clip{k}", cylinders=cyl,
+                  initial=0.0, friction=SCREW_T0 / FRICTION_NM, damping=0.0005, mass=0.002, parent=f"clip{k}", cylinders=cyl,
                   boxes=[((P[0] + e * (SLOT / 2 + RIDGE[0] / 2) * nrm[0], P[1] + e * (SLOT / 2 + RIDGE[0] / 2) * nrm[1], rz),
                           RIDGE, STEEL, s - math.pi / 2) for e in (-1, 1)]
                   # a white paint mark on one end of one ridge, so the screw's turns can be counted from above
                   + [((P[0] + m * (SLOT / 2 + RIDGE[0] / 2) * nrm[0] + (RIDGE[1] / 2 - 0.0007) * math.cos(s),
                        P[1] + m * (SLOT / 2 + RIDGE[0] / 2) * nrm[1] + (RIDGE[1] / 2 - 0.0007) * math.sin(s),
                        rz + RIDGE[2] / 2 + 0.00015), (0.0013, 0.0013, 0.0003), (0.95, 0.95, 0.95), s) for m in (1,)])
-    return [clip, screw]
+    return [lift, clip, screw]
 
 
 _holes = [((*_on(d, r), PL_T + 0.00005), (0.0042, 0.0042, 0.0001), math.radians(45 + d))
@@ -420,13 +449,16 @@ PLANCHECK_BOXES = [
 DOOR_SHUT = 0.003  # the door counts as shut within 3 mm of its seat
 CLIP_IN = math.radians(70.0)
 BITE = 0.0020  # a clip's tip at least 2 mm inside the wafer's outline holds it
+PRESS_MIN = 0.00003  # and its tab presses the wafer: the larger of its spring deflection and tab/wafer overlap is at
+#   least 0.03 mm, with spring deflection at least 0.005 mm; the overlap includes contact compliance and is not a
+#   measured clamp force
 GAP_MAX = 150.0
 CENTRED = 0.002
 SEAT_XY, SEAT_Z, SEAT_DEG, PLATE_ON = 0.004, 0.003, 5.0, 0.003
 TOUCH = 0.004
-HANDS_FAR = 0.05
+RELEASE = 0.08  # every positive score: all six jaw and pad points this far (m) from every task surface
 OPEN_MAX = 120.0  # the load lock's door may be open (over 3 mm off its seat) this long in all (s)
-SETTLE_STEPS, SETTLE_TOL = 20, 0.001
+SETTLE_STEPS, SETTLE_TOL = 20, 0.001  # all moving task parts: every material point under 1 mm over the last 21 samples
 _state = {}
 _hist = []
 
@@ -444,6 +476,41 @@ def _reset_state(env):
     plate = env.unwrapped.scene["sample_plate"]
     ids = plate.find_joints("clip.*_joint")[0]
     plate.write_joint_stiffness_to_sim(torch.zeros((1, len(ids)), device=plate.device), joint_ids=ids)
+    _press_clips(env, [0.0] * 8, [0.0] * 8, [0.0] * 8)
+
+
+def _press_clips(env, z, torque, swing):
+    """Drive each clip's slide to z (m, negative: down, from its screw's turns) and set its screw's turning resistance
+    (N m, from how hard the tab presses)."""
+    import torch
+
+    plate = env.unwrapped.scene["sample_plate"]
+    zi = plate.find_joints([f"clipz{k}_joint" for k in range(8)], preserve_order=True)[0]
+    zt = torch.tensor([z], dtype=torch.float32, device=plate.device)
+    plate.set_joint_position_target(zt, joint_ids=zi)
+    # the slide is held stiff (SLIDE_K) while its clip is out or swinging, so a finger pressing the clip's knob as it
+    # swings cannot push the tab onto the wafer; once the clip is swung in (CLIP_IN) the tab's own spring (TAB_K) presses
+    k = [TAB_K if a >= CLIP_IN else SLIDE_K for a in swing]
+    plate.write_joint_stiffness_to_sim(torch.tensor([k], dtype=torch.float32, device=plate.device), joint_ids=zi)
+    si = plate.find_joints([f"screw{k}_joint" for k in range(8)], preserve_order=True)[0]
+    f = torch.tensor([torque], dtype=torch.float32, device=plate.device) / FRICTION_NM  # N m to PhysX friction
+    plate.write_joint_friction_coefficient_to_sim_index(joint_friction_coeff=f, joint_dynamic_friction_coeff=f,
+                                                        joint_ids=si)
+
+
+def press(p, k, w=None):
+    """How far (m) clip k's tab presses into the wafer: the slide held up short of its screw (the tab's spring) plus,
+    when the wafer is under the tab (``w``), how far the wafer itself has given way (its contact deflection). Both are
+    camera-visible in principle: the gap under the screw's head and the wafer's height. Zero without real contact."""
+    sa = -float(p.joints.get(f"screw{k}", 0.0))
+    spring = max(0.0, float(p.joints.get(f"clipz{k}", 0.0)) + screw_depth(sa))
+    if w is None:
+        return spring
+    if spring < 0.000005:  # the slide is not held up at all: the tab touches nothing
+        return 0.0
+    strip_top = float(in_plate(p, w.pos)[2]) + 0.45 * W_T  # the wafer colliders' top face, where the wafer now sits
+    tab_bot = TAB_BOT + float(p.joints.get(f"clipz{k}", 0.0))
+    return max(spring, strip_top - tab_bot)
 
 
 def _light(env, green):
@@ -486,6 +553,8 @@ def _door_drive(env, mode):
 
 
 def _tips(env):
+    """Both hands' pad midpoints (the runtime's own pad datum) and their two jaw points (world, env frame), each jaw
+    from its own finger joint (joint7 and joint8 separately)."""
     from yam_arena import runtime as _rt
 
     b = env.unwrapped
@@ -495,10 +564,73 @@ def _tips(env):
         robot = b.scene[n]
         mid = _rt.pad_tips_world(robot) - o
         g = _rt.link_poses(robot)["gripper"]
-        ids = robot.find_joints(["joint7"], preserve_order=True)[0]
-        half = abs(float(robot.data.joint_pos.torch[0, ids].cpu().numpy()[0]))
-        out += [mid + half * g[:3, 0], mid - half * g[:3, 0]]
+        ids = robot.find_joints(["joint7", "joint8"], preserve_order=True)[0]
+        q7, q8 = (abs(float(v)) for v in robot.data.joint_pos.torch[0, ids].cpu().numpy())
+        out += [mid, mid - q7 * g[:3, 0], mid + q8 * g[:3, 0]]
     return out
+
+
+def _seg_dist(x, a, b):
+    """Distance of point x from segment a-b."""
+    x, a, b = (np.asarray(v, float) for v in (x, a, b))
+    ab = b - a
+    t = float(np.clip(np.dot(x - a, ab) / max(float(np.dot(ab, ab)), 1e-12), 0.0, 1.0))
+    return float(np.linalg.norm(x - (a + t * ab)))
+
+
+def _clearance(p, w, r, d, s, tips) -> float:
+    """Smallest distance (m) from any of the six hand points to any task surface: the plate with its clips and screws,
+    the wafer, the ring holder (the carrier), the screwdriver, the door with its handle and twist lock, and the fixed
+    apparatus (the load lock, the stand, the screwdriver holder and the light tower). Bodies that move or turn are
+    bounded by spheres and segments around their current poses (conservative: never larger than the true clearance)."""
+    door = float(d.joints.get("door", 0.0))
+    hp, kp = handle_pos(door), np.array([DOOR_X + LOCK_DX, LOCK_Y, TOP + LOCK_H + door])
+    sd_top = np.asarray(s.pos, float) + s.rotation() @ np.array([0.0, 0.0, SH_L + H_L])
+    spheres = [(np.asarray(p.pos, float), PL_R + 0.006),  # the plate, clips, screws and knobs to the tabs' reach
+               (np.asarray(w.pos, float), W_R),
+               (np.asarray(r.pos, float), RG_OUT),
+               (hp, 0.025), (kp, 0.030)]  # the door's handle and its twist lock's bar
+    boxes = [((DOOR_X, 0.0, TOP + (DOOR_Z0 + DOOR_Z1) / 2 + door), (0.004, LL_Y, (DOOR_Z1 - DOOR_Z0) / 2)),
+             (((LL_X0 + LL_X1) / 2, 0.0, TOP + LL_Z / 2), ((LL_X1 - LL_X0) / 2, LL_Y, LL_Z / 2)),
+             ((*ST_XY, TOP + ST_H / 2), (0.080, 0.080, ST_H / 2)),
+             ((*SD_XY, TOP + SOCK_Z / 2), (0.020, 0.020, SOCK_Z / 2)),
+             ((*TOWER_XY, TOP + LL_Z + 0.045), (0.016, 0.016, 0.055))]
+    best = 9.0
+    for t in tips:
+        t = np.asarray(t, float)
+        for c, rad in spheres:
+            best = min(best, float(np.linalg.norm(t - c)) - rad)
+        best = min(best, _seg_dist(t, np.asarray(s.pos, float), sd_top) - 0.009)  # the screwdriver, tip to handle
+        for c, h in boxes:
+            best = min(best, float(np.linalg.norm(np.maximum(np.abs(t - np.asarray(c, float)) - np.asarray(h, float),
+                                                             0.0))))
+    return best
+
+
+def _still_points(p, w, r, d, s) -> np.ndarray:
+    """Material points on every moving task part (world, m): centre and two rim points of the plate, the wafer and the
+    ring holder (so a turn at a fixed centre counts as movement), each clip's tab tip with its slide's height and a
+    slot point on each screw (so swings, screw turns and tab heights count), the screwdriver's tip and handle end, the
+    door's handle, and a bar point on the twist lock turning with its angle."""
+    Rp, Rw, Rr, Rs = p.rotation(), w.rotation(), r.rotation(), s.rotation()
+    pp, pw, pr, ps = (np.asarray(v.pos, float) for v in (p, w, r, s))
+    door = float(d.joints.get("door", 0.0))
+    lock = float(d.joints.get("lock", 0.0))
+    kp = np.array([DOOR_X + LOCK_DX, LOCK_Y, TOP + LOCK_H + door])
+    pts = [pp, pp + Rp @ np.array([PL_R, 0.0, 0.0]), pp + Rp @ np.array([0.0, PL_R, 0.0]),
+           pw, pw + Rw @ np.array([W_R, 0.0, 0.0]), pw + Rw @ np.array([0.0, W_R, 0.0]),
+           pr, pr + Rr @ np.array([RG_OUT, 0.0, 0.0]), pr + Rr @ np.array([0.0, RG_OUT, 0.0]),
+           ps, ps + Rs @ np.array([0.0, 0.0, SH_L + H_L]),
+           handle_pos(door), kp + 0.02 * np.array([0.0, math.cos(lock), math.sin(lock)])]
+    for k in range(8):
+        th = -float(p.joints.get(f"clip{k}", 0.0))
+        sa = -float(p.joints.get(f"screw{k}", 0.0))
+        z = TAB_Z + float(p.joints.get(f"clipz{k}", 0.0))
+        tip = clip_tip(k, th)
+        pts.append(pp + Rp @ np.array([tip[0], tip[1], z]))
+        P = clip_frame(k)[0]
+        pts.append(pp + Rp @ np.array([P[0] + 0.003 * math.cos(sa), P[1] + 0.003 * math.sin(sa), z]))
+    return np.asarray(pts, float)
 
 
 def tilt_deg(R, down=False):
@@ -518,13 +650,13 @@ def wafer_seated(p, w):
 
 def holding_clips(p, w):
     """Plate-frame angles of the clips that hold the wafer: swung in past 70 degrees, screw tightened after it was
-    swung in (and not swung since), tip at least 2 mm inside the wafer's outline."""
+    swung in (and not swung since), its tab pressing (PRESS_MIN), tip at least 2 mm inside the wafer's outline."""
     Rp, Rw = p.rotation(), w.rotation()
     out = []
     for k in range(8):
         th = -float(p.joints.get(f"clip{k}", 0.0))
         lock = _state["tight"].get(k)
-        if th < CLIP_IN or lock is None or abs(th - lock) > math.radians(10.0):
+        if th < CLIP_IN or lock is None or abs(th - lock) > math.radians(10.0) or press(p, k, w) < PRESS_MIN:
             continue
         tip = clip_tip(k, th)
         world = np.asarray(p.pos, float) + Rp @ np.array([tip[0], tip[1], TAB_Z])
@@ -592,8 +724,14 @@ def _watch(env):
     elif st["mode"] == "locked" or door < DOOR_UP - LATCH_OFF:
         _door_drive(env, "free")
     tips = _tips(env)
-    hp = handle_pos(door)
-    # screws
+    # screws: each drives its clip's tab down 0.5 mm a turn; the tab's press sets the screw's resistance
+    zs, ts = [], []
+    for k in range(8):
+        sa = max(0.0, -float(p.joints.get(f"screw{k}", 0.0)))
+        zs.append(-min(screw_depth(sa), 0.0012))
+        ts.append(SCREW_T0 + SCREW_T1 * press(p, k, w))
+    _press_clips(env, zs, ts, [-float(p.joints.get(f"clip{k}", 0.0)) for k in range(8)])
+    st["press"] = [press(p, k, w) for k in range(8)]
     for k in range(8):
         sa = -float(p.joints.get(f"screw{k}", 0.0))
         if CLIP_DEG[k] == LONG_AT:
@@ -621,35 +759,42 @@ def _watch(env):
     st["gap"] = largest_gap(holding_clips(p, w))
     st["stack"] = stack_loaded(p, r)
     st["sd_in"] = sd_inside(s)
-    kp = np.array([DOOR_X + LOCK_DX, LOCK_Y, TOP + LOCK_H + door])
-    st["far"] = all(min(np.linalg.norm(np.asarray(t) - hp), np.linalg.norm(np.asarray(t) - kp)) >= HANDS_FAR
-                    for t in tips)
-    _hist.append(np.concatenate([np.asarray(p.pos, float), pw, np.asarray(r.pos, float), [door]]))
+    st["far"] = _clearance(p, w, r, d, s, tips) >= RELEASE
+    _hist.append(_still_points(p, w, r, d, s))
     del _hist[:-(SETTLE_STEPS + 1)]
-    st["settled"] = (len(_hist) > SETTLE_STEPS
-                     and float(np.max(np.abs(np.asarray(_hist) - _hist[-1]))) < SETTLE_TOL)
+    if len(_hist) > SETTLE_STEPS:
+        h = np.asarray(_hist)  # samples x points x 3: every point's movement between any two samples under 1 mm
+        st["settled"] = float(np.linalg.norm(h[:, None] - h[None, :], axis=3).max()) < SETTLE_TOL
+    else:
+        st["settled"] = False
 
 
 def score(objects):
     """0 after any violation (the long screw turned over 90 degrees, a clip's screw over 420 degrees, the door open over
     120 s in all, the wafer off its seat on the plate, the plate or ring dropped, a fingertip within 4 mm of the wafer's
-    pattern), if the screwdriver is in the load lock, or unless the
-    plate, wafer, ring and door have been still (under 1 mm) for the last second. Otherwise: 0.25 if the wafer is centred
-    on the plate (within 2 mm) and held by clips (swung in past 70 degrees, then their screws tightened 300 degrees, tips
+    pattern), if the screwdriver is in the load lock, or unless both hands are released (all six jaw and pad points
+    80 mm or more from every task surface: the plate with its clips and screws, the wafer, the ring holder, the
+    screwdriver, the door with its handle and lock, and the fixed apparatus) and every moving task part, the clips,
+    screws, screwdriver, door and lock included, moved less than 1 mm over the last 21 samples at 20 Hz (1.0 s).
+    Otherwise: 0.25 if the wafer is centred
+    on the plate (within 2 mm) and held by clips (swung in past 70 degrees, then their screws tightened 300 degrees, tabs
+    pressing the wafer, tips
     at least 2 mm inside the wafer's outline) that leave no gap over 150 degrees round it; 0.5 if also the ring holder
     lies face down on the load lock's holder (within 5 degrees and 4 mm) carrying the plate face down (centred on it
-    within 3 mm); 0.75 if also the door is shut (within 3 mm of its seat) and locked (its twist lock turned back within 10
-    degrees); 1.0 if also every fingertip is 5 cm from the door's handle and its lock."""
+    within 3 mm); 0.75 if also the door is shut (within 3 mm of its seat); 1.0 if also the door is locked (its twist
+    lock turned back within 10 degrees)."""
     st = _state
-    if st.get("viol") or not st.get("settled", False) or st.get("sd_in"):
+    if st.get("viol") or st.get("sd_in"):
+        return 0.0
+    if not (st.get("settled", False) and st.get("far", False)):
         return 0.0
     if not st.get("centred") or st.get("gap", 360.0) >= GAP_MAX:
         return 0.0
     if not st.get("stack"):
         return 0.25
-    if st.get("door", 1.0) > DOOR_SHUT or st.get("lock", 1.0) > LOCK_SHUT:
+    if st.get("door", 1.0) > DOOR_SHUT:
         return 0.5
-    return 1.0 if st.get("far", True) else 0.75
+    return 1.0 if st.get("lock", 1.0) <= LOCK_SHUT else 0.75
 
 
 SUCCESS_HOLD_S = 2.0
@@ -938,8 +1083,11 @@ def _ctrack(env):
             slot = (math.degrees(math.atan2(pst.rotation()[1, 0], pst.rotation()[0, 0])) + SLOT_DEG[CLIP_DEG[k]]
                     + math.degrees(float(pst.joints.get(f"clip{k}", 0.0)) + float(pst.joints.get(f"screw{k}", 0.0))))
             e = (slot - math.degrees(_ct["b_now"]) + 90.0) % 180.0 - 90.0
-            f = _ct["yawfix"].get(kn, 0.0) + math.radians(max(-0.8, min(0.8, 0.04 * e)))
-            _ct["yawfix"][kn] = max(-math.radians(45.0), min(math.radians(45.0), f))
+            if kn not in _ct["yawfix"]:  # first sight of this screw's slot: turn the hand straight to it (the plate
+                _ct["yawfix"][kn] = math.radians(e)  # may have been dragged far by earlier strokes), then refine
+            else:
+                f = _ct["yawfix"][kn] + math.radians(max(-0.8, min(0.8, 0.04 * e)))
+                _ct["yawfix"][kn] = max(-math.radians(90.0), min(math.radians(90.0), f))
     w = _ct["want"]
     still = w is not None and _ct.get("want_last") is not None and np.max(np.abs(w - _ct["want_last"])) < 0.0005
     _ct["want_last"] = None if w is None else np.array(w)
@@ -979,6 +1127,10 @@ def _ctrack(env):
         e[2] = 0.0
         tr = _ct["trim"].get(key, np.zeros(3))
         g, step = (0.05, 0.0001) if key == "sd" else (0.2, 0.0003)  # the held screwdriver lags: a gentler gain
+        if key == "push":  # the wafer sticks, then slides: push gently and stop within 0.3 mm, so it is not overshot
+            if float(np.linalg.norm(e)) < 0.0003:
+                continue
+            g, step = 0.1, 0.0002
         _ct["trim"][key] = np.clip(tr + np.clip(g * e, -step, step), -0.012, 0.012)
 
 
@@ -1392,3 +1544,25 @@ def demo():
                    (3.0, LEFT_PARK, FINGER_CLOSED, "up and clear", 0.0)])
     pl.phase(right=[(2.5, RIGHT_PARK, FINGER_CLOSED, "rest", 0.0)], left=[(2.5, LEFT_PARK, FINGER_CLOSED, "rest", 0.0)])
     return {"left": pl.L, "right": pl.R}
+
+
+@on_step
+def _debug(env):
+    """EBEAM_DEBUG=1: the scorer's state every 5 s (stderr)."""
+    if not os.environ.get("EBEAM_DEBUG"):
+        return
+    st = _state
+    p = labkit._part_state(env, labkit._SPECS["sample_plate"])
+    if st.get("step", 0) % 20 == 0 and 40 <= st["step"] * DT <= 110:  # the wafer's offset on the plate, each second
+        q = in_plate(p, labkit._part_state(env, labkit._SPECS["wafer"]).pos)
+        print(f"[ebeam-w] t={st['step'] * DT:.0f}s wafer offset ({q[0] * 1000:.2f}, {q[1] * 1000:.2f}) mm",
+              file=sys.stderr, flush=True)
+    if st.get("step", 0) % 100:
+        return
+    sc = " ".join(f"{CLIP_DEG[k]}:{math.degrees(-float(p.joints.get(f'screw{k}', 0.0))):.0f}deg/"
+                  f"{press(p, k, labkit._part_state(env, labkit._SPECS['wafer'])) * 1000:.3f}mm/z{float(p.joints.get(f'clipz{k}', 0.0)) * 1000:.3f}" for k in (6, 0, 3))
+    wq = in_plate(p, labkit._part_state(env, labkit._SPECS["wafer"]).pos)
+    print(f"[ebeam] t={st['step'] * DT:.0f}s wafer_z={(wq[2] - PL_T) * 1000:.3f}mm viol={sorted(st['viol'])} settled={st.get('settled')} "
+          f"centred={st.get('centred')} gap={st.get('gap', 0):.0f} stack={st.get('stack')} door={st.get('door', 0):.3f} "
+          f"lock={st.get('lock', 0):.2f} far={st.get('far')} sd_in={st.get('sd_in')} tight={sorted(st['tight'])} "
+          f"screws {sc}", file=sys.stderr, flush=True)

@@ -41,7 +41,7 @@ def _rect(x0, y0, x1, y1):
 
 def sample_plate():
     """304 stainless, 1.5 mm: 200 mm disc; M3 tap holes in rings for 2, 3, 4 and 6 inch wafers (the 4 inch ring, 59.5
-    mm out, every 45 degrees from +x, carries the eight clips); four M3 tap holes 28.5 mm out for the boss."""
+    mm out, every 45 degrees from +x, carries the eight clips); four M3 tap holes at 14 mm radius (28 mm pitch-circle diameter) for the boss."""
     e = [("C", 0.0, 0.0, 100.0)]
     for r, n, off in ((34.0, 6, 30.0), (47.0, 6, 0.0), (59.5, 8, 0.0), (85.0, 8, 22.5)):
         e += _ring_holes(r, n, off, TAP_M3)
@@ -56,9 +56,9 @@ def boss():
 
 
 def clip_tab():
-    """301 stainless, half hard, 1.0 mm: 13 x 4 mm tab with a 3.2 mm hole 2 mm from its round end. Cut 9 (one spare)."""
+    """301 stainless, half hard, 1.0 mm: 15 x 4 mm tab, 13 mm from the pivot (its 3.2 mm hole) to the tip. Cut 9 (one spare)."""
     w = 2.0
-    return [("A", 0.0, 0.0, w, 90.0, 270.0), ("L", 0.0, w, 11.0, w), ("L", 0.0, -w, 11.0, -w), ("L", 11.0, -w, 11.0, w),
+    return [("A", 0.0, 0.0, w, 90.0, 270.0), ("L", 0.0, w, 13.0, w), ("L", 0.0, -w, 13.0, -w), ("L", 13.0, -w, 13.0, w),
             ("C", 0.0, 0.0, CLEAR_M3 / 2)]
 
 
