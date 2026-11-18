@@ -1,6 +1,6 @@
 """On the station table: an upright light microscope (modelled on a research stand: mechanical stage with a spring slide
 holder and x/y drive knobs, focus knobs on both sides) and a glass slide on a rest beside it. The stage is pulled
-towards the robots, away from the objective, for loading, and sits 12 mm below focus.
+towards the robots, away from the objective, for loading, and sits 1 mm below focus.
 
 The task, in the order a microscopist works:
 1. Load the slide: hold the slide holder's spring arm open and lay the slide in the holder against its stops, label to
@@ -64,7 +64,7 @@ HEAD_TOP = 0.215
 STAGE_X = -0.03  # objective axis (local x); the stage is centred under it when its carriages are at zero
 OBJ_R, OBJ_TIP = 0.012, 0.120  # the 10x objective: 24 mm across, front lens 12 cm above the table
 WD = 0.0052  # working distance: in focus when the slide's top is 5.2 mm below the front lens
-START_OFF = 0.012  # the stage starts 12 mm below focus
+START_OFF = 0.001  # the stage starts 1 mm below focus
 SLIDE_W, SLIDE_L, SLIDE_T = 0.026, 0.076, 0.002  # x by y by thickness (drawn 2 mm thick; a real slide is 1 mm)
 SPEC_Y = 0.0  # the crossed scales' crossing (the alignment mark) is at the slide's centre; the label on the left end
 PLATE_TOP0 = OBJ_TIP - WD - START_OFF - SLIDE_T  # top of the stage (x carriage) at the start
@@ -75,10 +75,10 @@ HOUSING = (0.05, 0.20, 0.052)  # the focus mechanism under the stage (50 mm deep
 FKNOB_X, FKNOB_Z = -0.04, 0.07
 FKNOB_R, FKNOB_W = 0.021, 0.020
 FKNOB_Y0 = HOUSING[1] / 2
-F_LEAD = 0.024  # coarse focus: m of stage travel per turn
+F_LEAD = 0.002  # coarse focus: m of stage travel per turn (the stand's spec: 2 mm per revolution)
 F_MIN = -2 * math.pi * STAGE_MAX / F_LEAD
 # Fine focus: a smaller knob on the same axis, outboard of each coarse knob.
-FINE_LEAD = 0.0002  # m of stage travel per turn (100 divisions of 2 um; an estimate)
+FINE_LEAD = 0.0002  # m of stage travel per turn (the stand's spec: 0.2 mm per revolution, 2 um divisions)
 FINE_R, FINE_W = 0.013, 0.012
 FINE_Y0 = FKNOB_Y0 + FKNOB_W + 0.001  # inner face of each fine knob (|y|)
 FINE_LIM = 4 * math.pi
@@ -86,11 +86,11 @@ FINE_LIM = 4 * math.pi
 # Stage travel: the x carriage starts 85 mm towards the robots (loading position), the y carriage centred.
 QX0, QY0 = -0.0125, 0.025  # the stage starts at its front-left limits, the slide already in its holder
 QX_FOCUS, QY_FOCUS = 0.0, -SPEC_Y  # carriage positions that put the specimen on the objective axis
-X_LEAD, Y_LEAD = 0.025, 0.025  # stage drive: m per knob turn (turning a knob clockwise seen from above moves the stage
-#   away from the robots for x, to the right for y); not published for the B110C: an estimate, checked on the stage's
-#   scales before trials
+X_LEAD, Y_LEAD = 0.015, 0.015  # stage drive: m per knob turn (turning a knob clockwise seen from above moves the stage
+#   away from the robots for x, to the right for y); measured on the reference stand: about 15 mm per 360-degree turn,
+#   confirmed on the stage's scales before trials
 # The stage knobs are the top knobs of the printed belt adapter (adapter/knob_adapter.py, the one geometry for both the
-# real adapter and this scene). Its frame: the B110C's coaxial stage control's axis, 5 mm behind the lower stage plate's
+# real adapter and this scene). Its frame: the stand's coaxial stage control's axis, 5 mm behind the lower stage plate's
 # front edge and 15 mm inboard of its right edge, at the stage's top surface; u towards the robots (-x), v outboard (-y).
 ADAPTER_AXIS = (STAGE_X - 0.060 + 0.005, -0.075 + 0.015)
 ADAPTER_SHAFTS = ((0.050, 0.0461), (0.050, 0.1435))  # (u, v) of the x and y knobs' shafts (belts 232 and 400 mm)
@@ -825,7 +825,7 @@ def demo():
     _knob_turn(right, W(*XKNOB, 0.0)[:2], "x knob", "xdrive", x_target, servo=True)
     _knob_turn(right, W(*YKNOB, 0.0)[:2], "y knob", "ydrive", y_target, servo=True)
     _knob_turn(right, W(*XKNOB, 0.0)[:2], "x knob", "xdrive", x_target, servo=True)
-    # a third closed loop on each (25 mm per turn: 0.05 mm is 0.7 deg of knob; letting go can leave a degree)
+    # a third closed loop on each (15 mm per turn: 0.05 mm is 1.2 deg of knob; letting go can leave a degree)
     _knob_turn(right, W(*YKNOB, 0.0)[:2], "y knob", "ydrive", y_target, servo=True)
     _knob_turn(right, W(*XKNOB, 0.0)[:2], "x knob", "xdrive", x_target, servo=True)
     right += [
