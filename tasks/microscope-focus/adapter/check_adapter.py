@@ -3,8 +3,8 @@
 1. Every printed part is one solid.
 2. The assembled adapter (printed parts and the belts, from knob_adapter.assembly()) with stand-ins for what it sits
    among, taken from the simulated scene (task.py) in the adapter's frame: the plate carrying the control, the upper
-   stage plates swept over their whole travel (25 mm front to back, 50 mm left to right), the holder's lever over that
-   travel, the focus housing and the right coarse and fine focus knobs, the coaxial stage knobs on their shaft, the
+   stage plates swept over their whole travel (50 mm front to back, 76 mm left to right) with the leaf clips on the
+   top plate, the focus housing and the right coarse knob with its fine disc, the coaxial stage knobs on their shaft, the
    5 mm shafts and the bearings. Every pair that must not touch is checked for overlap.
 3. Belt geometry: each belt's centre distance stays fixed (the control and the bracket are on the same plate).
 4. Section renders through every connection (bearing seats, shaft bores, sleeves on the stage knobs, the wall on the
@@ -40,23 +40,22 @@ def cyl_v(u, z, r, v0, v1):
 
 
 def scene():
-    """Stand-ins in the adapter frame (u forward = -x of the scene, v outboard = -y, z from the stage top), from
-    task.py: lower plate 120 x 150 mm, z -16 to -11; y plate 110 x 140, z -11 to -6, +-25 mm left to right; x plate
-    100 x 130, z -6 to 0, +-12.5 mm front to back; the coaxial axis 5 mm behind the lower plate's front edge and 15 mm
-    inboard of its right edge."""
+    """Stand-ins in the adapter frame (u forward = -x of the scene, v outboard = -y, z from the stage top at the start),
+    from task.py: lower plate 120 x 150 mm, z -16 to -11; y plate 110 x 140, z -11 to -6, +-38 mm left to right; x plate
+    100 x 130, z -6 to 0, +-25 mm front to back, carrying the two leaf clips (posts and leaves up to 6 mm above it); the
+    coaxial axis 5 mm behind the lower plate's front edge and 15 mm inboard of its right edge; the focus housing and
+    the right coarse knob (60 mm across, 22.6 mm wide) on the shaft 70 mm above the table (z -143 here)."""
     S = {}
     S["carrying_plate"] = box(A.FRONT_U - A.PLATE_FRONT_TO_BACK, A.FRONT_U, A.EDGE_V - 150.0, A.EDGE_V, A.PLATE_BOT_Z, A.PLATE_TOP_Z)
-    # upper plates swept over their whole travel: the y plate's front edge 5 mm behind the lower plate's, its right edge
-    # up to 20 mm past it; the x plate's front edge up to 12.5 mm in front of its centred position (10 mm behind)
-    S["y_plate_swept"] = box(A.FRONT_U - 5.0 - 110.0, A.FRONT_U - 5.0, A.EDGE_V - 170.0, A.EDGE_V + 20.0, -11.0, -6.0)
-    S["x_plate_swept"] = box(A.FRONT_U - 10.0 - 100.0 - 12.5, A.FRONT_U - 10.0 + 12.5, A.EDGE_V - 170.0, A.EDGE_V + 15.0, -6.0, 0.0)
-    # the holder's lever and post (its handle reaches 67 mm past the edge at the far right of the stage's travel)
-    S["holder_swept"] = box(-110.0, -55.0, A.EDGE_V - 100.0, A.EDGE_V + 57.0, 0.0, 23.0)
-    # focus mechanism (narrowed housing 50 mm deep, 200 mm wide; right coarse and fine knobs on its shaft)
-    S["focus_housing"] = box(-70.0, -20.0, -140.0, A.EDGE_V + 25.0, -71.0, -18.8)
-    # (shaft axis 70 mm above the table at the scene's x = -0.04: here u -45, z -30.8 under the stage top at the start)
-    S["coarse_knob_r"] = cyl_v(-45.0, -30.8, 21.0, A.EDGE_V + 25.0, A.EDGE_V + 45.0)
-    S["fine_knob_r"] = cyl_v(-45.0, -30.8, 13.0, A.EDGE_V + 46.0, A.EDGE_V + 58.0)
+    # upper plates swept over their whole travel (u from the scene's x, v from its y): y plate u -110 to 0, v -168 to
+    # 48; x plate (and the clips on it) u -130 to 20, v -163 to 43
+    S["y_plate_swept"] = box(-110.0, 0.0, -168.0, 48.0, -11.0, -6.0)
+    S["x_plate_swept"] = box(-130.0, 20.0, -163.0, 43.0, -6.0, 6.0)
+    # focus mechanism: housing 50 mm deep, 200 mm wide, 30 to 100 mm above the table; right coarse knob and the fine
+    # disc in its face
+    S["focus_housing"] = box(-70.0, -20.0, -160.0, 40.0, -183.0, -113.0)
+    S["coarse_knob_r"] = cyl_v(-45.0, -143.0, 30.0, 40.0, 62.6)
+    S["fine_knob_r"] = cyl_v(-45.0, -143.0, 25.0, 62.6, 66.6)
     # the coaxial control: both knobs on one shaft from the plate's underside down past the lower knob
     S["coax_shaft"] = cyl(0, 0, 3.0, A.Y_KNOB_TOP - A.Y_KNOB_H - 2.0, A.PLATE_BOT_Z)
     S["knob_x"] = cyl(0, 0, A.X_KNOB_D / 2, A.X_KNOB_TOP - A.X_KNOB_H, A.X_KNOB_TOP)
@@ -77,10 +76,10 @@ MEANT = {frozenset(p) for p in [
     ("pulley_x", "shaft_x"), ("pulley_y", "shaft_y"), ("top_knob_x", "shaft_x"), ("top_knob_y", "shaft_y"),
     ("belt_x", "sleeve_x"), ("belt_x", "pulley_x"), ("belt_y", "sleeve_y"), ("belt_y", "pulley_y"),
     ("coax_shaft", "carrying_plate"), ("y_plate_swept", "x_plate_swept"), ("y_plate_swept", "carrying_plate"),
-    ("x_plate_swept", "holder_swept"), ("coarse_knob_r", "focus_housing"), ("fine_knob_r", "coarse_knob_r"),
+    ("coarse_knob_r", "focus_housing"), ("fine_knob_r", "coarse_knob_r"),
     ("focus_housing", "carrying_plate")]}
 # stand-ins among themselves are not the adapter's business
-STANDINS = {"carrying_plate", "y_plate_swept", "x_plate_swept", "holder_swept", "focus_housing", "coarse_knob_r",
+STANDINS = {"carrying_plate", "y_plate_swept", "x_plate_swept", "focus_housing", "coarse_knob_r",
             "fine_knob_r", "coax_shaft", "knob_x", "knob_y"}
 
 
