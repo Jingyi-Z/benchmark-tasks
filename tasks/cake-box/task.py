@@ -2,9 +2,10 @@
 
 Replaces cake-dome-cover on PR #2318 (TK-QTH3SB):
 - 10 x 10 x 5 in (254.0 x 254.0 x 127.0 mm inner) white SBS lock-corner window bakery box
-  (BRP Box Shop 245 / Southern Champion Tray 23053 family, ~0.146 kg), modified per tasks/cake-box/fab/
-  so front_panel unfolds flat onto the counter with a declared 38.0 x 36.0 x 1.6 mm +Y lifting ear,
-  hinged window lid (open at the back), and child hinged front tuck tab (lid_tab).
+  (BRP Box Shop 245 / Southern Champion Tray 23053 family, ~0.146 kg) used as it comes: rear corners locked, front
+  lock tabs left unhooked so front_panel folds down on its crease (resting 15 deg above the counter) and its two
+  corner gussets (diagonal-fold webs, two hinged triangles each) open and fold with it; hinged window lid (open at
+  the back) and child hinged front tuck tab (lid_tab).
 - 247.6 mm OD x 4.8 mm thick (0.055 kg) two-ply silver-foil-wrapped corrugated cake circle fabricated
   from 10 in nominal Wilton MFR 191001569 circles per tasks/cake-box/fab/cake_board_template.svg,
   leaving 3.2 mm nominal wall clearance per side.
@@ -35,6 +36,13 @@ from task_metrics import (
     D_IN,
     FRONT_ANCHOR,
     FRONT_INIT,
+    FRONT_REST,
+    FRONT_SPRING,
+    GUSSET_A_XY,
+    GUSSET_B_XY,
+    GUSSET_LEG,
+    GUSSET_T,
+    GUSSET_Z0,
     FROSTING_CLEAR_M,
     HAND_CLEAR_M,
     H_BORDER_BOT,
@@ -64,12 +72,14 @@ from task_metrics import (
     WINDOW_SPAN,
     W_IN,
     box_panel_touches_frosting,
+    gusset_beta,
     evaluate_final_tier,
     get_robot_urdf_hulls,
     hand_clearance_m,
     robot_hulls_touch_frosting,
     step_violation_metrics,
     tracked_world_points,
+    GUSSET_NAMES,
 )
 
 SCENE = "station"
@@ -115,14 +125,14 @@ MATTE_COLORS.update({
 # Fixed starting layout on the bakery counter:
 # Open cake box on the left-center angled +28 deg so its folded-down front panel faces toward the robots & counter;
 # decorated cake on its 9.75 in corrugated circle waiting unoccluded beside the box on the right half of the counter.
-BOX_XY = np.array([0.3550, +0.1550], dtype=float)
-BOX_YAW = math.radians(26.0)
+BOX_XY = np.array([0.429, 0.143], dtype=float)
+BOX_YAW = math.radians(68.0)
 
 UX_BOX = np.array([math.cos(BOX_YAW), math.sin(BOX_YAW)], dtype=float)   # +X_box (slide-in direction)
 UY_BOX = np.array([-math.sin(BOX_YAW), math.cos(BOX_YAW)], dtype=float)  # +Y_box (toward left arm)
-# Cake starts 280 mm upstream of box center along -X_box and 278 mm right along -Y_box -> (0.2253, -0.2175) m
-# (> 27 mm clear of folded-down front_panel, > 65 mm clear of right:base, and pushed purely from outer -Y/-X rims!)
-CAKE_START_XY = np.round(BOX_XY - 0.2800 * UX_BOX - 0.2780 * UY_BOX, 4)
+# The cake waits on the throat axis, its centre 400 mm in front of the box centre: its board's leading edge is 22 mm
+# short of the flat front panel's free edge and its sides pass 1.7 mm inside the two standing gussets.
+CAKE_START_XY = np.round(BOX_XY - 0.4000 * UX_BOX, 4)
 
 
 def box_local_to_world(lx: float, ly: float, lz: float) -> tuple[float, float, float]:
@@ -199,16 +209,35 @@ def _quad_prism_mesh(verts8: np.ndarray, color: tuple[float, float, float], coll
     return Mesh(points=np.asarray(verts8, float), tris=tris, color=color, collide=collide)
 
 
+def _board_sector_hull(k: int, n_arc: int = 20) -> Mesh:
+    """One of three 120 deg sector hulls of the board (3 rings x 20 arc points + 2 axis points = 62 vertices, inside
+    PhysX's 64-vertex GPU hull limit); together they keep the rim within 0.19 mm of the true circle."""
+    pts = []
+    for z, r in ((0.0, R_BOARD - 0.0030), (0.0012, R_BOARD), (T_BOARD, R_BOARD)):
+        for i in range(n_arc):
+            a = math.radians(120.0 * k) + math.radians(120.0) * i / (n_arc - 1)
+            pts.append([r * math.cos(a), r * math.sin(a), z])
+    pts += [[0.0, 0.0, 0.0], [0.0, 0.0, T_BOARD]]
+    pts = np.asarray(pts, float)
+    tris = []
+    for ring in range(2):
+        for i in range(n_arc - 1):
+            a0, a1 = ring * n_arc + i, ring * n_arc + i + 1
+            b0, b1 = a0 + n_arc, a1 + n_arc
+            tris += [(a0, a1, b1), (a0, b1, b0)]
+    bot, top = 3 * n_arc, 3 * n_arc + 1
+    for i in range(n_arc - 1):
+        tris += [(bot, i + 1, i), (top, 2 * n_arc + i, 2 * n_arc + i + 1)]
+    tris += [(bot, 0, top), (bot, top, 2 * n_arc), (bot, n_arc - 1, 3 * n_arc - 1), (bot, 3 * n_arc - 1, top)]
+    return Mesh(points=pts, tris=np.asarray(tris, dtype=np.int64), color=BOARD_KRAFT, collide="hull")
+
+
 def _build_board_meshes() -> tuple[Mesh, ...]:
     # 1.2 mm bottom ski bevel clears the 0.9 mm flat front_panel & 1.0 mm box_base while keeping a tall
     # 3.6 mm vertical kraft wall (z = 1.2..4.8 mm) so +1.3 mm fingertips NEVER ride up onto the board!
-    col_mesh = _frustum_ring_mesh(
-        z_levels=[0.0, 0.0012, T_BOARD],
-        r_levels=[R_BOARD - 0.0030, R_BOARD, R_BOARD],
-        n_seg=64,
-        color=BOARD_KRAFT,
-        collide="hull",
-    )
+    # 3 rings x 21 points = 63 hull vertices: within PhysX's 64-vertex GPU hull limit, so the cooked collider stays a
+    # regular 21-gon (mid-edge sag 1.4 mm) instead of a simplified, uneven outline that catches edges off-centre.
+    cols = [_board_sector_hull(k) for k in range(3)]
     foil_top = _frustum_ring_mesh(
         z_levels=[T_BOARD - 0.0004, T_BOARD + 0.0001],
         r_levels=[R_BOARD - 0.0012, R_BOARD - 0.0012],
@@ -224,7 +253,7 @@ def _build_board_meshes() -> tuple[Mesh, ...]:
         color=BOARD_RIM,
         collide="none",
     )
-    return (col_mesh, foil_top, doily_ring)
+    return (*cols, foil_top, doily_ring)
 
 
 def _piped_shell_puff(cx: float, cy: float, z0: float, yaw: float, length: float, width: float, height: float, color) -> Mesh:
@@ -439,30 +468,76 @@ def _build_box_main_shapes():
 
 
 def _build_front_panel_joint() -> Joint:
-    t_fp = 0.0008  # 0.8 mm folded SBS flap proxy (pure UsdGeom.Cube -> 100% GPU-native collision, z <= 0.9 mm when flat!)
+    t_fp = 0.0008  # 0.8 mm folded SBS panel proxy (box collider; 0.1..0.9 mm above the counter when flat)
     h_fp = H_WALL - 0.0010  # 126.0 mm: scored 1.0 mm below side walls so lid seats flush on all 4 walls
-    fp_boxes = [
-        ((-W_IN / 2 - t_fp / 2, 0.0, T_BASE + h_fp / 2), (t_fp, D_IN - 0.0030, h_fp), BOX_WHITE),
-        # Left (+Y_box) outer lock-corner dust ear (at y = +D_IN/2 + T_WALL + 0.0018 = +0.1304 m, completely outside
-        # the 247.6 mm cake board path and hugging 1.0 mm outside left_wall when folded upright; stands 39 mm tall
-        # off the counter at q_front = -90 deg so Left hand lifts front_panel by normal push behind the ear):
-        ((-W_IN / 2 + 0.0202, +D_IN / 2 + T_WALL + 0.0018, T_BASE + H_WALL - 0.0220), (0.0380, 0.0016, 0.0360), BOX_GUSSET),
-    ]
+    e_fp = 0.0060  # the last 6 mm taper to the free edge, so a board slid onto the lowered panel rides up a ramp
+    x_in, x_out = -W_IN / 2, -W_IN / 2 - t_fp
+    hw = (D_IN - 0.0030) / 2
+    z1 = T_BASE + h_fp
+    fp_boxes = [((x_out + t_fp / 2, 0.0, T_BASE + (h_fp - e_fp) / 2), (t_fp, 2 * hw, h_fp - e_fp), BOX_WHITE)]
+    wedge = np.array([
+        [x_out, -hw, z1 - e_fp], [x_in, -hw, z1 - e_fp], [x_in, +hw, z1 - e_fp], [x_out, +hw, z1 - e_fp],
+        [x_out, -hw, z1], [x_out + 0.0001, -hw, z1], [x_out + 0.0001, +hw, z1], [x_out, +hw, z1],
+    ])
+    fp_mesh = _quad_prism_mesh(wedge, BOX_WHITE, collide="hull")
     return Joint(
         name="front_panel",
         kind="hinge",
         axis="Y",
         anchor=tuple(FRONT_ANCHOR),
         boxes=fp_boxes,
+        meshes=(fp_mesh,),
         lower=math.radians(-93.5),
         upper=math.radians(0.5),   # wall-contact stop at vertical against left_wall & right_wall
-        stiffness=0.0,
+        stiffness=FRONT_SPRING,  # one-sided crease spring-back: _drive_box_folds aims it at max(q, FRONT_REST)
         damping=0.008,
         target=FRONT_INIT,
         friction=0.026,   # 0.026 N*m paperboard crease friction (2.6x front_panel 0.010 N*m gravity torque)
         initial=FRONT_INIT,
         mass=0.016,
     )
+
+
+def _gusset_mesh(gx: float, gy: float, s: float) -> Mesh:
+    """One gusset triangle (0.5 mm thick) at its zero pose, folded flat inside the front panel's corner."""
+    tri = np.array([[gx, s * gy, GUSSET_Z0], [gx, s * gy, GUSSET_Z0 + GUSSET_LEG], [gx, s * (gy - GUSSET_LEG), GUSSET_Z0 + GUSSET_LEG]])
+    off = np.array([GUSSET_T / 2, 0.0, 0.0])
+    pts = np.vstack([tri - off, tri + off])
+    tris = np.array([[0, 1, 2], [3, 5, 4], [0, 3, 4], [0, 4, 1], [1, 4, 5], [1, 5, 2], [2, 5, 3], [2, 3, 0]], dtype=np.int64)
+    return Mesh(points=pts, tris=tris, color=BOX_GUSSET, collide="hull")
+
+
+GUSSET_K = 0.08  # N*m/rad: a 0.6 mm SBS web bends aside under ~1 N at its middle (estimate) instead of acting as a rigid wall
+GUSSET_JOINTS = (("gusset_left_a", +1.0, "a"), ("gusset_right_a", -1.0, "a"), ("gusset_left_b", +1.0, "b"), ("gusset_right_b", -1.0, "b"))
+
+
+def gusset_angle(name: str, q_front: float) -> float:
+    s = +1.0 if "_left_" in name else -1.0
+    b = gusset_beta(q_front)
+    return s * b if name.endswith("_a") else -s * b
+
+
+def _build_gusset_joints() -> tuple[Joint, ...]:
+    out = []
+    for name, s, half in GUSSET_JOINTS:
+        gx, gy = GUSSET_A_XY if half == "a" else GUSSET_B_XY
+        out.append(Joint(
+            name=name,
+            kind="hinge",
+            axis="Z",
+            parent="front_panel" if half == "a" else "",
+            anchor=(gx, s * gy, GUSSET_Z0),
+            meshes=(_gusset_mesh(gx, gy, s),),
+            lower=math.radians(-95.0),
+            upper=math.radians(95.0),
+            stiffness=GUSSET_K,  # sprung towards the fold angle its diagonal crease sets (_drive_box_folds)
+            damping=0.002,
+            target=gusset_angle(name, FRONT_INIT),
+            initial=gusset_angle(name, FRONT_INIT),
+            mass=0.0036,      # half of a 125 x 125 mm web of 0.6 mm SBS (~0.78 g/cm^3)
+            filter_own=True,  # thin web: collides with the hands, board and cake, not with the box's own panels
+        ))
+    return tuple(out)
 
 
 def _build_lid_and_tab_joints() -> tuple[Joint, Joint]:
@@ -538,18 +613,19 @@ def _build_lid_and_tab_joints() -> tuple[Joint, Joint]:
 
 _BOX_MAIN_BOXES, _BOX_MAIN_MESHES = _build_box_main_shapes()
 _FRONT_JOINT = _build_front_panel_joint()
+_GUSSET_JOINTS = _build_gusset_joints()
 _LID_JOINT, _TAB_JOINT = _build_lid_and_tab_joints()
 
 CAKE_BOX = part(
     "cake_box",
     pos=(float(BOX_XY[0]), float(BOX_XY[1]), TOP),
     yaw=BOX_YAW,
-    mass=0.095,  # + 0.016 + 0.028 + 0.007 = 0.146 kg total box mass
+    mass=0.0806,  # + 0.016 front + 4 x 0.0036 gussets + 0.028 lid + 0.007 tab = 0.146 kg total box mass
     friction=0.52,
     color=BOX_WHITE,
     boxes=_BOX_MAIN_BOXES,
     meshes=_BOX_MAIN_MESHES,
-    joints=(_FRONT_JOINT, _LID_JOINT, _TAB_JOINT),
+    joints=(_FRONT_JOINT, *_GUSSET_JOINTS, _LID_JOINT, _TAB_JOINT),
     self_collide=True,
 )
 
@@ -584,7 +660,9 @@ def _reset_box_joints(env):
     djp = asset.data.default_joint_pos
     q = (djp.torch if hasattr(djp, "torch") else djp).clone()
     qd = torch.zeros_like(q)
-    for jname, val in (("front_panel_joint", FRONT_INIT), ("lid_joint", LID_INIT), ("lid_tab_joint", TAB_INIT)):
+    inits = [("front_panel_joint", FRONT_INIT), ("lid_joint", LID_INIT), ("lid_tab_joint", TAB_INIT)]
+    inits += [(f"{g}_joint", gusset_angle(g, FRONT_INIT)) for g, _, _ in GUSSET_JOINTS]
+    for jname, val in inits:
         if jname in names:
             q[:, names.index(jname)] = float(val)
     dev = str(asset.device)
@@ -602,6 +680,23 @@ def _reset_box_joints(env):
         )
     asset.write_joint_state_to_sim(q, qd)
     asset.set_joint_position_target(q)
+
+
+@on_step
+def _drive_box_folds(env):
+    """Paperboard folds that follow the front panel: the front crease springs back towards FRONT_REST only when
+    pressed flatter than it (above it, crease friction holds the panel where it is left), and each gusset triangle
+    takes the fold angle its diagonal crease sets for the front panel's current angle."""
+    import torch
+
+    asset = env.unwrapped.scene["cake_box"]
+    names = list(asset.joint_names)
+    q = asset.data.joint_pos
+    q = (q.torch if hasattr(q, "torch") else q)
+    qf = float(q[0, names.index("front_panel_joint")])
+    ids = [names.index("front_panel_joint")] + [names.index(f"{g}_joint") for g, _, _ in GUSSET_JOINTS]
+    tgt = [max(qf, FRONT_REST)] + [gusset_angle(g, qf) for g, _, _ in GUSSET_JOINTS]
+    asset.set_joint_position_target(torch.tensor([tgt], device=str(asset.device), dtype=torch.float32), joint_ids=ids)
 
 
 # -- IK & state-assisted demo trajectory helpers (frankly disclosed in fidelity per review prompt v24) ----------------
@@ -721,17 +816,15 @@ _ct = {
     "snap_gen": 0,
 }
 TRIM_LIMITS = {
-    "s1_steer": (0.0040, 0.036),
-    "stage_lat": (0.0006, 0.035),
-    "s2_steer": (0.0045, 0.065),
-    "push_in": (0.0006, 0.035),
+    "l_press": (0.0025, 0.025),
+    "s2_steer": (0.0015, 0.030),
+    "push_in": (0.0015, 0.060),
     "r_z_skim": (0.0025, 0.020),
     "r_z_box": (0.0025, 0.020),
 }
 TRIM_GAIN = {
-    "s1_steer": 0.70,
-    "stage_lat": 0.18,
-    "s2_steer": 0.70,
+    "l_press": 0.5,
+    "s2_steer": 0.30,
     "push_in": 0.22,
     "r_z_skim": 0.65,
     "r_z_box": 0.65,
@@ -858,6 +951,18 @@ class _PanelTabArc:
             p = (bxy[0] + lx * c - self.ly * s, bxy[1] + lx * s + self.ly * c, TOP + lz)
         return np.asarray(p, dtype=dtype or float)
 
+class _SnapDyn:
+    """Box-frame point in the box pose snapshot (falls back to the start pose), plus the named live trims."""
+
+    def __init__(self, lx: float, ly: float, lz: float, *keys):
+        self.p = _SnapPos(lx, ly, lz)
+        self.keys = keys
+
+    def __array__(self, dtype=None, copy=None):
+        off = sum((_ct["trim"].get(k, np.zeros(3)) for k in self.keys), np.zeros(3))
+        return np.asarray(np.asarray(self.p, float) + off, dtype=dtype or float)
+
+
 class _Dyn:
     def __init__(self, tcp, *keys):
         self.tcp = np.asarray(tcp, float)
@@ -893,32 +998,18 @@ class _Plan:
 
 LEFT_PARK = (0.120, +0.355, TOP + 0.240)
 RIGHT_PARK = (0.120, -0.355, TOP + 0.240)
-STAGE_OFFSET_X = -0.2850
-STAGE_XY = BOX_XY + STAGE_OFFSET_X * UX_BOX
-_V1 = STAGE_XY - CAKE_START_XY
-_U1 = _V1 / np.linalg.norm(_V1)
-_N1_PERP = np.array([_U1[1], -_U1[0]], dtype=float)
+PRESS_XY = (-0.150, 0.000)  # box-frame point near the front crease where Left holds the front panel flat
+PUSH_S = 9.0                 # (offline path model) total feed time of stages A and B
+STAGE_A_CG = -0.300          # board centre 300 mm in front of the box centre: on the flat panel, 49 mm short of entry
+STAGE_A_S = 4.0
+STAGE_B_S = 5.0
+CENTRE_S = 2.4
 
 
-def _s1_steer_err(env):
-    """Smooth C^inf Lynch-Mason lateral steering during Move 1a (zero bang-bang step jump across centerline)."""
-    pl = labkit._part_state(env, CAKE_BOARD)
-    e_lat = float(np.dot(np.asarray(pl.pos, float)[:2] - CAKE_START_XY, _N1_PERP))
-    off = float(np.clip(e_lat + 0.0074 * math.tanh(e_lat / 0.0018) + 2.0 * e_lat, -0.034, 0.034))
-    target = np.array([off * _N1_PERP[0], off * _N1_PERP[1], 0.0])
-    return target - _ct["trim"].get("s1_steer", np.zeros(3))
-
-
-def _stage_lat_err(env):
-    """Forward push alignment (along +uy_live) stopping cleanly once within 0.8 mm of CAKE_BOX's live throat axis."""
-    bx = labkit._part_state(env, CAKE_BOX)
-    pl = labkit._part_state(env, CAKE_BOARD)
-    rot2 = np.asarray(bx.rotation(), float)[:2, :2]
-    uy_live = rot2[:, 1]
-    lat_err = float(np.dot(np.asarray(bx.pos, float)[:2] - np.asarray(pl.pos, float)[:2], uy_live))
-    if lat_err <= 0.0008:
-        return np.zeros(3)
-    return np.array([lat_err * uy_live[0], lat_err * uy_live[1], 0.0])
+def _l_press_err(env):
+    """Keep Left's fingertip bottom 0.7 mm above the counter: the 0.8 mm panel is then pressed flat onto it."""
+    z_now = _live_arm_tip_z_min(env, "left_robot")
+    return np.array([0.0, 0.0, (TOP + 0.0007) - z_now])
 
 
 def _s2_steer_err(env):
@@ -930,10 +1021,35 @@ def _s2_steer_err(env):
     uy_live = np.asarray(bx.rotation(), float)[:2, 1]
     d_pl_world = float(np.dot(pl_xy - BOX_XY, UY_BOX))
     e_lat = float(np.dot(pl_xy - bx_xy, uy_live))
-    delta = 0.0074 * math.tanh(e_lat / 0.0018) + 2.4 * e_lat
+    delta = 0.0040 * math.tanh(e_lat / 0.0018) + 1.2 * e_lat
     off = float(np.clip(d_pl_world + delta, -0.060, 0.060))
     target = np.array([off * UY_BOX[0], off * UY_BOX[1], 0.0])
     return target - _ct["trim"].get("s2_steer", np.zeros(3))
+
+def _right_pad_mid(env) -> np.ndarray:
+    from yam_arena import runtime as _rt
+
+    base = env.unwrapped
+    return _rt.pad_tips_world(base.scene["right_robot"]) - base.scene.env_origins[0].cpu().numpy()
+
+
+PUSH_CONTACT_LY = 0.0027  # the fingertip's rim contact sits 2.7 mm to +Y of the pad midpoint (offline hull check)
+PUSH_AXIS_GAIN = 2.0     # contact this far to the far side of the board per metre of off-axis error
+
+
+def _centre_steer_err(env):
+    """Keep the fingertip's contact on the board's centre line, measured from the live pad and board poses, biased a
+    little to the side away from the box axis: an off-centre push spins the board and a spinning board curls sideways
+    towards the contact side."""
+    bx = labkit._part_state(env, CAKE_BOX)
+    pl = labkit._part_state(env, CAKE_BOARD)
+    uy_live = np.asarray(bx.rotation(), float)[:2, 1]
+    pl_xy = np.asarray(pl.pos, float)[:2]
+    e_axis = float(np.dot(pl_xy - np.asarray(bx.pos, float)[:2], uy_live))
+    pad_lat = float(np.dot(_right_pad_mid(env)[:2] - pl_xy, uy_live)) + PUSH_CONTACT_LY
+    miss = -PUSH_AXIS_GAIN * e_axis - pad_lat
+    return np.array([miss * uy_live[0], miss * uy_live[1], 0.0])
+
 
 def _push_in_err(env):
     """Forward axial seating (along +ux_live) stopping cleanly once within 1.2 mm of CAKE_BOX's live center."""
@@ -992,21 +1108,14 @@ def demo():
     R_WALL_CLAMP = Orient(_prev_grip(BOX_YAW))
     R_R_CLAMP = SnapOrient(_frame(0.22 * ux3 - 0.975 * Z, -uy3))
 
-    u1 = _U1
-    u1_3 = np.array([u1[0], u1[1], 0.0])
     th28 = math.radians(28.0)
-    R_PUSH_STAGE = Orient(_frame(math.sin(th28) * u1_3 - math.cos(th28) * Z, -u1_3))
-    R_PUSH_IN = Orient(_frame(math.sin(th28) * ux3 - math.cos(th28) * Z, +ux3))
 
     OPEN_WIDE = FINGER_OPEN
     PUSH_BLADE = FINGER_CLOSED
 
-    FACE_1A = 0.0087
     FACE_1B = 0.0086
-    z_board_s1 = TOP + 0.0143
-    z_board_s2 = TOP + T_BASE + 0.0142
-    z_high_clear = TOP + 0.1780
     z_clamp_wall = 0.1200
+    y_tab_loc = -0.045
     y_left_loc = +D_IN / 2 + T_WALL / 2
     y_right_loc = -D_IN / 2 - T_WALL / 2
 
@@ -1031,121 +1140,130 @@ def demo():
         return {"left": P.L, "right": P.R}
 
     # -----------------------------------------------------------------------------------------------------------------
-    # PHASE 1: Exact probe12/probe14 Phase 1 (verified on 5090: board_inside=True, frosting_touch=None, tier=0.25!)
+    # PHASE 1: Left presses the sprung front panel flat near its hinge (it rests 15 deg up, and the gussets only lie
+    #          flat in the side-wall planes when it is flat); Right sets its fingertips behind the board's rear rim.
     # -----------------------------------------------------------------------------------------------------------------
-    p1_pre = CAKE_START_XY - (R_BOARD + 0.042) * u1
-    p1_eng = CAKE_START_XY - (R_BOARD + FACE_1A + 0.010) * u1
-    p1_end = STAGE_XY - (R_BOARD + FACE_1A + 0.009) * u1
-    p1_off = STAGE_XY - (R_BOARD + 0.048) * u1
+    R_PRESS = PanelOrient(_frame(-Z - 0.5 * ux3, uy3))
+    def _turn(deg: float) -> np.ndarray:  # turn about Z: keeps the grips inside each arm's reach at this layout
+        c, s_ = math.cos(math.radians(deg)), math.sin(math.radians(deg))
+        return np.array([[c, -s_, 0.0], [s_, c, 0.0], [0.0, 0.0, 1.0]])
 
-    t_s1 = P.phase(
+    th55 = math.radians(55.0)
+    R_PUSH = Orient(_turn(45.0) @ _frame(math.sin(th55) * ux3 - math.cos(th55) * Z, uy3))
+    R_FLAP_R = PanelOrient(_frame(0.55 * ux3 - 0.835 * Z, -uy3))
+    R_LIFT = PanelOrient(_turn(45.0) @ _frame(0.87 * ux3 - 0.50 * Z, uy3))
+    R_LID = PanelOrient(_frame(0.50 * ux3 - 0.25 * uy3 - 0.829 * Z, -uy3))
+    R_L_CLAMP = PanelOrient(_frame(-Z, uy3))
+
+    press_x, press_y = PRESS_XY
+    cg0 = float(np.dot(CAKE_START_XY - BOX_XY, UX_BOX))  # -0.400 m: board centre on the throat axis
+    p_pre = (cg0 - R_BOARD - 0.042, 0.0)
+    p_eng = (cg0 - R_BOARD - FACE_1B - 0.010, 0.0)
+    p_end = (-(R_BOARD + FACE_1B + 0.0135), 0.0)
+    p_off = (-(R_BOARD + 0.052), 0.0)
+
+    t_p1 = P.phase(
         left=[
-            (1.2, box_local_to_world(-0.085, y_left_loc, H_WALL + 0.065), OPEN_WIDE, "reposition open above left wall", R_WALL_CLAMP),
-            (0.8, box_local_to_world(-0.085, y_left_loc, z_clamp_wall), OPEN_WIDE, "straddle left wall top", R_WALL_CLAMP),
-            (0.6, box_local_to_world(-0.085, y_left_loc, z_clamp_wall), FINGER_CLOSED, "clamp left wall steady", R_WALL_CLAMP),
+            (1.6, _PanelPos(press_x, press_y, 0.090), OPEN_WIDE, "reposition above front panel near hinge", R_PRESS),
+            (0.8, _PanelPos(press_x, press_y, 0.030), FINGER_CLOSED, "descend onto raised front panel", R_PRESS),
+            (1.0, _Dyn(box_local_to_world(press_x, press_y, 0.014), "l_press"), FINGER_CLOSED, "press front panel flat", R_PRESS),
         ],
         right=[
-            (1.7, (p1_pre[0], p1_pre[1], TOP + 0.125), PUSH_BLADE, "reposition high behind -Y rim", R_PUSH_STAGE),
-            (0.9, _Dyn((p1_pre[0], p1_pre[1], z_board_s1), "r_z_skim"), PUSH_BLADE, "descend behind -Y rim", R_PUSH_STAGE),
-            (0.8, _Dyn((p1_eng[0], p1_eng[1], z_board_s1), "r_z_skim", "s1_steer"), PUSH_BLADE, "engage -Y board rim", R_PUSH_STAGE),
-            (4.8, _Dyn((p1_end[0], p1_end[1], z_board_s1), "r_z_skim", "s1_steer"), PUSH_BLADE, "slide board to box apron", R_PUSH_STAGE),
-            (1.8, _Dyn((p1_end[0], p1_end[1], z_board_s1), "r_z_skim", "s1_steer", "stage_lat"), PUSH_BLADE, "fine-align throat axis", R_PUSH_STAGE),
-            (0.8, (p1_off[0], p1_off[1], z_high_clear), PUSH_BLADE, "lift high clear", R_PUSH_STAGE),
+            (1.0, box_local_to_world(p_pre[0], p_pre[1] + 0.160, 0.100), PUSH_BLADE, "reposition behind rear rim, off axis", R_PUSH),
+            (0.7, box_local_to_world(p_pre[0], p_pre[1], 0.050), PUSH_BLADE, "reposition low behind rear rim", R_PUSH),
+            (0.9, _Dyn(box_local_to_world(p_pre[0], p_pre[1], 0.0143), "r_z_box"), PUSH_BLADE, "descend behind rear rim", R_PUSH),
+            (0.8, _Dyn(box_local_to_world(p_eng[0], p_eng[1], 0.0143), "r_z_box", "s2_steer"), PUSH_BLADE, "engage rear board rim", R_PUSH),
         ],
     )
-    _ct["wins"].append((t_s1 + 2.0, t_s1 + 10.0, "r_z_skim", _r_z_skim_err))
-    _ct["wins"].append((t_s1 + 2.6, t_s1 + 10.0, "s1_steer", _s1_steer_err))
-    _ct["wins"].append((t_s1 + 8.2, t_s1 + 10.0, "stage_lat", _stage_lat_err))
+    _ct["wins"].append((t_p1 + 2.0, t_p1 + 60.0, "l_press", _l_press_err))
 
-    p2_arc = STAGE_XY - (R_BOARD + 0.072) * (0.72 * UX_BOX - 0.69 * UY_BOX)
-    p2_pre = STAGE_XY - (R_BOARD + 0.042) * UX_BOX
-    p2_eng = STAGE_XY - (R_BOARD + FACE_1B + 0.010) * UX_BOX
-    p2_end = BOX_XY - (R_BOARD + FACE_1B + 0.0135) * UX_BOX
-    p2_off = BOX_XY - (R_BOARD + 0.052) * UX_BOX
+    # -----------------------------------------------------------------------------------------------------------------
+    # PHASE 2: Right slides the cake straight in along the throat between the standing gussets. Left keeps the panel
+    #          flat until the board rides over its free edge (the board's weight then holds it), then lifts clear.
+    # -----------------------------------------------------------------------------------------------------------------
+    # Stage A: slide the board until it sits on the flat front panel (holding it down), short of the entrance.
+    cg_a = STAGE_A_CG
+    p_a = (cg_a - R_BOARD - FACE_1B - 0.010, 0.0)
+    t_push = P.phase(
+        left=[(STAGE_A_S, _Dyn(box_local_to_world(press_x, press_y, 0.014), "l_press"), FINGER_CLOSED, "hold front panel flat", R_PRESS)],
+        right=[(STAGE_A_S, _Dyn(box_local_to_world(p_a[0], p_a[1], 0.0143), "r_z_box", "s2_steer"), PUSH_BLADE, "slide board onto flat front panel", R_PUSH)],
+    )
+    _ct["wins"].append((t_push, t_push + STAGE_A_S, "r_z_box", _r_z_box_err))
+    _ct["wins"].append((t_push - 1.0, t_push + STAGE_A_S, "s2_steer", _centre_steer_err))
+    _ct["wins"] = [w if w[2] != "l_press" else (w[0], t_push + STAGE_A_S, w[2], w[3]) for w in _ct["wins"]]
 
-    t_s2 = P.phase(
-        left=[(11.2, box_local_to_world(-0.085, y_left_loc, z_clamp_wall), FINGER_CLOSED, "hold left wall clamped", R_WALL_CLAMP)],
+    # Pause: the board's weight now holds the panel flat; Left moves to brace the +Y wall before the board enters.
+    brace = [
+        (0.5, _PanelPos(press_x, press_y, 0.060), FINGER_CLOSED, "lift off front panel", R_PRESS),
+        (0.7, _PanelPos(press_x, press_y, 0.170), FINGER_CLOSED, "lift clear above cake", R_PRESS),
+        (1.2, _PanelPos(-0.085, y_left_loc, H_WALL + 0.060), OPEN_WIDE, "reposition above +Y wall", R_L_CLAMP),
+        (0.8, _PanelPos(-0.085, y_left_loc, z_clamp_wall), OPEN_WIDE, "straddle +Y wall top", R_L_CLAMP),
+        (0.5, _PanelPos(-0.085, y_left_loc, z_clamp_wall), FINGER_CLOSED, "clamp +Y wall steady", R_L_CLAMP),
+        (0.4, _PanelPos(-0.085, y_left_loc, z_clamp_wall), FINGER_CLOSED, "hold +Y wall for box snapshot", R_L_CLAMP),
+    ]
+    t_pause = P.phase(
+        left=brace,
+        right=[(sum(w[0] for w in brace), _Dyn(box_local_to_world(p_a[0], p_a[1], 0.0143), "r_z_box", "s2_steer"), PUSH_BLADE, "pause behind board while Left braces box", R_PUSH)],
+    )
+    t_brace = t_pause + sum(w[0] for w in brace)
+    _ct["wins"].append((t_pause, t_brace, "r_z_box", _r_z_box_err))
+    _ct["snap_wins"].append((t_brace - 0.35, t_brace - 0.10, True))  # live box pose once braced: re-aims stage B
+
+    # Stage B: with the box braced, feed the board in to its centre, aimed from the snapshot of the box's pose.
+    t_b = P.phase(
+        left=[(STAGE_B_S + CENTRE_S + 0.8, _PanelPos(-0.085, y_left_loc, z_clamp_wall), FINGER_CLOSED, "hold +Y wall braced", R_L_CLAMP)],
         right=[
-            (1.3, (p2_arc[0], p2_arc[1], TOP + 0.155), PUSH_BLADE, "arc around outside rim", R_PUSH_IN),
-            (1.0, _Dyn((p2_pre[0], p2_pre[1], z_board_s2), "r_z_box", "s2_steer"), PUSH_BLADE, "behind rear board rim", R_PUSH_IN),
-            (0.9, _Dyn((p2_eng[0], p2_eng[1], z_board_s2), "r_z_box", "s2_steer"), PUSH_BLADE, "engage rear board rim", R_PUSH_IN),
-            (5.4, _Dyn((p2_end[0], p2_end[1], z_board_s2), "r_z_box", "s2_steer"), PUSH_BLADE, "slide cake straight into box", R_PUSH_IN),
-            (1.8, _Dyn((p2_end[0], p2_end[1], z_board_s2), "r_z_box", "s2_steer", "push_in"), PUSH_BLADE, "seat board flush", R_PUSH_IN),
-            (0.8, _Dyn((p2_off[0], p2_off[1], TOP + 0.065), "s2_steer"), PUSH_BLADE, "back off throat", R_PUSH_IN),
+            (STAGE_B_S, _SnapDyn(p_end[0], p_end[1], T_BASE + 0.0142, "r_z_box", "s2_steer"), PUSH_BLADE, "slide cake straight into box", R_PUSH),
+            (CENTRE_S, _SnapDyn(p_end[0], p_end[1], T_BASE + 0.0142, "r_z_box", "s2_steer", "push_in"), PUSH_BLADE, "centre board in box", R_PUSH),
+            (0.8, _SnapDyn(p_off[0], p_off[1], 0.065, "s2_steer"), PUSH_BLADE, "back off throat", R_PUSH),
         ],
     )
-    _ct["wins"].append((t_s2 + 1.8, t_s2 + 10.4, "r_z_box", _r_z_box_err))
-    _ct["wins"].append((t_s2 + 1.8, t_s2 + 10.4, "s2_steer", _s2_steer_err))
-    _ct["wins"].append((t_s2 + 8.6, t_s2 + 10.4, "push_in", _push_in_err))
+    _ct["wins"].append((t_b, t_b + STAGE_B_S + CENTRE_S, "r_z_box", _r_z_box_err))
+    _ct["wins"].append((t_b, t_b + STAGE_B_S + CENTRE_S, "s2_steer", _centre_steer_err))
+    _ct["wins"].append((t_b + STAGE_B_S, t_b + STAGE_B_S + CENTRE_S, "push_in", _push_in_err))
 
     t_snap1 = P.phase(
-        left=[(0.35, box_local_to_world(-0.085, y_left_loc, z_clamp_wall), FINGER_CLOSED, "hold left wall quiet", R_WALL_CLAMP)],
-        right=[(0.35, _Dyn((p2_off[0], p2_off[1], TOP + 0.065), "s2_steer"), PUSH_BLADE, "quiet snapshot 1", R_PUSH_IN)],
+        left=[(0.35, _PanelPos(-0.085, y_left_loc, z_clamp_wall), FINGER_CLOSED, "hold +Y wall quiet", R_L_CLAMP)],
+        right=[(0.35, _Dyn(box_local_to_world(p_off[0], p_off[1], 0.065), "s2_steer"), PUSH_BLADE, "quiet snapshot 1", R_PUSH)],
     )
     _ct["snap_wins"].append((t_snap1 + 0.08, t_snap1 + 0.28, True))
 
     # -----------------------------------------------------------------------------------------------------------------
-    # PHASE 2: Two-stage front_panel fold (0.25 -> 0.50):
-    #   Stage 2A lifts front_ear to ~ -32 deg (proven in probe14!), where 0.030 N*m crease friction holds it parked;
-    #   Quiet snapshot 2B refreshes CAKE_BOX's exact pose while Left is in air;
-    #   Stage 2B pushes center of front_panel (y = +0.035 m) squarely onto its +0.5 deg vertical stop!
+    # PHASE 3: The panel has sprung back to ~10 deg above the counter. Right slips its fingertips under the free edge,
+    #          lifts it along its arc (the gussets fold in behind it) and squares it against its vertical stop.
     # -----------------------------------------------------------------------------------------------------------------
-    y_ear_push = +0.1330
-    R_FLAP_L = PanelOrient(_frame(0.50 * ux3 - 0.866 * Z, +uy3))
-    R_LID = PanelOrient(_frame(0.50 * ux3 - 0.25 * uy3 - 0.829 * Z, -uy3))
-    R_FLAP_R = PanelOrient(_frame(0.55 * ux3 - 0.835 * Z, -uy3))
-    R_L_SNAP = PanelOrient(_prev_grip(BOX_YAW))
+    hx, hz = float(FRONT_ANCHOR[0]), float(FRONT_ANCHOR[2])
 
-    P.phase(
-        left=[(2.5, box_local_to_world(-0.085, y_left_loc, z_clamp_wall), FINGER_CLOSED, "hold left wall clamped", R_WALL_CLAMP)],
-        right=[
-            (0.8, _SnapPos(-0.145, y_right_loc - 0.030, H_WALL + 0.045), OPEN_WIDE, "reposition up outside right wall", R_R_CLAMP),
-            (0.6, _SnapPos(-0.090, y_right_loc, H_WALL + 0.042), OPEN_WIDE, "reposition above right wall", R_R_CLAMP),
-            (0.6, _SnapPos(-0.090, y_right_loc, z_clamp_wall), OPEN_WIDE, "straddle right wall top", R_R_CLAMP),
-            (0.5, _SnapPos(-0.090, y_right_loc, z_clamp_wall), FINGER_CLOSED, "clamp right wall steady", R_R_CLAMP),
-        ],
-    )
+    def _under(a_deg: float, r: float, d: float) -> _PanelPos:
+        a = math.radians(a_deg)
+        return _PanelPos(hx - r * math.sin(a) - d * math.cos(a), 0.0, hz + r * math.cos(a) - d * math.sin(a))
 
-    flap_2a_wps = [
-        (0.35, _PanelPos(-0.085, y_left_loc, z_clamp_wall), OPEN_WIDE, "release left wall", R_L_SNAP),
-        (0.55, _PanelPos(-0.085, y_left_loc, H_WALL + 0.060), OPEN_WIDE, "lift off left wall", R_L_SNAP),
-        (0.8, _PanelPos(-0.270, y_ear_push + 0.012, H_WALL + 0.020), FINGER_CLOSED, "reposition behind +Y front ear", R_FLAP_L),
-        (0.7, _PanelPos(-0.270, y_ear_push, 0.018), FINGER_CLOSED, "descend behind upright +Y ear", R_FLAP_L),
-        (0.75, _PanelPos(-0.232, y_ear_push, 0.020), FINGER_CLOSED, "engage ear horizontal (-72deg)", R_FLAP_L),
-        (0.75, _PanelPos(-0.208, y_ear_push, 0.058), FINGER_CLOSED, "lift ear along arc (-50deg)", R_FLAP_L),
-        (0.75, _PanelPos(-0.178, y_ear_push, 0.094), FINGER_CLOSED, "lift ear along arc (-34deg)", R_FLAP_L),
-        (0.65, _PanelPos(-0.156, y_ear_push, 0.112), FINGER_CLOSED, "lift ear along arc (-18deg)", R_FLAP_L),
-        (0.5, _PanelPos(-0.228, y_ear_push, 0.112), FINGER_CLOSED, "step back from parked ear", R_FLAP_L),
+    lift_wps = [
+        (0.9, _PanelPos(-0.300, 0.0, 0.060), PUSH_BLADE, "reposition low in front of free edge", R_LIFT),
+        (0.6, _PanelPos(-0.300, 0.0, 0.009), PUSH_BLADE, "descend in front of free edge", R_LIFT),
+        (0.7, _PanelPos(-0.236, 0.0, 0.009), PUSH_BLADE, "slip under free edge", R_LIFT),
+        (0.7, _under(70.0, 0.108, 0.010), PUSH_BLADE, "lift panel to 20 deg", R_LIFT),
+        (0.7, _under(50.0, 0.104, 0.010), PUSH_BLADE, "lift panel to 40 deg", R_LIFT),
+        (0.7, _under(30.0, 0.100, 0.010), PUSH_BLADE, "lift panel to 60 deg", R_LIFT),
+        (0.6, _under(15.0, 0.096, 0.010), PUSH_BLADE, "lift panel to 75 deg", R_LIFT),
+        (0.5, _under(15.0, 0.096, 0.030), PUSH_BLADE, "step out from panel", R_LIFT),
+        (0.6, _PanelPos(hx - 0.040, 0.0, 0.085), PUSH_BLADE, "engage outer face", R_LIFT),
+        (0.8, _PanelPos(hx - 0.0095, 0.0, 0.085), PUSH_BLADE, "square front panel vertical", R_LIFT),
+        (0.35, _PanelPos(hx - 0.0095, 0.0, 0.085), PUSH_BLADE, "hold front panel upright", R_LIFT),
+        (0.6, _PanelPos(-0.200, y_tab_loc, 0.140), PUSH_BLADE, "back off front panel", R_FLAP_R),
     ]
     P.phase(
-        left=flap_2a_wps,
-        right=[(sum(w[0] for w in flap_2a_wps), _SnapPos(-0.090, y_right_loc, z_clamp_wall), FINGER_CLOSED, "hold right wall clamped", R_R_CLAMP)],
+        left=[(sum(w[0] for w in lift_wps), _PanelPos(-0.085, y_left_loc, z_clamp_wall), FINGER_CLOSED, "hold +Y wall clamped", R_L_CLAMP)],
+        right=lift_wps,
     )
-
-    t_snap_2b = P.phase(
-        left=[(0.3, _PanelPos(-0.228, y_ear_push, 0.105), FINGER_CLOSED, "quiet snapshot 2b", R_FLAP_L)],
-        right=[(0.3, _SnapPos(-0.090, y_right_loc, z_clamp_wall), FINGER_CLOSED, "hold right wall quiet", R_R_CLAMP)],
-    )
-    _ct["snap_wins"].append((t_snap_2b + 0.06, t_snap_2b + 0.24, False))
-
-    flap_2b_wps = [
-        (0.65, _PanelPos(-0.242, +0.035, 0.072), FINGER_CLOSED, "reposition behind parked front panel", R_FLAP_L),
-        (0.7, _PanelPos(-0.188, +0.035, 0.092), FINGER_CLOSED, "engage front panel center", R_FLAP_L),
-        (0.75, _PanelPos(-0.152, +0.035, 0.104), FINGER_CLOSED, "fold front panel -10deg", R_FLAP_L),
-        (0.85, _PanelPos(-0.1300, +0.035, 0.104), FINGER_CLOSED, "square front panel vertical", R_FLAP_L),
-        (0.35, _PanelPos(-0.1300, +0.035, 0.104), FINGER_CLOSED, "hold front panel upright", R_FLAP_L),
-        (0.55, _PanelPos(-0.175, +0.035, 0.132), FINGER_CLOSED, "back off front panel", R_FLAP_L),
-    ]
-    P.phase(
-        left=flap_2b_wps,
-        right=[(sum(w[0] for w in flap_2b_wps), _SnapPos(-0.090, y_right_loc, z_clamp_wall), FINGER_CLOSED, "hold right wall clamped", R_R_CLAMP)],
-    )
-
     t_snap2 = P.phase(
-        left=[(0.3, _PanelPos(-0.175, +0.035, 0.132), FINGER_CLOSED, "quiet snapshot 2", R_FLAP_L)],
-        right=[(0.3, _SnapPos(-0.090, y_right_loc, z_clamp_wall), FINGER_CLOSED, "hold right wall quiet", R_R_CLAMP)],
+        left=[
+            (0.35, _PanelPos(-0.085, y_left_loc, z_clamp_wall), OPEN_WIDE, "release +Y wall", R_L_CLAMP),
+            (0.55, _PanelPos(-0.085, y_left_loc + 0.030, H_WALL + 0.060), OPEN_WIDE, "lift off +Y wall", R_L_CLAMP),
+        ],
+        right=[(0.9, _PanelPos(-0.200, y_tab_loc, 0.140), PUSH_BLADE, "quiet snapshot 2", R_FLAP_R)],
     )
-    _ct["snap_wins"].append((t_snap2 + 0.06, t_snap2 + 0.24, False))
+    _ct["snap_wins"].append((t_snap2 + 0.5, t_snap2 + 0.8, False))
 
     # -----------------------------------------------------------------------------------------------------------------
     # PHASE 3: Close window lid along y = +0.088 m (39 mm inside support polygon -> 2.4 mm board_z_max in probe14!)
@@ -1163,8 +1281,7 @@ def demo():
         sz = az_l_loc + rad * math.sin(th) + (T_WALL - preload) * n_out_z
         return _PanelPos(sx + 0.006, y_rail, sz + 0.0138)
 
-    y_tab_loc = -0.045
-    R_TAB = PanelOrient(_frame(0.720 * ux3 - 0.694 * Z, 0.694 * ux3 + 0.720 * Z))
+    R_TAB = PanelOrient(_turn(-30.0) @ _frame(0.720 * ux3 - 0.694 * Z, 0.694 * ux3 + 0.720 * Z))
 
     lid_tip_wps = [
         (0.85, _PanelPos(-0.010, +D_IN / 2 + T_WALL + 0.055, az_l_loc + 0.135), FINGER_CLOSED, "reposition outside +Y lid edge", R_LID),
@@ -1176,31 +1293,12 @@ def demo():
     P.phase(
         left=lid_tip_wps,
         right=[
-            (0.40, _SnapPos(-0.090, y_right_loc, z_clamp_wall), OPEN_WIDE, "release right wall while lid at 95deg", R_R_CLAMP),
-            (0.55, _SnapPos(-0.090, y_right_loc - 0.035, H_WALL + 0.050), OPEN_WIDE, "lift clear of right wall", R_R_CLAMP),
+            (0.95, _PanelPos(-0.200, y_tab_loc, 0.140), FINGER_CLOSED, "wait clear in front of front panel", R_FLAP_R),
             (0.85, _PanelPos(-0.180, y_tab_loc, 0.120), FINGER_CLOSED, "reposition in front of front panel", R_FLAP_R),
             (0.55, _PanelPos(-0.1310, y_tab_loc, 0.085), FINGER_CLOSED, "brace front panel low during lid tip", R_FLAP_R),
             (1.70, _PanelPos(-0.1310, y_tab_loc, 0.085), FINGER_CLOSED, "hold front panel braced while lid tips", R_FLAP_R),
         ],
     )
-
-    if mode == "lid_no_tuck":
-        P.phase(
-            left=[
-                (0.85, _lid_push_tcp(34.0, rad=0.150, preload=0.0035), FINGER_CLOSED, "push lid down to 34deg", R_LID),
-                (0.85, _lid_push_tcp(14.0, rad=0.158, preload=0.0035), FINGER_CLOSED, "push lid down to 14deg", R_LID),
-                (0.85, _lid_push_tcp(3.0, rad=0.163, preload=0.0055), FINGER_CLOSED, "lower lid to 3deg (tab outside)", R_LID),
-                (1.1, _lid_push_tcp(0.0, rad=0.168, preload=0.0070), FINGER_CLOSED, "seat lid flush onto walls", R_LID),
-                (0.8, _PanelPos(-0.045, y_lid_lo, az_l_loc + 0.075), OPEN_WIDE, "lift off closed lid", R_LID),
-                (1.5, LEFT_PARK, OPEN_WIDE, "park", R0),
-            ],
-            right=[
-                (0.55, _PanelPos(-0.195, y_tab_loc, 0.115), OPEN_WIDE, "withdraw cleanly from front panel", R_FLAP_R),
-                (1.5, RIGHT_PARK, OPEN_WIDE, "park", R0),
-            ],
-        )
-        P.phase(left=[(2.5, LEFT_PARK, OPEN_WIDE, "settle", R0)], right=[(2.5, RIGHT_PARK, OPEN_WIDE, "settle", R0)])
-        return {"left": P.L, "right": P.R}
 
     P.phase(
         left=[
@@ -1225,6 +1323,9 @@ def demo():
     P.phase(
         left=[(4.15, _lid_push_tcp(48.0, rad=0.144, preload=0.0025), FINGER_CLOSED, "hold lid anvil for tab crease", R_LID)],
         right=[
+            (3.70, _PanelPos(-0.215, y_tab_loc, 0.295), FINGER_CLOSED, "wait outside the uncreased tab", R_TAB),
+            (0.45, _PanelPos(-0.172, y_tab_loc, 0.155), FINGER_CLOSED, "reposition outside front panel", R_FLAP_R),
+        ] if mode == "lid_no_tuck" else [
             (0.55, _PanelTabArc(+65.0, 0.032, y_tab_loc), FINGER_CLOSED, "above outward front tab", R_TAB),
             (0.60, _PanelTabArc(+25.0, 0.026, y_tab_loc), FINGER_CLOSED, "catch outward tab along r=26mm arc", R_TAB),
             (0.60, _PanelTabArc( -8.0, 0.026, y_tab_loc), FINGER_CLOSED, "sweep tab past vertical", R_TAB),
@@ -1336,43 +1437,9 @@ def _reset_watch(_env):
     )
 
 
-@on_step
-def _step_watch(env):
-    _STATE["step"] += 1
-    bx, pl, ck = (labkit._part_state(env, p) for p in (CAKE_BOX, CAKE_BOARD, CAKE))
-    bpos, brot = np.asarray(bx.pos, float), np.asarray(bx.rotation(), float)
-    plpos, plrot = np.asarray(pl.pos, float), np.asarray(pl.rotation(), float)
-    ckpos, ckrot = np.asarray(ck.pos, float), np.asarray(ck.rotation(), float)
-
-    qf = float(bx.joints.get("front_panel", FRONT_INIT))
-    ql = float(bx.joints.get("lid", LID_INIT))
-    qt = float(bx.joints.get("lid_tab", TAB_INIT))
-
-    if _STATE["cake_on_board0"] is None:
-        _STATE["cake_on_board0"] = plrot.T @ (ckpos - plpos)
-
-    if _STATE["frosting_touch"] is None:
-        panel_hit = box_panel_touches_frosting(bpos, brot, qf, ql, qt, ckpos, ckrot, FROSTING_CLEAR_M)
-        if panel_hit is not None:
-            _STATE["frosting_touch"] = f"box:{panel_hit}@step{_STATE['step']}"
-        else:
-            rob_hit = robot_hulls_touch_frosting(_live_robot_world_hulls(env), ckpos, ckrot, FROSTING_CLEAR_M)
-            if rob_hit is not None:
-                _STATE["frosting_touch"] = f"{rob_hit}@step{_STATE['step']}"
-
-    sv = step_violation_metrics(TOP, bpos, brot, qf, ql, qt, plpos, plrot, ckpos, ckrot, _STATE["cake_on_board0"])
-    if sv["cake_disturbed"]:
-        _STATE["cake_disturbed"] = True
-    if sv["board_dropped"]:
-        _STATE["board_dropped"] = True
-    if sv["box_crushed"]:
-        _STATE["box_crushed"] = True
-
-    pad_pts = _robot_tip_and_pad_points(env)
-    hc = hand_clearance_m(pad_pts, bpos, brot, qf, ql, qt, plpos, plrot, ckpos, ckrot)
-    _STATE["hand_clear_m"] = hc
-
-    snap = tracked_world_points(bpos, brot, qf, ql, qt, plpos, plrot, ckpos, ckrot)
+def _stillness_update(snap: np.ndarray, hc: float) -> None:
+    """One step of the release gate: keep the last 21 snapshots of every tracked point (box, panels, all four gusset
+    halves, board, cake) taken while all six hand points are >= 80 mm clear; still_ok needs < 1 mm all-pairs spread."""
     hist = _STATE["hist"]
     hc_hist = _STATE["hc_hist"]
     if hc >= HAND_CLEAR_M:
@@ -1392,12 +1459,59 @@ def _step_watch(env):
         _STATE["still_move_m"] = 1.0
         _STATE["still_ok"] = False
 
+
+@on_step
+def _step_watch(env):
+    _STATE["step"] += 1
+    bx, pl, ck = (labkit._part_state(env, p) for p in (CAKE_BOX, CAKE_BOARD, CAKE))
+    bpos, brot = np.asarray(bx.pos, float), np.asarray(bx.rotation(), float)
+    plpos, plrot = np.asarray(pl.pos, float), np.asarray(pl.rotation(), float)
+    ckpos, ckrot = np.asarray(ck.pos, float), np.asarray(ck.rotation(), float)
+
+    qf = float(bx.joints.get("front_panel", FRONT_INIT))
+    ql = float(bx.joints.get("lid", LID_INIT))
+    qt = float(bx.joints.get("lid_tab", TAB_INIT))
+    # actual measured gusset hinge angles (each half is only sprung towards its fold angle, so it can be deflected)
+    gq = {n: float(bx.joints[n]) for n in GUSSET_NAMES}
+    _STATE["gusset_q"] = gq
+
+    if _STATE["cake_on_board0"] is None:
+        _STATE["cake_on_board0"] = plrot.T @ (ckpos - plpos)
+
+    if _STATE["frosting_touch"] is None:
+        panel_hit = box_panel_touches_frosting(bpos, brot, qf, ql, qt, ckpos, ckrot, FROSTING_CLEAR_M, gusset_q=gq)
+        if panel_hit is not None:
+            _STATE["frosting_touch"] = f"box:{panel_hit}@step{_STATE['step']}"
+        else:
+            rob_hit = robot_hulls_touch_frosting(_live_robot_world_hulls(env), ckpos, ckrot, FROSTING_CLEAR_M)
+            if rob_hit is not None:
+                _STATE["frosting_touch"] = f"{rob_hit}@step{_STATE['step']}"
+
+    sv = step_violation_metrics(TOP, bpos, brot, qf, ql, qt, plpos, plrot, ckpos, ckrot, _STATE["cake_on_board0"])
+    if sv["cake_disturbed"]:
+        _STATE["cake_disturbed"] = True
+    if sv["board_dropped"]:
+        _STATE["board_dropped"] = True
+    if sv["box_crushed"]:
+        _STATE["box_crushed"] = True
+
+    pad_pts = _robot_tip_and_pad_points(env)
+    hc = hand_clearance_m(pad_pts, bpos, brot, qf, ql, qt, plpos, plrot, ckpos, ckrot, gusset_q=gq)
+    _STATE["hand_clear_m"] = hc
+
+    snap = tracked_world_points(bpos, brot, qf, ql, qt, plpos, plrot, ckpos, ckrot, gusset_q=gq)
+    _stillness_update(snap, hc)
+    hist = _STATE["hist"]
+    hc_hist = _STATE["hc_hist"]
+
     tier_info = evaluate_final_tier(bpos, brot, qf, ql, qt, plpos, plrot)
     _STATE["last_diag"] = {
         "step": _STATE["step"],
         "q_front_deg": round(math.degrees(qf), 2),
         "q_lid_deg": round(math.degrees(ql), 2),
         "q_tab_deg": round(math.degrees(qt), 2),
+        "gusset_deg": {n: round(math.degrees(v), 2) for n, v in gq.items()},
+        "gusset_ideal_deg": {n: round(math.degrees(gusset_angle(n, qf)), 2) for n in GUSSET_NAMES},
         "frosting_touch": _STATE["frosting_touch"],
         "cake_disturbed": _STATE["cake_disturbed"],
         "board_dropped": _STATE["board_dropped"],
@@ -1413,7 +1527,15 @@ def _step_watch(env):
     diag_path = os.environ.get("CAKE_BOX_DIAG_JSON")
     if diag_path:
         pathlib.Path(diag_path).write_text(json.dumps(_STATE["last_diag"], indent=2))
-    if os.environ.get("CAKE_BOX_TRACE") and (_STATE["step"] == 1 or _STATE["step"] % 20 == 0):
+    if os.environ.get("CAKE_BOX_JTRACE") and _STATE["step"] <= 40:
+        asset = env.unwrapped.scene["cake_box"]
+        qq = asset.data.joint_pos
+        qq = (qq.torch if hasattr(qq, "torch") else qq)[0].cpu().numpy()
+        tt = asset.data.joint_pos_target
+        tt = (tt.torch if hasattr(tt, "torch") else tt)[0].cpu().numpy()
+        print("[jtrace]", _STATE["step"], {n: (round(math.degrees(float(a)), 1), round(math.degrees(float(b)), 1)) for n, a, b in zip(asset.joint_names, qq, tt)},
+              "box", np.round((bpos - np.r_[BOX_XY, TOP]) * 1000, 1).tolist(), flush=True)
+    if os.environ.get("CAKE_BOX_TRACE") and (_STATE["step"] == 1 or _STATE["step"] % int(os.environ.get("CAKE_BOX_TRACE_EVERY", "20")) == 0):
         rz_mm = (_live_arm_tip_z_min(env, "right_robot") - TOP) * 1000.0
         lz_mm = (_live_arm_tip_z_min(env, "left_robot") - TOP) * 1000.0
         pl_box = brot.T @ (plpos - bpos)
@@ -1425,7 +1547,11 @@ def _step_watch(env):
             f"box_sh=({b_sh[0]:+5.1f},{b_sh[1]:+5.1f},{b_dyaw:+4.1f}d) "
             f"q=({math.degrees(qf):+6.1f},{math.degrees(ql):+5.1f},{math.degrees(qt):+6.1f})deg "
             f"tipZ=(L:{lz_mm:+5.1f},R:{rz_mm:+5.1f})mm "
-            f"ck_sl={sv['cake_slide_mm']:5.2f}mm touch={_STATE['frosting_touch']} tier={tier_info['tier']}",
+            f"ck_sl={sv['cake_slide_mm']:5.2f}mm touch={_STATE['frosting_touch']} tier={tier_info['tier']} "
+            f"Rpad_box={np.round(brot.T @ (pad_pts[5] - bpos) * 1000, 1).tolist()} "
+            f"steer={np.round(_ct['trim'].get('s2_steer', np.zeros(3)) * 1000, 1).tolist()} "
+            f"pl_yaw={math.degrees(math.atan2(plrot[1, 0], plrot[0, 0])):+.2f} pl_tilt={math.degrees(math.acos(min(1.0, plrot[2, 2]))):.2f} "
+            f"pl_z={((plpos[2] - TOP) * 1000):.2f} Lpad_box={np.round(brot.T @ (pad_pts[2] - bpos) * 1000, 1).tolist()}",
             flush=True,
         )
 

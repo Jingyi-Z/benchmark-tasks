@@ -2,7 +2,6 @@
 
 Outputs in tasks/cake-box/fab/ (all LF-normalized, derived directly from task_metrics.py):
   - cake_board_template.svg       1:1 cutting, beveling & centering template for 247.6 x 4.8 mm foil board
-  - front_lifting_ear_template.svg 1:1 cutting/scoring template & carton-prep diagram for +Y front ear
   - closure_cross_section.svg     Dimensioned XZ cross-section of tab / front_panel / wall / relief / force paths
   - templates.dxf                 1:1 R12 ASCII DXF (CUT / SCORE / GUIDE layers) for laser or knife plotter
 """
@@ -96,85 +95,6 @@ def build_cake_board_svg() -> str:
   <text x="10" y="287.0" font-size="2.9">2. Wrap top face smoothly with 0.018 mm household silver aluminum foil (tucking only onto top/side or flush before final trim; keep kraft underside exposed).</text>
   <text x="10" y="291.5" font-size="2.9">3. Trim around SOLID RED circle to 247.6 +/- 0.5 mm OD; lightly chamfer/sand bottom kraft perimeter 3.0 mm inward x 1.2 mm high so board glides onto 1.0 mm box base.</text>
   <text x="10" y="296.0" font-size="2.9">4. Pre-trial check: caliper thickness {t_mm:.1f} +/- 0.4 mm, steel-ruler OD 247.6 +/- 0.5 mm (3.2 mm nominal clearance/side in 254.0 mm box), 1 g scale mass 55 +/- 6 g.</text>
-</svg>
-"""
-
-
-def build_front_ear_svg() -> str:
-    w_mm, h_mm = 210.0, 235.0
-    # Blank sits at (20, 28): two-ply 116.0 x 36.0 mm blank -> folded in half along x = 20+58 = 78 mm
-    # yielding a 58.0 x 36.0 x 1.2-1.6 mm two-ply piece, then scored 20.0 mm from left end (x = 40 mm)
-    # to form a 20.0 x 36.0 mm mounting flange + 38.0 x 36.0 mm perpendicular lifting ear.
-    bx, by = 22.0, 28.0
-    return f"""<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="{w_mm:.1f}mm" height="{h_mm:.1f}mm" viewBox="0 0 {w_mm:.1f} {h_mm:.1f}">
-  <style>
-    text {{ font-family: Arial, Helvetica, sans-serif; fill: #1a1a1a; }}
-    .cut {{ fill: #fdfcf9; stroke: #cc0000; stroke-width: 0.45; }}
-    .fold {{ fill: none; stroke: #0066cc; stroke-width: 0.40; stroke-dasharray: 3,1.8; }}
-    .box {{ fill: #f7f6f2; stroke: #222222; stroke-width: 0.40; }}
-    .ear {{ fill: #ebe6dc; stroke: #cc0000; stroke-width: 0.45; }}
-  </style>
-  <rect x="0" y="0" width="{w_mm:.1f}" height="{h_mm:.1f}" fill="#ffffff"/>
-  <text x="105" y="10" font-size="4.2" font-weight="bold" text-anchor="middle">1:1 TEMPLATE &amp; CARTON PREP: +Y FRONT-PANEL LIFTING EAR (BRP #245 / SCT #23053)</text>
-
-  <!-- 1:1 24-pt (0.6 mm) SBS cardstock blank: 116.0 x 36.0 mm -->
-  <text x="{bx}" y="23" font-size="3.3" font-weight="bold">A. 1:1 Cut &amp; Score Dieline (cut from 24-pt / 0.6 mm white SBS cardstock or removed front gusset flap):</text>
-  <rect x="{bx}" y="{by}" width="116.0" height="36.0" class="cut"/>
-  <!-- Center 180-deg lamination fold at +58.0 mm -->
-  <line x1="{bx+58.0}" y1="{by}" x2="{bx+58.0}" y2="{by+36.0}" class="fold"/>
-  <!-- 90-deg flange score at +20.0 mm (and mirror +96.0 mm so fold works cleanly) -->
-  <line x1="{bx+20.0}" y1="{by}" x2="{bx+20.0}" y2="{by+36.0}" class="fold"/>
-  <line x1="{bx+96.0}" y1="{by}" x2="{bx+96.0}" y2="{by+36.0}" class="fold"/>
-
-  <text x="{bx+10.0}" y="{by+16.5}" font-size="2.9" text-anchor="middle">20.0 mm</text>
-  <text x="{bx+10.0}" y="{by+21.0}" font-size="2.7" text-anchor="middle">FLANGE</text>
-  <text x="{bx+39.0}" y="{by+16.5}" font-size="3.0" font-weight="bold" text-anchor="middle">38.0 x 36.0 mm</text>
-  <text x="{bx+39.0}" y="{by+21.0}" font-size="2.8" text-anchor="middle">LIFTING EAR (PLY 1)</text>
-  <text x="{bx+77.0}" y="{by+16.5}" font-size="3.0" font-weight="bold" text-anchor="middle">38.0 x 36.0 mm</text>
-  <text x="{bx+77.0}" y="{by+21.0}" font-size="2.8" text-anchor="middle">LIFTING EAR (PLY 2)</text>
-  <text x="{bx+106.0}" y="{by+16.5}" font-size="2.9" text-anchor="middle">20.0 mm</text>
-  <text x="{bx+106.0}" y="{by+21.0}" font-size="2.7" text-anchor="middle">FLANGE</text>
-
-  <text x="{bx}" y="{by+42.0}" font-size="2.9">Fold 180 deg at x = 58.0 mm &amp; glue plies flat -> 58.0 x 36.0 x 1.2-1.6 mm (~1.3 g); bend 20.0 mm flange 90 deg along score line.</text>
-
-  <!-- 50.0 mm scale bar -->
-  <line x1="146" y1="46" x2="196" y2="46" stroke="#000000" stroke-width="0.6"/>
-  <line x1="146" y1="43.5" x2="146" y2="48.5" stroke="#000000" stroke-width="0.6"/>
-  <line x1="196" y1="43.5" x2="196" y2="48.5" stroke="#000000" stroke-width="0.6"/>
-  <text x="171" y="42.5" font-size="3.0" font-weight="bold" text-anchor="middle">50.0 mm EXACT</text>
-
-  <!-- Schematic placement & lock-corner carton preparation -->
-  <text x="22" y="84" font-size="3.3" font-weight="bold">B. Declared Preparation of 10 x 10 x 5 in Lock-Corner Window Carton (BRP #245 / SCT #23053):</text>
-  <!-- Top-view schematic (not 1:1, labeled in mm) -->
-  <rect x="26" y="92" width="76" height="76" class="box"/>
-  <text x="64" y="131" font-size="3.1" text-anchor="middle">BOX BASE 254.0 x 254.0 mm</text>
-  <text x="64" y="136" font-size="2.8" text-anchor="middle">(+X back wall &amp; +/-Y side walls erected)</text>
-  <!-- Unfolded front_panel (-X) -->
-  <rect x="26" y="168" width="76" height="36" fill="#fcfbf7" stroke="#222222" stroke-width="0.4" stroke-dasharray="2,1"/>
-  <text x="64" y="185" font-size="2.9" text-anchor="middle">front_panel (251.0 x 126.0 mm)</text>
-  <text x="64" y="190" font-size="2.7" text-anchor="middle">unfolded -90 deg flat onto counter</text>
-  <!-- Mounted +Y lifting ear -->
-  <rect x="102" y="191" width="4.5" height="11" class="ear"/>
-  <text x="110" y="196" font-size="2.8" fill="#aa0000">+Y Lifting Ear (38.0 x 36.0 x 1.6 mm)</text>
-  <text x="110" y="200.5" font-size="2.7">stands 39 mm upright off counter at y_box = +130.4 mm</text>
-  <text x="110" y="205.0" font-size="2.7">(3.4 mm outside 254.0 mm throat; clear of 247.6 mm board)</text>
-
-  <text x="110" y="98" font-size="2.85">1. Rear (+X) corners: hook factory lock tabs into rear side-wall</text>
-  <text x="114" y="102.5" font-size="2.85">slots &amp; secure outer rear corners with 19 x 60 mm clear tape</text>
-  <text x="114" y="107.0" font-size="2.85">so back_wall, left_wall, and right_wall stay rigid at 90 deg.</text>
-  <text x="110" y="114.0" font-size="2.85">2. Front (-X) corners: unhook front lock tabs and slit the two</text>
-  <text x="114" y="118.5" font-size="2.85">45 deg front diagonal gusset webs flush along the front vertical</text>
-  <text x="114" y="123.0" font-size="2.85">edges of left_wall &amp; right_wall so front_panel unfolds -90 deg</text>
-  <text x="114" y="127.5" font-size="2.85">flat onto the counter and seats against the side walls at 0 deg.</text>
-  <text x="110" y="134.5" font-size="2.85">3. Tape the 20.0 x 36.0 mm ear flange (19 mm double-sided tape)</text>
-  <text x="114" y="139.0" font-size="2.85">onto front_panel's outer face at its +Y corner, 4.0 mm below</text>
-  <text x="114" y="143.5" font-size="2.85">its top edge (z = 88.0..124.0 mm), with the 38.0 x 36.0 mm ear</text>
-  <text x="114" y="148.0" font-size="2.85">projecting +38.0 mm along +X_box at y_box = +130.4 mm.</text>
-  <text x="110" y="155.0" font-size="2.85">4. Closure retention: folding front_panel to 0 deg, closing the</text>
-  <text x="114" y="159.5" font-size="2.85">257.2 mm window lid onto the walls, and tucking the 35.0 mm</text>
-  <text x="114" y="164.0" font-size="2.85">front tab &gt;= 10.0 mm behind front_panel's inner face traps</text>
-  <text x="114" y="168.5" font-size="2.85">front_panel between the side walls and tucked tab.</text>
 </svg>
 """
 
@@ -276,18 +196,19 @@ def build_cross_section_svg() -> str:
   <text x="190" y="69.0" font-size="2.55">- lid: friction 0.082 N*m, hysteresis 0.085 N*m</text>
   <text x="190" y="73.0" font-size="2.55">- lid_tab: spring 0.001 N*m/rad around +45 deg,</text>
   <text x="190" y="77.0" font-size="2.55">  stiction 0.008 N*m, hysteresis 0.014 N*m.</text>
+  <text x="190" y="80.5" font-size="2.4">- front spring 0.4 N*m/rad below 15 deg up; gussets 0.08</text>
 
   <text x="188" y="84.5" font-size="2.65">3. Force Paths by Phase:</text>
-  <text x="190" y="89.0" font-size="2.55">- Slide-in: Left clamps left_wall (load -> counter</text>
-  <text x="190" y="93.0" font-size="2.55">  friction mu=0.52); Right pushes 15.3 mm board</text>
-  <text x="190" y="97.0" font-size="2.55">  rim (~1.1 N &lt;&lt; ~5.0 N cake-on-board shear).</text>
-  <text x="190" y="101.5" font-size="2.55">- Flap fold: Right clamps right_wall; Left pushes</text>
-  <text x="190" y="105.5" font-size="2.55">  +Y ear arc (-90 -&gt; -32 deg) then center to 0 deg.</text>
-  <text x="190" y="110.0" font-size="2.55">- Tab crease: Left braces lid at ~44 deg while</text>
-  <text x="190" y="114.0" font-size="2.55">  Right sweeps r = 26..30 mm (+65 -&gt; -61 deg,</text>
-  <text x="190" y="118.0" font-size="2.55">  ~0.85 N aligned through LID_ANCHOR).</text>
-  <text x="190" y="122.5" font-size="2.55">- Lid seat: Right guards front_panel outer face;</text>
-  <text x="190" y="126.5" font-size="2.55">  Left seats lid onto all four 127.0 mm walls.</text>
+  <text x="190" y="89.0" font-size="2.55">- Stage A: Left presses the sprung front panel</text>
+  <text x="190" y="93.0" font-size="2.55">  flat; Right pushes the 15.3 mm board rim onto it.</text>
+  <text x="190" y="97.0" font-size="2.55">- Pause: Left clamps the +Y wall; Right holds.</text>
+  <text x="190" y="101.5" font-size="2.55">- Stage B: Right slides board between upright</text>
+  <text x="190" y="105.5" font-size="2.55">  gussets (~1.1 N &lt;&lt; ~5.0 N cake-on-board shear).</text>
+  <text x="190" y="110.0" font-size="2.55">- Flap fold: Right lifts free edge 0 -&gt; 75 deg,</text>
+  <text x="190" y="114.0" font-size="2.55">  then squares it; gussets fold inside the corners.</text>
+  <text x="190" y="118.0" font-size="2.55">- Tab crease: Left braces lid at ~44 deg, Right</text>
+  <text x="190" y="122.5" font-size="2.55">  sweeps r = 26..30 mm; Left seats lid on walls</text>
+  <text x="190" y="126.5" font-size="2.55">  while Right guards front panel outer face.</text>
 
   <text x="188" y="134.0" font-size="2.65">4. Board Boundary &amp; Release Gate:</text>
   <text x="190" y="138.5" font-size="2.55">- Analytic 3D cylinder projection &lt;= {W_IN*500 + BOARD_IN_MARGIN*1000:.1f} mm</text>
@@ -333,13 +254,6 @@ def build_dxf() -> str:
     add_circle("GUIDE", 0.0, 0.0, R_BORDER_BOT * 1000.0)     # 108.5000 mm bottom shell border outer limit
     add_circle("GUIDE", 0.0, 0.0, R_CAKE_BODY * 1000.0)      # 104.0000 mm fondant body centering circle
 
-    # 2. Front +Y lifting-ear 116.0 x 36.0 mm two-ply blank placed at x = [150, 266], y = [-18, +18] mm
-    x0, y0 = 150.0, -18.0
-    add_rect("CUT", x0, y0, 116.0, 36.0)
-    add_line("SCORE", x0 + 20.0, y0, x0 + 20.0, y0 + 36.0)   # 90-deg mounting flange score (ply 1)
-    add_line("SCORE", x0 + 58.0, y0, x0 + 58.0, y0 + 36.0)   # 180-deg two-ply lamination fold
-    add_line("SCORE", x0 + 96.0, y0, x0 + 96.0, y0 + 36.0)   # 90-deg mounting flange score (ply 2)
-
     lines = [
         "0", "SECTION", "2", "HEADER",
         "9", "$INSUNITS", "70", "4",  # 4 = millimetres
@@ -354,10 +268,9 @@ def build_dxf() -> str:
 
 def main() -> None:
     _write_lf(HERE / "cake_board_template.svg", build_cake_board_svg())
-    _write_lf(HERE / "front_lifting_ear_template.svg", build_front_ear_svg())
     _write_lf(HERE / "closure_cross_section.svg", build_cross_section_svg())
     _write_lf(HERE / "templates.dxf", build_dxf())
-    print("Generated 4 fabrication & cross-section files in", HERE)
+    print("Generated 3 fabrication & cross-section files in", HERE)
 
 
 if __name__ == "__main__":

@@ -120,6 +120,55 @@ def run_checks():
     assert w_025["tier"] == 0.25, w_025
     witnesses.append(("board_inside_open_box", 0.25))
 
+    # Flat front panel and upright gussets leave the throat clear; a panel 10 deg up (gussets leaning in) latches a touch
+    ck_throat = bpos + R_box @ np.array([-0.200, 0.0, T_BOARD])
+    assert box_panel_touches_frosting(bpos, R_box, math.radians(-90.0), LID_INIT, TAB_INIT, ck_throat, I3) is None
+    g_hit = box_panel_touches_frosting(bpos, R_box, math.radians(-80.0), LID_INIT, TAB_INIT, ck_throat, I3)
+    assert g_hit is not None, g_hit
+    witnesses.append(("raised_panel_and_gussets_into_cake_latch", 0.0))
+    near_g = list(far_pads)
+    near_g[0] = bpos + R_box @ np.array([-0.126, +0.100, 0.110])  # just inside the folded gusset at the front panel
+    assert hand_clearance_m(near_g, bpos, R_box, 0.0, 0.0, math.radians(-57.84), pl_in, I3, ck_in, I3) < 0.005
+    witnesses.append(("hand_at_folded_gusset_not_released", 0.0))
+
+    # Actual gusset geometry: each half is only sprung to its fold angle, so the live scorer passes the measured hinge
+    # angles. A deflected half must be caught where the ideal fold (all 0 deg at a vertical front panel) clears.
+    from task_metrics import GUSSET_NAMES, tracked_world_points
+    g_ideal = {n: 0.0 for n in GUSSET_NAMES}
+    g_defl = dict(g_ideal, gusset_left_b=math.radians(45.0))
+    assert box_panel_touches_frosting(bpos, R_box, 0.0, LID_INIT, TAB_INIT, ck_in, I3, gusset_q=g_ideal) is None
+    hit_defl = box_panel_touches_frosting(bpos, R_box, 0.0, LID_INIT, TAB_INIT, ck_in, I3, gusset_q=g_defl)
+    assert hit_defl == "gusset_left_b", hit_defl
+    witnesses.append(("deflected_gusset_45deg_touches_frosting_ideal_clears", 0.0))
+
+    far = bpos + np.array([0.0, 0.0, 1.0])  # board and cake moved away: isolate the gusset term
+    pad_g = [bpos + R_box @ np.array([-0.0389, 0.0396, 0.1545])] + list(far_pads[1:])
+    hc_ideal = hand_clearance_m(pad_g, bpos, R_box, 0.0, LID_INIT, TAB_INIT, far, I3, far, I3, gusset_q=g_ideal)
+    hc_defl = hand_clearance_m(pad_g, bpos, R_box, 0.0, LID_INIT, TAB_INIT, far, I3, far, I3, gusset_q=g_defl)
+    assert hc_ideal >= HAND_CLEAR_M and hc_defl < HAND_CLEAR_M, (hc_ideal, hc_defl)
+    witnesses.append((f"hand_{hc_defl*1000:.0f}mm_from_deflected_gusset_ideal_{hc_ideal*1000:.0f}mm_not_released", 0.0))
+
+    def _still_after(gusset_seq):
+        task._STATE.update(hist=[], hc_hist=[], still_ok=False, still_move_m=1.0)
+        for gq in gusset_seq:
+            task._stillness_update(tracked_world_points(bpos, R_box, 0.0, 0.0, math.radians(-57.84), pl_in, I3, ck_in, I3, gusset_q=gq), 0.200)
+        return task._STATE["still_ok"], task._STATE["still_move_m"]
+
+    n_still = task.STILL_STEPS
+    ok_fixed, mv_fixed = _still_after([g_ideal] * n_still)
+    assert ok_fixed and mv_fixed < 1e-9, (ok_fixed, mv_fixed)
+    swing = [dict(g_ideal, gusset_right_a=math.radians(2.0 * math.sin(k / 3.0))) for k in range(n_still)]
+    ok_swing, mv_swing = _still_after(swing)
+    assert not ok_swing and mv_swing > 0.001, (ok_swing, mv_swing)
+    task._STATE.update(frosting_touch=None, cake_disturbed=False, board_dropped=False, box_crushed=False, hand_clear_m=0.200)
+    obj_closed = {
+        "cake_box": __import__("types").SimpleNamespace(pos=bpos, rotation=lambda: R_box, joints={"front_panel": 0.0, "lid": 0.0, "lid_tab": math.radians(-57.84)}),
+        "cake_board": __import__("types").SimpleNamespace(pos=pl_in, rotation=lambda: I3),
+    }
+    assert task.score(obj_closed) == 0.0
+    witnesses.append((f"moving_gusset_{mv_swing*1000:.1f}mm_spread_blocks_every_tier", 0.0))
+    task._STATE.update(hist=[], hc_hist=[], still_ok=False, still_move_m=1.0)
+
     w_050 = evaluate_final_tier(bpos, R_box, math.radians(-2.0), LID_INIT, TAB_INIT, pl_in, I3)
     assert w_050["tier"] == 0.50, w_050
     witnesses.append(("front_closed_lid_open", 0.50))
@@ -218,9 +267,27 @@ def run_checks():
 
     frosting_hits = []
     n_hulls_checked = 0
-    # Phase 1 exact waypoint clocks:
-    # Step 1a (total 10.0 s): 0..3.2 approach, 3.2..7.4 slide CAKE_START_XY -> STAGE_XY, 7.4..10.0 align & lift
-    # Step 1b (10.0..20.6 s): 10.0..13.2 arc & behind & engage, 13.2..18.0 slide STAGE_XY -> BOX_XY
+    # Staged cake path: the cake waits until Stage A, slides to STAGE_A_CG on the held-flat panel, waits while the
+    # left hand braces the box, then Stage B plus centring carries it to the box centre (times from the right plan).
+    def _label_start(label):
+        acc = 0.0
+        for w in plan_dict["right"]:
+            if w.label == label:
+                return acc
+            acc += w.duration
+        raise KeyError(label)
+
+    t_a0 = _label_start("slide board onto flat front panel")
+    t_b0 = _label_start("slide cake straight into box")
+    xa0 = float(np.dot(task.CAKE_START_XY - task.BOX_XY, task.UX_BOX))
+
+    def _cake_x(t):
+        if t < t_a0 + task.STAGE_A_S:
+            u = _ik.smoothstep(min(1.0, max(0.0, (t - t_a0) / task.STAGE_A_S)))
+            return xa0 + u * (task.STAGE_A_CG - xa0)
+        u = _ik.smoothstep(min(1.0, max(0.0, (t - t_b0) / task.STAGE_B_S)))
+        return task.STAGE_A_CG + u * (0.0 - task.STAGE_A_CG)
+
     for step_i in range(0, n_steps + 1, 2):
         t_sec = step_i / 20.0
         al, lbl_l = lp.action7(t_sec)
@@ -228,20 +295,10 @@ def run_checks():
         ql, gl = al[:6], al[6] * (-0.04695)
         qr, gr = ar[:6], ar[6] * (-0.04695)
 
-        if t_sec < 3.4:
-            ck_xy = task.CAKE_START_XY.copy()
-        elif t_sec < 8.2:
-            u = _ik.smoothstep(min(1.0, max(0.0, (t_sec - 3.4) / 4.8)))
-            ck_xy = task.CAKE_START_XY + u * (task.STAGE_XY - task.CAKE_START_XY)
-        elif t_sec < 14.0:
-            ck_xy = task.STAGE_XY.copy()
-        elif t_sec < 19.4:
-            u = _ik.smoothstep(min(1.0, max(0.0, (t_sec - 14.0) / 5.4)))
-            ck_xy = task.STAGE_XY + u * (task.BOX_XY - task.STAGE_XY)
-        else:
-            ck_xy = task.BOX_XY.copy()
+        ck_xy = task.BOX_XY + _cake_x(t_sec) * task.UX_BOX
+        inside = float(np.dot(ck_xy - task.BOX_XY, task.UX_BOX)) > -0.130
 
-        ck_z = task.TOP + T_BOARD + (T_BASE if t_sec >= 15.4 else 0.0)
+        ck_z = task.TOP + T_BOARD + (T_BASE if inside else 0.0)
         ck_p = np.array([ck_xy[0], ck_xy[1], ck_z])
 
         hulls_w = _fk_arm_world_hulls("left", LEFT_BASE_POS, ql, gl) + _fk_arm_world_hulls("right", RIGHT_BASE_POS, qr, gr)

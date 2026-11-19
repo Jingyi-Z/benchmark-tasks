@@ -200,6 +200,8 @@ class Joint:
     initial: float = 0.0
     mass: float = 0.01
     parent: str = ""  # another joint of the same part this one rides on ("" = the part's main body)
+    filter_own: bool = False  # True: this joint's shapes never collide with the part's own other bodies
+    filter_parts: tuple = ()  # names of other parts whose main bodies this joint's shapes never collide with
 
     def checked(self) -> "Joint":
         if self.kind not in ("slide", "hinge"):
@@ -218,6 +220,7 @@ class Joint:
             meshes=_meshes(self.meshes, self.name), lower=float(self.lower), upper=float(self.upper), stiffness=float(self.stiffness),
             damping=float(self.damping), target=float(self.target), friction=float(self.friction),
             initial=float(self.initial), mass=float(self.mass), parent=str(self.parent),
+            filter_own=bool(self.filter_own), filter_parts=tuple(str(n) for n in self.filter_parts),
         )
 
     @property
@@ -553,6 +556,15 @@ def _author(prim_path: str, cfg, translation=None, orientation=None, **kwargs):
         state = PhysxSchema.JointStateAPI.Apply(jp.GetPrim(), drive_type)
         state.CreatePositionAttr(j.initial * scale)
         state.CreateVelocityAttr(0.0)
+
+    own = [Sdf.Path(main)] + [Sdf.Path(f"{prim_path}/{j.name}") for j in spec.joints]
+    for j in spec.joints:
+        if j.filter_own or j.filter_parts:
+            me = Sdf.Path(f"{prim_path}/{j.name}")
+            parent_path = Sdf.Path(prim_path).GetParentPath()
+            others = [parent_path.AppendChild(n).AppendChild("body") for n in j.filter_parts]
+            UsdPhysics.FilteredPairsAPI.Apply(stage.GetPrimAtPath(me)).CreateFilteredPairsRel().SetTargets(
+                ([t for t in own if t != me] if j.filter_own else []) + others)
 
     if articulated:
         if spec.fixed:

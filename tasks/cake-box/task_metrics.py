@@ -2,9 +2,9 @@
 
 Replaces cake-dome-cover on PR #2318 (TK-QTH3SB):
 - Box: 10 x 10 x 5 in (254.0 x 254.0 x 127.0 mm inner) white SBS lock-corner window bakery box
-  (BRP Box Shop 245 / Southern Champion Tray 23053 family), modified per tasks/cake-box/fab/ so
-  front_panel unfolds flat onto the counter with a declared 38.0 x 36.0 x 1.6 mm +Y lifting ear,
-  hinged window lid, and child hinged lid_tab.
+  (BRP Box Shop 245 / Southern Champion Tray 23053 family), used as it comes: front corners left unlocked so
+  the front panel folds down on its crease and its two corner gussets (each a diagonal-fold web of two
+  triangles) open and fold with it; hinged window lid and child hinged lid_tab.
 - Cake board: 247.6 mm OD x 4.8 mm thick (~55 g) two-ply silver-foil-wrapped corrugated cake circle
   fabricated from 10 in nominal Wilton MFR 191001569 circles using tasks/cake-box/fab/cake_board_template.svg,
   leaving 3.2 mm nominal clearance per side inside the 254.0 mm box.
@@ -39,9 +39,77 @@ LID_ANCHOR = np.array([+W_IN / 2 + T_WALL / 2, 0.0, T_BASE + H_WALL], dtype=floa
 TAB_ANCHOR = np.array([-W_IN / 2 + 0.0025, 0.0, T_BASE + H_WALL], dtype=float)     # (-0.1245, 0.0, 0.1280)
 
 # Initial crease angles (radians)
-FRONT_INIT = -math.pi / 2          # -90 deg: folded flat onto the counter toward -X
+FRONT_REST = math.radians(-75.0)   # -75 deg: unlocked front crease springs back to 15 deg above the counter (estimate)
+FRONT_INIT = FRONT_REST            # every trial starts at the rest angle
+FRONT_SPRING = 0.40                # N*m/rad crease spring-back, acting only when pressed flatter than FRONT_REST (estimate)
 LID_INIT = math.radians(95.0)      # +95 deg: open, leaning 5 deg back past vertical
 TAB_INIT = math.radians(45.0)      # +45 deg: natural pre-scored outward crease angle
+
+# Front corner gussets: each corner web is a square of 0.6 mm SBS folded on its diagonal into two triangles; triangle A
+# rides on the front panel's side edge, triangle B on the side wall's front edge. Both hinge about the vertical corner
+# (box Z at the zero pose); the diagonal fold sets both angles from the front panel's angle.
+GUSSET_LEG = 0.1230          # 123.0 mm triangle legs
+GUSSET_Z0 = 0.0015           # bottom corner of each web, 1.5 mm above the counter
+GUSSET_A_XY = (-W_IN / 2 + 0.0004, D_IN / 2 - 0.0009)  # (x, |y|) of A's hinge at the front panel's side edge
+GUSSET_B_XY = (-W_IN / 2 + 0.0011, D_IN / 2 - 0.0004)  # (x, |y|) of B's hinge on the side wall's front edge
+GUSSET_T = 0.0005            # 0.5 mm drawn and collision thickness of each triangle
+
+
+def gusset_beta(q_front: float) -> float:
+    """Fold angle of each gusset triangle about its vertical hinge for a front panel at q_front (0 = vertical,
+    -90 deg = flat): a square web folded on its diagonal between two edges at angle |q| needs sin(beta) = tan(|q|/2)."""
+    a = min(max(-float(q_front), 0.0), math.pi / 2)
+    return math.asin(min(1.0, math.tan(a / 2.0)))
+
+
+def rz(angle: float) -> np.ndarray:
+    c, s = math.cos(angle), math.sin(angle)
+    return np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]], dtype=float)
+
+
+GUSSET_NAMES = ("gusset_left_a", "gusset_left_b", "gusset_right_a", "gusset_right_b")
+
+
+def gusset_triangles_box(q_front: float, gusset_q: dict | None = None) -> list:
+    """(name, 3 x 3 vertices in the box frame) of the four gusset triangles at front panel angle q_front.
+
+    gusset_q maps each gusset joint name to its actual measured hinge angle (rad); the live scorer always passes it,
+    because each half is only sprung towards its fold angle and can be deflected. None gives the ideal fold
+    (sin(beta) = tan(|q|/2)), used only for offline layout checks."""
+    beta = gusset_beta(q_front)
+    Rf = ry(q_front)
+    out = []
+    for side, s in (("left", +1.0), ("right", -1.0)):
+        for half, (gx, gy), phi in (("a", GUSSET_A_XY, +s * beta), ("b", GUSSET_B_XY, -s * beta)):
+            if gusset_q is not None:
+                phi = float(gusset_q[f"gusset_{side}_{half}"])
+            anc = np.array([gx, s * gy, GUSSET_Z0])
+            rest = np.array([anc, anc + [0.0, 0.0, GUSSET_LEG], anc + [0.0, -s * GUSSET_LEG, GUSSET_LEG]])
+            v = anc + (rest - anc) @ rz(phi).T
+            if half == "a":
+                v = FRONT_ANCHOR + (v - FRONT_ANCHOR) @ Rf.T
+            out.append((f"gusset_{side}_{half}", v))
+    return out
+
+
+def point_triangle_dist(p: np.ndarray, tri: np.ndarray) -> np.ndarray:
+    """Distances (m) from points p (N x 3) to triangle tri (3 x 3): exact, via the plane projection and the edges."""
+    p = np.atleast_2d(np.asarray(p, float))
+    a, b, c = (np.asarray(v, float) for v in tri)
+    n = np.cross(b - a, c - a)
+    n = n / np.linalg.norm(n)
+    h = (p - a) @ n
+    q = p - h[:, None] * n
+    inside = np.ones(len(p), dtype=bool)
+    for u, v in ((a, b), (b, c), (c, a)):
+        inside &= (np.cross(v - u, q - u) @ n) >= 0.0
+    d = np.where(inside, np.abs(h), np.inf)
+    for u, v in ((a, b), (b, c), (c, a)):
+        e = v - u
+        t = np.clip(((p - u) @ e) / float(e @ e), 0.0, 1.0)
+        d = np.minimum(d, np.linalg.norm(p - (u + t[:, None] * e), axis=1))
+    return d
+
 
 # 10 in nominal (9.75 in = 247.6 mm actual) B-flute / double-wall corrugated cake circle (4.8 mm = 3/16 in thick)
 R_BOARD = 0.1238
@@ -170,14 +238,12 @@ def articulated_box_obbs_in_box_frame(q_front: float, q_lid: float, q_tab: float
     obbs.append(("left_wall", np.array([0.0, +D_IN / 2 + T_WALL / 2, T_BASE + H_WALL / 2]), I3, np.array([W_IN / 2 + T_WALL, T_WALL / 2, H_WALL / 2])))
     obbs.append(("right_wall", np.array([0.0, -D_IN / 2 - T_WALL / 2, T_BASE + H_WALL / 2]), I3, np.array([W_IN / 2 + T_WALL, T_WALL / 2, H_WALL / 2])))
 
-    # Hinged front_panel (rest pose q_front = 0 stands upright at x = -W_IN/2 - T_WALL/2) + outer +Y dust ear
+    # Hinged front_panel (rest pose q_front = 0 stands upright at x = -W_IN/2 - T_WALL/2); its corner gussets are
+    # triangles, checked separately (gusset_triangles_box)
     Rf = ry(q_front)
     c_front_rest = np.array([-W_IN / 2 - T_WALL / 2, 0.0, T_BASE + H_WALL / 2], dtype=float)
     c_front = FRONT_ANCHOR + Rf @ (c_front_rest - FRONT_ANCHOR)
     obbs.append(("front_panel", c_front, Rf, np.array([T_WALL / 2, (D_IN - 0.002) / 2, H_WALL / 2])))
-    c_ear_rest = np.array([-W_IN / 2 + 0.0182, +D_IN / 2 + T_WALL + 0.0018, T_BASE + H_WALL - 0.0220], dtype=float)
-    c_ear = FRONT_ANCHOR + Rf @ (c_ear_rest - FRONT_ANCHOR)
-    obbs.append(("front_ear", c_ear, Rf, np.array([0.0190, 0.0008, 0.0180])))
 
     # Hinged window lid (rest pose q_lid = 0 lies flat on top of walls at z = T_BASE + H_WALL + T_WALL/2)
     Rl = ry(q_lid)
@@ -204,6 +270,7 @@ def box_panel_touches_frosting(
     cake_pos: np.ndarray,
     cake_rot: np.ndarray,
     tol: float = FROSTING_CLEAR_M,
+    gusset_q: dict | None = None,
 ) -> str | None:
     """Return panel name if any CAKE_BOX panel comes within `tol` (1.0 mm) of any cake frosting point."""
     surf_w = np.asarray(cake_pos, float) + FROSTING_PTS_LOCAL @ np.asarray(cake_rot, float).T
@@ -214,6 +281,12 @@ def box_panel_touches_frosting(
             pass
         rel = (surf_box - c) @ R
         if np.any(np.all(np.abs(rel) <= (h + tol), axis=1)):
+            return name
+    lim = tol + GUSSET_T / 2
+    for name, tri in gusset_triangles_box(q_front, gusset_q):
+        lo, hi = tri.min(0) - lim, tri.max(0) + lim
+        near = surf_box[np.all((surf_box >= lo) & (surf_box <= hi), axis=1)]
+        if len(near) and float(point_triangle_dist(near, tri).min()) <= lim:
             return name
     return None
 
@@ -314,12 +387,14 @@ def hand_clearance_m(
     board_rot: np.ndarray,
     cake_pos: np.ndarray,
     cake_rot: np.ndarray,
+    gusset_q: dict | None = None,
 ) -> float:
-    """Minimum distance (m) from the 6 fingertip/pad points to all box panels, board, and cake."""
+    """Minimum distance (m) from the 6 fingertip/pad points to all box panels, the 4 gusset halves, board, and cake."""
     best = float("inf")
     bpos = np.asarray(box_pos, float)
     brot = np.asarray(box_rot, float)
     obbs = articulated_box_obbs_in_box_frame(q_front, q_lid, q_tab)
+    tris = gusset_triangles_box(q_front, gusset_q)
 
     pl_pos = np.asarray(board_pos, float)
     pl_rot = np.asarray(board_rot, float)
@@ -333,6 +408,8 @@ def hand_clearance_m(
         for _, c, R, h in obbs:
             d = np.maximum(np.abs(R.T @ (p_box - c)) - h, 0.0)
             best = min(best, float(np.linalg.norm(d)))
+        for _, tri in tris:
+            best = min(best, max(float(point_triangle_dist(p_box, tri)[0]) - GUSSET_T / 2, 0.0))
         # Distance to cylindrical CAKE_BOARD
         p_pl = pl_rot.T @ (pw - pl_pos)
         dr_b = max(math.hypot(float(p_pl[0]), float(p_pl[1])) - R_BOARD, 0.0)
@@ -356,8 +433,9 @@ def tracked_world_points(
     board_rot: np.ndarray,
     cake_pos: np.ndarray,
     cake_rot: np.ndarray,
+    gusset_q: dict | None = None,
 ) -> np.ndarray:
-    """Non-collinear extremal world points on CAKE_BOX, its 3 hinged panels, CAKE_BOARD, and CAKE."""
+    """Non-collinear extremal world points on CAKE_BOX, its 3 hinged panels, the 4 gusset halves, CAKE_BOARD, and CAKE."""
     pts: list[np.ndarray] = []
     bpos = np.asarray(box_pos, float)
     brot = np.asarray(box_rot, float)
@@ -377,6 +455,11 @@ def tracked_world_points(
         p_tab_rest = np.array([TAB_ANCHOR[0], ly, TAB_ANCHOR[2] - TAB_LEN])
         p_tab_lid = TAB_ANCHOR + Rt @ (p_tab_rest - TAB_ANCHOR)
         pts.append(bpos + brot @ (LID_ANCHOR + Rl @ (p_tab_lid - LID_ANCHOR)))
+
+    # all 3 vertices of each gusset half (actual hinge angles in the live scorer)
+    for _, tri in gusset_triangles_box(q_front, gusset_q):
+        for v in tri:
+            pts.append(bpos + brot @ v)
 
     # 3 points on CAKE_BOARD + 4 points on CAKE
     pl_pos = np.asarray(board_pos, float)
