@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="275.0mm" height="195.0mm" viewBox="0 0 275.0 195.0">
+  <style>
+    text { font-family: Arial, Helvetica, sans-serif; fill: #1a1a1a; }
+  </style>
+  <rect x="0" y="0" width="275.0" height="195.0" fill="#ffffff"/>
+  <text x="137.5" y="9.5" font-size="4.1" font-weight="bold" text-anchor="middle">DIMENSIONED XZ CLOSURE CROSS-SECTION: TAB TUCK, 14.5 mm HINGE RELIEF &amp; FORCE PATHS</text>
+
+  <!-- Zoomed front-throat cross-section box -->
+  <rect x="14" y="15" width="166" height="145" fill="#fafbfc" stroke="#cccccc" stroke-width="0.35"/>
+  <text x="18" y="21.5" font-size="3.2" font-weight="bold">Front-Throat XZ Detail (x_box in [-160, -86] mm, z in [78, 148] mm):</text>
+
+  <!-- Side wall top reference line at z = 128.0 mm (T_BASE 1.0 + H_WALL 127.0 mm) -->
+  <line x1="35.6" y1="63.0" x2="170.2" y2="63.0" stroke="#888888" stroke-width="0.3" stroke-dasharray="2,2"/>
+  <text x="37.6" y="61.5" font-size="2.6" fill="#555555">Side-wall top z = 128.0 mm (lid seats &lt;= 3.0 mm gap)</text>
+
+  <!-- Front panel upright (q_front = 0 deg): x = -127.8..-127.0 mm, top at z = 127.0 mm -->
+  <rect x="88.7" y="64.8" width="1.6" height="85.8" fill="#dcd9d0" stroke="#222222" stroke-width="0.45"/>
+  <text x="86.7" y="106.8" font-size="2.7" text-anchor="end">front_panel (0.8 mm proxy,</text>
+  <text x="86.7" y="111.1" font-size="2.7" text-anchor="end">inner face x = -127.0 mm,</text>
+  <text x="86.7" y="115.5" font-size="2.7" text-anchor="end">top edge z = 127.0 mm)</text>
+
+  <!-- Seated window lid (q_lid = 0 deg): z = 128.0..129.6 mm -->
+  <rect x="87.1" y="60.2" width="83.1" height="2.8" fill="#eceae4" stroke="#222222" stroke-width="0.45"/>
+  <text x="133.1" y="58.2" font-size="2.8" text-anchor="middle">Seated window lid (1.6 mm proxy; LID_ANCHOR at x = +127.8, z = 128.0 mm)</text>
+
+  <!-- TAB_ANCHOR pivot dot -->
+  <circle cx="95.1" cy="63.0" r="1.3" fill="#cc0000"/>
+  <text x="97.1" y="58.5" font-size="2.65" fill="#aa0000">TAB_ANCHOR (-124.5, 128.0) mm (2.5 mm inside front_panel inner face)</text>
+
+  <!-- TUCKED TAB (1.0 tier, q_tab = -57.8 deg): dashed 0..14.5 mm hinge-root relief + solid 14.5..35.0 mm collider -->
+  <line x1="95.1" y1="63.0" x2="119.1" y2="76.5" stroke="#007733" stroke-width="0.8" stroke-dasharray="2.2,1.4"/>
+  <line x1="119.1" y1="76.5" x2="152.9" y2="95.6" stroke="#007733" stroke-width="2.1"/>
+  <text x="154.9" y="95.6" font-size="2.75" fill="#006622" font-weight="bold">1.0 TUCKED (q_tab = -57.8 deg):</text>
+  <text x="154.9" y="99.2" font-size="2.65" fill="#006622">tip 30.9 mm behind x = -127.0 mm (&gt;= 10.0 mm gate)</text>
+  <text x="121.6" y="75.0" font-size="2.55" fill="#006622">r = 0..14.5 mm collider relief (dashed)</text>
+
+  <!-- UNTUCKED TAB (0.75 control, q_tab = +11.5 deg outward): passes cleanly outside front_panel -->
+  <line x1="95.1" y1="63.0" x2="89.5" y2="87.9" stroke="#bb5500" stroke-width="0.8" stroke-dasharray="2.2,1.4"/>
+  <line x1="89.5" y1="87.9" x2="81.6" y2="123.0" stroke="#bb5500" stroke-width="2.0"/>
+  <text x="79.6" y="127.5" font-size="2.7" fill="#994400" text-anchor="end">0.75 UNTUCKED (+11.5 deg): distal collider</text>
+  <text x="79.6" y="131.0" font-size="2.65" fill="#994400" text-anchor="end">r = 14.5..35.0 mm hangs outside front_panel</text>
+
+  <!-- Cake peak height clearance line -->
+  <line x1="107.8" y1="113.2" x2="170.2" y2="113.2" stroke="#cc4477" stroke-width="0.45" stroke-dasharray="2.5,1.5"/>
+  <text x="139.0" y="117.0" font-size="2.65" fill="#aa2255" text-anchor="middle">Cake rosette peak z = 99.3 mm (28.7 mm clear below closed lid &amp; tucked tab!)</text>
+
+  <!-- Right-hand engineering summary panel -->
+  <rect x="184" y="15" width="85" height="172" fill="#f8f9fb" stroke="#cccccc" stroke-width="0.35"/>
+  <text x="188" y="22" font-size="3.1" font-weight="bold">Reproducible Mechanics &amp; Force Paths:</text>
+  <text x="188" y="28.5" font-size="2.65">1. Real vs Sim Tab Hinge Relief (0..14.5 mm):</text>
+  <text x="190" y="33.0" font-size="2.55">In real 0.6 mm SBS board, an uncreased outward</text>
+  <text x="190" y="37.0" font-size="2.55">tab bows ~2.5 mm near the lid score line so the</text>
+  <text x="190" y="41.0" font-size="2.55">lid still closes flat with the tab outside (0.75).</text>
+  <text x="190" y="45.0" font-size="2.55">Relieving rigid tab_boxes on r = 0..14.5 mm</text>
+  <text x="190" y="49.0" font-size="2.55">(collider on r = 14.5..35.0 mm) reproduces both</text>
+  <text x="190" y="53.0" font-size="2.55">0.75 (tab outside) and 1.0 (tucked &gt;= 10 mm).</text>
+
+  <text x="188" y="60.5" font-size="2.65">2. Estimated Crease Parameters (disclosed):</text>
+  <text x="190" y="65.0" font-size="2.55">- front_panel: friction 0.026 N*m, damp 0.008</text>
+  <text x="190" y="69.0" font-size="2.55">- lid: friction 0.082 N*m, hysteresis 0.085 N*m</text>
+  <text x="190" y="73.0" font-size="2.55">- lid_tab: spring 0.001 N*m/rad around +45 deg,</text>
+  <text x="190" y="77.0" font-size="2.55">  stiction 0.008 N*m, hysteresis 0.014 N*m.</text>
+
+  <text x="188" y="84.5" font-size="2.65">3. Force Paths by Phase:</text>
+  <text x="190" y="89.0" font-size="2.55">- Slide-in: Left clamps left_wall (load -> counter</text>
+  <text x="190" y="93.0" font-size="2.55">  friction mu=0.52); Right pushes 15.3 mm board</text>
+  <text x="190" y="97.0" font-size="2.55">  rim (~1.1 N &lt;&lt; ~5.0 N cake-on-board shear).</text>
+  <text x="190" y="101.5" font-size="2.55">- Flap fold: Right clamps right_wall; Left pushes</text>
+  <text x="190" y="105.5" font-size="2.55">  +Y ear arc (-90 -&gt; -32 deg) then center to 0 deg.</text>
+  <text x="190" y="110.0" font-size="2.55">- Tab crease: Left braces lid at ~44 deg while</text>
+  <text x="190" y="114.0" font-size="2.55">  Right sweeps r = 26..30 mm (+65 -&gt; -61 deg,</text>
+  <text x="190" y="118.0" font-size="2.55">  ~0.85 N aligned through LID_ANCHOR).</text>
+  <text x="190" y="122.5" font-size="2.55">- Lid seat: Right guards front_panel outer face;</text>
+  <text x="190" y="126.5" font-size="2.55">  Left seats lid onto all four 127.0 mm walls.</text>
+
+  <text x="188" y="134.0" font-size="2.65">4. Board Boundary &amp; Release Gate:</text>
+  <text x="190" y="138.5" font-size="2.55">- Analytic 3D cylinder projection &lt;= 128.0 mm</text>
+  <text x="190" y="142.5" font-size="2.55">  (127.0 mm inner wall + 1.0 mm wall/ruler tol).</text>
+  <text x="190" y="146.5" font-size="2.55">- All 6 pad/jaw points &gt;= 80.0 mm clear for full</text>
+  <text x="190" y="150.5" font-size="2.55">  21-sample (1.0 s) &lt; 1.0 mm 3D stillness window.</text>
+  <text x="190" y="155.0" font-size="2.55">- Tab free edge &gt;= 10.0 mm behind x = -127.0 mm.</text>
+
+  <text x="14" y="169" font-size="2.8">Prospective real-trial retention check (procedure, not a pre-claimed measurement): after 1.0 s stillness with &gt;= 80 mm ruler/gauge hand clearance,</text>
+  <text x="14" y="173.5" font-size="2.8">lift the closed carton 50 mm by its side walls and tilt 30 +/- 2 deg forward against a 30 deg wedge for 3 s; front_panel and lid_tab must stay tucked.</text>
+</svg>
