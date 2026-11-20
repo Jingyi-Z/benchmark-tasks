@@ -410,9 +410,34 @@ def _mechanics(env):
     _gate(env, st)
 
 
+# -- stillness witness (WC_WITNESS_MM; a test of the scorer, never part of a scored trial) ------------------------------
+# From 30 steps before WC_WITNESS_END (default 2400) on, the right footrest's joint state is written a little further in
+# each step, so its footplate mark P2 creeps WC_WITNESS_MM mm per second towards forward (still well over 80 degrees
+# aside). Locks, hands and chair are untouched, so this isolates the stillness gate: 6 mm must score 0, 3 mm 1.0.
+WITNESS_MM = float(os.environ.get("WC_WITNESS_MM", "0") or 0)
+WITNESS_END = int(os.environ.get("WC_WITNESS_END", "2400"))
+
+
+@on_step
+def _witness(env):
+    if WITNESS_MM <= 0 or _mech.get("n", 0) < WITNESS_END - 30:
+        return
+    import torch
+
+    asset = env.unwrapped.scene["wheelchair"]
+    jid = list(asset.joint_names).index(_jn("footrest_right"))
+    r = abs(-TIP_DX + 0.02 - PINTLE_X)  # the P2 mark's radius from the pintle
+    a = float(labkit._np(asset.data.joint_pos)[0, jid]) - (WITNESS_MM / 1000.0 / r) / 20.0
+    pos = torch.tensor([[a]], dtype=torch.float32, device=asset.device)
+    asset.write_joint_state_to_sim(pos, torch.zeros_like(pos), joint_ids=[jid])
+    if _mech["n"] % 5 == 0:
+        print(f"[witness] n={_mech['n']} footR={math.degrees(a):.3f} deg spread={_mech.get('spread', float('nan')) * 1000:.2f} mm "
+              f"still={_mech.get('still')}", file=sys.stderr, flush=True)
+
+
 # -- release and stillness (every positive score) ---------------------------------------------------------------------
 RELEASE = 0.080
-STILL_N, STILL_TOL = 21, 0.001
+STILL_N, STILL_TOL = 21, 0.005  # 10 tape marks, each under 5 mm over the final 1 s (a ruler in a video shows 5 mm)
 MOVE_TOL, TURN_TOL = 0.050, math.radians(5.0)  # the chair may end at most 5 cm and 5 degrees from where it stood
 
 
@@ -432,32 +457,42 @@ def _tips(env):
     return out
 
 
-def _chair_points(st) -> np.ndarray:
-    """Material points (world, m) on the chair: frame corners, each lock's extension end, each footrest's footplate and lever,
-    a rim point on each rear wheel; for stillness and hand clearance."""
+MARKS = ("F1 left front upright", "F2 right front upright", "F3 left push-handle tip", "F4 right push-handle tip",
+         "W1 left rear tyre", "W2 right rear tyre", "L1 left lock extension tip", "L2 right lock extension tip",
+         "P1 left footplate front", "P2 right footplate front")
+
+
+def _marks(st) -> np.ndarray:
+    """The 10 tape marks of the stillness check (world, m), in MARKS order; README draws them.
+    F1/F2: a dot on the outer face of each front upright at seat height. F3/F4: the end of each push handle.
+    W1/W2: a dot on the outer side wall of each rear tyre, 2 cm in from the tread, at the tyre's front at the start
+    (it turns with the wheel). L1/L2: the top end of each wheel-lock extension (it swings with the lock).
+    P1/P2: the centre of each footplate's front edge (it swings with the footrest)."""
     j = st.joints
     pts = [st.to_world(p) for p in ((0.0, 0.25, SEAT_Z), (0.0, -0.25, SEAT_Z), (SEAT_D, 0.25, HANDLE_Z),
                                     (SEAT_D, -0.25, HANDLE_Z))]
+    rw = WHEEL_R - 0.02
     for s in (1, -1):
-        side = _side(s)
-        kx, kz = _knob_xz(j[f"lock_{side}"])
+        w = j[f"wheel_{_side(s)}"]
+        pts.append(st.to_world((AXLE_X - rw * math.cos(w), s * (WHEEL_Y + WHEEL_W / 2), WHEEL_R + rw * math.sin(w))))
+    for s in (1, -1):
+        kx, kz = _knob_xz(j[f"lock_{_side(s)}"])
         pts.append(st.to_world((kx, s * LOCK_PIVOT[1], kz)))
-        a = j[f"footrest_{side}"]
-        c, sn = math.cos(a), math.sin(a)
+    for s in (1, -1):
+        a = j[f"footrest_{_side(s)}"]
         lx = -TIP_DX + 0.02 - PINTLE_X  # the footplate's front, from the pintle
-        pts.append(st.to_world((PINTLE_X + c * lx, s * PINTLE_Y + sn * lx, PLATE_Z)))
-        lv = PAD_X - PINTLE_X + j[f"release_{side}"]  # the release lever's paddle, with its slide
-        pts.append(st.to_world((PINTLE_X + c * lv, s * PINTLE_Y + sn * lv, LEVER_Z)))
-        w = j[f"wheel_{side}"]
-        pts.append(st.to_world((AXLE_X + WHEEL_R * math.cos(w), s * WHEEL_Y, WHEEL_R + WHEEL_R * math.sin(w))))
-        cy = s * (FRAME_Y - 0.005)  # the caster: its fork (swivel) and a rim point of its wheel
-        sv, cw = j[f"swivel_{side}"], j[f"caster_{side}"]
-        cs, ss = math.cos(sv), math.sin(sv)
-        hub = np.array([CASTER_X + CASTER_TRAIL * cs, cy + CASTER_TRAIL * ss, CASTER_R])
-        rim = hub + np.array([CASTER_R * math.cos(cw) * cs, CASTER_R * math.cos(cw) * ss, CASTER_R * math.sin(cw)])
-        pts.append(st.to_world(tuple(hub)))
-        pts.append(st.to_world(tuple(rim)))
+        pts.append(st.to_world((PINTLE_X + math.cos(a) * lx, s * PINTLE_Y + math.sin(a) * lx, PLATE_Z)))
     return np.asarray(pts, float)
+
+
+def _still(hist) -> tuple[bool, float]:
+    """True when there are STILL_N finite samples and EVERY mark's largest distance between any two of its samples is
+    under STILL_TOL. Returns (still, the worst mark's spread in m). NaN or a short window fails closed."""
+    h = np.asarray(hist, float)
+    if len(hist) != STILL_N or h.ndim != 3 or not np.isfinite(h).all():
+        return False, float("inf")
+    spread = float(np.linalg.norm(h[:, None] - h[None, :], axis=3).max())
+    return spread < STILL_TOL, spread
 
 
 def _clearance(st, tips) -> float:
@@ -537,11 +572,9 @@ def _gate(env, st):
     del m["clear_hist"][:-STILL_N]
     m["far"] = (len(m["clear_hist"]) == STILL_N and all(math.isfinite(c) for c in m["clear_hist"])
                 and min(m["clear_hist"]) >= RELEASE)  # clear over the whole window, finite values only
-    m["hist"].append(_chair_points(st))
+    m["hist"].append(_marks(st))
     del m["hist"][:-STILL_N]
-    h = np.asarray(m["hist"])
-    m["still"] = (len(m["hist"]) == STILL_N and bool(np.isfinite(h).all())
-                  and float(np.linalg.norm(h[:, None] - h[None, :], axis=3).max()) < STILL_TOL)  # fail closed on NaN
+    m["still"], m["spread"] = _still(m["hist"])  # the 10 tape marks, fail closed on NaN
     if st.tilt_deg() > 10.0:
         m["viol"].add("the chair tipped")
     m["n"] += 1
@@ -583,8 +616,8 @@ def _moved(st) -> tuple[float, float]:
 # -- scoring ----------------------------------------------------------------------------------------------------------
 def score(objects):
     """0 if the chair ever tipped more than 10 degrees; 0 unless, over the last 21 control steps (1 s), every gripper jaw
-    and pad point stayed at least 80 mm from the chair and every tracked chair point moved strictly less than 1 mm
-    (largest 3-D distance over every pair of samples), with all values finite; 0 if the chair reference point (the
+    and pad point stayed at least 80 mm from the chair and each of the 10 tape marks (MARKS) moved less than 5 mm
+    (largest 3-D distance over every pair of its samples), with all values finite; 0 if the chair reference point (the
     midpoint of the two front uprights at floor level) ended more than 5 cm, or its yaw more than 5 degrees, from where
     it started. Otherwise 0.25 for each, as it is at the end: the left wheel lock engaged (handle past centre), the
     right wheel lock engaged, the left footrest at least 80 degrees aside, the right footrest at least 80 degrees

@@ -24,9 +24,8 @@ inspect-robots run --embodiment yam_arena -E task=task.py -E object_jitter=0 -E 
 - its reference point (the midpoint of the two front uprights, at floor level) ends more than 5 cm from where it started, or
   its heading (the chair body's yaw, i.e. the rear axle line's direction) more than 5 degrees from its start;
 - any gripper jaw or pad point comes within 8 cm of the chair during the final 1 s (21 control steps);
-- any tracked point on the chair (frame, both rear wheels, both casters and their forks, both lock handles, both footplates,
-  both release levers) moves 1 mm or more during the final 1 s (it must stay strictly under 1 mm: the largest 3-D distance
-  between any two of the 21 samples), or any tracked or hand value is not finite.
+- any of the 10 tape marks below moves 5 mm or more during the final 1 s (each mark's largest 3-D distance between any
+  two of the 21 samples must stay under 5 mm), or any mark or hand value is not finite.
 
 Otherwise it adds 0.25 for each of these, judged at the end:
 
@@ -86,8 +85,29 @@ Scope: an empty chair only. No person sits in or holds the chair during a trial,
 - Chair movement: mark the floor under the midpoint of the two front uprights at the start; it must end within 5 cm of that
   mark, and the rear axle line must turn by at most 5 degrees (tape marks under both rear wheels).
 - Hands released: a ruler shows every gripper finger at least 8 cm from the chair throughout the last second of a video.
-- Still: in the last second of a 30 fps video, no chair part moves 1 mm or more between any two frames (strictly less than
-  1 mm maximum 3-D displacement, checked against a ruler in frame).
+- Still: see "Stillness marks" below.
+
+### Stillness marks (the same 10 points `_marks()` in `task.py` tracks)
+
+Stick a 10 mm round dot of paper tape at each point, with the chair set up and before the trial:
+
+| mark | where |
+|---|---|
+| F1, F2 | the outer face of the left and right front upright, at seat height (49.5 cm) |
+| F3, F4 | the end of the left and right push handle |
+| W1, W2 | the outer side wall of the left and right rear tyre, 2 cm in from the tread, at the tyre's front (it turns with the wheel) |
+| L1, L2 | the top end of the left and right wheel-lock extension |
+| P1, P2 | the centre of the front edge of the left and right footplate |
+
+![The 10 stillness marks and the two rulers, side and top view](stillness_marks.svg)
+
+Measuring: record the trial with two synchronised cameras on fixed stands, one from the front and one from the side, at
+1080p or higher, each framing the whole chair. Calibrate each view with a 1 mm scale (a steel ruler) held at each mark's
+depth, for example taped beside the mark. For every pair of frames in the final second, recover each mark's three
+displacement components (dx, dy, dz) from the two views and require sqrt(dx^2 + dy^2 + dz^2) < 5 mm for every mark. Two
+projected displacements each under 5 mm do not by themselves show a 3-D displacement under 5 mm (3 mm in one direction
+plus 4 mm in another is 5 mm). Use a resolution at which 5 mm spans at least 5 pixels (at 1080p a 1 m wide view gives
+about 10 pixels), and repeat or refine any measurement that lands near the 5 mm boundary.
 
 ### Footrest hinge friction: measurement procedure (no values claimed)
 
