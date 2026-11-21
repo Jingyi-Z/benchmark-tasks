@@ -1,0 +1,20 @@
+{
+  "title": "Empty an upright lobby dustpan into a wastebasket and park it on its mark",
+  "category": "Societal relevance",
+  "keywords": [
+    "bimanual",
+    "custodial",
+    "pivoting hopper",
+    "dumping",
+    "tool parking"
+  ],
+  "instruction": "Empty both discarded tape cores from the upright lobby dustpan into the wastebasket, then stand the empty dustpan back on its floor mark with its handle upright.",
+  "context": "Janitors gather and empty trash (O*NET 37-2011.00, about 2.2 million US jobs). Unlike emptying a small rigid cup in one wrist turn (TK-QBS8FN), this full-size upright dustpan hangs its loaded hopper on a free pivot: it must be tipped by the rear grip recess while the long handle is held over the bin, then set back down so it lands flat and stable.",
+  "setup": "Floor frame in mm: origin on the floor below the midpoint between the arm bases, x forward, y left. Dustpan: Rubbermaid Commercial FG253100BLA Lobby Pro upright dustpan, 914.4 mm assembled height (maker), black polypropylene hopper 323.9 x 285.8 x 127.0 mm (maker) with a molded rear grip recess and rear wheels, 22 mm vinyl-coated steel handle; the hopper pivots on its rear yoke between a rest stop and a carry stop. Its yoke pivot stands at (340, -180), hopper flat, mouth facing +y, handle leaning about 8 deg rearward on its rest stop, inside a 400 x 360 mm yellow floor-tape rectangle centred on the same point. Cores: two empty 3 in kraft shipping-tape cores (76.2 mm ID, 82.6 mm OD, 50.8 mm tall) stand upright on the hopper floor, centres at (285, -278) and (395, -278). Wastebasket: Rubbermaid FG295600BLA 28 qt rectangular wastebasket (365 x 260 x 381 mm, LLDPE, 0.74 kg maker), long side along x, centred at (390, 185) inside a 420 x 310 mm white floor-tape outline. A 100 mm black and white floor scale bar lies at (220, 0). Nothing else is on the floor.",
+  "scoring": "Read after the run, with the hands still. 1.0 if: each core is wholly inside the wastebasket's inner walls with its highest point at least 50 mm below the rim, whatever its orientation; the dustpan's yoke pivot is within 100 mm of the rectangle centre in x and in y, the hopper's base reference point (directly below the yoke pivot) no more than 15 mm above the floor, the hopper tilted no more than 10 deg and the handle within 15 deg of vertical; the wastebasket is upright (tilt no more than 10 deg, base no more than 15 mm off the floor); every gripper fingertip stays at least 80 mm from the dustpan, wastebasket and cores throughout the last 1 s; and none of the marked points (hopper rear-left base corner, front-right lip corner, grip recess, handle top, two opposite wastebasket corners, two rim points on each core, on opposite sides and at opposite ends) moved more than 5 mm in the last 1 s. 0.5 if the release, stillness and upright-wastebasket conditions hold, at least one core is in the wastebasket and the other is in the wastebasket or still in the hopper (wholly inside the hopper's walls, floor and mouth line), but not all 1.0 conditions hold. 0 otherwise, including any core on the floor, on the rim or outside both containers. Possible scores: 0, 0.5, 1.0. Real trial: use a ruler and phone level for bin and pan placement, and synchronized video for the 80 mm hand clearance and the 5 mm maximum movement over the last second.",
+  "run_limit": "1,280 steps (64 s at 20 Hz)",
+  "reset_notes": "Stand the dustpan with its yoke pivot on the rectangle centre, hopper flat, mouth facing +y, handle on its rest stop; stand both cores upright on the hopper floor at the listed centres; place the wastebasket in its outline, long side along x. Cores are reused.",
+  "fidelity": "The hopper pivots on a passive yoke with modelled rest (+8 deg) and carry (-90 deg) stops and no spring. Masses are estimates: the dustpan uses the maker's 0.84 kg packaged weight (net mass unpublished) and each core 29 g. Hopper, grip recess and wastebasket are simplified boxes; cores are 12-segment kraft rings. Release distance and stillness are simulated checks of the stated thresholds.",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": "M-39Z6KW"
+}
