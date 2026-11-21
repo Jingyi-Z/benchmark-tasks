@@ -1,0 +1,19 @@
+{
+  "title": "Set a kayak paddle to 30 degrees right-hand feather",
+  "category": "Societal relatability",
+  "keywords": [
+    "bimanual",
+    "push-button lock",
+    "angular index",
+    "two long pieces"
+  ],
+  "instruction": "Set the paddle to 30 degrees right-hand feather.",
+  "context": "Paddlers use feathering in a headwind to present an edge of the airborne blade to the wind. The Aqua Bound Posi-Lok ferrule requires depressing both opposed buttons while the other hand separates, indexes and reseats the long shaft. Closest accepted TK-VCAYTT sets saddle height with one lever and a linear slide; this task releases paired catches and aligns a keyed rotary joint.",
+  "setup": "An Aqua Bound Sting Ray Hybrid 4-piece Posi-Lok kayak paddle (210 cm, 30 mm carbon shaft; maker lists 850 g and 16.5 x 46 cm blades, simulated as 865 g and 16 x 46 x 0.6 cm), assembled at 0 degrees feather (both blades flat, face up), rests with each centre shaft in the molded channel of an NRS Universal Canoe Block (4 x 4 x 7 in; 38 mm channel, modeled as a 12 mm deep box channel) on the bench: the tab half's block 450 mm and the ferrule half's block 500 mm from the ferrule mouth, which is 350 mm in front of the robot bases, midway between them. Nothing else is on the bench.",
+  "scoring": "Possible scores: 0, 0.5, 1.0. Every nonzero score needs: the centre ferrule seated (collar gap 0.5 mm or less by feeler gauge), both buttons fully returned with both catch hooks behind the clip lip, the shafts coaxial within 0.5 mm and straight within 2 degrees, both shafts resting in their blocks, both hands 80 mm or more from the paddle, and no blade or shaft mark moving 5 mm or more over the final 1 s. 1.0: the right blade at 30 +- 5 degrees right-hand from the left blade (maker markings and a protractor on the blade faces). 0.5: within 5 degrees of another stock setting (15, 45 or 60 right, or 15 to 60 left). 0: anything else, including unchanged at 0 degrees.",
+  "run_limit": "1,000 steps (50 s at 20 Hz)",
+  "reset_notes": "Press both buttons, turn back to 0 degrees, reseat until both buttons click fully out, and lay the paddle in the two blocks at the marked positions. Lock check after each trial: a gentle 20 N axial pull on the blades with a spring scale must not separate the ferrule. Nothing is consumed.",
+  "fidelity": "Shaft OD, length, blade size, mass, index set and the two-button catch follow maker sources; ferrule, button, cog and catch sizes are bounded estimates tested at both bounds; spring force is assumed. Rigid parts; a 0.1 mm solver contact offset keeps the 0.3 mm bore clearance free. Rigid rectangular blade proxies preserve span and feather axis; channel profile simplified.",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": "M-QGXYTE"
+}
