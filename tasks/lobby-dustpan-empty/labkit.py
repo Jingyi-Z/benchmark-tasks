@@ -513,7 +513,11 @@ def _author(prim_path: str, cfg, translation=None, orientation=None, **kwargs):
 
     main = f"{prim_path}/body"
     articulated = bool(spec.joints)
-    body(main, (0.0, 0.0, 0.0), spec.mass or 1.0, kinematic=spec.fixed and not articulated)
+    prim = body(main, (0.0, 0.0, 0.0), spec.mass or 1.0, kinematic=spec.fixed and not articulated)
+    from core_contacts import CORE_NAMES, enable_core_contact_reports
+
+    if spec.name in CORE_NAMES:
+        enable_core_contact_reports(prim)
     shapes(main, spec.boxes, spec.cylinders, (0.0, 0.0, 0.0), spec.meshes)
 
     for j in spec.joints:

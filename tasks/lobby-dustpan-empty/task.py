@@ -29,6 +29,8 @@ import numpy as np
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import labkit  # noqa: E402
 from labkit import VISUAL_ONLY, Joint, on_reset, on_step, part  # noqa: E402
+from core_contacts import TensorCoreContactMonitor  # noqa: E402
+from transfer_evidence import CoreTransfer, TransferSample  # noqa: E402
 from yam_arena import YAM_URDF  # noqa: E402
 from yam_arena.constants import ARM_JOINTS, FINGER_CLOSED, FINGER_OPEN, TCP_OFFSET  # noqa: E402
 from yam_arena.demo import Waypoint  # noqa: E402
@@ -186,6 +188,36 @@ def _floor_markings():
 
 
 FLOOR_MARKS = part("floor_marks", pos=(0.0, 0.0, FLOOR), fixed=True, boxes=_floor_markings())
+# rev3 tape rule (Jingyi 1610 "yes, tape rule"): parked = all four hopper base corners inside the yellow tape's OUTER edge
+TAPE_OUT_HX, TAPE_OUT_HY = 0.400 * 0.5 + 0.014 * 0.5, 0.360 * 0.5 + 0.014 * 0.5     # rendered rectangle centreline + half tape width
+BASE_CORNERS = ((-PAN_W * 0.5, REAR_Y, 0.0), (+PAN_W * 0.5, REAR_Y, 0.0), (-PAN_W * 0.5, FRONT_Y, 0.0), (+PAN_W * 0.5, FRONT_Y, 0.0))
+
+
+def _parked_now(dp_st) -> bool:
+    """one sample of the 1.0-tier parking predicate (finite pose; tape footprint, base height, tilt, handle)"""
+    try:
+        if not np.isfinite(np.asarray(dp_st.pos, float)).all():
+            return False
+        hdir = _handle_dir_world(dp_st)
+        h_vert = math.degrees(math.acos(float(np.clip(hdir[2], -1.0, 1.0))))
+        return bool(_tape_margin(dp_st) >= 0.0 and (float(dp_st.pos[2]) - FLOOR) <= 0.015 and dp_st.tilt_deg() <= 10.0 and h_vert <= 15.0)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _park_update(dp_st):
+    """codex 1614: record the parking predicate on every observation; 1.0 needs it on all of the last STILL_N samples"""
+    h = _OS.setdefault("park_hist", [])
+    h.append(_parked_now(dp_st)); del h[:-STILL_N]
+
+
+def _tape_margin(dp_st) -> float:
+    """smallest margin (m) of the four hopper base corners inside the tape's outer edge (negative = a corner outside)"""
+    m = 9.0
+    for c in BASE_CORNERS:
+        w = np.asarray(dp_st.to_world(c), float)
+        m = min(m, TAPE_OUT_HX - abs(float(w[0]) - PARK_XY[0]), TAPE_OUT_HY - abs(float(w[1]) - PARK_XY[1]))
+    return m
 DUSTPAN = part("dustpan", pos=(PARK_XY[0], PARK_XY[1], FLOOR + 0.001), mass=0.54, friction=0.55,
                boxes=_pan_boxes(), joints=[_handle_joint()])
 WASTEBASKET = part("wastebasket", pos=(BIN_XY[0], BIN_XY[1], FLOOR + 0.001), mass=0.74, friction=0.65,
@@ -193,10 +225,106 @@ WASTEBASKET = part("wastebasket", pos=(BIN_XY[0], BIN_XY[1], FLOOR + 0.001), mas
 CORE_Z0 = FLOOR + 0.001 + 0.0040 + CORE_H * 0.5 + 0.001
 CORE_1 = part("core_1", pos=(PARK_XY[0] - 0.055, PARK_XY[1] - 0.098, CORE_Z0), mass=CORE_MASS, friction=0.35,
               boxes=_kraft_core_boxes())
-CORE_2 = part("core_2", pos=(PARK_XY[0] + 0.055, PARK_XY[1] - 0.098, CORE_Z0), mass=CORE_MASS, friction=0.35,
-              boxes=_kraft_core_boxes())
+# rev3 (Jingyi 1525 "mixed debris"): realistic lobby sweepings, rigid colliders, real sizes and masses, distinct colours
+BALL_R, BALL_MASS = 0.030, 0.005            # crumpled paper ball, about 60 mm across, 5 g
+CAP_R, CAP_H, CAP_MASS = 0.015, 0.012, 0.002  # plastic bottle cap 30 mm x 12 mm, 2 g
+CARD_L, CARD_W, CARD_T, CARD_MASS = 0.080, 0.050, 0.003, 0.003   # folded card / receipt 80 x 50 x 3 mm, 3 g
+PAPER_WHITE, CAP_BLUE, CARD_GREEN = (0.90, 0.90, 0.87), (0.10, 0.33, 0.78), (0.22, 0.62, 0.38)
+PAN_FLOOR_Z = FLOOR + 0.001 + 0.0040
 
-OBJECTS = [FLOOR_MARKS, DUSTPAN, WASTEBASKET, CORE_1, CORE_2]
+
+def _paper_ball_mesh():
+    """lumpy icosphere (42 vertices, seeded radial jitter +-12 %) collided as its convex hull"""
+    t = (1.0 + 5 ** 0.5) / 2.0
+    v = [(-1, t, 0), (1, t, 0), (-1, -t, 0), (1, -t, 0), (0, -1, t), (0, 1, t), (0, -1, -t), (0, 1, -t),
+         (t, 0, -1), (t, 0, 1), (-t, 0, -1), (-t, 0, 1)]
+    f = [(0, 11, 5), (0, 5, 1), (0, 1, 7), (0, 7, 10), (0, 10, 11), (1, 5, 9), (5, 11, 4), (11, 10, 2), (10, 7, 6),
+         (7, 1, 8), (3, 9, 4), (3, 4, 2), (3, 2, 6), (3, 6, 8), (3, 8, 9), (4, 9, 5), (2, 4, 11), (6, 2, 10),
+         (8, 6, 7), (9, 8, 1)]
+    pts = [np.asarray(x, float) / np.linalg.norm(x) for x in v]
+    mid = {}
+    def m(a, b):
+        k = (min(a, b), max(a, b))
+        if k not in mid:
+            q = pts[a] + pts[b]; pts.append(q / np.linalg.norm(q)); mid[k] = len(pts) - 1
+        return mid[k]
+    tris = []
+    for a, b, c in f:
+        ab, bc, ca = m(a, b), m(b, c), m(c, a)
+        tris += [(a, ab, ca), (b, bc, ab), (c, ca, bc), (ab, bc, ca)]
+    rng = np.random.default_rng(1525)
+    P = np.asarray(pts) * (BALL_R * (1.0 + rng.uniform(-0.12, 0.12, (len(pts), 1))))
+    return labkit.Mesh(points=P, tris=np.asarray(tris, int), color=PAPER_WHITE, collide="hull")
+
+
+BALL_LOCAL_LOW = float(-_paper_ball_mesh().points[:, 2].min())
+PAPER_BALL = part("paper_ball", pos=(PARK_XY[0] + 0.060, PARK_XY[1] - 0.110, PAN_FLOOR_Z + BALL_LOCAL_LOW + 0.001),
+                  mass=BALL_MASS, friction=0.45, meshes=[_paper_ball_mesh()], color=PAPER_WHITE)
+BOTTLE_CAP = part("bottle_cap", pos=(PARK_XY[0] + 0.060, PARK_XY[1] - 0.040, PAN_FLOOR_Z + CAP_H * 0.5 + 0.001),
+                  mass=CAP_MASS, friction=0.35, cylinders=[((0.0, 0.0, 0.0), CAP_R, CAP_H, CAP_BLUE, "Z")], color=CAP_BLUE)
+CARD = part("card", pos=(PARK_XY[0] - 0.050, PARK_XY[1] - 0.020, PAN_FLOOR_Z + CARD_T * 0.5 + 0.001),
+            mass=CARD_MASS, friction=0.40, boxes=[((0.0, 0.0, 0.0), (CARD_L, CARD_W, CARD_T), CARD_GREEN)], color=CARD_GREEN)
+ITEMS = [CORE_1, PAPER_BALL, BOTTLE_CAP, CARD]
+ITEM_NAMES = tuple(it.name for it in ITEMS)
+# shape for containment / clearance: ("cyl", r, half_h) along body z, ("sphere", r), ("box", hx, hy, hz)
+ITEM_SHAPE = {"core_1": ("cyl", CORE_OD * 0.5, CORE_H * 0.5),
+              "paper_ball": ("hull", _paper_ball_mesh().points),
+              "bottle_cap": ("cyl", CAP_R, CAP_H * 0.5),
+              "card": ("box", CARD_L * 0.5, CARD_W * 0.5, CARD_T * 0.5)}
+
+
+def _item_ext(name, st, frame_st):
+    """half-extents of the item along the axes of frame_st (orientation-aware)"""
+    shp = ITEM_SHAPE[name]
+    o = np.asarray(frame_st.to_local(st.to_world((0.0, 0.0, 0.0))), float)
+    axes = [np.asarray(frame_st.to_local(st.to_world(e)), float) - o for e in ((1.0, 0, 0), (0, 1.0, 0), (0, 0, 1.0))]
+    if shp[0] == "sphere":
+        return np.full(3, shp[1])
+    if shp[0] == "hull":
+        A = np.stack(axes)
+        return np.abs(np.asarray(shp[1], float) @ A).max(axis=0)
+    if shp[0] == "cyl":
+        ax = axes[2] / max(float(np.linalg.norm(axes[2])), 1e-9)
+        return shp[2] * np.abs(ax) + shp[1] * np.sqrt(np.clip(1.0 - ax * ax, 0.0, 1.0))
+    A = np.stack([a / max(float(np.linalg.norm(a)), 1e-9) for a in axes])       # rows: body axes in frame coords
+    return np.abs(A).T @ np.asarray(shp[1:], float)
+
+
+def _item_lohi(name, st, frame_st):
+    """(lo, hi): signed extents of the item about its centre along the axes of frame_st (asymmetric for the hull)"""
+    shp = ITEM_SHAPE[name]
+    if shp[0] != "hull":
+        e = _item_ext(name, st, frame_st)
+        return -e, e
+    o = np.asarray(frame_st.to_local(st.to_world((0.0, 0.0, 0.0))), float)
+    W = np.asarray([frame_st.to_local(st.to_world(q)) for q in shp[1]], float) - o
+    return W.min(axis=0), W.max(axis=0)
+
+
+def _item_bound_r(name):
+    shp = ITEM_SHAPE[name]
+    if shp[0] == "hull":
+        return float(np.linalg.norm(shp[1], axis=1).max())
+    if shp[0] == "sphere":
+        return float(shp[1])
+    if shp[0] == "cyl":
+        return float(math.hypot(shp[1], shp[2]))
+    return float(np.linalg.norm(shp[1:]))
+
+
+def _item_marks(name):
+    """two opposite body-frame marks per item for the 5 mm stillness check"""
+    shp = ITEM_SHAPE[name]
+    if shp[0] == "hull":
+        P = np.asarray(shp[1], float)
+        return (tuple(P[int(np.argmax(P[:, 0]))]), tuple(P[int(np.argmin(P[:, 0]))]))
+    if shp[0] == "sphere":
+        return ((shp[1], 0.0, 0.0), (-shp[1], 0.0, 0.0))
+    if shp[0] == "cyl":
+        return ((shp[1], 0.0, shp[2]), (-shp[1], 0.0, -shp[2]))
+    return ((shp[1], shp[2], shp[3]), (-shp[1], -shp[2], -shp[3]))
+
+OBJECTS = [FLOOR_MARKS, DUSTPAN, WASTEBASKET] + ITEMS
 
 _state = {}
 _LINK_LOCAL_BOXES: dict[str, tuple[np.ndarray, np.ndarray]] | None = None
@@ -538,10 +666,10 @@ def _live_arm_telemetry(env, dp_st, wb_st):
     return tcp_info, d_ia, min_arm_bin, min_nongrip_pan_yoke
 
 
-def _core_status(cs, wb_st, dp_st) -> str:
+def _core_status(cs, wb_st, dp_st, name="core_1") -> str:
     pw = np.asarray(wb_st.to_local(cs.pos), float)
-    r_c, h_c = CORE_OD * 0.5, CORE_H * 0.5
-    if (abs(pw[0]) + r_c <= BIN_L * 0.5 - BIN_WALL_T + 0.002) and (abs(pw[1]) + r_c <= BIN_W * 0.5 - BIN_WALL_T + 0.002) and (BIN_FLOOR_T - 0.005 <= pw[2] - h_c) and (pw[2] + h_c <= BIN_H - 0.050):
+    lo, hi = _item_lohi(name, cs, wb_st)
+    if (max(abs(pw[0] + lo[0]), abs(pw[0] + hi[0])) <= BIN_L * 0.5 - BIN_WALL_T + 0.002) and (max(abs(pw[1] + lo[1]), abs(pw[1] + hi[1])) <= BIN_W * 0.5 - BIN_WALL_T + 0.002) and (BIN_FLOOR_T - 0.005 <= pw[2] + lo[2]) and (pw[2] + hi[2] <= BIN_H - 0.050):
         return "in_bin"
     pp = np.asarray(dp_st.to_local(cs.pos), float)
     if abs(pp[0]) <= PAN_W * 0.5 and (REAR_Y <= pp[1] <= FRONT_Y + 0.015) and (0.0 <= pp[2] <= PAN_H + 0.025):
@@ -578,9 +706,8 @@ def _reset(env):
 def _step(env):
     dp_st = labkit._part_state(env, DUSTPAN)
     wb_st = labkit._part_state(env, WASTEBASKET)
-    c1_st = labkit._part_state(env, CORE_1)
-    c2_st = labkit._part_state(env, CORE_2)
-    _state["live"] = (dp_st, wb_st, c1_st, c2_st)
+    it_st = [labkit._part_state(env, it) for it in ITEMS]
+    _state["live"] = (dp_st, wb_st, *it_st)
     _state["n"] += 1
     n = _state["n"]
 
@@ -610,7 +737,7 @@ def _step(env):
     if pan_pitch_deg < _state["min_pan_chute_pitch_deg"]:
         _state["min_pan_chute_pitch_deg"] = pan_pitch_deg
 
-    statuses = [_core_status(c1_st, wb_st, dp_st), _core_status(c2_st, wb_st, dp_st)]
+    statuses = [_core_status(st_, wb_st, dp_st, nm) for st_, nm in zip(it_st, ITEM_NAMES)]
     c_pan = statuses.count("in_pan")
     c_bin = statuses.count("in_bin")
 
@@ -658,7 +785,7 @@ def _step(env):
         wh = _state["winning_handoff_pair"]
         preload_lift_mm = float((_state["trun_pre_release"][2] - _state["trun_before_preload"][2]) * 1000.0) if (_state["trun_pre_release"] is not None and _state["trun_before_preload"] is not None) else 0.0
         drop_mm = _state["max_release_drop_z_mm"]
-        if wh["dist_mm"] < 20.0 or wt["dist_mm"] < 8.0 or drop_mm > 10.0 or _state["max_bin_transit_move_mm"] > 0.5 or c_pan < 2:
+        if wh["dist_mm"] < 20.0 or wt["dist_mm"] < 8.0 or drop_mm > 10.0 or _state["max_bin_transit_move_mm"] > 0.5 or c_pan < len(ITEMS):
             _state["abort_dump"] = True
             _state["abort_reason"] = (
                 f"handoff_win={wh['dp_piece']}->{wh['wb_piece']}:{wh['dist_mm']:.2f}mm "
@@ -673,7 +800,7 @@ def _step(env):
                 f"lurch_xy={_state['max_release_xy_lurch_mm']:.2f}mm "
                 f"handoff_win={wh['dp_piece']}->{wh['wb_piece']}:{wh['dist_mm']:.2f}mm@t={wh['t_s']}s "
                 f"transit_win={wt['dp_piece']}->{wt['wb_piece']}:{wt['dist_mm']:.2f}mm@t={wt['t_s']}s "
-                f"min_rim_z={_state['min_pan_rim_transit_mm']:+.2f}mm bin_mv={_state['max_bin_transit_move_mm']:.2f}mm c_pan={c_pan}/2",
+                f"min_rim_z={_state['min_pan_rim_transit_mm']:+.2f}mm bin_mv={_state['max_bin_transit_move_mm']:.2f}mm c_pan={c_pan}/{len(ITEMS)}",
                 file=sys.stderr, flush=True,
             )
 
@@ -797,13 +924,13 @@ def _step(env):
             and _state["max_release_drop_z_mm"] <= 10.0
             and wh["dist_mm"] >= 20.0
             and _state["max_bin_handoff_move_mm"] <= 0.5
-            and c_pan == 2
+            and c_pan == len(ITEMS)
             and _state["min_handoff_inter_arm_mm"] > 5.0
         )
         repinch_pass = (
             wr["dist_mm"] >= 20.0
             and _state["max_bin_repinch_move_mm"] <= 0.5
-            and c_pan == 2
+            and c_pan == len(ITEMS)
             and _state["min_repinch_inter_arm_mm"] > 5.0
         )
         coupon_summary = {
@@ -857,8 +984,7 @@ def _step(env):
             "final_cores_in_bin": c_bin,
             "final_cores_in_pan": c_pan,
             "final_core_statuses": statuses,
-            "final_c1_pos_m": [round(float(x), 4) for x in c1_st.pos],
-            "final_c2_pos_m": [round(float(x), 4) for x in c2_st.pos],
+            "final_item_pos_m": {nm: [round(float(x), 4) for x in st_.pos] for nm, st_ in zip(ITEM_NAMES, it_st)},
             "final_bin_tilt_deg": round(wb_st.tilt_deg(), 2),
             "final_bin_xy_disp_mm": round(b_mv, 2),
             "min_pan_floor_airborne_mm": round(_state["min_pan_floor_airborne_mm"], 2),
@@ -1225,7 +1351,7 @@ def _tips(env) -> np.ndarray:
     return np.asarray(out, float)
 
 
-def _tracked_points(dp_st, wb_st, c1_st, c2_st) -> np.ndarray:
+def _tracked_points(dp_st, wb_st, items) -> np.ndarray:
     pts = [
         dp_st.to_world((-0.16, REAR_Y, 0.0)),
         dp_st.to_world((+0.16, FRONT_Y, PAN_H)),
@@ -1233,15 +1359,11 @@ def _tracked_points(dp_st, wb_st, c1_st, c2_st) -> np.ndarray:
         _handle_point_world(dp_st, ASSEMBLED_H),
         wb_st.to_world((-BIN_L * 0.5, -BIN_W * 0.5, 0.0)),
         wb_st.to_world((+BIN_L * 0.5, +BIN_W * 0.5, BIN_H)),
-        c1_st.to_world((+CORE_OD * 0.5, 0.0, +CORE_H * 0.5)),
-        c1_st.to_world((-CORE_OD * 0.5, 0.0, -CORE_H * 0.5)),
-        c2_st.to_world((+CORE_OD * 0.5, 0.0, +CORE_H * 0.5)),
-        c2_st.to_world((-CORE_OD * 0.5, 0.0, -CORE_H * 0.5)),
-    ]
+    ] + [st_.to_world(mk) for st_, nm in zip(items, ITEM_NAMES) for mk in _item_marks(nm)]
     return np.asarray(pts, float)
 
 
-def _min_hand_clearance(tips: np.ndarray, dp_st, wb_st, c1_st, c2_st) -> float:
+def _min_hand_clearance(tips: np.ndarray, dp_st, wb_st, items) -> float:
     if tips.ndim != 2 or tips.shape != (6, 3) or not np.isfinite(tips).all():
         return 0.0
     best = 9.0
@@ -1263,65 +1385,87 @@ def _min_hand_clearance(tips: np.ndarray, dp_st, wb_st, c1_st, c2_st) -> float:
         qw = np.asarray(wb_st.to_local(t), float)
         dw = np.maximum(np.abs(qw - np.array([0.0, 0.0, BIN_H * 0.5])) - np.array([BIN_L * 0.5, BIN_W * 0.5, BIN_H * 0.5]), 0.0)
         best = min(best, float(np.linalg.norm(dw)))
-        # 4. Both kraft tape cores
-        for cs in (c1_st, c2_st):
+        # 4. Every debris item (the tape core exactly; the others by bounding sphere, conservative)
+        for cs, nm in zip(items, ITEM_NAMES):
             qc = np.asarray(cs.to_local(t), float)
-            dr = max(0.0, math.hypot(qc[0], qc[1]) - CORE_OD * 0.5)
-            dz = max(0.0, abs(qc[2]) - CORE_H * 0.5)
-            best = min(best, math.hypot(dr, dz))
+            if nm == "core_1":
+                dr = max(0.0, math.hypot(qc[0], qc[1]) - CORE_OD * 0.5)
+                dz = max(0.0, abs(qc[2]) - CORE_H * 0.5)
+                best = min(best, math.hypot(dr, dz))
+            else:
+                best = min(best, max(0.0, float(np.linalg.norm(qc)) - _item_bound_r(nm)))
     return best
 
 
-def _owner_core_status(cs, wb_st, dp_st) -> str:
+def _owner_core_status(cs, wb_st, dp_st, name="core_1") -> str:
     # Check inside wastebasket in wastebasket's own local frame (allows harmless bin slide!)
     pw = np.asarray(wb_st.to_local(cs.pos), float)
-    r_c = CORE_OD * 0.5
-    h_c = CORE_H * 0.5
-    # claude-cake (codex 0012): resolve extents from the core's observed cylinder axis in the bin frame
-    ax = np.asarray(wb_st.to_local(cs.to_world((0.0, 0.0, 1.0))), float) - np.asarray(wb_st.to_local(cs.to_world((0.0, 0.0, 0.0))), float)
-    ax = ax / max(float(np.linalg.norm(ax)), 1e-9)
-    ext = h_c * np.abs(ax) + r_c * np.sqrt(np.clip(1.0 - ax * ax, 0.0, 1.0))
-    in_bin_xy = (abs(pw[0]) + ext[0] <= BIN_L * 0.5 - BIN_WALL_T + 0.002) and (abs(pw[1]) + ext[1] <= BIN_W * 0.5 - BIN_WALL_T + 0.002)
-    in_bin_z = (BIN_FLOOR_T - 0.005 <= pw[2] - ext[2]) and (pw[2] + ext[2] <= BIN_H - 0.050)
+    # rev3: orientation-aware extents per item shape (core / cap cylinders, ball sphere, card box)
+    lo, hi = _item_lohi(name, cs, wb_st)
+    in_bin_xy = (max(abs(pw[0] + lo[0]), abs(pw[0] + hi[0])) <= BIN_L * 0.5 - BIN_WALL_T + 0.002) and (max(abs(pw[1] + lo[1]), abs(pw[1] + hi[1])) <= BIN_W * 0.5 - BIN_WALL_T + 0.002)
+    in_bin_z = (BIN_FLOOR_T - 0.005 <= pw[2] + lo[2]) and (pw[2] + hi[2] <= BIN_H - 0.050)
     if in_bin_xy and in_bin_z:
         return "in_bin"
     pp = np.asarray(dp_st.to_local(cs.pos), float)
-    axp = np.asarray(dp_st.to_local(cs.to_world((0.0, 0.0, 1.0))), float) - pp
-    axp = axp / max(float(np.linalg.norm(axp)), 1e-9)
-    extp = h_c * np.abs(axp) + r_c * np.sqrt(np.clip(1.0 - axp * axp, 0.0, 1.0))
-    if (abs(pp[0]) + extp[0] <= PAN_W * 0.5 - PAN_T + 0.002 and REAR_Y + 0.010 - 0.002 <= pp[1] - extp[1]
-            and pp[1] + extp[1] <= FRONT_Y + 0.002 and 0.004 - 0.005 <= pp[2] - extp[2] and pp[2] + extp[2] <= PAN_H + 0.025):   # claude-cake (codex 0029/0039): whole core inside the authored inner faces and the mouth line
+    lp, hp = _item_lohi(name, cs, dp_st)
+    if (max(abs(pp[0] + lp[0]), abs(pp[0] + hp[0])) <= PAN_W * 0.5 - PAN_T + 0.002 and REAR_Y + 0.010 - 0.002 <= pp[1] + lp[1]
+            and pp[1] + hp[1] <= FRONT_Y + 0.002 and 0.004 - 0.005 <= pp[2] + lp[2] and pp[2] + hp[2] <= PAN_H + 0.025):   # claude-cake (codex 0029/0039): whole core inside the authored inner faces and the mouth line
         return "in_pan"
     return "outside"
+
+
+def _new_transfer_tracker():
+    return CoreTransfer(
+        PAN_W * 0.5 - PAN_T, REAR_Y + 0.010, FRONT_Y, PAN_H,
+        BIN_L * 0.5 - BIN_WALL_T, BIN_W * 0.5 - BIN_WALL_T, BIN_H,
+    )
+
+
+def _advance_transfers(dp_st, wb_st, cores):
+    rear = dp_st.to_world((0.0, REAR_Y, 0.004))
+    lip = dp_st.to_world((0.0, FRONT_Y, 0.004))
+    slope = float((rear[2] - lip[2]) / PAN_D)
+    lip_in_bin = tuple(wb_st.to_local(lip))
+    for tracker, core in zip(_OS["transfers"], cores):
+        tracker.update(
+            _OS["n"] + 1,
+            TransferSample(
+                tuple(dp_st.to_local(core.pos)),
+                tuple(wb_st.to_local(core.pos)),
+                lip_in_bin,
+                slope,
+            ),
+        )
 
 
 def score(objects) -> float:
     dp_st = objects["dustpan"]
     wb_st = objects["wastebasket"]
-    c1_st = objects["core_1"]
-    c2_st = objects["core_2"]
+    items = [objects[nm] for nm in ITEM_NAMES]
 
     if not (_OS.get("far", False) and _OS.get("still", False)):
+        return 0.0
+    contacts = _OS.get("contacts")
+    if contacts is None or not contacts.verified or contacts.first_hand_contact is not None:
         return 0.0
     if wb_st.tilt_deg() > 10.0 or (float(wb_st.pos[2]) - FLOOR) > 0.015:
         return 0.0
 
-    statuses = [_owner_core_status(c1_st, wb_st, dp_st), _owner_core_status(c2_st, wb_st, dp_st)]
-    if "outside" in statuses or statuses.count("in_bin") == 0:
+    statuses = [_owner_core_status(st_, wb_st, dp_st, nm) for st_, nm in zip(items, ITEM_NAMES)]
+    if "outside" in statuses or "in_bin" not in statuses:
+        return 0.0
+    if any(status == "in_bin" and tracker.entered_step is None
+           for status, tracker in zip(statuses, _OS["transfers"])):
         return 0.0
 
     hdir = _handle_dir_world(dp_st)
     h_vert_deg = math.degrees(math.acos(float(np.clip(hdir[2], -1.0, 1.0))))
-    pan_parked = (
-        abs(float(dp_st.pos[0]) - PARK_XY[0]) <= 0.100
-        and abs(float(dp_st.pos[1]) - PARK_XY[1]) <= 0.100
-        and (float(dp_st.pos[2]) - FLOOR) <= 0.015
-        and dp_st.tilt_deg() <= 10.0
-        and h_vert_deg <= 15.0
-    )
-    if statuses.count("in_bin") == 2 and pan_parked:
+    ph = _OS.get("park_hist") or []                      # rev3 tape rule over the whole final 1 s window (codex 1614)
+    pan_parked = len(ph) >= STILL_N and all(ph[-STILL_N:])
+    n_in = statuses.count("in_bin")                   # every in-bin item is tip-credited (checked above)
+    if n_in == len(ITEMS) and pan_parked:
         return 1.0
-    return 0.5
+    return 0.5 if n_in >= 2 else 0.0                   # 0.5: >= 2 of 4 tipped in; parking on the mark is NOT needed (Jingyi 1610)
 
 
 def success(objects) -> bool:
@@ -1334,18 +1478,26 @@ def distance(objects) -> float:
 
 @on_reset
 def _owner_reset(env):
+    previous_contacts = _OS.get("contacts")
+    if previous_contacts is not None:
+        previous_contacts.close()
     _OS.clear()
-    _OS.update(n=0, clear_hist=[], pts_hist=[], far=False, still=False)
+    _OS.update(
+        n=0, clear_hist=[], pts_hist=[], park_hist=[], far=False, still=False,
+        contacts=TensorCoreContactMonitor.attach(env),
+        transfers=[_new_transfer_tracker() for _ in ITEMS],
+    )
 
 
 @on_step
 def _owner_step(env):
     dp_st = labkit._part_state(env, DUSTPAN)
     wb_st = labkit._part_state(env, WASTEBASKET)
-    c1_st = labkit._part_state(env, CORE_1)
-    c2_st = labkit._part_state(env, CORE_2)
-    clr = _min_hand_clearance(_tips(env), dp_st, wb_st, c1_st, c2_st)
-    pts = _tracked_points(dp_st, wb_st, c1_st, c2_st)
+    items = [labkit._part_state(env, it) for it in ITEMS]
+    _advance_transfers(dp_st, wb_st, items)
+    _park_update(dp_st)
+    clr = _min_hand_clearance(_tips(env), dp_st, wb_st, items)
+    pts = _tracked_points(dp_st, wb_st, items)
     _OS["clear_hist"].append(clr); del _OS["clear_hist"][:-STILL_N]
     _OS["far"] = (len(_OS["clear_hist"]) == STILL_N and all(math.isfinite(c) for c in _OS["clear_hist"])
                   and min(_OS["clear_hist"]) >= RELEASE)
@@ -1355,10 +1507,14 @@ def _owner_step(env):
     _OS["still"] = (len(h) == STILL_N and np.isfinite(h).all() and mm <= STILL_TOL)
     _OS["n"] += 1
     if _OS["n"] == 1 or _OS["n"] % 10 == 0:
-        st = [_owner_core_status(c1_st, wb_st, dp_st), _owner_core_status(c2_st, wb_st, dp_st)]
+        st = [_owner_core_status(st_, wb_st, dp_st, nm) for st_, nm in zip(items, ITEM_NAMES)]
         hd = _handle_dir_world(dp_st)
         hv = math.degrees(math.acos(float(np.clip(hd[2], -1.0, 1.0))))
-        sc = score({"dustpan": dp_st, "wastebasket": wb_st, "core_1": c1_st, "core_2": c2_st})
+        sc = score({"dustpan": dp_st, "wastebasket": wb_st, **{nm: st_ for nm, st_ in zip(ITEM_NAMES, items)}})
         print(f"[score] step={_OS['n']} hand_obj_clr_mm={clr * 1e3:.1f} far={_OS['far']} still={_OS['still']} move_mm={mm * 1e3:.2f} "
-              f"cores={st} pan=({dp_st.pos[0]:.3f},{dp_st.pos[1]:+.3f},{dp_st.pos[2]:.3f}) tilt={dp_st.tilt_deg():.1f} "
-              f"h_vert={hv:.1f} bin_tilt={wb_st.tilt_deg():.1f} score_now={sc}", flush=True)
+              f"items={dict(zip(ITEM_NAMES, st))} pan=({dp_st.pos[0]:.3f},{dp_st.pos[1]:+.3f},{dp_st.pos[2]:.3f}) tilt={dp_st.tilt_deg():.1f} "
+              f"h_vert={hv:.1f} bin_tilt={wb_st.tilt_deg():.1f} tape_margin_mm={_tape_margin(dp_st) * 1e3:.1f} score_now={sc} "
+              f"mouth_steps={[tr.departure_step for tr in _OS['transfers']]} "
+              f"rim_steps={[tr.entered_step for tr in _OS['transfers']]} "
+              f"core_reporter_verified={_OS['contacts'].verified} " f"physics_samples={_OS['contacts'].sample_count} " f"support_pairs={_OS['contacts'].support_events} "
+              f"arm_core={_OS['contacts'].first_hand_contact}", flush=True)

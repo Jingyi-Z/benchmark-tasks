@@ -15,7 +15,7 @@ import numpy as np
 
 P0_DEG = 54.0                                   # measured hang pitch (return2/return3: 54.4 deg)
 EDGE_TO_TRUN = (0.165, 0.105)                   # pan frame: rear bottom edge (0,-0.165,0) -> trunnion (0,0,0.105)
-ANCHOR_SHIFT = (+0.037, -0.029)                 # return3 re-centring (native landing -30/+14 mm)
+ANCHOR_SHIFT = (+0.025, +0.008)                 # rev3 tape rule: footprint-centred landing (demo3b landed pivot +19/-15 mm, yaw -7.8 deg, rear corner 13 mm outside the tape); was (+0.037, -0.029)
 FAR_PARK = (0.18, -0.36, 0.85)                  # >= 149.6 mm TCP clearance (park_check.py), native 118-120 mm at the pads
 AWAY = np.array([-0.08, -0.10, +0.08])          # diagonal move-away after the 80 mm retreat
 
