@@ -1,0 +1,20 @@
+{
+  "title": "Make room for a dinner plate in a pegboard dish drawer",
+  "category": "Societal relatability",
+  "keywords": [
+    "bimanual",
+    "peg-in-hole",
+    "dish drawer",
+    "plate",
+    "kitchen"
+  ],
+  "instruction": "Move the two ring pegs nearest the countertop one hole toward it and place the dinner plate flat inside the enlarged ring.",
+  "context": "Pegboard dish drawers hold plates with movable dowels; fitting a larger plate means pulling and re-seating pegs one hole over, then lowering a fragile plate between them. Unlike pushing a single peg home (TK-DA2CEU) or loading a fixed drying rack, the organizer is reconfigured before it is loaded.",
+  "setup": "Positions in mm, x forward from the line between the two YAM arm bases at (0, +300) and (0, -300), y to the left, z up from the floor. (1) A deep kitchen drawer of a 33 in base cabinet, pulled fully out and fixed: maple box 203.2 mm tall with 15.9 mm sides, 12.7 mm bottom, top edge at z 700; interior x 106.5..614.5, y -580..130. (2) A pegboard insert (5/8 in, 15.9 mm, board top z 525.4) trimmed to fill the interior (stock route: Rev-A-Shelf 4DPS-3021 maple peg board, 768.35 x 539.75 mm factory size, trimmed to 710 x 508 mm), with 27.0 mm holes on the 2-1/2 in (63.5 mm) grid at x = 169.8 + 63.5 i (i = 0..6) and y = -517.5 + 63.5 j (j = 0..8). (3) Nine birch dowel pegs, 25.4 mm diameter, 152.4 mm above the board, 51 g, seated upright: a four-peg ring at (169.8, -327.0), (360.3, -327.0), (169.8, -136.5), (360.3, -136.5) and five spares at x 487.3, y -263.5, -200.0, -136.5, -73.0, -9.5. (4) A countertop beside the drawer (stone, top z 750, x 120..440, y 165..530). (5) One 27 cm glazed ceramic dinner plate (270 mm across, 24 mm tall rim, 0.55 kg) flat on the countertop centred at (265, 320). The two counter-side ring pegs go one hole toward the counter, to (169.8, -73.0) and (360.3, -73.0); the plate's place is the ring centre (265, -200), which it cannot reach while those pegs stand at y -136.5.",
+  "scoring": "Judged over the final 1.0 s (21 frames at 20 Hz). Score 0 if a plate drop or hard contact was latched at any time (plate fell off the counter or tipped over 45 deg while released, or arrived at a surface or wall faster than 0.25 m/s), or if in any final frame either hand (certified gripper and finger cover) is within 80 mm of the plate or a peg, anything moves 5 mm or more, or any peg is not seated upright (foot within 3 mm of the drawer floor, tilt 8 deg or less, within 1.3 mm of a hole centre) in its start hole or its target hole. Otherwise: 0.25 for each of the two moved pegs seated in its target hole, plus 0.5 if the plate lies flat (5 deg or less) on the board (within 3 mm), centred within 15 mm of the ring centre, at least 2 mm from every drawer wall and clear of every peg, in every frame. Full score 1.0. Possible scores: 0, 0.25, 0.5, 1.0; 0.75 is unreachable because either unshifted interfering peg remains inside the plate clearance envelope at every permitted plate centre.",
+  "run_limit": "2,400 steps (2 minutes at 20 Hz)",
+  "reset_notes": "Re-seat all nine pegs in their listed start holes, upright; put the plate back flat on the countertop at its start position. Real trial: mark each moved peg's foot and top and the plate's centre and rim; in a photo from above at the final second check each moved peg is seated and upright in its target hole, the plate is flat, centred within 15 mm and touching no wall, and both hands are at least 80 mm from the plate and pegs.",
+  "fidelity": "The rigid insert uses 27 mm square openings with clipped corners at the six ring/target holes and five other openings (four spare-peg starts and the unused x 487.3, y -327 opening); the other openings remain square. The drawer, peg diameters and masses and grid registration are nominal. The 16-sided plate and pose-based hazard scoring approximate the real objects and impacts.",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": "M-8JU39Y"
+}

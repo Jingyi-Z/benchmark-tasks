@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "drawer-peg-plates-floor-bay"
+version = "0.1.0"
+description = "Registers the yam_floor_bay embodiment (the bimanual YAM station on pedestals, no table) used by this task."
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[project.entry-points."inspect_robots.embodiments"]
+yam_floor_bay = "ironing_floor_bay:yam_floor_bay"
+
+[tool.setuptools]
+py-modules = ["ironing_floor_bay"]
