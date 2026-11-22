@@ -1,0 +1,21 @@
+{
+  "title": "Fit an adaptor bar across a countertop food warmer's well, then hang a quarter pan of macaroni and cheese on it",
+  "category": "Impact on jobs",
+  "keywords": [
+    "bimanual",
+    "food-service",
+    "countertop food warmer",
+    "load-bearing",
+    "sequencing",
+    "no-spill carry"
+  ],
+  "instruction": "Seat the adaptor bar across the food warmer's well with both hands, then hang the 1/4-size steam table pan of macaroni and cheese in the far half of the well with one long edge on the bar and the other on the far rim, keeping the pan level.",
+  "context": "A 1/4-size steam table pan is only 162 mm wide and cannot span the 305 mm well of a full-size countertop food warmer; an adaptor bar laid across the well carries one pan edge and the rim the other. The bar has to go in first and stay seated under the loaded pan, which must stay level so the food does not spill.",
+  "setup": "Fixed on the floor (z = -0.0125 m) is a stainless equipment stand (762.0 x 1,219.0 x 610.0 mm, top at z = 0.5975 m spanning x 0.1300 to 0.8920 m and y -0.6095 to +0.6095 m). Fixed on the stand top, centred at (0.4800, 0.0000) m, is a dry, unheated stainless 12 x 20 in full-size countertop food warmer (Avantco W50 dimensions; black thermostat knob and amber lamp on the front) (368.3 x 571.5 x 228.6 mm outside; 304.8 x 508.0 x 158.75 mm inner well; 31.75 mm flat top rim at z = 0.8261 m). A loose stainless adaptor bar (Vollrath 75020 dimensions) (25.4 x 531.0 x 8.0 mm, 0.136 kg) lies flat on the stand top at (0.2130, 0.0000) m with its long axis along Y. One stainless 1/4-size steam table pan (hotel pan) (161.8 x 263.5 mm top, 63.5 mm deep, 2 mm sheet, 15 mm top flanges, 0.453 kg) holding a 12 mm layer of macaroni and cheese (0.28 kg; pan plus food 0.73 kg) stands upright on the stand top at (0.2130, +0.4675) m with its long side along Y. Two 6-DOF arms with parallel-jaw grippers are mounted at (0.0000, +0.3050, 0.7500) m and (0.0000, -0.3050, 0.7500) m.",
+  "scoring": "Judged on the final 1.0 s of the trial. 1.0: the bar was carried with both grippers closed on it at least 25 mm above the stand top for at least 0.5 s; it now rests across the well centred within 10 mm, tilted 2 deg or less and within 5 deg of the well's long axis, with all four underside end corners on the end rims (within 3 mm of rim height, 259.0 to 290.8 mm from the well centre along the long axis); the pan rests in the far half of the well, tilted 5 deg or less, with its inner long flange on the bar (within 3 mm of the bar top, overlapping it by 5 mm or more) and its outer long flange on the far rim (within 3 mm of rim height, overlapping it by 5 mm or more), and its body inside the opening; both grippers are 80 mm or more from the bar and the pan, and neither moved more than 1 mm in the final 1.0 s. 0.5: the bar meets every 1.0 condition but the pan is not seated. 0.0 otherwise. Always 0.0 for the rest of the trial after any of these: the pan tilted more than 15 deg at any time after it was first lifted 10 mm (food spilled); the bar, or the pan over the warmer, let go with no gripper holding it more than 5 mm above its support (dropped or thrown); the bar slid more than 2 mm on the rims after release with nothing holding or resting on it (pushed into place); the bar or pan more than 15 mm below rim height or tilted over 20 deg over the well (fell in); the bar no longer seated after the pan was placed on it; the stand or warmer moved more than 2 mm or tilted more than 1 deg; full credit reached and then lost.",
+  "run_limit": "1,200 steps (60 s at 20 Hz)",
+  "reset_notes": "No consumables. Return the bar flat to (0.2130, 0.0000) m along Y and the pan of food upright to (0.2130, +0.4675) m before each trial.",
+  "fidelity": "Rigid-body PhysX at catalog sizes and masses, rendered as brushed stainless; knob, lamp, vents, feet and rolled edges are drawn only. The macaroni and cheese is a rigid block with drawn pasta: no spill physics, so a spill is judged by pan tilt. The warmer is modelled dry and unheated (no water or steam). The flat 8 mm bar makes a seated pan lean about 3 deg. Stand and warmer fixed.",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": "M-WDRN7K"
+}
