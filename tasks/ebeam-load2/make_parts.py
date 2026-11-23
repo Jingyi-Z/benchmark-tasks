@@ -41,7 +41,9 @@ def _rect(x0, y0, x1, y1):
 
 def sample_plate():
     """304 stainless, 1.5 mm: 200 mm disc; M3 tap holes in rings for 2, 3, 4 and 6 inch wafers (the 4 inch ring, 59.5
-    mm out, every 45 degrees from +x, carries the eight clips); four M3 tap holes at 14 mm radius (28 mm pitch-circle diameter) for the boss."""
+    mm out, every 45 degrees from +x, carries the eight clips); four M3 tap holes at 14 mm radius (28 mm pitch-circle diameter) for the boss.
+    After cutting (not in the DXF): counterbore each of the eight clip holes 8.5 mm across and 0.6 mm deep for its wave
+    spring washer, leaving 0.9 mm (1.8 turns) of thread."""
     e = [("C", 0.0, 0.0, 100.0)]
     for r, n, off in ((34.0, 6, 30.0), (47.0, 6, 0.0), (59.5, 8, 0.0), (85.0, 8, 22.5)):
         e += _ring_holes(r, n, off, TAP_M3)
@@ -56,7 +58,9 @@ def boss():
 
 
 def clip_tab():
-    """301 stainless, half hard, 1.0 mm: 15 x 4 mm tab, 13 mm from the pivot (its 3.2 mm hole) to the tip. Cut 9 (one spare)."""
+    """301 stainless, full hard, 0.45 mm (0.018 in shim stock): 15 x 4 mm tab, 13 mm from the pivot (its 3.2 mm hole) to the
+    tip; the tab is the clamp spring, bearing on the wafer's edge 9.5 mm from the pivot (about 21 N/mm there, calculated).
+    Cut 9 (one spare)."""
     w = 2.0
     return [("A", 0.0, 0.0, w, 90.0, 270.0), ("L", 0.0, w, 13.0, w), ("L", 0.0, -w, 13.0, -w), ("L", 13.0, -w, 13.0, w),
             ("C", 0.0, 0.0, CLEAR_M3 / 2)]
@@ -87,7 +91,7 @@ def main(out):
     os.makedirs(out, exist_ok=True)
     a, b = ring_layers()
     for name, ents in (("sample_plate_1p5mm_ss304", sample_plate()), ("plate_boss_3mm_ss304", boss()),
-                       ("clip_tab_1mm_ss301", clip_tab()), ("ring_holder_A_2p5mm_al6061", a),
+                       ("clip_tab_0p45mm_ss301", clip_tab()), ("ring_holder_A_2p5mm_al6061", a),
                        ("ring_holder_B_1p5mm_al6061", b), ("stand_top_6mm_steel", stand_top()),
                        ("door_6mm_al6061", door())):
         with open(os.path.join(out, name + ".dxf"), "w") as f:

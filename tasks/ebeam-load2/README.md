@@ -32,11 +32,11 @@ estimates, not quotations.
 
 | Part | What to use | Approx. USD |
 |---|---|---|
-| Sample plate | `sample_plate_1p5mm_ss304.dxf`: 304 stainless, 1.5 mm, 200 mm disc; tap the 32 holes M3 x 0.5 | 40 to 70 |
+| Sample plate | `sample_plate_1p5mm_ss304.dxf`: 304 stainless, 1.5 mm, 200 mm disc; tap the 32 holes M3 x 0.5; counterbore the eight 4 inch ring clip holes 8.5 mm across and 0.6 mm deep (drill press, by hand), leaving 0.9 mm (1.8 turns) of thread | 40 to 70 |
 | Plate boss | `plate_boss_3mm_ss304.dxf`: 40 mm disc, 3 mm, four M3 x 4 countersunk screws (ISO 10642) into the plate | 10 |
-| Clip tabs (8 + spare) | `clip_tab_1mm_ss301.dxf`: 301 stainless, half hard, 1.0 mm, 15 x 4 mm tab, 13 mm from the pivot hole (3.2 mm) to the tip, so a swung-in tip lies 3.5 mm inside the wafer's edge | 10 to 20 |
-| Clip spacers | M3 stainless shim washers 0.5 mm thick (DIN 988, 3.2 x 6 mm), one under each tab | 5 |
-| Clip screws | 7 x M3 x 4 slotted cheese-head (ISO 1207 / DIN 84, A2 stainless, 5.5 mm head, 0.8 mm slot); the 225 degree clip gets M3 x 12 | 10 |
+| Clip tabs (8 + spare) | `clip_tab_0p45mm_ss301.dxf`: 301 stainless, full hard, 0.45 mm (0.018 in shim stock), 15 x 4 mm tab, 13 mm from the pivot hole (3.2 mm) to the tip, so a swung-in tip lies 3.5 mm inside the wafer's edge. The tab is the clamp spring | 10 to 20 |
+| Clip lift springs | M3 wave spring washers, DIN 137 B, A2 stainless (3.2 x 8 mm, 0.5 mm stock, about 1.6 mm free height), one in each clip counterbore under its tab; they only hold the tab up against the screw head | 5 to 10 |
+| Clip screws | 7 x M3 x 3 slotted cheese-head (ISO 1207 / DIN 84, A2 stainless, 5.5 mm head, 0.8 mm slot); the 225 degree clip gets M3 x 12 | 10 |
 | Ring holder | `ring_holder_A_2p5mm_al6061.dxf` + `ring_holder_B_1p5mm_al6061.dxf`, joined with six M3 x 4 countersunk screws; B forms the 1.5 mm recess for the plate | 40 to 60 |
 | Loading stand | `stand_top_6mm_steel.dxf` on a 50 x 50 mm steel square tube, cut so the top plate is 130 mm above the bench | 30 |
 | Wafer | 100 mm silicon test wafer, about 0.5 mm thick (any wafer vendor) | 10 to 25 |
@@ -49,19 +49,47 @@ estimates, not quotations.
 | Light tower | 4-colour LED stack light (red, orange, green, blue), 24 V, with a 24 V supply and a small timer or switch that turns blue off and green on 8 s after the trial starts | 30 to 50 |
 | Inner holder | Two 3D-printed or plywood arcs (radius 93 mm, between fences at 115.5 mm) on a 30 x 30 mm post, top 170 mm above the bench | 10 |
 
-**Screws, threads and turns.** The clip screws are M3 x 0.5 (0.5 mm per turn). Each clip is stacked on the plate as:
-0.5 mm shim washer, 1.0 mm tab, screw head. The washer is as thick as the wafer, so the tab lies level with the wafer's
-top. At the start of each trial every screw is backed off so its head stands 0.35 mm above its tab (set it with a
-0.35 mm feeler gauge under the head, then pull the gauge out): the tab swings freely. Once a clip is swung in over the
-wafer, the screw closes that 0.35 mm gap after 252 degrees; 300 degrees adds about 0.07 mm of clamp, so the half-hard
-tab presses the wafer's edge (snug); 420 degrees adds about 0.23 mm and is the upper end of the allowed range; more than 420 degrees risks cracking the wafer and scores 0. These are nominal screw advances (0.5 mm per turn), not measured clamp forces: qualify the actual clip stack on the assembled holder before trials. Qualify each clip with a 0.03 mm feeler gauge (after 300 degrees it must not slide under the tab's tip) and a 0.02 to 0.2 N m torque screwdriver (record the torque at 300 and 420 degrees; the simulation assumes about 0.03 and 0.09 N m). In the simulation each untightened tab is drawn 0.8 mm over the wafer (the simulator's 0.5 mm contact band plus 0.3 mm, so a swinging tab cannot catch it); its screw closes the 0.9 mm to the wafer's collision surfaces over the same first 252 degrees and from then on drives the tab down 0.5 mm a turn on a short slide a finger cannot press lower while the clip swings; the simulated press is the larger of the tab's spring deflection and its overlap into the wafer, counted only with at least 0.005 mm of spring deflection (the overlap includes contact compliance and is not a measured clamp force; a holding clip needs 0.03 mm; reported force, where given, is the 20 kN/m spring times its actual deflection, kept distinct from the overlap proxy) and none for an untightened clip that cannot be pushed lower than the screw has driven it, the tab presses the wafer through the 20 kN/m spring once it meets it (252 degrees), and the screw's estimated resistance rises with that press; nothing else holds the wafer, so it slides out from under loose clips. M3 x 4 screws through the 0.5 mm washer, 1.0 mm tab and 1.5 mm plate project about 1.0 to 1.24 mm behind the plate; keep at least 1.3 mm of clear space behind every screw tip throughout loading, and check it on the assembled holder. The
+**Screws, threads and turns.** The clip screws are M3 x 0.5 (0.5 mm per turn). Each clip is stacked as: a wave spring
+washer in a 0.6 mm counterbore in the plate, the 0.45 mm spring-steel tab on the spring, the screw head on the tab. There
+is no rigid washer under the tab: a rigid washer concentric with the screw would take the screw's force straight into the
+plate and leave the tab no travel. The wave spring's only job is to hold the tab's root up against the screw head, so the
+tab rides down with the screw.
+
+At the start of each trial every normal screw is backed off so the tab's underside stands 0.35 mm above the wafer's top
+(set it with a 0.35 mm feeler gauge between the tab and the wafer, then pull the gauge out): the tab swings freely. Once a
+clip is swung in over the wafer, the screw brings the tab down onto the wafer after 252 degrees (0.35 mm). From there the
+screw keeps pushing the tab's root down, below the wafer's top, so the tab bears on the wafer about at its edge, 9.5 mm
+from the pivot, and bends over that 9.5 mm; its tip, 3.5 mm inside the edge, lifts slightly off the wafer. The bend is the
+extra advance: 0.067 mm at 300 degrees (snug) and 0.233 mm at 420 degrees, the upper end of the allowed range; more than
+420 degrees risks cracking the wafer and scores 0. The travel exists in the hardware: the wave spring flattens only 0.1 mm
+below the plate's surface (0.5 mm stock in a 0.6 mm counterbore), so the tab's root can move about 0.6 mm below the
+wafer's top, well beyond the 0.233 mm needed.
+
+Calculated, not measured: from the screw to its bearing point at the wafer's edge the tab is a cantilever 9.5 mm long,
+4 mm wide and 0.45 mm thick. With E = 200 GPa its stiffness there is k = 3EI/L^3 = about 21 N/mm, so the tab presses the
+wafer's edge with about 1.4 N at 300 degrees and 5.0 N at 420 degrees; the bending stress at 420 degrees is about 350 MPa,
+below the yield of full-hard 301. The simulation uses a 20 N/mm tab spring and the same screw advance, but draws the tab 1
+mm thick and scores where the tab lies (its tip at least 2 mm inside the wafer), not where it bears. The 0.9 mm (1.8 turns)
+of M3 thread under each counterbore carries only the clip's load: the tab's reaction (under 5 N, calculated) plus the wave
+spring's force, which is not published and is part of the torque read in qualification. The simulation's screw torques
+(about 0.03 and 0.09 N m at 300 and 420 degrees) are estimates; no torque in this submission is measured. Screw tips: M3 x
+3 screws end about 0.2 mm behind the plate at the start and about 0.8 mm behind it at 420 degrees; keep at least 1.0 mm of
+clear space behind every screw tip throughout loading, and check it on the assembled holder. The
 long M3 x 12 screw at 225 degrees cannot be set this way: at the start its head stands 8 mm proud, and tightened, its tip
 would come out of the plate's back. Each screw has a white paint mark on its head so turns can be counted from the video.
 
+**Qualifying the clips before trials (a procedure; this submission has no measured values).** On the assembled holder,
+with a wafer in place, for each clip: (1) set the 0.35 mm start with the feeler gauge; (2) swing the tab in and turn the
+screw with a 0.02 to 0.2 N m torque screwdriver, reading the torque at 300 and at 420 degrees from the paint mark, and
+record both; (3) at 300 degrees a 0.03 mm feeler gauge must not slide under the tab where it crosses the wafer's edge; (4) with all eight clips at
+300 degrees, turn the plate face down over a soft pad and tap its rim five times: the wafer must not move (no shift
+against a pencil mark on the plate); repeat the whole check five times. A clip that fails any step is replaced (new tab or
+new spring) and requalified. Record the torques in the trial log; they are the measured values a trial reports.
+
 **Safety.** Fit nitrile finger cots over the robot's gripper pads and wear safety glasses: a chipped or cracked wafer has sharp edges and flakes. Use test-grade wafers.
 
-**Assembly.** Cut and deburr the parts; tap the plate's holes M3; screw the boss under the plate's centre; put a shim
-washer, a tab and a screw in each of the eight 59.5 mm-ring holes (the long screw at 225 degrees) and set each to the
+**Assembly.** Cut and deburr the parts; tap the plate's holes M3; screw the boss under the plate's centre; put a wave
+spring washer in each counterbore, then a tab and a screw in each of the eight 59.5 mm-ring holes (the long screw at 225 degrees) and set each to the
 0.35 mm start; bolt the stand's top plate to its post; build the load-lock box, fit the door rails, door, handle, T-handle
 latch (its cam catching the frame when upright, free after a quarter turn clockwise seen from the robot), the door's counterbalance (cables over the pulleys to the counterweight in its tube; trim the weight to a 2.45 N net
 downward load), the ball catch at the top of the door's travel, the light tower and the inner holder. Check that the door
@@ -69,7 +97,7 @@ falls closed when let go and that the top catch releases with about 8 N of extra
 0.25 kg door and does not reproduce the counterbalanced door's inertia.
 
 **Reset for each trial.** Lift the ring holder off the plate and put it back on the inner holder, face up; turn every
-clip screw back to the 0.35 mm start and park its tab along the rim; put the wafer back pattern up, its flat facing the
+clip screw back to the 0.35 mm start (tab 0.35 mm over the wafer, feeler gauge) and park its tab along the rim; put the wafer back pattern up, its flat facing the
 90 degree clip, 5 mm off centre towards 202.5 degrees (a printed template on the plate helps); stand the screwdriver in
 its holder; shut and lock the door; set the light tower to blue and start its timer with the trial.
 
