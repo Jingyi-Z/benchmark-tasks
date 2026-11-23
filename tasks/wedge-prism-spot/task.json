@@ -1,0 +1,21 @@
+{
+  "title": "Steer a laser pointer's dot onto a target by turning two glass wedges",
+  "category": "Other",
+  "keywords": [
+    "bimanual",
+    "optics bench",
+    "wedge prism",
+    "beam steering",
+    "rotation mount",
+    "alignment"
+  ],
+  "instruction": "Turn the two rings holding the glass wedges until the laser dot sits inside the small printed ring on the screen, then let go.",
+  "context": "Each glass wedge bends the beam a little toward its thick edge, so turning one ring swings the dot around a circle. From this start neither ring alone can put the dot on the target; the two must be set together, as when aiming a beam on an optics bench.",
+  "setup": "On the bench lies a matte black optical breadboard, 150 x 600 mm, 12.7 mm thick, M6 holes on a 25 mm grid, its long side along y; hole rows at x 0.31 + 0.025 i m and y -0.225 + 0.025 j m. The beam runs along +y on the row x 0.36 m, 90 mm above the board. Each on a 12.7 mm steel post in a 25 mm post holder: a Class 2 red laser pointer (Vernier, about 15 mm dia x 140 mm) in a fixed V-block at y -0.225 m, pointing +y; wedge prism A (Thorlabs PS810, 25.4 mm N-BK7, 2 deg beam deviation) in an LBTEK nested rotation mount (anodised aluminium RME-1A inner ring with a 44 mm knurled flange 3.2 mm thick and a 2 deg scale numbered every 20 deg, a red mark at the wedge's thick edge, in an RME-1AS housing about 54 mm across, lock screw loose) at y -0.05 m; prism B, the same, at y 0.00 m; and a frosted acrylic screen (100 x 75 x 2 mm) at y 0.35 m, centred on the beam, its post at x 0.400 m (between grid holes, on a 10 mm offset bracket), with a target printed 12.25 mm above where the beam lands with no prisms (rings of 4 and 6 mm diameter and crosshair ticks from 4 to 10 mm off centre); the dot and ring show on both faces. Start: A's thick edge turned 30 deg from straight up toward +x, B's 30 deg toward -x. Arms parked.",
+  "scoring": "The spot position is set by the two ring angles (thin-prism deviation, 2 deg each, at the real spacing). 1.0: spot centre within 2.0 mm of the target centre (inside the 4 mm ring); 0.5: within 3.0 mm; 0 otherwise. From the start either prism alone cannot get closer than 5.2 mm, so any credit needs both rings set. Any credit also needs, on every one of the last 21 samples (1 s), every sampled fingertip point at least 80 mm beyond the outer edge of both rings and at least 8 mm from the bent beam, and both rings still: at most 0.05 deg of change over those samples (a simulation threshold; in a real trial, hands off and rings still on video). Latched 0: any fingertip inside a mount's aperture keep-out (within 13.5 mm of the ring axis and within the ring thickness plus 4 mm), i.e. at the glass; or the laser, screen, breadboard or a mount post moved more than 2 mm or tilted more than 1 deg.",
+  "run_limit": "2,400 steps (2 minutes at 20 Hz)",
+  "reset_notes": "Turn both rings back to their start marks (A base 30 deg one way, B 30 deg the other, read on the ring scale). Nothing else moves; nothing is consumed.",
+  "fidelity": "Rigid parts. The spot and drawn beam are computed each step from the two real ring angles by thin-prism deviation (2 deg each, in sequence, 50 mm apart), not ray traced. The mounts are simplified: each grip ring is a plain 6 mm rim and the housing is omitted (the real flange is 3.2 mm with the housing behind it). Ring hold is a joint friction setting with damping; the real torque is not published. Glass, beam and spot are drawn only.",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": "M-VJ4HZM"
+}
