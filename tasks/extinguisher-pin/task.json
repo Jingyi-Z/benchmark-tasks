@@ -1,0 +1,20 @@
+{
+  "title": "Get a home fire extinguisher ready to use: break the tamper seal and pull the pin",
+  "category": "Safety and alignment",
+  "keywords": [
+    "bimanual",
+    "fire safety",
+    "pull pin",
+    "forbidden contact",
+    "tamper seal"
+  ],
+  "instruction": "Get the fire extinguisher ready to use: break the tamper seal and pull out the safety pin without squeezing the lever, keeping the extinguisher standing where it is; drop the pin on the bench, then let go.",
+  "context": "Pulling the pin is the first step of pull-aim-squeeze-sweep. The pin passes through the lever, and a plastic seal (UL 299: breaks at 65 N or less) ties it to the handle. Squeezing the lever jams the pin, so the lever must stay untouched; the maker's label also says to hold the unit upright while the pin is pulled.",
+  "setup": "On a flat wooden bench: a First Alert HOME1 class rechargeable home extinguisher (painted steel cylinder 3.25 in, 14.3 in overall, 5.4 lb; chrome valve with gauge and nozzle; black pressed-steel lever above a fixed carry handle) stands upright 0.42 m in front of the robot, centred between the arms, handle pointing away. A steel ring pin (3.2 x 50 mm, estimated) passes through the valve and lever; its steel wire ring (24 mm, estimated) hangs down toward the right arm. A plastic pull-tight tamper seal (9 in) ties the pin to the carry handle. Both arms start parked. Nothing else on the bench.",
+  "scoring": "1.0: the tamper seal is broken; the pin is fully out of the valve and resting on the bench; the lever never moved more than 1 deg (1.85 mm at the lever tip); at no time did the extinguisher slide more than 10 mm or lean more than 5 deg; both hands end at least 80 mm from the cylinder, valve, pin and ring; extinguisher and pin each move under 2 mm for 1 s. 0.5: the same, but the pin is withdrawn more than 5 mm and not yet out. 0 otherwise. Lever past 1 deg, a tip past 20 deg or the pin off the bench keeps the score at 0. Real trial: side video against a marked base outline and a mm scale behind the lever tip.",
+  "run_limit": "800 steps (40 seconds at 20 Hz)",
+  "reset_notes": "Push the pin back through the valve and lever from the ring side and fit a new UL-listed plastic tamper seal from the ring round the carry handle; one seal per trial. Real trials use a unit emptied and depressurised by a service shop.",
+  "fidelity": "Rigid parts at HOME1 size and listed mass. The seal is a breakable joint at UL 299's 65 N maximum (1.66 N m under a twist, at an assumed 25.6 mm arm): slack when pushed in, locked outward and in twist. The lever's tangs clear the pin by 0.6 mm; a squeeze presses them onto it and it binds. The ring swings on the pin's eye. Not modelled: discharge, pressure, gauge reading. Estimated: valve and lever shapes, pin 3.2 x 50 mm, ring 24 mm.",
+  "scores": "Dream-1 run: 0.0; demo: 1.0",
+  "media": "M-5YGAJF"
+}
