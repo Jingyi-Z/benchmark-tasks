@@ -5,6 +5,22 @@ valve head and the operating lever; a plastic tamper seal ties the pin to the ca
 step 1 of pull-aim-squeeze-sweep: break the seal and pull the pin out, without ever squeezing the lever, and leave the
 extinguisher standing. The task stops at "ready to use": no discharge, no fire, no standoff.
 
+## Why this is a recognizable step
+
+The U.S. Fire Administration's home-fire guidance tells residents to remember PASS (pull, aim, squeeze, sweep), and its
+first step reads "Pull the pin. Hold the extinguisher with the nozzle pointing away from you and release the locking
+mechanism." (USFA, Home Fires, Choosing and Using Fire Extinguishers:
+https://www.usfa.fema.gov/prevention/home-fires/prepare-for-fire/fire-extinguishers/). The HOME1's own instruction label
+begins "Pull pin. Hold unit upright." (maker's product photo, First Alert store). The pull on the ring reproduces the
+first action pictured on the home extinguisher. OSHA teaches the same sequence at work: "using the P.A.S.S. technique
+(pull, aim, squeeze, sweep)", first step "Pull the pin. This will also break the tamper seal." (OSHA, Evacuation Plans and
+Procedures eTool, Fire Extinguisher Use:
+https://www.osha.gov/etools/evacuation-plans-procedures/emergency-standards/portable-extinguishers/use), and where an
+employer provides extinguishers for employee use it must teach their general use "upon initial employment and at least
+annually thereafter" (29 CFR 1910.157(g)(1) and (g)(2): https://www.osha.gov/laws-regs/regulations/standardnumber/1910/1910.157).
+What makes it more than a tug on a ring: the pin passes through the lever and is sealed to the handle, so the seal must
+break and the pin must come straight out along its axis, and a hand that squeezes the lever on the way jams the pin.
+
 ## Run a trial
 
 ```bash
@@ -58,9 +74,32 @@ Pin out and on the bench, and hands clear by 80 mm, are read from the same video
 | No holding hand | left hand parked | during the turn | out | 1.0 |
 
 In simulation a 5.4 lb unit on the bench also stays put unheld (last row). The instruction therefore asks only that the
-extinguisher keeps standing where it is. Holding the carry handle is the maker's label
-practice ("Pull pin. Hold unit upright.") and keeps the free hand off the lever. It is not a physical necessity here, and
-the scorer does not require it.
+extinguisher keeps standing where it is. The label instructs the user to keep the unit upright ("Pull pin. Hold unit
+upright."); our real-trial procedure steadies it by the carry handle, which keeps the free hand off the lever. It is not a
+physical necessity here, and the scorer does not require it.
+
+## Mass: listed charged unit and emptied unit
+
+The model uses the listed unit weight, 5.4 lb (2.45 kg). A real trial uses a unit a service shop has emptied: about
+5.4 - 2.5 lb of charge = 2.9 lb (1.32 kg), an estimate, not a weighed value. The same scene and motion were run at both
+masses on the submitted files (`EX_MASS=1.32`; the default stays 2.45; recorded controller settings
+`EX_FSLOT=0.09 EX_DEPTH=0.004`; 800-step limit; both demos ended at step 584, the 2.45 kg no-hold run at 445, and the
+1.32 kg no-hold run at 444):
+
+| Run | Mass | Score | Largest slide | Largest lean | Seal break (PhysX event) |
+|---|---|---|---|---|---|
+| Demo (the recorded run) | 2.45 kg | 1.0 | 0.0 mm | 0.12 deg | step 371 |
+| Demo | 1.32 kg | 1.0 | 0.1 mm | 0.30 deg | step 371 |
+| No holding hand | 2.45 kg | 1.0 | 0.0 mm | 0.24 deg | step 243 |
+| No holding hand | 1.32 kg | 1.0 | 0.1 mm | 0.61 deg | step 244 |
+
+The limits are a 10 mm slide and a 5 deg lean at any time, so the lighter unit stays well inside them in this
+simulation; it leans more without a holding hand (0.61 deg against 0.24 deg). The label instructs the user to keep the
+unit upright. Our real-trial procedure steadies it by the carry handle.
+
+Changing `EX_MASS` from 2.45 to 1.32 kg reduces the simulated extinguisher body from 2.39 to 1.26 kg. The 60 g lever,
+6 g pin and 4 g ring retain their masses. The model has no separate powder load. We did not measure the emptied unit's
+centre of mass, so the stability test checks only the simulated mass change.
 
 ## Forces (sources)
 
@@ -84,8 +123,9 @@ Safety: use a HOME1 that a fire-equipment service shop has emptied and depressur
 metal valve), so a squeezed lever cannot discharge powder. The valve head, lever, pin, seal and handles are unchanged. The
 empty unit is lighter than the charged 2.45 kg modelled here (5.4 lb listed; about 2.5 lb of it agent). It is never lifted, only
 steadied on the bench. The emptied unit is roughly half the modelled mass (about 2.9 lb against 5.4 lb, estimated
-from the 2.5 lb agent charge). Whether the twist then moves an unheld real unit was not tested here; holding the carry
-handle, as the label says, is the safe way to run the real trial.
+from the 2.5 lb agent charge). In simulation the task still scores 1.0 at that mass, held or unheld (see "Mass" above); this
+was not checked on hardware. The label instructs the user to keep the unit upright; our real-trial procedure steadies it
+by the carry handle.
 
 | Item | Stock part | Price (USD) |
 |---|---|---|
