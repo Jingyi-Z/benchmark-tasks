@@ -20,6 +20,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import arena_assets_fix  # noqa: F401,E402
 import cart_scene_fix  # noqa: F401,E402
 import labkit  # noqa: E402
+import ms_models as MM  # noqa: E402
 from labkit import Joint, on_reset, on_step, part  # noqa: E402
 from yam_arena.demo import Waypoint  # noqa: E402
 import yam_arena.demo as _demo  # noqa: E402
@@ -32,9 +33,12 @@ labkit.CONTACT_OFFSET = 0.0005
 
 BLACK = (0.05, 0.05, 0.055)
 RUBBER = (0.02, 0.02, 0.02)
-labkit.SURFACES.update({tuple(round(c, 4) for c in BLACK): {"roughness": 0.35, "metallic": 0.6}})
+labkit.SURFACES.update({tuple(round(c, 4) for c in BLACK): {"roughness": 0.28, "metallic": 0.45}})
+CHROME = (0.78, 0.78, 0.80)                    # rivet heads, thumb-screw shafts
+KNOB = (0.03, 0.03, 0.035)                     # black plastic knobs
+labkit.SURFACES.update({tuple(round(c, 4) for c in CHROME): {"roughness": 0.15, "metallic": 0.9}})
 
-SX, SY = 0.58, 0.0                 # stand (tube) position on the floor
+SX, SY = float(os.environ.get("MS_SX", "0.58")), 0.0   # stand (tube) position on the floor (MS_SX: look renders only)
 P0 = 0.80                          # ledge height above the floor
 H = 0.24                           # desk height
 HALF = 0.2425                      # half the 48.5 cm desk width
@@ -73,6 +77,48 @@ def _rod(p0, p1, r, color, collide="hull", n=10):
     v = np.cross(a, u)
     ring = [r * (math.cos(t) * u + math.sin(t) * v) for t in np.linspace(0, 2 * math.pi, n, endpoint=False)]
     return _hull([p0 + q for q in ring] + [p1 + q for q in ring], color, collide)
+
+
+def _rivet(p, color=None, r=0.0035, h=0.0012, n=12):
+    """A domed rivet head on the desk's front face (-x) at stand-frame point p (untilted desk coordinates), visual."""
+    c = np.asarray(p, float)
+    pts = [tp(c + (-h, r * math.cos(t), r * math.sin(t))) for t in np.linspace(0, 2 * math.pi, n, endpoint=False)]
+    pts += [tp(c + (0.0, r * math.cos(t), r * math.sin(t))) for t in np.linspace(0, 2 * math.pi, n, endpoint=False)]
+    pts += [tp(c + (-h - 0.0008, 0.0, 0.0))]
+    return _hull(pts, color or CHROME, "none")
+
+
+def _hardware():
+    """Visual-only parts of the real stand that carry no load in the simulation: leg hinge knuckles on the base collar,
+    the sliding brace collar with its thumb screw, the height clamp with its knob, the desk head's tilt joint with its
+    wing knob, and rubber foot caps."""
+    m = []
+    for k in range(3):                                               # leg hinge knuckles at the base collar
+        a = math.radians(120 * k)
+        c, s_ = math.cos(a), math.sin(a)
+        m.append(_hull([(c * r + -s_ * w, s_ * r + c * w, z) for r in (0.014, 0.026) for w in (-0.006, 0.006)
+                        for z in (0.225, 0.255)], BLACK, "none"))
+        m.append(_rod((c * 0.022 - s_ * 0.008, s_ * 0.022 + c * 0.008, 0.240), (c * 0.022 + s_ * 0.008, s_ * 0.022 - c * 0.008, 0.240),
+                      0.0025, CHROME, "none", n=8))
+        foot = np.array([0.345 * c, 0.345 * s_, 0.0])
+        m.append(_hull([foot + (rr * math.cos(t), rr * math.sin(t), z) for (rr, z) in ((0.013, 0.0), (0.011, 0.016))
+                        for t in np.linspace(0, 2 * math.pi, 12, endpoint=False)], RUBBER, "none"))
+    m.append(_rod((0, 0, 0.292), (0, 0, 0.312), 0.0125, BLACK, "none", n=16))           # sliding brace collar
+    m.append(_rod((0.012, 0, 0.302), (0.030, 0, 0.302), 0.0022, CHROME, "none", n=8))   # its thumb screw
+    m.append(_hull([(0.030 + a, b, 0.302 + d) for a in (0.0, 0.006) for b in (-0.008, 0.008) for d in (-0.005, 0.005)],
+                   KNOB, "none"))
+    m.append(_rod((0.011, 0, _ZT), (0.032, 0, _ZT), 0.0025, CHROME, "none", n=8))       # height clamp screw
+    m.append(_hull([(0.032 + a, b, _ZT + d) for a in (0.0, 0.008) for b in (-0.013, 0.013) for d in (-0.006, 0.006)],
+                   KNOB, "none"))                                                    # and its T-knob
+    hx, hz = XD / 2, P0 - 0.010                                                      # desk head tilt joint (kept
+    for yy in (-0.017, 0.017):                                                       # above the hands' slide-in lane)
+        m.append(_rod((hx, yy, hz), (hx, yy + (0.004 if yy > 0 else -0.004), hz), 0.010, BLACK, "none", n=20))
+    m.append(_rod((hx, 0.021, hz), (hx, 0.034, hz), 0.003, CHROME, "none", n=8))
+    m.append(_hull([(hx + a * 0.012, 0.034 + b, hz + d * 0.005) for a in (-1, 1) for b in (0.0, 0.007) for d in (-1, 1)],
+                   KNOB, "none"))                                                    # wing knob
+    for zz in (P0 + 0.02, P0 + H / 2, P0 + H - 0.02):                                # rivets on the spine
+        m.append(_rivet((XD - T / 2 - 0.0002, 0.0, zz)))
+    return m
 
 
 def _legs():
@@ -116,6 +162,7 @@ def _wing(side):
     ledge = Joint(f"{n}_ledge", kind="hinge", axis="X", anchor=tp((XD - T, s * YP, ZA)),
                   boxes=tboxes([((XD - T, ym, ZA), (T, ARM + 0.015, 0.025), BLACK),          # ledge arm
                                 ((XD - T - 0.021, ym, P0 - 0.0015), (0.042, ARM + 0.015, T), BLACK)]),  # its ledge lip
+                  meshes=[_rivet((XD - T * 1.5 - 0.0002, s * YP, ZA)), _rivet((XD - T * 1.5 - 0.0002, s * (YP + ARM), ZA))],
                   lower=lo, upper=hi, initial=folded, target=folded if os.environ.get("MS_HOLD", "1") == "1" else 0.0,
                   stiffness=0.0, damping=0.05, friction=float(os.environ.get("MS_FRIC", "0.3")), mass=0.12)
     endb = Joint(f"{n}_end", kind="hinge", axis="X", anchor=tp((XD - 2 * T, s * (YP + ARM), ZA)), parent=f"{n}_ledge",
@@ -123,6 +170,7 @@ def _wing(side):
                  lower=-hi, upper=-lo, initial=-folded, target=-folded, stiffness=0.0, damping=0.02, mass=0.05)
     strut = Joint(f"{n}_strut", kind="hinge", axis="X", anchor=tp((XD - T, s * YP, ZB)),
                   boxes=tboxes([((XD - T, ym, ZB), (T, ARM + 0.015, 0.015), BLACK)]),
+                  meshes=[_rivet((XD - T * 1.5 - 0.0002, s * YP, ZB)), _rivet((XD - T * 1.5 - 0.0002, s * (YP + ARM), ZB))],
                   lower=lo, upper=hi, initial=folded, target=folded, stiffness=0.0, damping=0.02, mass=0.05)
     # diagonal brace 5.k in two halves with a knee: upper half hinged at the centre-brace top pivot, lower half at the
     # outer bottom corner (riding on the ledge arm); the knee is closed by a loop joint. Straight (both halves at their
@@ -148,7 +196,8 @@ def _wing(side):
                 for b_ in (-w / 2, w / 2):
                     pts.append((c[0] + dx, c[1] + a_ * math.cos(ang) - b_ * math.sin(ang), c[2] + a_ * math.sin(ang) + b_ * math.cos(ang)))
         return _hull([tp(q) for q in pts], BLACK)
-    dup = Joint(f"{n}_dup", kind="hinge", axis="X", anchor=tp((xdg, yp, zp)), meshes=[_strip((xdg, yp, zp), (xdg, ym_, zm_))],
+    dup = Joint(f"{n}_dup", kind="hinge", axis="X", anchor=tp((xdg, yp, zp)),
+                meshes=[_strip((xdg, yp, zp), (xdg, ym_, zm_)), _rivet((xdg - T / 2 - 0.0002, ym_, zm_))],
                 lower=min(0.0, fu), upper=max(0.0, fu), initial=fu, target=fu, stiffness=0.0, damping=0.02, friction=float(os.environ.get("MS_DFRIC", "0.0")), mass=0.03)
     dlo = Joint(f"{n}_dlo", kind="hinge", axis="X", anchor=tp((xdg, yc, zc)), parent=f"{n}_ledge",
                 meshes=[_strip((xdg, yc, zc), (xdg, ym_, zm_))],
@@ -204,7 +253,7 @@ else:
 
     labkit._author = _author_loop
 STAND = part("music_stand", pos=(SX, SY, FLOOR), roll=math.radians(float(os.environ.get("MS_ROLL_DEG", "0"))), mass=1.10, friction=0.8, boxes=BODY_BOXES, cylinders=BODY_CYLS,
-             meshes=_LEG_MESH + _LYRE,
+             meshes=_LEG_MESH + _LYRE + _hardware(),
              joints=_jr + _jl)
 OBJECTS = [STAND]
 BOOK = None
@@ -228,184 +277,34 @@ elif os.environ.get("MS_BOOK") == "open":
                 boxes=[((0.0, 0.1145, 0.0), (0.003, 0.229, 0.305), (0.82, 0.80, 0.74), (0.0, TILT))], joints=[_half])
     OBJECTS.append(BOOK)
 
-# A soprano ukulele (modelled here from published soprano dimensions: overall 530 mm, body 240 mm long, lower bout
-# 170 mm, upper bout 135 mm, depth 60 mm, scale 345 mm, 12 frets on the neck, about 0.38 kg, mahogany) standing upright
-# on a small A-frame floor stand directly in front of the music stand, face toward the arms. It is not to be touched.
+# A soprano ukulele lying face up in an open shaped hardshell case on a small side table between the arms and the stand.
+# All three are built in code in ms_models.py from published dimensions. They are not to be disturbed.
 UKE = os.environ.get("MS_UKE", "1") == "1"
-UX, UY = float(os.environ.get("MS_UKX", "0.42")), float(os.environ.get("MS_UKY", "0.0"))
-UKE_BASE = FLOOR + float(os.environ.get("MS_UKBASE", "0.20"))   # lower edge of the body sits in the stand's cradle
-UKE_LEAN = math.radians(float(os.environ.get("MS_UKLEAN", "10")))   # leaning back (toward the music stand)
-WOODC, DARKW, BONE, NICKEL, SOUND = (0.55, 0.32, 0.16), (0.20, 0.12, 0.07), (0.92, 0.89, 0.80), (0.75, 0.75, 0.77), (0.07, 0.04, 0.02)
+UY = 0.0
 
 
-def _hullmesh(pts, color, collide="none"):
-    from scipy.spatial import ConvexHull
-    p = np.asarray(pts, float)
-    return labkit.Mesh(points=p, tris=ConvexHull(p).simplices.astype(np.int64), color=color, collide=collide)
-
-
-def _uke_meshes():
-    """Ukulele in its own frame: origin at the bottom of the body, +z up the neck, -x toward the arms (the face)."""
-    D, n = 0.060, 28
-    ms = []
-
-    def ell(cz, hw, hh, x0, x1, color, collide):
-        pts = [(x, hw * math.cos(t), cz + hh * math.sin(t)) for t in np.linspace(0, 2 * math.pi, n, endpoint=False)
-               for x in (x0, x1)]
-        return _hullmesh(pts, color, collide)
-    ms.append(ell(0.072, 0.085, 0.072, -D / 2, D / 2, WOODC, "hull"))            # lower bout (170 mm)
-    ms.append(ell(0.178, 0.0675, 0.062, -D / 2, D / 2, WOODC, "hull"))           # upper bout (135 mm)
-    ms.append(ell(0.072, 0.0835, 0.0705, -D / 2 - 0.0006, -D / 2, DARKW, "none"))   # face edge binding hints
-    ms.append(ell(0.072, 0.081, 0.068, -D / 2 - 0.0012, -D / 2 - 0.0006, WOODC, "none"))
-    ms.append(ell(0.178, 0.0655, 0.060, -D / 2 - 0.0012, -D / 2 - 0.0006, WOODC, "none"))
-    ms.append(ell(0.150, 0.025, 0.025, -D / 2 - 0.0016, -D / 2 - 0.0010, SOUND, "none"))   # sound hole 50 mm
-    ms.append(ell(0.150, 0.029, 0.029, -D / 2 - 0.0014, -D / 2 - 0.0011, DARKW, "none"))   # rosette ring
-
-    def box(c, sz, color, collide="none"):
-        pts = [(c[0] + sx * sz[0] / 2, c[1] + sy * sz[1] / 2, c[2] + sz2 * sz[2] / 2)
-               for sx in (-1, 1) for sy in (-1, 1) for sz2 in (-1, 1)]
-        return _hullmesh(pts, color, collide)
-    ms.append(box((-D / 2 - 0.004, 0, 0.050), (0.008, 0.070, 0.010), DARKW))           # bridge
-    ms.append(box((-D / 2 - 0.009, 0, 0.051), (0.002, 0.050, 0.002), BONE))            # saddle
-    # neck and fretboard (body join at 0.236 m), nut at 0.236 + 0.175 m
-    ms.append(_hullmesh([(x, y, z) for x in (-0.010, 0.012) for (y, z) in
-                         ((-0.019, 0.236), (0.019, 0.236), (-0.0175, 0.411), (0.0175, 0.411))], WOODC, "hull"))
-    ms.append(_hullmesh([(x, y, z) for x in (-0.015, -0.010) for (y, z) in
-                         ((-0.019, 0.200), (0.019, 0.200), (-0.0175, 0.411), (0.0175, 0.411))], DARKW, "none"))
-    scale = 0.345
-    for k in range(1, 13):                                                              # 12 frets on the neck
-        dz = scale * (1 - 2 ** (-k / 12.0))
-        z = 0.411 - dz
-        if z > 0.200:
-            ms.append(box((-0.0158, 0, z), (0.0016, 0.036, 0.0012), NICKEL))
-    ms.append(box((-0.0158, 0, 0.412), (0.0022, 0.036, 0.004), BONE))                   # nut
-    ms.append(_hullmesh([(x, y, z) for x in (-0.006, 0.010) for (y, z) in
-                         ((-0.022, 0.413), (0.022, 0.413), (-0.026, 0.525), (0.026, 0.525))], DARKW, "hull"))   # headstock
-    for side in (-1, 1):                                                                # 4 tuners
-        for z in (0.450, 0.495):
-            ms.append(box((0.002, side * 0.034, z), (0.010, 0.016, 0.008), NICKEL))
-    for y in (-0.0135, -0.0045, 0.0045, 0.0135):                                        # 4 strings
-        ms.append(box((-0.0185, y * 1.0, 0.230), (0.0006, 0.0008, 0.360), BONE))
-    return ms
-
-
-def _stand_boxes():
-    """Ukulele floor stand (black steel tube): feet, an upright behind the body, a cradle under the body and a padded
-    yoke that the back of the neck rests in."""
-    BK = (0.06, 0.06, 0.065)
-    cz = UKE_BASE - FLOOR - 0.006                                   # cradle top under the body
-    yz = cz + 0.300                                                 # yoke height (behind the neck)
-    yx = 0.010 + 0.300 * math.tan(UKE_LEAN) + 0.016                 # just behind the leaned neck
-    return [((0.0, 0.0, 0.004), (0.22, 0.22, 0.008), BK),                       # floor feet
-            ((0.045, 0.0, cz / 2), (0.014, 0.014, cz), BK),                     # lower upright
-            ((-0.010, -0.06, cz - 0.006), (0.09, 0.012, 0.012), BK),            # cradle arms (padded)
-            ((-0.010, 0.06, cz - 0.006), (0.09, 0.012, 0.012), BK),
-            ((0.045 + (yx - 0.045) / 2, 0.0, cz + 0.15), (abs(yx - 0.045) + 0.014, 0.014, 0.30), BK),   # upper upright
-            ((yx, -0.026, yz), (0.012, 0.010, 0.040), BK),                      # yoke forks either side of the neck
-            ((yx, 0.026, yz), (0.012, 0.010, 0.040), BK),
-            ((yx + 0.006, 0.0, yz - 0.012), (0.010, 0.062, 0.012), BK)]         # yoke back (neck rests on it)
-
-
-def _case_half(y):
-    """Half-width of a soprano ukulele hardshell case outline at y (long axis), outside, m."""
-    h = 0.0
-    for c, ay, ax in ((-0.175, 0.125, 0.120), (-0.005, 0.090, 0.095)):   # lower bout, upper bout
-        u = (y - c) / ay
-        if abs(u) < 1:
-            h = max(h, ax * math.sqrt(1 - u * u))
-    if 0.04 <= y <= 0.31:
-        h = max(h, 0.055 + 0.007 * (y - 0.04) / 0.27)                    # neck section, wider at the head end
-    return h
-
-
-def _case_meshes():
-    """Shaped hardshell case lying flat, lid hinged on the arm side and standing open at CASE_LID deg, with the
-    ukulele lying face up in its lining. Origin: case centre on the table top; +y toward the head end."""
-    RIM, FL, T = 0.075, 0.012, 0.010
-    lid = math.radians(float(os.environ.get("MS_CASELID", "-1")))
-    ys = list(np.linspace(-0.299, 0.31, 40))
-    out = []
-
-    def prism(poly, z0, z1, color, collide="hull"):
-        return _hullmesh([(x, y, z) for (x, y) in poly for z in (z0, z1)], color, collide)
-
-    def seg_walls(z0, z1, color, tf=lambda p: p):
-        ms = []
-        for side in (-1, 1):
-            for y0, y1 in zip(ys[:-1], ys[1:]):
-                h0, h1 = _case_half(y0), _case_half(y1)
-                q = [(side * h0, y0), (side * h1, y1), (side * max(h1 - T, 0), y1), (side * max(h0 - T, 0), y0)]
-                ms.append(_hullmesh([tf((x, y, z)) for (x, y) in q for z in (z0, z1)], color, "hull"))
-        h = _case_half(0.31)
-        ms.append(_hullmesh([tf((x, y, z)) for x in (-h, h) for y in (0.30, 0.31) for z in (z0, z1)], color, "hull"))
-        return ms
-    # base tray: shell floor, lining, walls
-    for c, ay, ax in ((-0.175, 0.125, 0.120), (-0.005, 0.090, 0.095)):
-        e = [(ax * math.cos(t), c + ay * math.sin(t)) for t in np.linspace(0, 2 * math.pi, 28, endpoint=False)]
-        out.append(prism(e, 0.0, FL - 0.002, BLK))
-        out.append(prism([(0.93 * x, c + 0.95 * (y - c)) for x, y in e], FL - 0.002, FL, LINE, "none"))
-    nk = [(-0.055, 0.04), (0.055, 0.04), (0.062, 0.31), (-0.062, 0.31)]
-    out.append(prism(nk, 0.0, FL - 0.002, BLK))
-    out.append(prism([(0.88 * x, min(y, 0.30)) for x, y in nk], FL - 0.002, FL, LINE, "none"))
-    out += seg_walls(0.0, RIM, BLK)
-    for yl in (-0.17, -0.02):                                             # latches on the stand side
-        out.append(prism([(_case_half(yl) - 0.002, yl - 0.012), (_case_half(yl) + 0.006, yl - 0.012),
-                          (_case_half(yl) + 0.006, yl + 0.012), (_case_half(yl) - 0.002, yl + 0.012)],
-                         RIM - 0.022, RIM - 0.004, METAL, "none"))
-    # lid: same outline, hinged along x = -0.12 at the rim, opened about the y axis toward the arms
-    x0, z0, cl, sl = -0.120, RIM, math.cos(lid), math.sin(lid)
-
-    mir = -1.0 if os.environ.get("MS_CASEHINGE", "arm") == "stand" else 1.0   # hinge on the stand side: mirrored
-
-    def rot(p):
-        x, y, z = p
-        x = mir * x
-        dx, dz = x - x0, z - z0
-        return (mir * (x0 + dx * cl - dz * sl), y, z0 + dx * sl + dz * cl)
-    if lid < 0:                                                           # MS_CASELID=-1: lid off, set aside
-        nolid = True
-    else:
-        nolid = False
-        out += seg_walls(0.0, 0.020, BLK, rot)
-    for c, ay, ax in ([] if nolid else ((-0.175, 0.125, 0.120), (-0.005, 0.090, 0.095))):
-        e = [(ax * math.cos(t), c + ay * math.sin(t)) for t in np.linspace(0, 2 * math.pi, 28, endpoint=False)]
-        out.append(_hullmesh([rot((x, y, z)) for (x, y) in e for z in (0.020, 0.028)], BLK, "hull"))
-        out.append(_hullmesh([rot((0.93 * x, c + 0.95 * (y - c), z)) for (x, y) in e for z in (0.019, 0.0195)],
-                             LINE, "none"))
-    if not nolid:
-        out.append(_hullmesh([rot((x, y, z)) for (x, y) in nk for z in (0.020, 0.028)], BLK, "hull"))
-        out.append(_hullmesh([rot((0.88 * x, min(y, 0.30), z)) for (x, y) in nk for z in (0.019, 0.0195)], LINE,
-                             "none"))
-    # the ukulele, face up, body end toward -y (uke frame: +z up the neck, -x the face)
-    R = np.array([[0, -1, 0], [0, 0, 1], [-1, 0, 0]], float)
-    off = np.array([0.0, -0.28, FL + 0.030])
-    for m in _uke_meshes():
-        out.append(labkit.Mesh(points=m.points @ R.T + off, tris=m.tris, color=m.color, collide="none"))
-    return out
+def _uke_in_case_meshes():
+    """The ukulele (ms_models.ukulele) lying face up in the case frame, body end toward -y, its back colliders resting
+    on the case floor (collider top 10 mm above the case bottom)."""
+    R = np.array([[0, -1, 0], [0, 0, 1], [-1, 0, 0]], float)      # uke frame (+z up the neck, -x the face) -> case
+    off = np.array([0.0, -0.28, MM.CASE_FLOOR + 0.029 + 0.0005])
+    return [labkit.Mesh(points=p @ R.T + off, tris=t, color=c, collide=col) for (p, t, c, col) in MM.ukulele()]
 
 
 UKMODE = os.environ.get("MS_UKMODE", "case")
-TBL_H = float(os.environ.get("MS_TBLH", "0.625"))        # side table top above the floor
-CASE_L, CASE_W, CASE_D = 0.62, 0.24, 0.095              # soprano hardshell case, outside
+TBL_H = float(os.environ.get("MS_TBLH", "0.60"))         # side table top above the floor
 if UKE and UKMODE == "case":
-    WOOD2, LEGC = (0.62, 0.47, 0.30), (0.20, 0.20, 0.21)
-    tx = float(os.environ.get("MS_TBLX", "0.36"))
+    cx = 0.41                                            # case centre: its front rim 4 cm short of the stand's tube
+    TBL_D = 0.26
+    tx = cx + MM.case_hinge_x() + 0.003 + TBL_D / 2      # table's arm-side edge 3 mm inside the case's hinge line
     SIDE_TABLE = part("side_table", pos=(tx, UY, FLOOR), fixed=True, friction=0.6,
-                      boxes=[((0, 0, TBL_H - 0.012), (0.36, 0.70, 0.024), WOOD2)] +
-                            [((sx * 0.15, sy * 0.25, (TBL_H - 0.024) / 2), (0.03, 0.03, TBL_H - 0.024), LEGC)
-                             for sx in (-1, 1) for sy in (-1, 1)])
-    BLK, METAL, LINE = (0.05, 0.05, 0.055), (0.70, 0.70, 0.72), (0.10, 0.14, 0.38)
-    cx = tx + 0.18 - CASE_W / 2 - 0.01                  # at the table edge nearest the music stand
-    UKULELE = part("ukulele", pos=(cx, UY, TBL_H + 0.001), mass=1.35, friction=0.7, meshes=_case_meshes())
-    OBJECTS += [SIDE_TABLE, UKULELE]
-if UKE and UKMODE == "stand":
-    UK_STAND = part("uke_stand", pos=(UX, UY, FLOOR), fixed=True, friction=0.8, boxes=_stand_boxes())
-    _cl, _sl = math.cos(UKE_LEAN), math.sin(UKE_LEAN)
-    _RL = np.array([[_cl, 0, _sl], [0, 1, 0], [-_sl, 0, _cl]])          # lean the neck back toward the music stand
-    _UM = [labkit.Mesh(points=m.points @ _RL.T, tris=m.tris, color=m.color, collide=m.collide) for m in _uke_meshes()]
-    UKULELE = part("ukulele", pos=(UX - 0.01, UY, UKE_BASE + 0.002), mass=0.38, friction=0.7, meshes=_UM)
-    OBJECTS += [UK_STAND, UKULELE]
-
+                      meshes=[labkit.Mesh(points=p, tris=t, color=c, collide=col)
+                              for (p, t, c, col) in MM.side_table(depth=TBL_D, height=TBL_H)])
+    _lid = float(os.environ.get("MS_CASELID", "270"))
+    CASE = part("uke_case", pos=(cx, UY, TBL_H + 0.001), mass=MM.CASE_MASS, friction=0.7,
+                meshes=[labkit.Mesh(points=p, tris=t, color=c, collide=col) for (p, t, c, col) in MM.case(_lid)])
+    UKULELE = part("ukulele", pos=(cx, UY, TBL_H + 0.001), mass=MM.UKE_MASS, friction=0.7, meshes=_uke_in_case_meshes())
+    OBJECTS += [SIDE_TABLE, CASE, UKULELE]
 _log: dict = {}
 
 
@@ -413,6 +312,29 @@ _log: dict = {}
 def _reset(env):
     _log.clear()
     _log.update(step=0, p0=None)
+
+
+@on_step
+def _linklog(env):
+    """Diagnostic (MS_LINKLOG=1): the simulator's own link poses of both arms and the ukulele and case poses, every step."""
+    if os.environ.get("MS_LINKLOG") != "1":
+        return
+    from yam_arena import runtime as _rt
+    o = env.unwrapped.scene.env_origins[0].cpu().numpy()
+    rec = {"step": _log.get("step", 0)}
+    for n in ("left_robot", "right_robot"):
+        rec[n] = {k: [round(float(x), 5) for x in np.r_[v[:3, 3] - o, v[:3, :3].reshape(-1)]]
+                  for k, v in _rt.link_poses(env.unwrapped.scene[n]).items()}
+    if UKE:
+        for key, prt in (("ukulele", UKULELE), ("case", CASE)):
+            st_ = labkit._part_state(env, prt)
+            rec[key] = [round(float(x), 5) for x in np.r_[np.asarray(st_.pos, float), st_.rotation().reshape(-1)]]
+    try:                                       # the stand's own bodies (root and every desk member)
+        rec["stand"] = {k: [round(float(x), 5) for x in np.r_[v[:3, 3] - o, v[:3, :3].reshape(-1)]]
+                        for k, v in _rt.link_poses(env.unwrapped.scene[STAND.name]).items()}
+    except Exception as exc:                   # diagnostic only; never affects the run
+        rec["stand_error"] = str(exc)[:80]
+    print("MSLINK " + json.dumps(rec), flush=True)
 
 
 @on_step
@@ -501,7 +423,7 @@ def _tube():
     # tube looking past it, not pressed against the black folded desk
     roll = math.radians(float(os.environ.get("MS_TUBEROLL", "0")))
     Rl = Orient(_Ry(math.radians(-90)) @ _D @ _Rz(roll))
-    tz = float(os.environ.get("MS_TUBEZ", "0.745" if UKE else "0.68"))     # grip above the ukulele's headstock
+    tz = float(os.environ.get("MS_TUBEZ", "0.748" if UKE else "0.68"))     # grip above the ukulele's headstock
     return np.array([SX, SY, FLOOR + tz]) - Rl.rot @ np.array([0.0, 0.0, TIP]), Rl
 
 
@@ -520,20 +442,66 @@ class _Track:
         self.to(t_end, pos, finger, label, rot)
 
 
+SIDEHOLD = os.environ.get("MS_SIDEHOLD", "0") == "1"
+HIGHAPPROACH = os.environ.get("MS_HIGHAPP", "1") == "1"   # lift, approach high, descend in front of the desk, then in
+SIDE_Y = 0.36          # side approach lane: outside the 485 mm desk and beyond both ends of the 620 mm case
+
+
+def _tube_side(s):
+    """Side grip on the stand tube for the arm on side s (+1 left, -1 right): the gripper points across (-s y), so the
+    hand and wrist stay beside the tube, beyond the end of the ukulele, instead of trailing back over it."""
+    Rl = Orient(_Rz(math.radians(-90 * s)) @ _Ry(math.radians(-90)) @ _D)
+    tz = float(os.environ.get("MS_TUBEZ", "0.745"))
+    return np.array([SX, SY, FLOOR + tz]) - Rl.rot @ np.array([0.0, 0.0, TIP]), Rl
+
+
+def _hold_in(T, t0, s, tube, Rt, label):
+    """Bring the holding hand to the tube. Front grip: straight in from the arms' side. Side grip: forward high on the
+    far side of the ukulele's end, down beside the tube, then in sideways."""
+    if not SIDEHOLD and HIGHAPPROACH:
+        lift = np.array([0.0, 0.0, 0.005])               # slide in 5 mm above the grip, settle at the tube
+        pre = tube + [-0.10, 0, 0] + lift                # fingertips 2 cm in front of the folded desk's ledge lips
+        hi_z = FLOOR + 0.95
+        cur = T.last[0] if np.ndim(T.last[0]) == 1 else T.last      # a track starts with a bare position
+        T.to(t0 + 0.8, (cur[0], cur[1], hi_z), OPEN_WIDE, label + " hand lifts first", Rt)
+        T.to(t0 + 1.8, (pre[0], pre[1], hi_z), OPEN_WIDE, "high over to the stand, above the grip", Rt)
+        T.to(t0 + 3.2, pre, OPEN_WIDE, "down slowly in front of the desk to tube height", Rt)
+        T.to(t0 + 4.4, tube + lift, OPEN_WIDE, "in slowly under the ledges, jaws either side of the tube", Rt)
+        T.to(t0 + 4.8, tube, OPEN_WIDE, "settle onto the grip height", Rt)
+        T.to(t0 + 5.3, tube, SQUEEZE, "hold the stand tube", Rt)
+        return
+    if not SIDEHOLD:
+        T.to(t0 + 2.0, tube + [-0.08, 0, 0], OPEN_WIDE, label + " hand in front of the stand tube", Rt)
+        T.to(t0 + 3.5, tube, OPEN_WIDE, "jaws either side of the tube", Rt)
+        T.to(t0 + 4.5, tube, SQUEEZE, "hold the stand tube", Rt)
+        return
+    T.to(t0 + 1.0, (SX, s * SIDE_Y, FLOOR + 0.93), OPEN_WIDE, label + " hand forward, high, outside the desk and the case", Rt)
+    T.to(t0 + 2.0, tube + [0, s * SIDE_Y, 0], OPEN_WIDE, "down to tube height outside the desk", Rt)
+    T.to(t0 + 3.2, tube + [0, s * 0.04, 0], OPEN_WIDE, "in sideways under the ledges", Rt)
+    T.to(t0 + 3.8, tube, OPEN_WIDE, "jaws either side of the tube", Rt)
+    T.to(t0 + 4.5, tube, SQUEEZE, "hold the stand tube", Rt)
+
+
 def _demo_both():
     """Both wings, one at a time: the free hand holds the stand tube while the other arm swings its own wing open."""
     parked_l, parked_r = (0.21, 0.28, 0.93), (0.21, -0.28, 0.93)
     tube, Rt = _tube()
+    if SIDEHOLD:
+        tube_l, Rt_l = _tube_side(+1)
+        tube_r, Rt_r = _tube_side(-1)
+    else:
+        tube_l, Rt_l, tube_r, Rt_r = tube, Rt, tube, Rt
     L, R = _Track(parked_l), _Track(parked_r)
     # phase A: left hand holds the tube, right arm opens the right wing
-    L.to(2.0, tube + [-0.08, 0, 0], OPEN_WIDE, "left hand in front of the stand tube", Rt)
-    L.to(3.5, tube, OPEN_WIDE, "jaws either side of the tube", Rt)
-    L.to(4.5, tube, SQUEEZE, "hold the stand tube", Rt)
+    _hold_in(L, 0.0, +1, tube_l, Rt_l, "left")
     p, Rr = _lip(-1, -90.0)
-    R.to(2.0, p + [-0.07, 0, 0], OPEN_WIDE, "right hand in front of the folded right wing", Rr)
-    R.to(3.5, p, OPEN_WIDE, "jaws either side of the right ledge lip", Rr)
-    R.to(4.5, p, 0.0, "pinch the right ledge lip", Rr)
-    t = 4.5
+    ha = HIGHAPPROACH and not SIDEHOLD                     # wait until the holding hand is down at the tube before going to the wing
+    if ha:
+        R.to(2.6, parked_r, 0.0, "stay parked while the left hand comes in high")
+    R.to(4.2 if ha else 2.0, p + [-0.07, 0, 0], OPEN_WIDE, "right hand in front of the folded right wing", Rr)
+    R.to(5.0 if ha else 3.5, p, OPEN_WIDE, "jaws either side of the right ledge lip", Rr)
+    R.to(5.6 if ha else 4.5, p, 0.0, "pinch the right ledge lip", Rr)
+    t = 5.7 if ha else 4.5
     for k, phi in enumerate((-72.0, -54.0, -36.0, -18.0, 0.0, 4.0)):
         t += 0.8
         p, Rr = _lip(-1, phi)
@@ -543,19 +511,28 @@ def _demo_both():
     R.to(t + 3.1, p + [-0.08, 0, 0], OPEN_WIDE, "back off", Rr)
     tA = t + 3.1
     L.hold(tA, "keep holding the tube")
-    L.to(tA + 0.6, tube, OPEN_WIDE, "let go of the tube", Rt)
-    L.to(tA + 1.6, (0.42, 0.22, 0.88), OPEN_WIDE, "move clear to the left", Rt)
+    L.to(tA + 0.6, tube_l, OPEN_WIDE, "let go of the tube", Rt_l)
+    if HIGHAPPROACH and not SIDEHOLD:
+        L.to(tA + 1.0, tube_l + [0, 0, 0.010], OPEN_WIDE, "rise 10 mm at the tube", Rt_l)
+        L.to(tA + 2.2, tube_l + [-0.10, 0, 0.012], OPEN_WIDE, "back out slowly under the ledges", Rt_l)
+        L.to(tA + 3.2, tube_l + [-0.10, 0, 0.95 - float(os.environ.get("MS_TUBEZ", "0.745"))], OPEN_WIDE, "straight up", Rt_l)
+        L.to(tA + 4.0, (0.36, 0.34, FLOOR + 0.95), OPEN_WIDE, "clear to the left, high and out of the other hand's way", Rt_l)
+    elif SIDEHOLD:
+        L.to(tA + 1.4, tube_l + [0, SIDE_Y, 0], OPEN_WIDE, "out sideways under the ledges", Rt_l)
+        L.to(tA + 2.0, (0.50, SIDE_Y, FLOOR + 0.90), OPEN_WIDE, "up and clear to the left", Rt_l)
+    else:
+        L.to(tA + 1.6, (0.42, 0.22, 0.88), OPEN_WIDE, "move clear to the left", Rt)
     # phase B: right hand holds the tube, left arm opens the left wing
-    tB = tA + 1.6
+    tB = tA + (4.0 if HIGHAPPROACH and not SIDEHOLD else 1.6)
     R.hold(tB, "wait")
-    R.to(tB + 2.0, tube + [-0.08, 0, 0], OPEN_WIDE, "right hand in front of the stand tube", Rt)
-    R.to(tB + 3.5, tube, OPEN_WIDE, "jaws either side of the tube", Rt)
-    R.to(tB + 4.5, tube, SQUEEZE, "hold the stand tube", Rt)
+    _hold_in(R, tB, -1, tube_r, Rt_r, "right")
     p, Rl = _lip(+1, 90.0)
-    L.to(tB + 2.0, p + [-0.07, 0, 0], OPEN_WIDE, "left hand in front of the folded left wing", Rl)
-    L.to(tB + 3.5, p, OPEN_WIDE, "jaws either side of the left ledge lip", Rl)
-    L.to(tB + 4.5, p, 0.0, "pinch the left ledge lip", Rl)
-    t = tB + 4.5
+    if ha:
+        L.hold(tB + 2.6, "stay out wide while the right hand comes in high")
+    L.to(tB + (4.2 if ha else 2.0), p + [-0.07, 0, 0], OPEN_WIDE, "left hand in front of the folded left wing", Rl)
+    L.to(tB + (5.0 if ha else 3.5), p, OPEN_WIDE, "jaws either side of the left ledge lip", Rl)
+    L.to(tB + (5.6 if ha else 4.5), p, 0.0, "pinch the left ledge lip", Rl)
+    t = tB + (5.7 if ha else 4.5)
     for k, phi in enumerate((72.0, 54.0, 36.0, 18.0, 0.0, -4.0)):
         t += 0.8
         p, Rl = _lip(+1, phi)
@@ -565,8 +542,16 @@ def _demo_both():
     L.to(t + 3.1, p + [-0.08, 0, 0], OPEN_WIDE, "back off", Rl)
     tC = t + 3.1
     R.hold(tC, "keep holding the tube")
-    R.to(tC + 0.6, tube, OPEN_WIDE, "let go of the tube", Rt)
-    R.to(tC + 1.6, tube + [-0.10, -0.05, 0.05], OPEN_WIDE, "back off", Rt)
+    R.to(tC + 0.6, tube_r, OPEN_WIDE, "let go of the tube", Rt_r)
+    if HIGHAPPROACH and not SIDEHOLD:
+        R.to(tC + 1.0, tube_r + [0, 0, 0.010], OPEN_WIDE, "rise 10 mm at the tube", Rt_r)
+        R.to(tC + 2.2, tube_r + [-0.10, 0, 0.012], OPEN_WIDE, "back out slowly under the ledges", Rt_r)
+        R.to(tC + 3.2, tube_r + [-0.10, 0, 0.95 - float(os.environ.get("MS_TUBEZ", "0.745"))], OPEN_WIDE, "straight up", Rt_r)
+    elif SIDEHOLD:
+        R.to(tC + 1.4, tube_r + [0, -SIDE_Y, 0], OPEN_WIDE, "out sideways under the ledges", Rt_r)
+        R.to(tC + 2.0, (0.50, -SIDE_Y, FLOOR + 0.90), OPEN_WIDE, "up and clear to the right", Rt_r)
+    else:
+        R.to(tC + 1.6, tube + [-0.10, -0.05, 0.05], OPEN_WIDE, "back off", Rt)
     R.to(tC + 4.0, parked_r, 0.0, "park")
     L.to(tC + 4.0, parked_l, 0.0, "park")
     R.hold(tC + 6.0, "hold")
@@ -660,13 +645,16 @@ def _eval(env):
         clear = 0.0                                        # fail closed: unknown hand position never earns credit
     um, ur = None, None
     if UKE:
-        us = labkit._part_state(env, UKULELE)
-        up, uR = np.asarray(us.pos, float), us.rotation()
-        if _log.get("u0") is None and _log.get("step", 0) >= 40:          # reference after the instrument has settled
-            _log["u0"] = (up.copy(), uR.copy())
-        if _log.get("u0") is not None:
-            um = float(np.linalg.norm(up - _log["u0"][0]))
-            ur = math.degrees(math.acos(float(np.clip((np.trace(_log["u0"][1].T @ uR) - 1) / 2, -1, 1))))
+        tracked = [("uke", UKULELE)] + ([("case", CASE)] if UKMODE == "case" else [])
+        for key, prt in tracked:                       # the ukulele and its case: largest move and turn of either
+            us = labkit._part_state(env, prt)
+            up, uR = np.asarray(us.pos, float), us.rotation()
+            if _log.get("u0_" + key) is None and _log.get("step", 0) >= 40:   # reference after settling
+                _log["u0_" + key] = (up.copy(), uR.copy())
+            if _log.get("u0_" + key) is not None:
+                m_ = float(np.linalg.norm(up - _log["u0_" + key][0]))
+                r_ = math.degrees(math.acos(float(np.clip((np.trace(_log["u0_" + key][1].T @ uR) - 1) / 2, -1, 1))))
+                um, ur = max(um or 0.0, m_), max(ur or 0.0, r_)
     return dict(j=j, tilt=tilt, xy=xy, wings=wings, clear=clear, pos=np.asarray(st.pos, float).copy(),
                 uke_moved=um, uke_rot=ur)
 
