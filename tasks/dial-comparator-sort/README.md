@@ -6,6 +6,32 @@ rest on the part. The dial is first zeroed on a 25.000 mm master block by turnin
 under the needle, and the master goes back to its yellow MASTER area. Each of three spacers that look alike is then read
 against that zero: within 25.00 +- 0.02 mm goes in the ACCEPT bin, the others in the REJECT bin.
 
+## Why this is Impact on jobs
+
+The task is one inspection cycle: set a comparator to a master, read each part as a deviation, accept or reject.
+
+| Occupation (O*NET-SOC) | US employment, O*NET 2025 | Core task, quoted from O*NET |
+|---|---|---|
+| Inspectors, Testers, Sorters, Samplers, and Weighers (51-9061.00) | 602,000 | "Measure dimensions of products to verify conformance to specifications, using measuring instruments, such as rulers, calipers, gauges, or micrometers." |
+| Machinists (51-4041.00) | 288,300 | "Measure, examine, or test completed units to check for defects and ensure conformance to specifications, using precision instruments, such as micrometers." |
+| Computer Numerically Controlled Tool Operators (51-9161.00) | 170,000 | "Measure dimensions of finished workpieces to ensure conformance to specifications, using precision measuring instruments, templates, and fixtures." |
+
+Inspectors and machinists together are 890,300 workers; with CNC tool operators, 1,060,300. The inspectors' O*NET task
+list also names the instrument: "Clean, maintain, calibrate, or repair measuring instruments or test equipment, such as
+dial indicators, fixed gauges, or height gauges."
+
+No public source counts how many of these workers use a comparator rather than another instrument, so the figures above
+are the size of the occupations whose core duty this is, not a count of comparator users. Why the comparator is a
+regular instrument for that duty: gaging "is the comparative process of determining whether a part is smaller or larger
+than a predetermined standard (or master part) ... the standard or master is brought to the gage and the gage is set to
+that size", and "gages tend to be used in high production areas" (G. Schuetz, Mahr Gaging Tips, "Measuring vs. Gaging").
+The same article says "it's not uncommon to see dial and digital indicators set up to act as comparative gages" by
+zeroing them to a master, which is the setup in this task.
+
+Sources: https://www.onetonline.org/link/details/51-9061.00 , https://www.onetonline.org/link/details/51-4041.00 ,
+https://www.onetonline.org/link/details/51-9161.00 ,
+https://metrology.mahr.com/en-int/gaging-tips/detail/measuring-vs-gaging-the-value-of-conserving-measuring-range
+
 ## Run a trial
 
 ```bash
